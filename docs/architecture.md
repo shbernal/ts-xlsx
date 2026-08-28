@@ -528,7 +528,14 @@ frontmatter.
 Drift between the two is a build error rather than a warning, which is the whole reason the
 mirror is generated: an unreachable page, a manifest entry with no file, a link that resolves
 to nothing, a missing heading, or markdown the site cannot compile each fail
-`node www/scripts/check.ts`, which runs in the `invariants` gate. ADR-0039.
+`node www/scripts/check.ts`, which runs in the `invariants` gate. Every runnable `ts` block
+under `docs/guide/` is executed by `www/scripts/check-samples.ts` in the same gate, against
+this commit's own `src/` rather than against whatever version happens to be installed.
+
+The site is served at <https://shbernal.github.io/ts-xlsx/> and is generated in CI, never
+committed: `.github/workflows/site.yml` builds it on every pull request and publishes it only
+from `master`. ADR-0039 records the arrangement, including the size budget declined on
+purpose.
 
 ## The VBA subsystem
 

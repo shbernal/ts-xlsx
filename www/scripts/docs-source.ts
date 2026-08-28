@@ -289,6 +289,10 @@ const TAG = /<\/?([A-Za-z][A-Za-z0-9-]*)/g;
 const NON_HTML_TAG = new RegExp(TAG.source);
 const CODE_SPAN = /(`+)[\s\S]*?\1/g;
 const COMMENT = /<!--[\s\S]*?-->/g;
+// `<https://example.com>` and `<name@example.com>`: markdown autolinks, which render as links
+// and never reach the Vue compiler as markup. They look exactly like an unclosed tag to the
+// scan below, and one in `docs/architecture.md` was the first thing this check reported.
+const AUTOLINK = /<[A-Za-z][A-Za-z0-9+.-]*:[^>\s]*>|<[^>\s@]+@[^>\s]+>/g;
 
 const blank = (text: string): string => text.replace(/[^\n]/g, ' ');
 
@@ -312,6 +316,7 @@ function withoutCode(source: string): string {
   return source
     .replace(COMMENT, blank)
     .replace(CODE_SPAN, blank)
+    .replace(AUTOLINK, blank)
     .replace(TAG, (whole, name: string) =>
       HTML_ELEMENTS.has(name.toLowerCase()) ? blank(whole) : whole,
     );

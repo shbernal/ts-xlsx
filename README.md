@@ -9,6 +9,8 @@
 A TypeScript-first library for reading and writing spreadsheet documents
 (`.xlsx` / OOXML, and CSV) — synchronous, `Uint8Array`-native, and dependency-lean.
 
+**[Documentation, guide and a browser playground](https://shbernal.github.io/ts-xlsx/)**
+
 > **Status — 1.0.0, the first release.**
 > `ts-xlsx` began as a hard fork of [ExcelJS](https://github.com/exceljs/exceljs)
 > and has been rebuilt from the ground up into a modern, strict-TypeScript library.

@@ -1,0 +1,76 @@
+name: Site
+
+# The website gate, and the only thing that publishes it.
+#
+# GitHub Pages on this repository is configured with source `workflow` rather than a branch,
+# so nothing is served except what a run of this file uploads. That is the property worth
+# having: a push cannot publish a tree by existing, and there is no branch whose contents are
+# silently the site.
+#
+# Two jobs, and the split is the point. `build` runs on every pull request and proves the site
+# is buildable without publishing anything, so a docs page that breaks the mirror goes red on
+# the PR rather than on master. `deploy` runs only on a push to master, and is gated three
+# times over: by its `if`, by `needs: build`, and by the `github-pages` environment, whose
+# deployment branch policy admits master alone. Three locks for one door is deliberate. The
+# workflow's own condition is the one a careless edit can remove.
+#
+# The site's base is `/ts-xlsx/` and it comes from `www/scripts/repo.ts`, not from a workflow
+# input. A url that depends on which job built it is a url that is wrong somewhere.
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ '**' ]
+
+# A queued run is only ever publishing the tip, so an older one in the queue has nothing to
+# say. In-progress runs are not cancelled: a half-finished upload is worse than a stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The drift gate: every docs page reachable, every link resolvable, every title
+      # derivable. A second before the build, and it names the file rather than the place a
+      # parser gave up.
+      - run: pnpm run site:check
+      # Every runnable sample in the guide, executed against this commit's own src/.
+      - run: pnpm run samples:check
+      - run: pnpm run typecheck:site
+      # Builds the mirror, the site, and then checks that no link in the output lost the
+      # base. `ignoreDeadLinks` is on and catches internal markdown links here too.
+      - run: pnpm run site:build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: www/.vitepress/dist
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # `pages: write` to publish and `id-token: write` because deploy-pages authenticates with
+    # the run's OIDC identity rather than with a stored credential. No secret is involved,
+    # which is why none is named here.
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

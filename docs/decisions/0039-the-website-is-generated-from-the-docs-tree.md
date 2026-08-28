@@ -4,11 +4,12 @@
 
 ## Context
 
-`docs/` is 247 markdown files: three hand-written top-level pages, 44 API pages generated
-from the public types (ADR-0006), 39 records under `decisions/`, and 161 behaviour notes
-under `knowledge/specs/` (ADR-0007). It is written for someone standing in a checkout. It
-carries no frontmatter, it links to its neighbours by relative path, and it links out to
-files a website would not publish, such as `CLAUDE.md` and `test/corpus/`.
+`docs/` is 256 markdown files: a guide, an architecture note, an agent playbook, a migration
+page, 44 API pages generated from the public types (ADR-0006), 39 records under `decisions/`,
+and 160 behaviour notes under `knowledge/specs/` (ADR-0007). It is written for someone
+standing in a checkout. It carries no frontmatter, it links to its neighbours by relative
+path, and it links out to files a website would not publish, such as `CLAUDE.md` and
+`test/corpus/`.
 
 A published site needs a different shape from all three of those: a title and description
 per page, links that resolve to routes, and a navigation order. The question is where that
@@ -33,20 +34,20 @@ nothing written, and it runs in the `invariants` gate of every `verify` in about
 
 **Navigation is a manifest, and coverage is total by construction.** `docs/docs.json`
 carries the reading order and nothing else. A group either names its pages, which is what
-puts three overview pages in the order a reader should meet them, or declares a `tree`,
+puts the guide in the order a reader should meet it, or declares a `tree`,
 which enumerates the rest of a directory in sorted order. Every `.md` under `docs/` must be
-claimed exactly once. That is what lets the manifest stay 30 lines while 247 pages remain
+claimed exactly once. That is what lets the manifest stay 30 lines while 256 pages remain
 reachable: a page added to `knowledge/specs/` appears in the sidebar, and a page added to a
 directory no group covers fails the build rather than being published unlinked.
 
 **No frontmatter schema, against both sibling repositories' practice.** Titles come from the
-first `#` heading, which all 247 pages already have, and a page without one throws.
+first `#` heading, which every page already has, and a page without one throws.
 Descriptions come from the first paragraph that contains a sentence terminator, which is the
 one test that separates an opening sentence from the three things that reliably precede one
 here: a `Cluster: images` metadata line, a `<sub>interface</sub>` marker on a generated API
-page, and a status line of dates and separators. One page in 247 never reaches prose, and it
+page, and a status line of dates and separators. One page in 256 never reaches prose, and it
 gets no description rather than an invented one; `check.ts` prints that list so the number
-cannot creep. Adding a schema to 247 files to serve a `<title>` tag would be a migration paid
+cannot creep. Adding a schema to 256 files to serve a `<title>` tag would be a migration paid
 for by every page written afterwards, and it would buy checkability that the derivation
 already has.
 
@@ -56,11 +57,45 @@ than being renamed to `index.md`. That keeps a page's path below the site root i
 its path in the repository, which is what lets the theme's edit link point at the tracked
 file with no mapping table of its own.
 
+## Where it is served, and what publishes it
+
+`https://shbernal.github.io/ts-xlsx/`, from `.github/workflows/site.yml`. Pages on this
+repository is configured with source `workflow` rather than a branch, so nothing is served
+except what a run of that file uploads: a push cannot publish a tree by existing, and there
+is no branch whose contents are silently the site.
+
+**The site is generated in CI and never committed.** A built site in the repository would be
+a second copy of every page, reviewed by nobody, in a diff that buries the change that
+produced it. Generating it in the job that publishes it means the only artefact anyone reads
+is the source.
+
+The build job runs on every pull request and publishes nothing, so a docs page that breaks
+the mirror goes red on the branch rather than on `master`. The deploy job is gated three
+times: by its own `if`, by `needs: build`, and by the `github-pages` environment, whose
+deployment branch policy admits `master` alone. Three locks for one door on purpose, because
+the workflow's own condition is the one a careless edit can remove.
+
+**External links are not checked, and should not be.** `ignoreDeadLinks` is off, so every
+internal link is checked at build time. A checker that hits the network would turn someone
+else's outage into a red build here, which teaches people to rerun a job rather than to read
+it. If external rot becomes a problem it is a scheduled job that opens an issue, not a build
+gate.
+
+**A link in the output is checked too, not only in the source.** VitePress adds the site's
+base to the target of a markdown link and leaves hand-written HTML alone, so a raw
+`<a href="/docs/guide/">` works on every developer's machine and 404s in production, with
+`ignoreDeadLinks` blind to it because it reads markdown. `www/scripts/check-built-links.ts`
+reads the built HTML instead and fails on any internal url that does not carry the base. It
+is the one check that needs the site built, so it runs at the end of `site:build` rather than
+in the invariants gate.
+
 ## Consequences
 
-**Two dev dependencies and 158 packages.** `vitepress` and `vue`, neither of which the
-library ships. esbuild's postinstall is approved in `pnpm-workspace.yaml` because Vite cannot
-transform anything without its platform binary.
+**Three dev dependencies.** `vitepress`, `vue` and `shiki`, none of which the library ships.
+`shiki` is already in the tree under `vitepress`; naming it directly is what lets the site
+highlight the playground's own source and the home page's quick start at build time, so no
+highlighter reaches the bundle. esbuild's postinstall is approved in `pnpm-workspace.yaml`
+because Vite cannot transform anything without its platform binary.
 
 **One more gate.** `site:check` joins `invariants`, which is where the sub-second whole-tree
 checks live. It is not the site build: the build is half a minute and pulls in Vite, and
@@ -73,13 +108,26 @@ the continuation line starts with `<`, which markdown keeps as code and the Vue 
 not. Three pages carried one of these and were reflowed. Inline code is rendered with `v-pre`
 so a `{{ ... }}` inside it stays literal, which the note on template placeholders needs.
 
-**The site gets no size budget.** `scripts/size-budget.ts` guards what a consumer installs,
-where a byte is a byte someone did not ask for. A documentation site is not installed, and
-its largest artefact by far is a 1.5 MB local search index over 247 pages that is fetched
-only when a reader opens search. A budget there would report on the size of the
-documentation, which is not a thing we want to hold down. Declined on purpose. Vite's own
-500 kB chunk warning is raised to 2000 kB for the same reason, and only to just above what
-that index costs, so the next chunk to cross the line still says so.
+**The site gets no size budget.** Declined, not deferred.
+
+`scripts/size-budget.ts` guards what a consumer installs, where a byte is paid for by every
+dependant and a ratchet is the only thing that stops slow growth. The site is downloaded by a
+reader who chose to open it, over a link, once. A budget there would gate a build on a number
+nobody is harmed by, and the first time it failed it would be edited rather than obeyed,
+which is worse than not having it: a gate people learn to raise teaches that every gate is
+negotiable.
+
+What replaces it is cheaper and more honest. `vitepress build` prints the chunk sizes on
+every run, so growth is visible to anyone who looks, and the numbers are on the record: the
+playground chunk, which holds the whole library and `fflate`, is 331 KB and 92 KB gzipped,
+and is fetched only when that page's component mounts. If the playground ever becomes the
+reason someone closes the tab, that is a bug with a symptom, and it gets fixed on its own
+terms.
+
+Do not add the site to the package budget under any framing. The two numbers mean different
+things, and one script reporting both would blur that. Vite's own 500 kB chunk warning is
+raised to 2000 kB for the same reason, and only to just above what the local search index
+over the whole docs tree costs, so the next chunk to cross the line still says so.
 
 **A generated tree is not scanned twice.** charcheck's markdown rule takes `www/*.md`, one
 level deep, because `www/docs/` is a copy of a tree the same rule already reads. The mirror
