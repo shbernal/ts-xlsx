@@ -39,7 +39,28 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   already took this stance for a font size; the rest of the write path now shares it, and the
   shared numeric-attribute helper `attr` is renamed `numAttr` to sit beside `boolAttr`.
 
+- **`DEFAULT_THEME_COLOR_SCHEME` is typed as a complete record, not a partial one.** It declares
+  every `ThemeColorSlot` and always did, so indexing it no longer yields `string | undefined` and no
+  longer needs an assertion at the use site. Nothing about the value changed.
+
 ### Fixed
+
+- **A row or column insert no longer pushes a region off the edge of the grid.** A whole column is
+  written bounded, `B1:B1048576`, which is the spelling Excel itself writes, so a validation, a
+  conditional format, an autofilter or a merge anchored to the last row had its bottom edge shifted
+  past the end of the grid by an insert above it: `sqref="B1:B1048578"`, naming rows that cannot
+  exist. `OpenXmlValidator` passes such a package; Excel meets it with the "we found a problem with
+  some content" repair prompt, where the same workbook with its edges inside the grid opens clean.
+  Every re-anchoring pass now clamps to the axis's last line, which is what Excel does to the same
+  region on the same edit. See
+  `docs/knowledge/specs/a-splice-must-not-push-geometry-off-the-grid.md`.
+
+- **A streamed `getCell` into an already-committed row is refused instead of emitting a duplicate
+  row.** An eager `WorksheetStreamWriter` renders a committed row and releases its cells; addressing
+  a cell in that row re-materialised it in the model, and the commit then wrote a second `<row>`
+  carrying the same number, leaving the sheet saying two contradictory things about one row. It now
+  throws `AuthoringError` at the call, in the same shape as the shared-formula refusal beside it.
+  Rows never committed stay writable as before.
 
 - **A self-closing `<t/>`, `<text/>`, `<xm:f/>` or `<totalsRowFormula/>` can no longer leave a text
   capture latched.** Nine parsers gathered an element's character data across the open/text/close
