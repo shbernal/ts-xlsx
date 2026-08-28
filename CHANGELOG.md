@@ -12,6 +12,35 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-08-28
+
+The package root bundles for a browser now, and that is the change the rest of this release
+orbits.
+
+**Read the five breaks below before upgrading.** They land under a minor version number, which
+is not what [ADR-0015](docs/decisions/0015-publishing-name-semver-and-first-version.md) §2 asks
+for: each of them is a public API change and the policy calls for a major. None is a redesign,
+and each is a place the library was accepting something it could not honour. But the version
+number will not warn you the way it is supposed to, so this list has to.
+
+- **`WorkbookStreamWriter`, `WorksheetStreamWriter`, `StreamedRow` and their options now come
+  from `@shbernal/ts-xlsx/node`.** Importing them from the package root no longer resolves.
+  That import is the only thing that has to change: the classes, their sink options and
+  `writer.stream` are untouched.
+- **`CsvWriteOptions.encoding` is `CsvEncoding`, not Node's `BufferEncoding`.** `base64` and
+  `hex` are gone, having never been output encodings for a text format. The bytes written for
+  every remaining spelling are unchanged.
+- **An out-of-enumeration token is refused at the write and dropped at the read.** Page setup,
+  data validation, conditional formatting, sheet and window visibility, and two-cell image
+  anchors now throw `AuthoringError` naming the offending value, where such a value used to be
+  interpolated raw into the document.
+- **`ConditionalFormattingRule`'s `type`, `operator`, `timePeriod` and `iconSet` are closed
+  unions,** not `string`. A rule type the library does not model in depth still round-trips.
+- **A `NaN` or an infinity is refused wherever it can reach an OOXML numeric attribute,**
+  instead of producing a package Excel reports as damaged.
+
+Everything else here is a fix or an internal change. The sections below carry the detail.
+
 ### Changed
 
 - **BREAKING: the package entry no longer reaches a Node built-in, and the streaming writer moved
@@ -952,7 +981,8 @@ author a new one ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round
   table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
   (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
 
-[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/shbernal/ts-xlsx/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/shbernal/ts-xlsx/compare/v1.3.1...v2.0.0
 [1.3.1]: https://github.com/shbernal/ts-xlsx/compare/v1.2.0...v1.3.1
 [1.2.0]: https://github.com/shbernal/ts-xlsx/compare/v1.1.0...v1.2.0
