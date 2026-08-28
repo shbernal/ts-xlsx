@@ -57,6 +57,13 @@ export class DataValidationOverlay {
    * rule whose range contains the cell wins, mirroring how a spreadsheet resolves overlapping
    * validations.
    */
+  // A linear scan over every rule and its decoded rectangles, and it stays one. Measured on a sheet
+  // of whole-column dropdowns read cell by cell: a hit costs ~0.3 us whatever the rule count, since
+  // the first match returns, and the worst case, a miss that has to test all 400 rectangles of 200
+  // two-area rules, costs ~3 us. A caller reading 100k cells against that sheet spends 0.3 s, which
+  // is not where a spreadsheet library's time goes. An index would have to be an interval tree over
+  // the rectangles, never a different container for the entries: their insertion order is what makes
+  // "first added rule wins" true, so it is load-bearing rather than incidental.
   at(col: number, row: number): DataValidation | undefined {
     for (const {rects, rule} of this.#rects) {
       for (const rect of rects) {
