@@ -360,86 +360,11 @@ test('parseVbaProject throws VbaParseError on a corrupt dir stream', () => {
   assert.throws(() => parseVbaProject(bin.subarray(0, 900)), VbaParseError);
 });
 
-// ── CFB writer (§2.3a): writeCompoundFile ────────────────────────────────────────────────────────────
+// ── CFB writer (§2.3a): the encoder inside a VBA project ────────────────────────────────
 
-// Navigate the directory as a host does, from the Root Entry's child down each storage's balanced
-// tree, collecting stream paths. Independent of CompoundFile, which linear-scans the directory and so
-// would pass even over a broken tree; this asserts the tree Excel actually walks is a valid, acyclic
-// search tree that reaches every entry.
-function treeReachableStreams(bin: Uint8Array): string[] {
-  const dv = new DataView(bin.buffer, bin.byteOffset, bin.byteLength);
-  const at = (s: number): number => (s + 1) * 512;
-  const dirStart = dv.getUint32(48, true);
-  const NO = 0xffffffff;
-  const entry = (i: number) => {
-    const o = at(dirStart) + i * 128;
-    const len = dv.getUint16(o + 64, true) / 2 - 1;
-    let name = '';
-    for (let k = 0; k < len; k++) name += String.fromCharCode(dv.getUint16(o + k * 2, true));
-    return {
-      name,
-      type: bin[o + 66] as number,
-      left: dv.getUint32(o + 68, true),
-      right: dv.getUint32(o + 72, true),
-      child: dv.getUint32(o + 76, true),
-    };
-  };
-  const out: string[] = [];
-  const seen = new Set<number>();
-  const walk = (idx: number, prefix: string): void => {
-    if (idx === NO) return;
-    if (seen.has(idx)) throw new Error('cycle in directory tree');
-    seen.add(idx);
-    const e = entry(idx);
-    walk(e.left, prefix);
-    if (e.type === 2) out.push(`${prefix}/${e.name}`);
-    if (e.type === 1) walk(e.child, `${prefix}/${e.name}`);
-    walk(e.right, prefix);
-  };
-  walk(entry(0).child, '');
-  return out;
-}
-
-test('writeCompoundFile round-trips mixed small, large, and empty streams through the reader', () => {
-  const small = new Uint8Array(100).map((_, i) => i & 0xff);
-  const large = new Uint8Array(9000).map((_, i) => (i * 7 + 3) & 0xff); // > 4096 cutoff → regular FAT
-  const empty = new Uint8Array(0);
-  const bin = writeCompoundFile([
-    {name: 'small', data: small},
-    {name: 'big', data: large},
-    {name: 'empty', data: empty},
-  ]);
-  const cfb = new CompoundFile(bin);
-  assert.deepEqual(cfb.readStream('small'), small);
-  assert.deepEqual(
-    cfb.readStream('big'),
-    large,
-    'a stream past the mini cutoff round-trips via the regular FAT',
-  );
-  assert.deepEqual(cfb.readStream('empty'), empty);
-});
-
-test('writeCompoundFile nests streams inside a storage and keeps the tree navigable', () => {
-  const bin = writeCompoundFile([
-    {name: 'PROJECT', data: strToU8('ID="x"')},
-    {
-      name: 'VBA',
-      children: [
-        {name: 'dir', data: Uint8Array.from([1, 2, 3])},
-        {name: 'Module1', data: Uint8Array.from([4, 5, 6])},
-      ],
-    },
-  ]);
-  const cfb = new CompoundFile(bin);
-  assert.deepEqual(cfb.readStream('dir'), Uint8Array.from([1, 2, 3]));
-  assert.deepEqual(cfb.readStream('Module1'), Uint8Array.from([4, 5, 6]));
-
-  assert.deepEqual(
-    treeReachableStreams(bin).sort(),
-    ['/PROJECT', '/VBA/Module1', '/VBA/dir'],
-    'modules resolve under the VBA storage by tree navigation, not only by linear scan',
-  );
-});
+// The encoder's own properties (sector layout, the sibling tree, the name and size bounds) are
+// asserted in `cfb-writer.test.ts`, against the bytes. What belongs here is the join: that a project
+// packaged through the production writer is one the production parser reads back.
 
 test('writeCompoundFile produces a container parseVbaProject decodes', () => {
   // Build the VBA-project stream set from the same fixture bytes, but package it through the production
@@ -461,30 +386,6 @@ test('writeCompoundFile produces a container parseVbaProject decodes', () => {
     ['ThisWorkbook', 'Module1', 'Class1'],
   );
   assert.equal(project.codePage, 1251);
-  assert.deepEqual(
-    treeReachableStreams(bin)
-      .filter((p) => p.startsWith('/VBA/'))
-      .sort(),
-    ['/VBA/Class1', '/VBA/Module1', '/VBA/ThisWorkbook', '/VBA/dir'],
-  );
-});
-
-test('writeCompoundFile rejects an over-long stream name fail-closed', () => {
-  assert.throws(
-    () => writeCompoundFile([{name: 'x'.repeat(32), data: new Uint8Array(1)}]),
-    VbaAuthorError,
-  );
-});
-
-test('writeCompoundFile rejects duplicate sibling names', () => {
-  assert.throws(
-    () =>
-      writeCompoundFile([
-        {name: 'dup', data: new Uint8Array(1)},
-        {name: 'dup', data: new Uint8Array(2)},
-      ]),
-    VbaAuthorError,
-  );
 });
 
 // ── Workbook integration + round-trip non-regression ─────────────────────────────────────────────────
@@ -836,6 +737,17 @@ function buildProjectwmStream(names: readonly string[]): Uint8Array {
   return Uint8Array.from(b);
 }
 
+// Flatten what `CompoundFile.tree()` reaches into `/storage/stream` paths. `tree()` walks the sibling
+// tree a host navigates rather than the linear directory scan `names()` uses, so a stream the editors
+// unlinked but left in place does not appear here.
+function streamPaths(nodes: readonly CfbNode[], prefix = ''): string[] {
+  return nodes.flatMap((node) =>
+    'data' in node
+      ? [`${prefix}/${node.name}`]
+      : streamPaths(node.children, `${prefix}/${node.name}`),
+  );
+}
+
 // Package a project through the *production* CFB writer so it has the navigable red-black sibling tree
 // the removeVbaModule/addVbaReference editors walk (buildVbaProjectBin leaves those links null, fine for
 // the linear-scan reader, but the editors rebuild the tree). Optionally append raw dir records (e.g. a
@@ -948,7 +860,7 @@ test('removeVbaModule removes a procedural module, preserving references and unt
   );
 
   assert.deepEqual(
-    treeReachableStreams(removed).sort(),
+    streamPaths(new CompoundFile(removed).tree()).sort(),
     ['/PROJECT', '/PROJECTwm', '/VBA/Class1', '/VBA/ThisWorkbook', '/VBA/_VBA_PROJECT', '/VBA/dir'],
     'the removed module no longer resolves under the VBA storage by tree navigation',
   );
