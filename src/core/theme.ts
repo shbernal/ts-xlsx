@@ -39,6 +39,13 @@ export const THEME_COLOR_SLOTS = [
 /** One slot of a theme's colour scheme. */
 export type ThemeColorSlot = (typeof THEME_COLOR_SLOTS)[number];
 
+const THEME_COLOR_SLOT_NAMES: ReadonlySet<string> = new Set<string>(THEME_COLOR_SLOTS);
+
+/** Narrow a raw `<a:clrScheme>` child name to a known {@link ThemeColorSlot}. */
+export function isThemeColorSlot(value: string): value is ThemeColorSlot {
+  return THEME_COLOR_SLOT_NAMES.has(value);
+}
+
 /**
  * A theme's colour scheme: each slot's colour as a 6-hex `RRGGBB` string. Partial because a foreign
  * theme is free to omit a slot (or express one in a colour model this reader does not decode), and an
@@ -47,7 +54,10 @@ export type ThemeColorSlot = (typeof THEME_COLOR_SLOTS)[number];
 export type ThemeColorScheme = Readonly<Partial<Record<ThemeColorSlot, string>>>;
 
 /** The Office default colour scheme, matching the theme part the writer emits for a workbook with none. */
-export const DEFAULT_THEME_COLOR_SCHEME: ThemeColorScheme = {
+// Typed as a complete record rather than a `ThemeColorScheme`: this scheme declares every slot, and
+// saying so is what lets a consumer index it without an assertion. A slot added to the union without
+// a colour here is a compile error, which is the point.
+export const DEFAULT_THEME_COLOR_SCHEME: Readonly<Record<ThemeColorSlot, string>> = {
   lt1: 'FFFFFF',
   dk1: '000000',
   lt2: 'E7E6E6',

@@ -15,6 +15,7 @@
 
 import {
   DEFAULT_THEME_COLOR_SCHEME,
+  isThemeColorSlot,
   normalizeThemeColor,
   type ThemeColorScheme,
   type ThemeColorSlot,
@@ -48,7 +49,8 @@ export function parseThemeColorScheme(themeXml: string): ThemeColorScheme {
   if (block === null) return {};
   const scheme: {-readonly [K in ThemeColorSlot]?: string} = {};
   for (const match of (block[1] ?? '').matchAll(SCHEME_SLOT)) {
-    const slot = match[1] as ThemeColorSlot;
+    const slot = match[1];
+    if (slot === undefined || !isThemeColorSlot(slot)) continue;
     const attrs = match[3] ?? '';
     // A sysClr's `val` is a system-colour name ("windowText"), not a colour. Its `lastClr` is the
     // concrete value the authoring application last resolved that name to, and is the only thing here
@@ -122,8 +124,7 @@ export function applyThemeOverrides(baseXml: string, overrides: ThemeOverrides):
       const inner =
         authored !== undefined
           ? `<a:srgbClr val="${normalizeThemeColor(authored)}"/>`
-          : (sourceElements[slot] ??
-            `<a:srgbClr val="${DEFAULT_THEME_COLOR_SCHEME[slot] as string}"/>`);
+          : (sourceElements[slot] ?? `<a:srgbClr val="${DEFAULT_THEME_COLOR_SCHEME[slot]}"/>`);
       return `<a:${slot}>${inner}</a:${slot}>`;
     }).join('');
     xml = replaceBlockBody(xml, 'clrScheme', body);
@@ -148,7 +149,8 @@ function parseThemeColorElements(
   const pattern =
     /<a:(dk1|lt1|dk2|lt2|accent[1-6]|hlink|folHlink)>([\s\S]*?)<\/a:\1>|<a:(dk1|lt1|dk2|lt2|accent[1-6]|hlink|folHlink)\/>/g;
   for (const match of (block[1] ?? '').matchAll(pattern)) {
-    const slot = (match[1] ?? match[3]) as ThemeColorSlot;
+    const slot = match[1] ?? match[3];
+    if (slot === undefined || !isThemeColorSlot(slot)) continue;
     const inner = match[2];
     if (inner !== undefined && inner !== '') elements[slot] = inner;
   }

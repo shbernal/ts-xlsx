@@ -13,6 +13,7 @@
 // incomplete model; it never crashes the reader.
 
 import {
+  isDeclarablePivotSourceKind,
   type ParsedPivotField,
   type ParsedPivotSource,
   type ParsedPivotTable,
@@ -129,19 +130,12 @@ function parsePivotTableDefinition(tableXml: string): {
   return {name, cacheId, rowFields, columnFields, valueField, valueCaption, metric};
 }
 
-const SOURCE_KINDS: ReadonlySet<PivotSourceKind> = new Set<PivotSourceKind>([
-  'worksheet',
-  'external',
-  'consolidation',
-  'scenario',
-]);
-
 /** Map a `<cacheSource type>` to a known kind. Absent reads as `worksheet` (the spec default and what
  * our writer emits); an unrecognised value reads as `unknown` rather than throwing, keeping the read
  * lenient while still telling a consumer the declared source is not one we model. */
 function sourceKind(type: string | undefined): PivotSourceKind {
   if (type === undefined) return 'worksheet';
-  return SOURCE_KINDS.has(type as PivotSourceKind) ? (type as PivotSourceKind) : 'unknown';
+  return isDeclarablePivotSourceKind(type) ? type : 'unknown';
 }
 
 /** Parse a non-negative field index attribute, or -1 when it is absent or not a whole number, so a

@@ -646,5 +646,12 @@ The stack is deliberately small and each choice is recorded as an ADR under
   unrecognised token is *dropped*, leaving the facet unset, rather than cast in with `as`.
   The reader's posture is *skip, never guess*: a malformed token yields absence, not a
   bogus value the rest of the code will trust. See ADR-0004 for the read path this serves.
+  Nothing gates this the way `check-layering.ts` gates the import graph, and the closest
+  candidate is declined on the record: `no-unsafe-type-assertion` finds 50 in `src/`, 45 of
+  them `arr[i] as T` escapes that `noUncheckedIndexedAccess` and the ban on `x!` force, and it
+  cannot tell one of those from a token. This rule is enforced by review, so a guard is what a
+  reviewer looks for; the enumerations each carry one (`isCustomFilterOperator`, `isVisibility`,
+  `isThemeColorSlot`, `isDeclarablePivotSourceKind`), keyed off a `Record` over the union where
+  the compiler can then refuse an omitted member.
 - **No half-migrations on main.** Each change is fully green, meaning typed, linted, tested and
   corpus-passing, and leaves the tree better than it found it.

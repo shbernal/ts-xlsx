@@ -78,6 +78,7 @@ type GradientDraft = {
 const BORDER_EDGE_NAMES = ['left', 'right', 'top', 'bottom', 'diagonal'] as const;
 type BorderEdgeName = (typeof BORDER_EDGE_NAMES)[number];
 const BORDER_EDGES = new Set<string>(BORDER_EDGE_NAMES);
+const isBorderEdgeName = (name: string): name is BorderEdgeName => BORDER_EDGES.has(name);
 
 // Style-table elements that commit on their close: a bare <font/>/<border/>/<patternFill/>/
 // <gradientFill/>/<xf/> or a self-closing border edge is expanded to open+close so each commits
@@ -302,9 +303,9 @@ function parseBorders(events: Iterator<XmlEvent>): ReadonlyArray<Border | undefi
         // A border's edges and their <color> children are all read on open (each is self-closing bar a
         // coloured edge, whose colour child is itself self-closing). An edge whose style is absent or
         // an unrecognised token is dropped: the side simply carries no border.
-        if (BORDER_EDGES.has(local)) {
+        if (isBorderEdgeName(local)) {
           if (attrs.style !== undefined && isBorderStyle(attrs.style)) {
-            currentEdge = local as BorderEdgeName;
+            currentEdge = local;
             borderDraft[currentEdge] = {style: attrs.style};
           } else {
             currentEdge = null;

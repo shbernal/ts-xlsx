@@ -162,6 +162,16 @@
     // a caught error into a crash.
     "typescript/no-unnecessary-condition": "off",
 
+    // 50, and it is the closest thing to a mechanical gate for the architecture doc's rule that "an
+    // enumerated attribute read from a file is admitted only through a type guard [...] rather than
+    // cast in with `as`". It does not gate that: the rule holds today (every such token goes through
+    // an `is*` guard, and the assertions that remain are not tokens at all), while 45 of the 50 are
+    // `arr[i] as T` under `noUncheckedIndexedAccess`, which is the shape `no-non-null-assertion`
+    // above forces by banning `x!`. Enabling it would demand suppressions on the escapes this config
+    // already chose and still not distinguish a foreign token from an index. The guard rule stays
+    // enforced by review, which is stated in `docs/architecture.md` next to the rule itself.
+    "typescript/no-unsafe-type-assertion": "off",
+
     // 42. It asks for `x!` where a cast only removes null/undefined, which is exactly what
     // `no-non-null-assertion` above forbids. Two enabled rules cannot demand and ban the same
     // construct.

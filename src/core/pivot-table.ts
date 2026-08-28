@@ -78,6 +78,23 @@ export interface ParsedPivotField {
  * `unknown` covers a `type` the file declares that is none of these. */
 export type PivotSourceKind = 'worksheet' | 'external' | 'consolidation' | 'scenario' | 'unknown';
 
+// Keyed by the union minus `unknown`, so the compiler refuses a foreign key and an omitted member
+// alike. `unknown` is this library's word for a token it did not recognise and is never one a file
+// declares, so admitting it here would let the very token the guard exists to catch through.
+const DECLARABLE_PIVOT_SOURCE_KINDS: Record<Exclude<PivotSourceKind, 'unknown'>, true> = {
+  worksheet: true,
+  external: true,
+  consolidation: true,
+  scenario: true,
+};
+
+/** Narrow a raw `<cacheSource type>` token to a {@link PivotSourceKind} a file may declare. */
+export function isDeclarablePivotSourceKind(
+  value: string,
+): value is Exclude<PivotSourceKind, 'unknown'> {
+  return Object.hasOwn(DECLARABLE_PIVOT_SOURCE_KINDS, value);
+}
+
 /** Where a pivot cache draws its rows from. {@link kind} names the source type; {@link sheet} and
  * {@link ref} locate the range only when it is `worksheet` and are empty strings otherwise, so a
  * consumer can tell a genuinely non-worksheet source apart from a worksheet source that failed to

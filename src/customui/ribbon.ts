@@ -143,26 +143,34 @@ export interface CustomUiDocument {
 // bound is unreachable by any legitimate document.
 const MAX_DEPTH = 256;
 
-const KNOWN_KINDS: ReadonlySet<string> = new Set<RibbonControlKind>([
-  'button',
-  'toggleButton',
-  'checkBox',
-  'editBox',
-  'dropDown',
-  'comboBox',
-  'gallery',
-  'menu',
-  'dynamicMenu',
-  'splitButton',
-  'buttonGroup',
-  'box',
-  'labelControl',
-  'separator',
-  'menuSeparator',
-  'dialogBoxLauncher',
-  'control',
-  'item',
-]);
+// Keyed by the union minus `unknown`, so the compiler refuses a foreign key and an omitted member
+// alike, which a `Set<RibbonControlKind>` cannot: `unknown` is this reader's word for an element it
+// did not recognise, never one a part declares, and a member left out of a set is simply absent.
+const KNOWN_KINDS: Record<Exclude<RibbonControlKind, 'unknown'>, true> = {
+  button: true,
+  toggleButton: true,
+  checkBox: true,
+  editBox: true,
+  dropDown: true,
+  comboBox: true,
+  gallery: true,
+  menu: true,
+  dynamicMenu: true,
+  splitButton: true,
+  buttonGroup: true,
+  box: true,
+  labelControl: true,
+  separator: true,
+  menuSeparator: true,
+  dialogBoxLauncher: true,
+  control: true,
+  item: true,
+};
+
+/** Narrow a raw element's local name to a {@link RibbonControlKind} this reader models. */
+function isKnownControlKind(local: string): local is Exclude<RibbonControlKind, 'unknown'> {
+  return Object.hasOwn(KNOWN_KINDS, local);
+}
 
 // A minimal element node built from the SAX event stream: enough to walk the small customUI tree
 // without a general-purpose DOM dependency. `name` keeps the qualified form so namespace resolution can
@@ -239,9 +247,7 @@ function toGroup(groupEl: RawElement): RibbonGroup {
 }
 
 function toControl(el: RawElement): RibbonControl {
-  const kind: RibbonControlKind = KNOWN_KINDS.has(el.local)
-    ? (el.local as RibbonControlKind)
-    : 'unknown';
+  const kind: RibbonControlKind = isKnownControlKind(el.local) ? el.local : 'unknown';
   return {
     kind,
     ...identity(el.attrs),
