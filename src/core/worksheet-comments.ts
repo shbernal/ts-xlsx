@@ -81,7 +81,7 @@ export class WorksheetComments {
       const {col, row} = decodeCellRef(thread.ref);
       const line = axis === 'row' ? row : col;
       if (isDeletedSpan(line, line, start, count)) continue;
-      const moved = shiftIndex(line, start, count, delta);
+      const moved = shiftIndex(line, start, count, delta, axis);
       if (moved === line) {
         survivors.push(thread);
         continue;

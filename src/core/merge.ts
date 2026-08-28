@@ -115,8 +115,8 @@ function shiftSqrefArea(
   // after a row insert is still `B:B`, never `B2:B1048577`.
   if (lo === undefined || hi === undefined) return area;
   if (isDeletedSpan(lo, hi, start, count)) return undefined;
-  const movedLo = shiftIndex(lo, start, count, delta);
-  const movedHi = shiftIndex(hi, start, count, delta);
+  const movedLo = shiftIndex(lo, start, count, delta, axis);
+  const movedHi = shiftIndex(hi, start, count, delta, axis);
   if (movedLo === lo && movedHi === hi) return area;
   const [tl, br] =
     axis === 'row'

@@ -725,6 +725,45 @@ export const grid = {
     };
   },
 
+  // Anchor a whole-column validation, a full-height conditional format, a full-height autofilter and a
+  // merge on the very last rows, then insert rows above them, write, and read the package back → the
+  // edges the reloaded file reports, on both axes. A whole column is written bounded to the last row
+  // (that is what Excel writes), so every one of these regions starts on the grid's edge and an insert
+  // above it has nowhere to push the edge to. A file naming a row past the last one opens in Excel
+  // with its repair prompt, so no edge here may exceed the grid.
+  spliceHoldsGeometryInsideTheGrid() {
+    const LAST_ROW = 1_048_576;
+    const rowAxis = new Workbook();
+    const rows = rowAxis.addWorksheet('S');
+    rows.getCell('A1').value = 'top';
+    rows.addDataValidation(`B1:B${LAST_ROW}`, {type: 'list', formulae: ['"a,b,c"']});
+    rows.addConditionalFormatting({
+      ref: `C1:C${LAST_ROW}`,
+      rules: [{type: 'dataBar', priority: 1}],
+    });
+    rows.autoFilter = `A1:A${LAST_ROW}`;
+    rows.mergeCells(`E${LAST_ROW - 1}:F${LAST_ROW}`);
+    rows.spliceRows(2, 0, ['inserted'], ['also']);
+
+    const colAxis = new Workbook();
+    const cols = colAxis.addWorksheet('S');
+    cols.getCell('A1').value = 'left';
+    cols.addDataValidation('A1:XFD1', {type: 'list', formulae: ['"a,b,c"']});
+    cols.autoFilter = 'A2:XFD2';
+    cols.spliceColumns(2, 0, ['inserted']);
+
+    const reread = (wb: WorkbookInstance) => {
+      const s = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+      return {
+        validationRefs: s.dataValidations.map((entry) => entry.sqref),
+        formattingRefs: s.conditionalFormattings.map((entry) => entry.ref),
+        autoFilterRef: s.autoFilter?.ref ?? null,
+        merges: [...s.merges],
+      };
+    };
+    return {rows: reread(rowAxis), columns: reread(colAxis)};
+  },
+
   // Anchor a data validation, a conditional format, a comment thread and an autofilter over the same
   // block, splice the row axis, write, and read the package back → the anchors as the reloaded file
   // reports them, beside the cell the moved content landed on. `inserted` puts a row above the block;

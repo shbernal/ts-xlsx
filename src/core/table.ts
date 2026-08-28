@@ -446,8 +446,8 @@ export class Table {
   shiftRows(start: number, count: number, delta: number): boolean {
     // A table whose every row lies within the deleted span has nothing left to occupy.
     if (isDeletedSpan(this.#anchorRow, this.#bottom, start, count)) return false;
-    const top = shiftIndex(this.#anchorRow, start, count, delta);
-    const bottom = shiftIndex(this.#bottom, start, count, delta);
+    const top = shiftIndex(this.#anchorRow, start, count, delta, 'row');
+    const bottom = shiftIndex(this.#bottom, start, count, delta, 'row');
     const span = bottom - top + 1;
     const fixedRows = (this.headerRow ? 1 : 0) + (this.totalsRow ? 1 : 0);
     const dataRows = span - fixedRows;

@@ -238,3 +238,65 @@ test('a row splice leaves a filter criterion addressed as it was', () => {
     [2],
   );
 });
+
+// ── The grid's edges ────────────────────────────────────────────────────────────────────────────
+
+// A whole column is written as a bounded range to the last row, which is what Excel itself writes,
+// so every one of these regions is already sitting on the grid's edge before the splice touches it.
+// Pushing an edge past that produced a package Excel met with its repair prompt; the same workbook
+// with the edges inside the grid opened clean. See
+// docs/knowledge/specs/a-splice-must-not-push-geometry-off-the-grid.md.
+const LAST_ROW = 1_048_576;
+
+test('an insert above a whole-column validation leaves its bottom edge on the last row', () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.addDataValidation(`B1:B${LAST_ROW}`, {type: 'list', formulae: ['"a,b,c"']});
+  sheet.spliceRows(900, 0, ['inserted'], ['also']);
+
+  assert.equal(
+    sheet.dataValidations[0]?.sqref,
+    `B1:B${LAST_ROW}`,
+    "the sqref Excel's own row insert produces for the same rule",
+  );
+});
+
+test('an insert above a full-height autofilter and conditional format clamps both', () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.autoFilter = `A1:A${LAST_ROW}`;
+  sheet.addConditionalFormatting({
+    ref: `C1:C${LAST_ROW}`,
+    rules: [{type: 'dataBar', priority: 1}],
+  });
+  sheet.insertRow(1, ['header']);
+
+  // Each region's top edge moves with the inserted row, as it should; what may not move is the
+  // bottom edge, which has nowhere to go.
+  assert.equal(sheet.autoFilter?.ref, `A2:A${LAST_ROW}`);
+  assert.equal(sheet.conditionalFormattings[0]?.ref, `C2:C${LAST_ROW}`);
+});
+
+test('a merge on the bottom edge shrinks rather than naming a row past the grid', () => {
+  // The one place the clamp is visibly lossy: the merge loses the row it had no room to move into.
+  // Excel refuses the insert outright here, since a merge is content occupying the last rows, but a
+  // refusal from a library that has already accepted the splice for everything else is worse than a
+  // region one row shorter, and the alternative measured was a file that will not open.
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.mergeCells(`C${LAST_ROW - 1}:D${LAST_ROW}`);
+  sheet.insertRow(1, ['header']);
+
+  assert.deepEqual(sheet.merges, [`C${LAST_ROW}:D${LAST_ROW}`]);
+});
+
+test('a column splice holds the right edge at the last column, the same rule on the other axis', () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.addDataValidation('A1:XFD1', {type: 'list', formulae: ['"a,b"']});
+  sheet.autoFilter = 'A2:XFD2';
+  sheet.spliceColumns(2, 0, ['inserted']);
+
+  assert.equal(sheet.dataValidations[0]?.sqref, 'A1:XFD1');
+  assert.equal(
+    sheet.autoFilter?.ref,
+    'A2:XFD2',
+    'the insert is inside it: only its right edge could move, and it cannot',
+  );
+});

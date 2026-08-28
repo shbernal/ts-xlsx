@@ -132,8 +132,8 @@ export function shiftAutoFilter(
   }
   const [lo, hi] = axis === 'row' ? [top, bottom] : [left, right];
   if (isDeletedSpan(lo, hi, start, count)) return undefined;
-  const movedLo = shiftIndex(lo, start, count, delta);
-  const movedHi = shiftIndex(hi, start, count, delta);
+  const movedLo = shiftIndex(lo, start, count, delta, axis);
+  const movedHi = shiftIndex(hi, start, count, delta, axis);
   if (axis === 'row') {
     const ref = `${encodeAddress(left, movedLo)}:${encodeAddress(right, movedHi)}`;
     return {ref, columns: filter.columns};
@@ -143,7 +143,7 @@ export function shiftAutoFilter(
   for (const column of filter.columns) {
     const absolute = left + column.colId;
     if (isDeletedSpan(absolute, absolute, start, count)) continue;
-    columns.push({...column, colId: shiftIndex(absolute, start, count, delta) - movedLo});
+    columns.push({...column, colId: shiftIndex(absolute, start, count, delta, axis) - movedLo});
   }
   return {ref, columns};
 }

@@ -14,39 +14,66 @@ import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 
 test('shiftIndex leaves a coordinate before the edit exactly where it was', () => {
   // Row 3, insert two rows at 5. Nothing above the cut can move: that is what "before" means.
-  assert.equal(shiftIndex(3, 5, 0, 2), 3);
-  assert.equal(shiftIndex(4, 5, 3, -3), 4, 'a delete does not reach backwards either');
-  assert.equal(shiftIndex(1, 2, 1, 0), 1);
+  assert.equal(shiftIndex(3, 5, 0, 2, 'row'), 3);
+  assert.equal(shiftIndex(4, 5, 3, -3, 'row'), 4, 'a delete does not reach backwards either');
+  assert.equal(shiftIndex(1, 2, 1, 0, 'row'), 1);
 });
 
 test('shiftIndex shifts a coordinate at or after the edited span by delta', () => {
   // The first line past the deleted span is the boundary an off-by-one lands on.
-  assert.equal(shiftIndex(5, 5, 0, 2), 7, 'a pure insert pushes the cut line itself down');
-  assert.equal(shiftIndex(8, 5, 3, -3), 5, 'the first line after a 3-row delete pulls up to 5');
-  assert.equal(shiftIndex(9, 5, 3, -3), 6);
-  assert.equal(shiftIndex(1_048_576, 1, 0, 1), 1_048_577, 'no ceiling is applied here');
+  assert.equal(shiftIndex(5, 5, 0, 2, 'row'), 7, 'a pure insert pushes the cut line itself down');
+  assert.equal(
+    shiftIndex(8, 5, 3, -3, 'row'),
+    5,
+    'the first line after a 3-row delete pulls up to 5',
+  );
+  assert.equal(shiftIndex(9, 5, 3, -3, 'row'), 6);
+});
+
+test('a shift never leaves the grid: the last line of each axis is the ceiling', () => {
+  // The measured defect this closes. A whole-column region is written bounded, `B1:B1048576`, so an
+  // insert above it would push its bottom edge to a row that cannot exist, and Excel meets the
+  // resulting file with the "we found a problem with some content" repair prompt. Excel's own answer
+  // to the same edit is this clamp: it leaves the edge on the last row.
+  assert.equal(
+    shiftIndex(1_048_576, 1, 0, 2, 'row'),
+    1_048_576,
+    'the bottom edge stays on the grid',
+  );
+  assert.equal(shiftIndex(1_048_575, 1, 0, 2, 'row'), 1_048_576, 'and so does the line above it');
+  assert.equal(
+    shiftIndex(16_384, 1, 0, 2, 'col'),
+    16_384,
+    'the column axis has its own, lower, wall',
+  );
+  assert.equal(shiftIndex(16_384, 1, 0, 2, 'row'), 16_386, 'which does not bind the row axis');
+  assert.equal(
+    shiftIndex(1_048_570, 1, 0, 2, 'row'),
+    1_048_572,
+    'a shift with room to land is untouched by the ceiling',
+  );
 });
 
 test('shiftIndex clamps a coordinate inside a deleted span to the cut line', () => {
   // The best effort for a geometry straddling the cut. A caller that must instead *drop* what the
   // delete swallowed asks isDeletedSpan first, which is the division of labour these two encode.
-  assert.equal(shiftIndex(5, 5, 3, -3), 5, 'the first deleted line');
-  assert.equal(shiftIndex(6, 5, 3, -3), 5, 'and every line inside the span with it');
-  assert.equal(shiftIndex(7, 5, 3, -3), 5, 'up to the last');
+  assert.equal(shiftIndex(5, 5, 3, -3, 'row'), 5, 'the first deleted line');
+  assert.equal(shiftIndex(6, 5, 3, -3, 'row'), 5, 'and every line inside the span with it');
+  assert.equal(shiftIndex(7, 5, 3, -3, 'row'), 5, 'up to the last');
 });
 
 test('shiftIndex with delta 0 is a replacement: the tail keeps its numbers', () => {
   // Replacing three rows with three others moves nothing after them, but still clamps what was
   // inside. The two halves are independent, which a test that only exercised inserts would miss.
-  assert.equal(shiftIndex(4, 5, 3, 0), 4);
-  assert.equal(shiftIndex(6, 5, 3, 0), 5, 'inside still clamps');
-  assert.equal(shiftIndex(8, 5, 3, 0), 8);
+  assert.equal(shiftIndex(4, 5, 3, 0, 'row'), 4);
+  assert.equal(shiftIndex(6, 5, 3, 0, 'row'), 5, 'inside still clamps');
+  assert.equal(shiftIndex(8, 5, 3, 0, 'row'), 8);
 });
 
 test('a count of 0 makes shiftIndex a pure insertion at the cut line', () => {
   // No line is deleted, so nothing can be clamped and `start` itself is already "at or after".
-  for (const v of [1, 4]) assert.equal(shiftIndex(v, 5, 0, 3), v);
-  for (const v of [5, 6]) assert.equal(shiftIndex(v, 5, 0, 3), v + 3);
+  for (const v of [1, 4]) assert.equal(shiftIndex(v, 5, 0, 3, 'row'), v);
+  for (const v of [5, 6]) assert.equal(shiftIndex(v, 5, 0, 3, 'row'), v + 3);
 });
 
 test('isDeletedSpan is true only for a span wholly inside the deleted lines', () => {

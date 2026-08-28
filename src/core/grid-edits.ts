@@ -178,8 +178,8 @@ export class GridEdits {
         if (master === undefined) continue;
         const anchored =
           axis === 'row'
-            ? encodeAddress(master.col, shiftIndex(master.row, start, count, delta))
-            : encodeAddress(shiftIndex(master.col, start, count, delta), master.row);
+            ? encodeAddress(master.col, shiftIndex(master.row, start, count, delta, 'row'))
+            : encodeAddress(shiftIndex(master.col, start, count, delta, 'col'), master.row);
         if (anchored === value.sharedFormula) continue;
         const reanchored: SharedFormulaValue = {...value, sharedFormula: anchored};
         cell.value = reanchored;
@@ -206,7 +206,7 @@ export class GridEdits {
   // edges are clamped to the cut line as a best effort. Unbounded whole-row/column merges carry no
   // rectangle and pass through unchanged.
   #shiftMerges(axis: 'row' | 'col', start: number, count: number, delta: number): void {
-    const shift = (v: number): number => shiftIndex(v, start, count, delta);
+    const shift = (v: number): number => shiftIndex(v, start, count, delta, axis);
     const merges: string[] = [];
     const rects: MergeRect[] = [];
     for (const range of this.#merges) {
@@ -249,7 +249,7 @@ export class GridEdits {
   #shiftImages(axis: 'row' | 'col', start: number, count: number, delta: number): void {
     const shiftPoint = (point: AnchorPoint): AnchorPoint => {
       const zeroBased = axis === 'row' ? point.row : point.col;
-      const shifted = shiftIndex(zeroBased + 1, start, count, delta) - 1;
+      const shifted = shiftIndex(zeroBased + 1, start, count, delta, axis) - 1;
       if (shifted === zeroBased) return point;
       return axis === 'row' ? {...point, row: shifted} : {...point, col: shifted};
     };
