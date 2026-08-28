@@ -24,9 +24,20 @@
 // being itself. An unlisted extension goes unchecked instead, so add it here when we start
 // authoring one.
 //
+// Which *files* are authored is git's answer, not a hand-kept list of directories to walk past.
+// A walk that skipped by directory name held for as long as the derived trees were all called
+// `dist` or `node_modules`; the moment `www` joined the roots it started reading
+// `www/.vitepress/cache/`, which is a bundler's scratch, is gitignored, and is full of the very
+// control characters this gate exists to refuse. So it failed for anyone who had run the site
+// locally and passed in CI, where the cache does not exist, and a gate that disagrees with itself
+// depending on what you ran last teaches people to ignore it. Tracked files plus untracked files
+// git would not ignore *is* the set of things a human or agent wrote here, so we ask for exactly
+// that and let one definition of "derived" serve both git and this check.
+//
 //   node scripts/check-source-text.ts
 
-import {readdirSync, readFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {existsSync, readFileSync} from 'node:fs';
 import {dirname, extname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -34,9 +45,6 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** The trees we author by hand or generate into. `skills` is published, so it is source too. */
 const ROOTS = ['src', 'scripts', 'test', 'tools', 'docs', 'skills', 'www'];
-
-/** Build output and dependencies are nobody's source; `.tmp` is scratch by construction. */
-const SKIP_DIRS = new Set(['node_modules', '.git', '.tmp', 'dist', 'bin', 'obj']);
 
 const TEXT_EXTENSIONS = new Set([
   '.ts',
@@ -114,19 +122,27 @@ function scan(file: string, problems: Problem[]): void {
   }
 }
 
-/** Every authored text file under `dir`, repo-relative, with binaries and build output passed over. */
-function collect(dir: string, files: string[]): void {
-  for (const entry of readdirSync(join(ROOT, dir), {withFileTypes: true})) {
-    if (SKIP_DIRS.has(entry.name)) continue;
-    const path = `${dir}/${entry.name}`;
-    if (entry.isDirectory()) collect(path, files);
-    else if (TEXT_EXTENSIONS.has(extname(entry.name).toLowerCase())) files.push(path);
+/** Every authored text file under `ROOTS`, repo-relative: tracked, or untracked and not ignored. */
+function collect(): string[] {
+  const result = spawnSync(
+    'git',
+    ['ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', ...ROOTS],
+    {cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024},
+  );
+  if (result.status !== 0) {
+    throw new Error(`git ls-files failed (${result.status ?? 'signal'}): ${result.stderr.trim()}`);
   }
+  // A NUL-delimited listing so a path with a space or a quote in it arrives whole and unquoted.
+  const paths = result.stdout.split('\u0000').filter((path) => path !== '');
+  // `--cached` still lists a tracked file deleted from the working tree, and a path can arrive
+  // from both halves of the listing, so drop what is not on disk and dedupe what is.
+  const authored = paths.filter(
+    (path) => TEXT_EXTENSIONS.has(extname(path).toLowerCase()) && existsSync(join(ROOT, path)),
+  );
+  return [...new Set(authored)].sort();
 }
 
-const files: string[] = [];
-for (const root of ROOTS) collect(root, files);
-files.sort();
+const files = collect();
 
 const problems: Problem[] = [];
 for (const file of files) scan(file, problems);
