@@ -71,20 +71,39 @@
 }
 
 /*
- * The home page starts on the lattice and fades off it, so the page begins on a grid rather
- * than being made of one.
- *
- * On a pseudo-element, because the mask that does the fading would otherwise apply to the
- * content as well as to the background. `.VPHome` is the one class name reached for from the
- * default theme, and deliberately the least load-bearing one available: if a release renames
- * it the lattice stops being drawn and nothing else moves, which is the failure a purely
- * cosmetic rule is allowed to have. A layout override in the same place would not be.
+ * A number on this site is set the way a numeric cell is: monospace, figures on a common
+ * width so a column of them lines up, and right-aligned in whatever box holds it.
  */
-.VPHome {
+.xlsx-figure {
+  font-family: var(--vp-font-family-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* A label above a heading, at the weight of a column header rather than of prose. */
+.xlsx-kicker {
+  margin: 0 0 0.35rem;
+  color: var(--vp-c-text-2);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/*
+ * Anything that sits on the lattice.
+ *
+ * Drawn on a pseudo-element rather than on the element itself, because the mask that fades
+ * it out would otherwise apply to the content as well as to the background. The class is
+ * ours, put on an element by the page that wants it, so nothing here depends on a class name
+ * the default theme happens to use this release.
+ */
+.xlsx-lattice {
   position: relative;
 }
 
-.VPHome::before {
+.xlsx-lattice::before {
   content: '';
   position: absolute;
   inset: 0 0 auto;
@@ -466,4 +485,164 @@
 
 .dark .pg-source__code span {
   color: var(--shiki-dark);
+}
+
+/* --- the home page --------------------------------------------------------------- */
+
+.page-home .VPContent {
+  padding: 0;
+}
+
+.home-hero,
+.home-body {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.home-hero {
+  padding-top: 4rem;
+  padding-bottom: 3rem;
+}
+
+.home-hero h1 {
+  max-width: 22ch;
+  margin: 0 0 1.25rem;
+  font-size: clamp(2.2rem, 6vw, 3.4rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  background: var(--vp-home-hero-name-background);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: var(--vp-home-hero-name-color);
+}
+
+.home-hero > p {
+  max-width: 60ch;
+  color: var(--vp-c-text-2);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+/* The hero's own content has to sit above the lattice the pseudo-element draws behind it. */
+.home-hero > * {
+  position: relative;
+}
+
+.home-quickstart {
+  margin: 1.5rem 0 2rem;
+}
+
+.home-body {
+  padding-bottom: 4rem;
+}
+
+/*
+ * The default theme puts a rule and a wide margin above every `h2`, which is right in a
+ * reference page and wrong here: the kicker above each heading is already the separator, and
+ * two of them read as a mistake.
+ */
+.home-body h2 {
+  margin: 0 0 0.75rem;
+  padding-top: 0;
+  border-top: 0;
+  font-size: 1.6rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.home-body h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.home-body p {
+  max-width: 68ch;
+  line-height: 1.7;
+}
+
+.home-body .xlsx-kicker {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: var(--xlsx-rule);
+}
+
+.home-doors {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+  margin: 2rem 0 0;
+}
+
+@media (min-width: 720px) {
+  .home-doors {
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  }
+}
+
+/*
+ * Scoped under `.vp-doc` on purpose. The page opts into the default theme's content styles
+ * so its prose, code blocks and links all look like the rest of the site, and those give
+ * every link an underline. A door is a card rather than a link in a sentence, so it is the
+ * one place that has to win the specificity.
+ */
+.vp-doc .home-door {
+  display: block;
+  padding: 1rem 1.1rem;
+  border: var(--xlsx-rule);
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+  color: inherit;
+  font-weight: 400;
+  text-decoration: none;
+  transition: border-color 0.2s;
+}
+
+.vp-doc .home-door:hover {
+  border-color: var(--vp-c-brand-1);
+}
+
+.vp-doc .home-door strong {
+  display: block;
+  color: var(--vp-c-brand-1);
+}
+
+.vp-doc .home-door span {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--vp-c-text-2);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.home-states {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  margin: 1.5rem 0 2rem;
+}
+
+@media (min-width: 780px) {
+  .home-states {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.home-state {
+  padding: 1.1rem;
+  border: var(--xlsx-rule);
+  border-top-width: 3px;
+  border-top-color: var(--vp-c-brand-1);
+  border-radius: 8px;
+}
+
+.home-state p {
+  margin: 0;
+  color: var(--vp-c-text-2);
+  font-size: 0.9rem;
+}
+
+/* Refused is the state that names a failure, so it wears the warning hue rather than the accent. */
+.home-state:last-child {
+  border-top-color: var(--xlsx-c-warn);
 }

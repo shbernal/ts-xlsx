@@ -256,6 +256,7 @@
       "files": [
         "scripts/**/*.ts",
         "www/scripts/check.ts",
+        "www/scripts/check-built-links.ts",
         "www/scripts/check-samples.ts",
         "www/scripts/sync-docs.ts",
         "charcheck.config.ts",

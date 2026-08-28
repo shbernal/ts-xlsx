@@ -3,8 +3,8 @@ import {resolve} from 'node:path';
 import {defineConfig} from 'vitepress';
 
 import {readDocsSource} from '../scripts/docs-source.ts';
-import {blobUrl, branch, pkg, repoRoot, repoUrl} from '../scripts/repo.ts';
-import {sampleSources} from '../scripts/sample-sources.ts';
+import {blobUrl, branch, pkg, repoRoot, repoUrl, siteBase} from '../scripts/repo.ts';
+import {virtualModules} from '../scripts/virtual-modules.ts';
 
 // Read here rather than restated: the sidebar is the manifest, so a page added to one and
 // not the other fails the config instead of quietly failing a reader. This throws on any
@@ -16,9 +16,8 @@ const firstPage = docs.groups[0]?.pages[0]?.route ?? '/';
 
 export default defineConfig({
   // GitHub Pages serves the repo at https://shbernal.github.io/ts-xlsx/. Every URL on the
-  // site goes through this, so nothing may hardcode a leading `/`. The override exists so a
-  // deploy preview can be served from a different prefix without editing the config.
-  base: process.env['VITEPRESS_BASE'] ?? '/ts-xlsx/',
+  // site goes through this, so nothing may hardcode a leading `/`.
+  base: siteBase,
   title: 'ts-xlsx',
   description: pkg.description,
   lang: 'en-GB',
@@ -92,7 +91,7 @@ export default defineConfig({
   },
 
   vite: {
-    plugins: [sampleSources()],
+    plugins: [virtualModules()],
     build: {
       // The default 500 kB warning is aimed at a chunk that blocks first paint. The one
       // chunk here that passes it is the local search index over 247 pages, 1.5 MB, fetched
