@@ -6,5 +6,7 @@
     "incremental": false,
     "tsBuildInfoFile": null
   },
-  "include": ["./**/*.ts"]
+  "include": ["./**/*.ts"],
+  "//exclude": "Emptied, deliberately, against the inherited one. ../tsconfig.test.json excludes scripts/smoke-dist.ts because tsc cannot check a file that imports ../dist before a build exists: a REAL constraint on that gate, and none at all on this one, which no gate runs. The exclusion was inherited here all the same (an extended `exclude` resolves against the config that declared it), and the effect was that no project claimed the file, so tsgolint judged it under TypeScript's DEFAULTS: no noUncheckedIndexedAccess, no exactOptionalPropertyTypes. A type-aware verdict decided by something other than this repo's settings is not a verdict about this repo. Claiming the file here fixes that; the rules that genuinely cannot see through the unbuilt `dist/` are named in .oxlintrc.jsonc instead.",
+  "exclude": []
 }

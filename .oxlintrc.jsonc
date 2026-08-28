@@ -264,13 +264,18 @@
       "rules": {"eslint/no-console": "off"},
     },
     {
-      // The one file the type-aware rules cannot judge, and it is not this file's fault. smoke-dist
-      // imports the package by NAME, through the published `exports` map, so its types live in dist/
-      // — which does not exist before a build and never in the corpus CI job. tsconfig.test.json
-      // excludes it for that reason, which leaves tsgolint no project for it, which makes every
-      // imported symbol `any`: 37 findings that say nothing about the file and change with whether
-      // someone happened to build first. A gate whose verdict depends on that is not a gate.
-      // tsconfig.dist.json type-checks this file properly, after a build, in CI.
+      // The one file whose types depend on whether someone built first. smoke-dist imports the
+      // package by NAME, through the published `exports` map, so its types live in dist/ — present
+      // in CI after `pnpm run build`, absent in the corpus job and on a fresh clone. `scripts/
+      // tsconfig.json` claims the file (it used to be excluded there too, inherited from the tsc
+      // gate, which left tsgolint no project and therefore TypeScript's DEFAULTS: measured, a
+      // planted `a[0] as string` on a `string[]` reported no-unnecessary-type-assertion under that
+      // fallback and nothing under this repo's options). What the project cannot supply is the
+      // dist/ declarations themselves: without them every imported symbol is `any` and these six
+      // rules report 37 findings that say nothing about the file. With a build present they report
+      // one, and it was a real one — an `await` on the synchronous `writeXlsx`, now gone. A gate
+      // whose verdict flips on whether someone happened to build is not a gate, so the six stay
+      // off here; tsconfig.dist.json type-checks this file properly, after a build, in CI.
       "files": ["scripts/smoke-dist.ts"],
       "rules": {
         "typescript/await-thenable": "off",

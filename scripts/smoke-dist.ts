@@ -27,7 +27,7 @@ const ws = wb.addWorksheet('Smoke');
 ws.getCell('A1').value = 'hello';
 ws.getCell('B2').value = 42;
 
-const bytes = await writeXlsx(wb);
+const bytes = writeXlsx(wb);
 assert.ok(bytes.byteLength > 0, 'writer produced no bytes');
 assert.ok(bytes[0] === 0x50 && bytes[1] === 0x4b, 'output is not a zip (bad PK magic)');
 
