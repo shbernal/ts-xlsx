@@ -10,6 +10,15 @@
 // Unlike the reader, this is not a hostile-input path: we are the producer. It still validates its
 // contract (name length, sibling-name uniqueness, size bound) and fails closed with VbaAuthorError,
 // because a silently malformed container would surface far downstream as an unopenable workbook.
+//
+// `writeCompoundFile` is the longest function in the tree and stays one: it is a single algorithm over
+// shared mutable state, sectioned by the banner comments below (directory build, sector layout,
+// serialize), and the state it shares is precisely what a split would have to pass along. If it is
+// ever split, the seam is an explicit layout record (`{dirStart, miniFatStart, miniStreamStart,
+// fatStart, difatStart, totalSectors}`) computed by one function and consumed by the serializer, with
+// the fixpoint loop that sizes the FAT and DIFAT named and tested on its own. That loop is now tested
+// through the public entry point instead (`cfb-writer.test.ts` sweeps the sector-boundary crossings),
+// which is the coverage the split would have bought, without the seam.
 
 import {VbaAuthorError} from './errors.ts';
 
