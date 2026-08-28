@@ -76,8 +76,12 @@ export function prettyXml(xml: string, indent = '  '): string {
     index += 1;
 
     if (!token.startsWith('<')) {
-      // Mixed content: text with an element beside it rather than alone inside one.
-      lines.push(pad() + token);
+      // Whitespace between two tags is the source's own layout, not content: the only text
+      // that can be significant sits alone inside one element, and the open-text-close case
+      // below takes that verbatim before it ever reaches here. Keeping it would put a blank
+      // line under every declaration and reproduce a dropped file's indentation on top of
+      // this one.
+      if (token.trim() !== '') lines.push(pad() + token);
       continue;
     }
     if (token.startsWith('</')) {

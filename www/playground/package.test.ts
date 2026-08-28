@@ -78,3 +78,18 @@ test('prettyXml survives a stray closing tag rather than indenting into the nega
   assert.equal(prettyXml('</lonely>'), '</lonely>');
   assert.equal(prettyXml(''), '');
 });
+
+test('prettyXml drops the layout whitespace between two tags', () => {
+  // The writer puts a newline after the declaration. Kept, it would be a blank line under
+  // every part; and a file someone drops in may already be indented, which would otherwise
+  // arrive on top of this indentation rather than instead of it.
+  assert.equal(
+    prettyXml('<?xml version="1.0"?>\n<root>\n  <leaf/>\n</root>'),
+    ['<?xml version="1.0"?>', '<root>', '  <leaf/>', '</root>'].join('\n'),
+  );
+});
+
+test('prettyXml still keeps whitespace that is a cell value', () => {
+  // `xml:space="preserve"` around nothing but spaces is how a cell holding " " says so.
+  assert.equal(prettyXml('<t xml:space="preserve">   </t>'), '<t xml:space="preserve">   </t>');
+});

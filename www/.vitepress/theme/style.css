@@ -95,3 +95,375 @@
   mask-image: linear-gradient(to bottom, #000, transparent);
   pointer-events: none;
 }
+
+/* --- the playground -------------------------------------------------------------- */
+
+/*
+ * The page is wider than the prose column the default theme sets, because a worksheet is
+ * the point of it and a worksheet at reading width is a worksheet nobody can read. Set from
+ * the page's own frontmatter class rather than by reaching into `.VPDoc`: `pageClass` is the
+ * supported hook for exactly this, so the default theme keeps deciding the layout.
+ */
+.page-wide .VPDoc .container {
+  max-width: 1180px;
+}
+
+.page-wide .VPDoc .content {
+  max-width: 100%;
+}
+
+.pg-booting {
+  color: var(--vp-c-text-2);
+}
+
+.pg-controls {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  margin: 1.5rem 0;
+}
+
+@media (min-width: 780px) {
+  .pg-controls {
+    grid-template-columns: 3fr 2fr;
+    align-items: start;
+  }
+}
+
+.pg-picker__row,
+.pg-sheettabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.pg-chip {
+  border: var(--xlsx-rule);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  color: var(--vp-c-text-1);
+  background: var(--vp-c-bg-soft);
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.pg-chip:hover {
+  border-color: var(--vp-c-brand-1);
+}
+
+.pg-chip.is-on {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+}
+
+.pg-picker__blurb {
+  margin: 0.6rem 0 0;
+  color: var(--vp-c-text-2);
+  font-size: 0.9rem;
+}
+
+/* The drop zone is a label wrapping a real file input, so a keyboard reaches it too. */
+.pg-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 6rem;
+  padding: 1rem;
+  border: 1px dashed var(--vp-c-divider);
+  border-radius: 8px;
+  background-image: var(--xlsx-lattice);
+  background-size: var(--xlsx-grid-pitch);
+  color: var(--vp-c-text-2);
+  font-size: 0.9rem;
+  text-align: center;
+  cursor: pointer;
+}
+
+.pg-drop.is-over {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
+}
+
+.pg-drop__input {
+  display: none;
+}
+
+.pg-failure {
+  color: var(--xlsx-c-warn);
+}
+
+.pg-lanes {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+  margin: 1.5rem 0;
+}
+
+@media (min-width: 780px) {
+  .pg-lanes {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.pg-lane {
+  border: var(--xlsx-rule);
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 0.75rem 0.9rem;
+  background: var(--vp-c-bg-soft);
+}
+
+.pg-lane--ok {
+  border-left-color: var(--vp-c-brand-1);
+}
+
+.pg-lane--failed {
+  border-left-color: var(--xlsx-c-warn);
+  background: var(--xlsx-c-warn-soft);
+}
+
+.pg-lane--skipped {
+  opacity: 0.62;
+}
+
+.pg-lane__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.pg-lane__call {
+  font-size: 0.85rem;
+}
+
+.pg-lane__status {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-2);
+}
+
+.pg-lane--failed .pg-lane__status {
+  color: var(--xlsx-c-warn);
+}
+
+.pg-lane__title {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.pg-lane__detail {
+  margin-top: 0.2rem;
+  color: var(--vp-c-text-2);
+  font-size: 0.85rem;
+}
+
+.pg-lane__error {
+  margin: 0.6rem 0 0;
+  padding: 0.5rem;
+  border-radius: 4px;
+  background: var(--vp-c-bg);
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.pg-lane__time {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--vp-c-text-2);
+}
+
+.pg-download {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.pg-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  border-bottom: var(--xlsx-rule);
+}
+
+.pg-tab {
+  padding: 0.4rem 0;
+  border-bottom: 2px solid transparent;
+  color: var(--vp-c-text-2);
+  font-size: 0.9rem;
+}
+
+.pg-tab.is-on {
+  border-bottom-color: var(--vp-c-brand-1);
+  color: var(--vp-c-text-1);
+}
+
+.pg-panel {
+  padding-top: 1.2rem;
+}
+
+.pg-empty,
+.pg-note,
+.pg-clipped {
+  color: var(--vp-c-text-2);
+  font-size: 0.85rem;
+}
+
+/* Its own scroll container, so a wide sheet never widens the page. */
+.pg-grid__scroll {
+  overflow-x: auto;
+  border: var(--xlsx-rule);
+  border-radius: 6px;
+  max-height: 32rem;
+  overflow-y: auto;
+}
+
+.pg-sheet {
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  width: max-content;
+  min-width: 100%;
+}
+
+.pg-sheet th,
+.pg-sheet td {
+  border: 1px solid var(--vp-c-divider);
+  padding: 0.25rem 0.5rem;
+  white-space: nowrap;
+}
+
+.pg-colhead,
+.pg-rowhead,
+.pg-corner {
+  position: sticky;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-2);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.pg-colhead,
+.pg-corner {
+  top: 0;
+  z-index: 1;
+}
+
+.pg-rowhead,
+.pg-corner {
+  left: 0;
+}
+
+.pg-corner {
+  z-index: 2;
+}
+
+.pg-cell {
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pg-cell--formula,
+.pg-cell--error {
+  font-family: var(--vp-font-family-mono);
+}
+
+.pg-cell--error {
+  color: var(--xlsx-c-warn);
+}
+
+.pg-parts {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 900px) {
+  .pg-parts {
+    grid-template-columns: minmax(18rem, 2fr) 3fr;
+    align-items: start;
+  }
+}
+
+.pg-parts__list {
+  border: var(--xlsx-rule);
+  border-radius: 6px;
+  max-height: 32rem;
+  overflow: auto;
+}
+
+.pg-parts__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.pg-parts__table td {
+  border-bottom: 1px solid var(--vp-c-divider);
+  padding: 0.3rem 0.6rem;
+}
+
+.pg-parts__table tr.is-open {
+  background: var(--vp-c-brand-soft);
+}
+
+.pg-parts__path {
+  font-family: var(--vp-font-family-mono);
+  color: var(--vp-c-text-1);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.pg-parts__path:hover {
+  color: var(--vp-c-brand-1);
+}
+
+.pg-parts__size {
+  width: 6rem;
+  color: var(--vp-c-text-2);
+  font-size: 0.78rem;
+}
+
+.pg-badge {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  background: var(--xlsx-c-warn-soft);
+  color: var(--xlsx-c-warn);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pg-xml,
+.pg-source__code pre {
+  max-height: 30rem;
+  overflow: auto;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: var(--vp-c-bg-alt);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.pg-xml code {
+  white-space: pre;
+}
+
+/*
+ * shiki's dual-theme output paints every token twice, once per custom property, and lets
+ * the page pick. This is the same pair the default theme's own code blocks use, so the
+ * block follows the toggle without a second palette.
+ */
+.pg-source__code span {
+  color: var(--shiki-light);
+}
+
+.dark .pg-source__code span {
+  color: var(--shiki-dark);
+}

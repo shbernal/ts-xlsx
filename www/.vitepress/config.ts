@@ -1,7 +1,10 @@
+import {resolve} from 'node:path';
+
 import {defineConfig} from 'vitepress';
 
 import {readDocsSource} from '../scripts/docs-source.ts';
-import {blobUrl, branch, pkg, repoUrl} from '../scripts/repo.ts';
+import {blobUrl, branch, pkg, repoRoot, repoUrl} from '../scripts/repo.ts';
+import {sampleSources} from '../scripts/sample-sources.ts';
 
 // Read here rather than restated: the sidebar is the manifest, so a page added to one and
 // not the other fails the config instead of quietly failing a reader. This throws on any
@@ -86,6 +89,7 @@ export default defineConfig({
   },
 
   vite: {
+    plugins: [sampleSources()],
     build: {
       // The default 500 kB warning is aimed at a chunk that blocks first paint. The one
       // chunk here that passes it is the local search index over 247 pages, 1.5 MB, fetched
@@ -94,6 +98,18 @@ export default defineConfig({
       chunkSizeWarningLimit: 2000,
     },
     resolve: {
+      alias: [
+        {
+          // The library reaches three Node built-ins that nothing on this site calls, and a
+          // bundler resolves imports rather than call graphs, so the build stops at the first
+          // one regardless. `www/node-absent.ts` says what happened, in the words the browser
+          // boundary spec asks for. The real fix belongs in the library and is on the
+          // follow-up list; this is what keeps the site honest until it lands.
+          find: /^node:(?:crypto|fs|stream)$/,
+          replacement: resolve(repoRoot, 'www', 'node-absent.ts'),
+        },
+      ],
+
       // This repo declares `vue` itself and VitePress carries its own copy. pnpm resolves
       // those to two versions, and two Vue runtimes in one page means `provide`/`inject` and
       // the app instance stop matching across the boundary, which shows up as a component
