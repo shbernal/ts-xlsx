@@ -43,8 +43,11 @@ export default defineConfig({
       // The changelog stays a repository file: it is written for someone standing at a
       // version, not for someone browsing a site, and publishing it would make the site a
       // second place it has to be right.
-      {text: 'Docs', link: firstPage},
+      // `firstPage` rather than a typed route: the guide's first page is decided by the
+      // manifest, and a nav entry that named it separately would be the copy that rots.
+      {text: 'Guide', link: firstPage},
       {text: 'API', link: '/docs/api/'},
+      {text: 'Playground', link: '/playground'},
       {text: 'Changelog', link: blobUrl('CHANGELOG.md')},
       {text: 'GitHub', link: repoUrl},
     ],

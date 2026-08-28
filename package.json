@@ -78,6 +78,7 @@
     "smoke:dist": "node scripts/smoke-dist.ts",
     "site:prepare": "node www/scripts/sync-docs.ts",
     "site:check": "node www/scripts/check.ts",
+    "samples:check": "node www/scripts/check-samples.ts",
     "site:dev": "pnpm run site:prepare && vitepress dev www",
     "site:build": "pnpm run site:prepare && vitepress build www",
     "site:preview": "vitepress preview www",

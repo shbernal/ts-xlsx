@@ -254,6 +254,10 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
           // link resolvable, every title derivable. Sub-second, where the site build that
           // would also catch it is half a minute.
           {command: NODE, args: ['www/scripts/check.ts']},
+          // Every runnable sample in the guide, executed. Prose can be rewritten cheaply; a
+          // sample that no longer compiles is how documentation stops being trusted, and it
+          // fails silently until a reader copies it.
+          {command: NODE, args: ['www/scripts/check-samples.ts']},
           // Whole-tree, where the pre-commit hook sees only the index: a --no-verify commit
           // must not be how an em dash reaches the docs.
           {command: NODE, args: [CHARCHECK]},

@@ -4,8 +4,22 @@
   "//slugs": "A directory's README.md is named `<dir>/index` and served at the directory root.",
   "navigation": [
     {
-      "group": "Overview",
-      "pages": ["architecture", "migrating-from-exceljs", "agent-correctness-playbook"]
+      "group": "Start",
+      "pages": [
+        "guide/index",
+        "guide/writing",
+        "guide/reading",
+        "guide/styles-and-formats",
+        "guide/tables-and-structure",
+        "guide/streaming",
+        "guide/errors",
+        "guide/browser",
+        "migrating-from-exceljs"
+      ]
+    },
+    {
+      "group": "Under the hood",
+      "pages": ["architecture", "agent-correctness-playbook"]
     },
     {
       "group": "API reference",
