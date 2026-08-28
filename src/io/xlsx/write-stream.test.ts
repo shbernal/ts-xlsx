@@ -83,6 +83,25 @@ test('a row added to a committed sheet is rejected with a legible "already commi
   assert.throws(() => sheet.getCell('A2'), /already committed/i);
 });
 
+test('getCell into a committed row is refused rather than emitting a second row of that number', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  sheet.addRow(['a']).commit();
+  sheet.addRow(['b']).commit();
+  // An eager writer has already rendered row 1 and released its cells, so this cell could only reach
+  // the package as a duplicate <row r="1">, which is what the guard exists to prevent.
+  assert.throws(() => sheet.getCell('B1'), /row 1, which is already committed/);
+  sheet.getCell('B3').value = 'live';
+  sheet.commit();
+
+  const sheetXml = partText(await writer.commit(), 'xl/worksheets/sheet1.xml');
+  assert.deepEqual(
+    [...sheetXml.matchAll(/<row r="(\d+)"/g)].map((m) => m[1]),
+    ['1', '2', '3'],
+    'each row number appears exactly once, and an uncommitted row is still writable',
+  );
+});
+
 test('writer.stream.pipe(dest) returns dest and delivers the whole package', async () => {
   const writer = new WorkbookStreamWriter();
   const sink = new PassThrough();

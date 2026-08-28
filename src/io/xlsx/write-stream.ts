@@ -21,8 +21,9 @@
 // with strings inline (a shared-strings pool is inherently whole-workbook, so it defeats bounding);
 // turning `useSharedStrings` on falls back to holding every row live until commit. A flushed row is a
 // finished row: it cannot join whole-sheet derivations, so a shared-formula clone in a committed row
-// is rejected, and rows reached only through `getCell` (never `row.commit()`) stay live and serialise
-// the ordinary way. The package bytes themselves are still assembled once at commit; a later slice
+// is rejected, as is a `getCell` reaching back into a committed row (its `<row>` is already rendered,
+// so the cell could only be emitted as a second row of that number), while rows reached only through
+// `getCell` (never `row.commit()`) stay live and serialise the ordinary way. The package bytes themselves are still assembled once at commit; a later slice
 // can flush each sheet's `<sheetData>` straight into its streamed zip entry to bound that half too.
 
 import {createWriteStream} from 'node:fs';
@@ -31,7 +32,7 @@ import {PassThrough, type Readable, type Writable} from 'node:stream';
 import {Zip, ZipDeflate} from 'fflate';
 
 import {concat} from '../../bytes.ts';
-import {encodeAddress} from '../../core/address.ts';
+import {encodeAddress, tryDecodeCellRef} from '../../core/address.ts';
 import type {AutoFilter} from '../../core/autofilter.ts';
 import type {Cell} from '../../core/cell.ts';
 import type {ConditionalFormatting} from '../../core/conditional-formatting.ts';
@@ -146,6 +147,10 @@ export class WorksheetStreamWriter {
   // row composes against the same columns even as later ones are defined.
   #columnDefaults: ReadonlyMap<number, ColumnProperties> | undefined;
   readonly #flushedRows: {number: number; xml: string}[] = [];
+  // Every row number this writer has flushed. A flushed row's `<row>` is already rendered and its
+  // cells are gone from the model, so re-materialising one would emit a second element with the same
+  // number; the set is what lets `getCell` refuse that rather than produce it.
+  readonly #flushedNumbers = new Set<number>();
   readonly #extent = new Extent();
   #maxRowOutlineLevel = 0;
 
@@ -239,6 +244,7 @@ export class WorksheetStreamWriter {
       this.#flushedRows.push({number, xml});
       this.#extent.add(number, minCol, maxCol);
     }
+    this.#flushedNumbers.add(number);
     this.#sheet[INTERNAL].evictRow(number);
   }
 
@@ -252,9 +258,24 @@ export class WorksheetStreamWriter {
     };
   }
 
-  /** Address a cell by its A1 reference to read or style it before the sheet is committed. */
+  /**
+   * Address a cell by its A1 reference to read or style it before the sheet is committed. The row it
+   * names must still be live: a row whose {@link StreamedRow.commit} has run is finished.
+   *
+   * @throws {AuthoringError} if the reference names an already-committed row. That row's `<row>` is
+   *   rendered and its cells are released, so the cell this would materialise could only be written
+   *   as a second row carrying the same number.
+   */
   getCell(reference: string): Cell {
     this.#assertOpen();
+    const target = tryDecodeCellRef(reference);
+    if (target !== undefined && this.#flushedNumbers.has(target.row)) {
+      throw new AuthoringError(
+        `cell ${reference} of streamed sheet "${this.#sheet.name}" is in row ${target.row}, which is ` +
+          'already committed: its bytes are written and its cells released, so this value could only ' +
+          'be emitted as a second row with that number. Style a row before committing it.',
+      );
+    }
     return this.#sheet.getCell(reference);
   }
 

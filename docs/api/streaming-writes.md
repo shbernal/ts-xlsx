@@ -234,7 +234,12 @@ whole-sheet formula planning, so shared formulas must be authored through [`getC
 getCell(reference: string): Cell;
 ```
 
-Address a cell by its A1 reference to read or style it before the sheet is committed.
+Address a cell by its A1 reference to read or style it before the sheet is committed. The row it
+names must still be live: a row whose [`StreamedRow.commit`](./streaming-writes.md#streamedrowcommit) has run is finished.
+
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the reference names an already-committed row. That row's `<row>` is
+rendered and its cells are released, so the cell this would materialise could only be written
+as a second row carrying the same number.
 
 #### `WorksheetStreamWriter.addDataValidation`
 
