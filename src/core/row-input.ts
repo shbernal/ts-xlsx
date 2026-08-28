@@ -1,6 +1,10 @@
 // How a `RowInput` is read: the one interpretation of "a row's worth of values" that every authoring
 // entry point on `Worksheet` shares: `addRow`, `addRows`, `insertRow`, `spliceRows`.
 //
+// The positional half of that reading is the axis-neutral one, so `addColumn`/`addColumns` take it
+// from here too: a column's values are indexed by row exactly as a row's are indexed by column, and
+// a hole has to mean the same thing on both axes or one of them is a surprise.
+//
 // This is not grid mechanics, which is why it is not in `grid-edits.ts`: nothing here shifts or
 // re-anchors anything, and the arithmetic is indifferent to where the row ends up. It is the public
 // API's *input vocabulary* (positional array versus key-addressed object, and what a hole in either
@@ -12,6 +16,22 @@ import {AuthoringError} from '../errors.ts';
 import {Cell} from './cell.ts';
 import type {CellValue} from './value.ts';
 import type {ColumnProperties, RowInput} from './worksheet.ts';
+
+/**
+ * Resolve a positional array of values to the (1-based index, value) placements it names: the first
+ * value lands at 1, and a hole or an explicit `undefined` places nothing, leaving that line
+ * untouched. The index is a column on the row axis and a row on the column axis; the reading is the
+ * same either way.
+ */
+export function positionalPlacements(
+  values: readonly (CellValue | undefined)[],
+): Array<[number, CellValue]> {
+  const placements: Array<[number, CellValue]> = [];
+  values.forEach((value, index) => {
+    if (value !== undefined) placements.push([index + 1, value]);
+  });
+  return placements;
+}
 
 /**
  * Resolve a `RowInput` to the (1-based column, value) placements it names. A positional array maps
@@ -26,13 +46,7 @@ export function rowPlacements(
   values: RowInput,
   columns: ReadonlyMap<number, ColumnProperties>,
 ): Array<[number, CellValue]> {
-  if (Array.isArray(values)) {
-    const placements: Array<[number, CellValue]> = [];
-    values.forEach((value, index) => {
-      if (value !== undefined) placements.push([index + 1, value]);
-    });
-    return placements;
-  }
+  if (Array.isArray(values)) return positionalPlacements(values);
   return Object.entries(values).map(([key, value]) => [columnIndexByKey(columns, key), value]);
 }
 

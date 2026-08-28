@@ -927,7 +927,10 @@ which shifts and needs a position. Unlike [`spliceColumns`](./worksheet.md#works
 never disturbs merges or the columns to its left.
 
 `values` is an array indexed by row (index 0 → row 1); a hole or an explicit `undefined` leaves
-that row untouched, mirroring [`addRow`](./worksheet.md#worksheetaddrow)'s positional-array shape.
+that row untouched, mirroring [`addRow`](./worksheet.md#worksheetaddrow)'s positional-array shape. That is the only shape a
+column takes: the other [`RowInput`](./worksheet.md#rowinput) form addresses columns by their
+[`ColumnProperties.key`](./worksheet.md#columnproperties), and a column's values are indexed by *row*, which carries no key,
+so there is nothing on this axis for a keyed object to name.
 
 #### `Worksheet.addColumns`
 

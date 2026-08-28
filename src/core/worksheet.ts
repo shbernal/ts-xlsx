@@ -36,7 +36,7 @@ import {
   type SheetProtectionOptions,
 } from './protection.ts';
 import {Range, rangeFrom} from './range.ts';
-import {buildRowCells, rowPlacements} from './row-input.ts';
+import {buildRowCells, positionalPlacements, rowPlacements} from './row-input.ts';
 import {Row} from './row.ts';
 import type {CellStyle, Color, Fill} from './style.ts';
 import {Table, type TableOptions} from './table.ts';
@@ -990,7 +990,10 @@ export class Worksheet {
    * never disturbs merges or the columns to its left.
    *
    * `values` is an array indexed by row (index 0 → row 1); a hole or an explicit `undefined` leaves
-   * that row untouched, mirroring {@link addRow}'s positional-array shape.
+   * that row untouched, mirroring {@link addRow}'s positional-array shape. That is the only shape a
+   * column takes: the other {@link RowInput} form addresses columns by their
+   * {@link ColumnProperties.key}, and a column's values are indexed by *row*, which carries no key,
+   * so there is nothing on this axis for a keyed object to name.
    */
   addColumn(values: CellValue[]): Cell[] {
     return this.addColumns([values])[0] ?? [];
@@ -1006,14 +1009,11 @@ export class Worksheet {
     let index = this.columnCount;
     return columns.map((values) => {
       index += 1;
-      const cells: Cell[] = [];
-      values.forEach((value, i) => {
-        if (value === undefined) return;
-        const cell = this.#cellAt(i + 1, index);
+      return positionalPlacements(values).map(([row, value]) => {
+        const cell = this.#cellAt(row, index);
         cell.value = value;
-        cells.push(cell);
+        return cell;
       });
-      return cells;
     });
   }
 
