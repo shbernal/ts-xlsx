@@ -83,6 +83,32 @@ you never commit is a row still in memory. `commit()` on the sheet freezes it, a
 further mutation after that is rejected with a legible error rather than silently accepted.
 `commit()` on the writer assembles the package.
 
+`commit()` is therefore also a deadline. A row stays reachable through `getCell` for as long
+as it is uncommitted, which is when to style it or fill a cell you skipped; once committed,
+its `<row>` is rendered and its cells are released, so the same call is refused rather than
+emitting a second row carrying that number.
+
+```ts
+import {AuthoringError, WorkbookStreamWriter} from '@shbernal/ts-xlsx';
+
+const writer = new WorkbookStreamWriter();
+const sheet = writer.addWorksheet('Report');
+const header = sheet.addRow(['Region', 'Revenue']);
+sheet.getCell('B1').value = 'Revenue (EUR)'; // still live, so still editable
+header.commit();
+
+let refused = false;
+try {
+  sheet.getCell('B1').value = 'too late';
+} catch (error) {
+  refused = error instanceof AuthoringError;
+}
+console.log(refused); // true
+
+sheet.commit();
+console.log((await writer.commit()).length > 0); // true
+```
+
 This half of the API is asynchronous where the buffered path is synchronous, and the bytes
 arrive two ways: as the resolved value above, and through `writer.stream`, a Node `Readable`.
 The second is the one that matters on a server, because it means a workbook can go straight
@@ -109,8 +135,11 @@ It is a genuinely narrower surface, and pretending otherwise would waste your af
 - The streaming **reader does not read `.xlsb`**. A binary package cannot be row-streamed,
   and asking raises `UnsupportedFormatError` with `format` saying which kind it was, rather
   than a vague refusal.
-- You do not get a `Worksheet`. There is no `usedRange`, no `getCell`, and no second look at
-  a row you have already passed.
+- You do not get a `Worksheet`. `getCell` is there, but only ahead of the commit line, and
+  the whole-sheet reads (`usedRange`, `getRange`, `hasCell`, `actualRowCount`) and the
+  structural edits (`spliceRows`, `insertRow`, the column verbs) are absent altogether: a
+  streamed sheet could only answer them over whichever rows happened to still be in memory,
+  which is a plausible answer rather than a true one.
 
 If you are streaming because writing is slow rather than because it is large, look at
 `writeXlsxAsync` in [writing a workbook](./writing.md) first: it keeps the whole buffered
