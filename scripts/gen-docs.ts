@@ -1,7 +1,7 @@
 // Generates the public API reference under `docs/api/` straight from the types.
 //
-// The public barrel (`src/index.ts`) is the single source of truth: this walks the
-// symbols it re-exports via the TypeScript compiler API, renders each one's JSDoc
+// The public barrels are the single source of truth: this walks the
+// symbols they re-export via the TypeScript compiler API, renders each one's JSDoc
 // summary + tags + a body-stripped TypeScript signature, and writes one Markdown
 // page per originating module plus an index. No new dependency, since `typescript` is
 // already the toolchain, so the docs cannot describe a shape the compiler wouldn't
@@ -24,7 +24,11 @@ import {
 } from 'typescript/unstable/sync';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const ENTRY = join(ROOT, 'src/index.ts');
+// Two barrels, because the root one is not the whole public surface: `/node` is deliberately left
+// out of `src/index.ts` so no Node built-in reaches a browser consumer's graph (ADR 0040), and a
+// reference generated from the root alone would silently stop documenting the streaming writer.
+// The pages are keyed by originating module either way, so the symbols land where they always did.
+const ENTRIES = [join(ROOT, 'src/index.ts'), join(ROOT, 'src/entries/node.ts')];
 const CONFIG = join(ROOT, 'tsconfig.json');
 const OUT_DIR = join(ROOT, 'docs/api');
 
@@ -428,10 +432,13 @@ function checkLinks(bodies: ReadonlyMap<string, string>): void {
 
 function main(project: Project) {
   const {program, checker} = project;
-  const entrySf = program.getSourceFile(ENTRY);
-  if (!entrySf) throw new Error(`cannot load entry ${ENTRY}`);
-  const moduleSymbol = checker.getSymbolAtLocation(entrySf);
-  if (!moduleSymbol) throw new Error('entry has no module symbol; is src/index.ts a module?');
+  const moduleSymbols = ENTRIES.map((entry) => {
+    const entrySf = program.getSourceFile(entry);
+    if (!entrySf) throw new Error(`cannot load entry ${entry}`);
+    const moduleSymbol = checker.getSymbolAtLocation(entrySf);
+    if (!moduleSymbol) throw new Error(`${entry} has no module symbol; is it a module?`);
+    return moduleSymbol;
+  });
 
   const groupTitle = new Map(GROUPS);
   const groupOrder = new Map<string, number>(GROUPS.map(([key], i) => [key, i]));
@@ -448,7 +455,10 @@ function main(project: Project) {
   };
   const walked: Exported[] = [];
 
-  for (const exported of checker.getExportsOfModule(moduleSymbol)) {
+  const seen = new Set<string>();
+  for (const exported of moduleSymbols.flatMap((m) => checker.getExportsOfModule(m))) {
+    if (seen.has(exported.name)) continue;
+    seen.add(exported.name);
     const symbol =
       exported.flags & SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported;
     // A declaration crosses the API boundary as a handle, not a node, so resolving it is a

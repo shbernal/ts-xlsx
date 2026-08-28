@@ -323,12 +323,21 @@ The dev/test loop runs *stripped* `src/` `.ts`; consumers run *`tsc`-emitted* `d
 
 **You added, removed or moved a public export.**
 Symbols live in exactly one entry barrel under `src/entries/`, and `src/index.ts` is `export *`
-over all seven, so adding a name in two places does not conflict, it makes the name *vanish* from
-the root specifier with no error anywhere. `node scripts/check-entries.ts` (already in
-`verify --full`) is what catches that, along with an entry `package.json` forgot to publish. Then
-run `pnpm run docs`. The reference is generated from the root barrel, so a symbol missing from the
-diff is a symbol that fell out of the union. Error classes go in `src/entries/errors.ts` and
-nowhere else (ADR-0023).
+over seven of the eight, so adding a name in two places does not conflict, it makes the name
+*vanish* from the root specifier with no error anywhere. `node scripts/check-entries.ts` (already
+in `verify --full`) is what catches that, along with an entry `package.json` forgot to publish.
+Then run `pnpm run docs`. The reference is generated from the root barrel, so a symbol missing
+from the diff is a symbol that fell out of the union. Error classes go in `src/entries/errors.ts`
+and nowhere else (ADR-0023).
+
+**You imported a Node built-in, or reached for `process` or `Buffer`, inside `src/`.**
+`node scripts/check-browser-safe.ts` (also in `verify --full`) walks the module graph from all
+seven browser-facing entries and fails on either. A bundler resolves imports rather than call
+graphs, so one such import in a module a browser never calls is still enough to break a browser
+build (ADR-0040). If the code genuinely needs Node, it is published from `src/entries/node.ts`
+and named in `src/entries/node-unavailable.ts`, the stub a `browser` condition resolves to;
+if it does not, write the platform version (`crypto.getRandomValues`, `TextEncoder`,
+`src/sha512.ts`) instead.
 
 **You changed what a module imports, and it crossed a directory.**
 `node scripts/check-layering.ts` proves the graph's direction still holds. If the import turned a

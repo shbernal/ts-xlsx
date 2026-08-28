@@ -61,6 +61,11 @@
       "types": "./dist/entries/customui.d.ts",
       "default": "./dist/entries/customui.js"
     },
+    "./node": {
+      "types": "./dist/entries/node.d.ts",
+      "browser": "./dist/entries/node-unavailable.js",
+      "default": "./dist/entries/node.js"
+    },
     "./errors": {
       "types": "./dist/entries/errors.d.ts",
       "default": "./dist/entries/errors.js"
@@ -87,6 +92,7 @@
     "constitution:check": "node scripts/check-constitution.ts",
     "layering:check": "node scripts/check-layering.ts",
     "entries:check": "node scripts/check-entries.ts",
+    "browser:check": "node scripts/check-browser-safe.ts",
     "source-text:check": "node scripts/check-source-text.ts",
     "chars:check": "charcheck",
     "lint": "node node_modules/oxlint/bin/oxlint src scripts test tools www charcheck.config.ts --type-aware --deny-warnings --report-unused-disable-directives",

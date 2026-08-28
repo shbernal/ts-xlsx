@@ -9,7 +9,8 @@
 // attribute defaults differ; that encoding table is {@link SHEET_PROTECTION_FLAGS} below,
 // shared by the writer and reader, while the translation that consumes it lives in the io layer.
 
-import {createHash, randomBytes} from 'node:crypto';
+import {concat, toBase64} from '../bytes.ts';
+import {sha512} from '../sha512.ts';
 
 /**
  * Whether each protected-sheet operation stays available to a user. Every flag is an
@@ -96,8 +97,12 @@ export const SHEET_PROTECTION_FLAGS: readonly {
 // OOXML's agile hashing (ECMA-376 / MS-OFFCRYPTO): the password is UTF-16LE, prefixed with
 // the salt for the first hash, then re-hashed `spinCount` times with a little-endian uint32
 // iteration counter mixed in. SHA-512 is the modern choice Excel writes.
+//
+// Both primitives are deliberately platform-neutral: `src/sha512.ts` rather than `node:crypto`,
+// and the Web Crypto `getRandomValues` that browsers and Node both carry as a global. Protecting
+// a sheet is therefore something a browser can do, and nothing on the package's entry graph
+// imports a Node built-in to make it possible.
 const ALGORITHM_NAME = 'SHA-512';
-const HASH = 'sha512';
 const DEFAULT_SPIN_COUNT = 100000;
 const SALT_BYTES = 16;
 
@@ -105,27 +110,42 @@ const SALT_BYTES = 16;
  * Derive a fresh {@link SheetProtectionCredential} for a password. Each call generates a new
  * random salt, so protecting two sheets with the same password yields different credentials:
  * the salt is real randomness, not a stub.
+ *
+ * The spin loop is the cost of the scheme rather than of this implementation: Excel's default
+ * 100000 iterations is 100000 chained SHA-512 digests, and no shortcut through them exists.
  */
 export function deriveCredential(
   password: string,
   spinCount: number = DEFAULT_SPIN_COUNT,
 ): SheetProtectionCredential {
-  const salt = randomBytes(SALT_BYTES);
-  const secret = Buffer.from(password, 'utf16le');
-  let hash = createHash(HASH)
-    .update(Buffer.concat([salt, secret]))
-    .digest();
-  const iteration = Buffer.alloc(4);
+  const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
+  let hash = sha512(concat([salt, utf16le(password)]));
+  // One buffer for the whole loop, holding the previous digest followed by the counter: at the
+  // default spin count the alternative is a hundred thousand throwaway 68-byte allocations.
+  const spun = new Uint8Array(hash.length + 4);
+  const counter = new DataView(spun.buffer, hash.length, 4);
   for (let i = 0; i < spinCount; i++) {
-    iteration.writeUInt32LE(i, 0);
-    hash = createHash(HASH)
-      .update(Buffer.concat([hash, iteration]))
-      .digest();
+    spun.set(hash, 0);
+    counter.setUint32(0, i, true);
+    hash = sha512(spun);
   }
   return {
     algorithmName: ALGORITHM_NAME,
-    hashValue: hash.toString('base64'),
-    saltValue: salt.toString('base64'),
+    hashValue: toBase64(hash),
+    saltValue: toBase64(salt),
     spinCount,
   };
+}
+
+// The password's UTF-16LE bytes, code unit by code unit. A lone surrogate is carried through as
+// the code unit it is, which is what the scheme hashes and what Excel would have hashed: this is a
+// credential, not text to be displayed, so substituting U+FFFD would silently change the password.
+function utf16le(text: string): Uint8Array {
+  const bytes = new Uint8Array(text.length * 2);
+  for (let i = 0; i < text.length; i++) {
+    const unit = text.charCodeAt(i);
+    bytes[i * 2] = unit & 0xff;
+    bytes[i * 2 + 1] = unit >>> 8;
+  }
+  return bytes;
 }

@@ -46,6 +46,7 @@ const SUBPATH_BINDINGS: Readonly<Record<string, string>> = {
   xlsx: 'readXlsx',
   xlsb: 'readXlsb',
   csv: 'readCsv',
+  node: 'WorkbookStreamWriter',
   vba: 'parseVbaProject',
   customui: 'parseCustomUi',
   errors: 'XlsxError',
@@ -97,8 +98,32 @@ for (const file of errorsReach) {
   );
 }
 
+// The browser boundary, checked on the EMITTED artifact rather than on source.
+// `scripts/check-browser-safe.ts` proves it over src/ before anything is built; this proves the
+// emit kept it, which is the only form a consumer's bundler ever sees. `/node` is the exception
+// that gives the rule its shape: it is where those imports are allowed to be.
+const NODE_SPECIFIER = /\b(?:from|import)\s+["']node:/;
+const browserEntries = Object.keys(SUBPATH_BINDINGS).filter((subpath) => subpath !== 'node');
+for (const subpath of [...browserEntries, 'index']) {
+  const entry = subpath === 'index' ? join(HERE, '..', 'dist', 'index.js') : entryFile(subpath);
+  for (const file of closure(entry)) {
+    assert.ok(
+      !NODE_SPECIFIER.test(readFileSync(file, 'utf8')),
+      `/${subpath} reaches ${file}, which imports a Node built-in: a browser cannot bundle it`,
+    );
+  }
+}
+// And from the other side: `/node` must still reach one, or the boundary has moved rather than
+// held and the browser assertions above are passing for the wrong reason.
+const nodeClosure = [...closure(entryFile('node'))];
+assert.ok(
+  nodeClosure.some((file) => NODE_SPECIFIER.test(readFileSync(file, 'utf8'))),
+  '/node reaches no Node built-in: the streaming writer it exists to carry is not behind it',
+);
+
 console.log(
   `dist smoke ok: ${bytes.byteLength} byte xlsx, round-trip verified; ` +
     `${Object.keys(SUBPATH_BINDINGS).length} subpaths resolve through exports; ` +
-    `/core is codec-free (${coreReach.size} modules), /errors is self-contained (${errorsReach.size})`,
+    `/core is codec-free (${coreReach.size} modules), /errors is self-contained (${errorsReach.size}); ` +
+    `${browserEntries.length + 1} browser entries import no Node built-in`,
 );

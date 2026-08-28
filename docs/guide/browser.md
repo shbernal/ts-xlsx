@@ -45,60 +45,45 @@ the environment provides them. It produces the same package byte for byte.
 
 ## What does not
 
-The streaming writer writes to a Node stream and the streaming reader is a Node-shaped
-generator over Node buffers; neither is available in a tab. Sheet-protection passwords are
-hashed with Node's crypto. If your browser code needs any of those, it needs a server.
+The streaming writer. It opens files and pipes Node streams, so it is published from
+`@shbernal/ts-xlsx/node` and the root specifier does not carry it; a browser build that
+imports that subpath anyway links a module whose classes throw by name, which is the honest
+answer rather than a bundler error about `node:fs`. The streaming reader is a generator over
+Node buffers and is not available in a tab either. If your browser code needs either, it
+needs a server.
 
-## The gap you will hit today, and what to do about it
+Everything else runs, including the two things that used to be listed here. Sheet-protection
+passwords are hashed by this library's own SHA-512 rather than by `node:crypto`, and the CSV
+encoders are the platform's `TextEncoder` and two small loops rather than `Buffer`.
 
-Three Node built-ins are statically reachable from the package entry: `node:crypto` through
-the sheet-protection password hash, and `node:fs` and `node:stream` through the streaming
-writer. Nothing on the buffered path calls any of them, but a bundler resolves imports rather
-than call graphs, so it will reach all three anyway. What you see depends on the bundler:
-Vite externalises them with a warning and then fails the build on a named import; webpack
-reports a module it cannot resolve.
+## Nothing to configure
 
-This is a real limitation and not a configuration mistake on your side. Until the library
-puts those behind an export condition a browser never resolves, the fix is to alias the three
-specifiers to a module that throws:
+There is no bundler alias to write and no `node:` specifier to stub out. Nothing reachable
+from `@shbernal/ts-xlsx`, `/core`, `/xlsx`, `/xlsb`, `/csv`, `/vba`, `/customui` or `/errors`
+imports a Node built-in or reads a Node global, and that is a gate rather than a claim:
+`scripts/check-browser-safe.ts` walks the module graph from every one of those entries on
+every run, and the published build is walked again from the emitted JavaScript. If a Node
+import ever reaches the browser entries, CI says so before you do.
 
-```ts
-// node-absent.ts
-function absent(name: string): never {
-  throw new Error(`${name} is not available in a browser; use readXlsx and writeXlsx.`);
-}
+The one subpath that does reach them, `/node`, is resolved by a bundler's `browser`
+condition to a module that throws with the name and the way out:
 
-export const createHash = (): never => absent('createHash');
-export const randomBytes = (): never => absent('randomBytes');
-export const createWriteStream = (): never => absent('createWriteStream');
-export class PassThrough {
-  constructor() {
-    absent('PassThrough');
-  }
-}
-
-console.log(typeof createHash); // 'function'
-```
-
-Then point the bundler at it. In Vite:
-
-<!-- sample: illustrative. It is a fragment of a build config rather than a program. -->
+<!-- sample: illustrative. It shows what a browser build links, which this page is not. -->
 
 ```ts
-export default {
-  resolve: {
-    alias: [{find: /^node:(?:crypto|fs|stream)$/, replacement: '/src/node-absent.ts'}],
-  },
-};
-```
+import {WorkbookStreamWriter} from '@shbernal/ts-xlsx/node';
 
-This site does exactly that, which is why the playground works. The errors it throws never
-fire in practice, because nothing the buffered path does reaches them.
+// In a browser build:
+new WorkbookStreamWriter();
+// Error: ts-xlsx: WorkbookStreamWriter is not available in this environment: the streaming
+// writer opens files and pipes Node streams, which a browser has neither of. Use writeXlsx
+// (or writeXlsxAsync), which produce the same package as bytes.
+```
 
 ## What it costs to ship
 
 The site's own production build puts the whole library, `fflate`, and the playground's page
-code into one chunk of 331 KB, which is 92 KB over the wire once gzipped. That chunk is
+code into one chunk of 328 KB, which is 93 KB over the wire once gzipped. That chunk is
 fetched when the playground mounts and by no other page.
 
 You can do better than that number if you need to, because the package declares

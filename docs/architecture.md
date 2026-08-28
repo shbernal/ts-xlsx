@@ -246,7 +246,7 @@ can produce. They were public members. They shipped in the `.d.ts`, they appeare
 reference, and the model class *was* the codec's mutation interface. They now hang off one symbol key
 in `core/internal.ts` (`sheet[INTERNAL].restoreProtection(…)`), which no entry barrel exports, so the
 boundary is the module graph rather than a naming convention. No layering rule guards who may import
-that module: `package.json` maps only the seven subpaths, so the symbol is already unreachable from
+that module: `package.json` maps only the eight subpaths, so the symbol is already unreachable from
 outside the package, and a rule would only police `src/core` against itself.
 
 The channel takes two shapes on purpose. `Workbook` and `Worksheet` carry a symbol-keyed *object* of
@@ -464,11 +464,20 @@ prefixes were once re-derived by hand-summing every prior part's count, which si
 parts onto one id when a prefix drifts. Ids are now unique by construction and never recomputed by
 arithmetic.
 
-The public API is seven curated entry barrels under [`src/entries/`](../src/entries/), one
-per subpath the package publishes (`/core`, `/xlsx`, `/xlsb`, `/csv`, `/vba`, `/customui`,
-`/errors`), plus [`src/index.ts`](../src/index.ts), which unions them so the bare package name
-still carries everything. Each symbol is listed in exactly one entry, so the root barrel is a
-union of `export *` lines rather than a second list to keep in step.
+The public API is eight curated entry barrels under [`src/entries/`](../src/entries/), one
+per subpath the package publishes (`/core`, `/xlsx`, `/xlsb`, `/csv`, `/node`, `/vba`,
+`/customui`, `/errors`), plus [`src/index.ts`](../src/index.ts), which unions seven of them so
+the bare package name still carries everything a browser can run. Each symbol is listed in
+exactly one entry, so the root barrel is a union of `export *` lines rather than a second list
+to keep in step.
+
+`/node` is the one the root barrel leaves out, and the reason is its imports rather than its
+size. It carries the streaming writer, the only public surface reaching a Node built-in
+(`node:fs`, `node:stream`); unioning it would put those on every browser consumer's graph for a
+symbol they never named. `scripts/check-browser-safe.ts` walks the graph from the other seven
+entries and fails on any `node:` specifier or Node-only global, and a `browser` condition in
+`package.json` resolves `/node` to a stub whose classes throw by name
+([ADR-0040](decisions/0040-the-browser-boundary-is-an-entry-point.md)).
 
 That disjointness is load-bearing rather than tidy: `export *` does not report an ambiguous
 re-export, it silently drops the name, so a symbol exported from two entries would vanish from
@@ -477,7 +486,7 @@ the root specifier with no diagnostic anywhere. `scripts/check-entries.ts` (a ga
 on a published subpath whose module is gone. It is also why the *whole* failure taxonomy is
 exported from `/errors` and nowhere else: a container-level failure belongs to no single codec,
 since `readXlsx` and `readXlsb` both raise `UnsupportedFormatError`, so putting the classes with the
-codecs would have forced exactly the duplication the union cannot survive. That entry costs 12 KB,
+codecs would have forced exactly the duplication the union cannot survive. That entry costs 3 KB,
 so classifying a failure never loads a parser.
 
 The barrels are curated, not exhaustive: modelled core-feature types (autofilter, page setup,

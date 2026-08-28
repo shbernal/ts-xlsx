@@ -31,3 +31,33 @@ export function concat(chunks: readonly Uint8Array[], size?: number): Uint8Array
   }
   return out;
 }
+
+// The base64 alphabet, in index order (RFC 4648 §4).
+const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+/**
+ * Standard base64 of `bytes`, padded with `=`.
+ *
+ * Spelled out rather than delegated because both platform routes are unavailable here: `Buffer` is
+ * a Node global, which is exactly what a browser-safe module may not reach for, and `btoa` is
+ * declared deprecated in Node's types (so the `no-deprecated` lint rule rejects it) and takes a
+ * binary string rather than bytes anyway. The one caller encodes a 16-byte salt and a 64-byte
+ * hash, so the loop below is not on any path where its cost is measurable.
+ */
+export function toBase64(bytes: Uint8Array): string {
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i] ?? 0;
+    const b = bytes[i + 1] ?? 0;
+    const c = bytes[i + 2] ?? 0;
+    const triple = (a << 16) | (b << 8) | c;
+    const remaining = bytes.length - i;
+    // `charAt` rather than an index: `noUncheckedIndexedAccess` types `s[i]` as possibly
+    // undefined, and the alphabet is exactly 64 characters wide by construction.
+    out += BASE64_ALPHABET.charAt((triple >>> 18) & 63);
+    out += BASE64_ALPHABET.charAt((triple >>> 12) & 63);
+    out += remaining > 1 ? BASE64_ALPHABET.charAt((triple >>> 6) & 63) : '=';
+    out += remaining > 2 ? BASE64_ALPHABET.charAt(triple & 63) : '=';
+  }
+  return out;
+}

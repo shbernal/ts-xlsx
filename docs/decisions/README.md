@@ -61,6 +61,7 @@ after it would have broken far more cross-references than the collision did.
 | [0037](./0037-the-linter-and-the-typechecker-read-the-same-tsconfig.md) | Every tree the linter type-checks has a `tsconfig.json` the linter can find | Accepted 2026-08-26 · corrects a mechanism [0036](./0036-oxlint-and-oxfmt-replace-biome.md) observed but did not diagnose |
 | [0038](./0038-the-corpus-keeps-its-untyped-boundary.md) | The corpus keeps its untyped boundary, and it costs six rules rather than sixteen | Accepted 2026-08-26 · answers the question [0036](./0036-oxlint-and-oxfmt-replace-biome.md) deferred |
 | [0039](./0039-the-website-is-generated-from-the-docs-tree.md) | The website is generated from the docs tree, and drift is a build error | Accepted 2026-08-27 |
+| [0040](./0040-the-browser-boundary-is-an-entry-point.md) | The browser boundary is an entry point, and a gate walks the graph to prove it | Accepted 2026-08-28 · narrows the entry-point set of [0023](./0023-subpath-entry-points-and-disjoint-barrels.md) |
 
 ## Writing one
 

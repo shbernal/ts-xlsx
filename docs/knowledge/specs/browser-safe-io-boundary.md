@@ -4,6 +4,15 @@ Cluster: browser
 
 Reported as "Cannot read property 'F_OK' of undefined".
 
+> **Built, 2026-08-28.** The bundle-time half of this note is done and gated. `node:crypto` and
+> `Buffer` are gone from the library entirely (`src/sha512.ts`, `toBase64`, `TextEncoder`), the
+> streaming writer is published from `@shbernal/ts-xlsx/node` with a `browser` condition resolving
+> it to a stub that throws by name, and `scripts/check-browser-safe.ts` walks the graph from every
+> browser-facing entry on every run so no Node built-in or Node-only global can return to it. See
+> ADR 0040. What remains open is the forward half named at the end of this note: a browser-native
+> streaming sink over Web Streams (`browser-streaming-workbook-write`, `web-streams-io-surface`),
+> which would let the writer itself run in a tab rather than being absent from it.
+
 ## Problem
 
 The file-path I/O methods (read from or write to a path on disk) depend on Node's `fs` module, including `fs.constants.F_OK` for existence checks. When the library is bundled for the browser, `fs` is either absent or a bundler-provided empty stub, so `fs.constants` is `undefined`. Any code path that dereferences `fs.constants.F_OK` throws a cryptic `TypeError: Cannot read property 'F_OK' of undefined` from inside the minified bundle. The user has no way to tell that the actual issue is "filesystem paths are not supported in the browser."

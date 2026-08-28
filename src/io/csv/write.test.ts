@@ -148,3 +148,27 @@ test('the two spellings of UTF-8 are the same path, BOM and refusal both', () =>
   broken.addWorksheet('S').addRow(['\uDC00']);
   assert.throws(() => writeCsv(broken, {encoding: 'utf-8'}), AuthoringError);
 });
+
+// The encoder used to be `Buffer.from(text, encoding)`, and dropping that Node global was the
+// point of writing one (`scripts/check-browser-safe.ts`). Byte-for-byte agreement with Buffer is
+// therefore the contract, not merely a plausible encoding: every spelling, and the astral and
+// high-Latin characters where the byte-narrow encodings do something lossy on purpose.
+test('every encoding produces exactly the bytes Buffer would have', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addRow(['héllo ÿ € 😀 漢字']);
+  const text = writeCsvText(wb);
+  for (const encoding of ['ascii', 'latin1', 'ucs-2', 'ucs2', 'utf-16le', 'utf16le'] as const) {
+    assert.deepEqual(
+      writeCsv(wb, {encoding}),
+      new Uint8Array(Buffer.from(text, encoding)),
+      encoding,
+    );
+  }
+  for (const encoding of ['utf-8', 'utf8'] as const) {
+    assert.deepEqual(
+      writeCsv(wb, {bom: false, encoding}),
+      new Uint8Array(Buffer.from(text, encoding)),
+      encoding,
+    );
+  }
+});

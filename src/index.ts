@@ -6,6 +6,12 @@
 // re-export cannot silently drop a name to an ambiguity. `scripts/check-layering.ts` holds the
 // entries disjoint and keeps this file's composition honest.
 //
+// One entry is deliberately absent: `/node`, the streaming writer, which imports `node:fs` and
+// `node:stream`. Unioning it here would put those on the graph of every consumer who wrote
+// `from '@shbernal/ts-xlsx'`, browser builds included, for a symbol they never named, which is
+// how they got there in the first place (ADR 0040). Everything reachable from this file runs in a
+// tab, and `scripts/check-browser-safe.ts` walks the graph to keep that true.
+//
 // Importing from here is the right default; it costs nothing extra to a bundler, because
 // `sideEffects: false` lets an unused module be dropped whole. Reach for a subpath when the
 // consumer has no bundler to do that for it, or when you want the module graph itself to say

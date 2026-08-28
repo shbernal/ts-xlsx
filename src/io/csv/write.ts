@@ -28,6 +28,25 @@ import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {AuthoringError} from '../../errors.ts';
 
+/**
+ * A byte encoding {@link writeCsv} can produce, spelled the way Node's `Buffer` spells it and
+ * meaning the same bytes.
+ *
+ * Named here rather than taken from Node's `BufferEncoding`, which is what this option used to be:
+ * that type is part of `@types/node`, so it made a browser consumer's public API surface depend on
+ * Node's types, and it offered `base64` and `hex` as if they were output encodings for a text
+ * format. The list is what a CSV consumer actually asks for.
+ */
+export type CsvEncoding =
+  | 'ascii'
+  | 'latin1'
+  | 'ucs-2'
+  | 'ucs2'
+  | 'utf-8'
+  | 'utf-16le'
+  | 'utf16le'
+  | 'utf8';
+
 export interface CsvWriteOptions {
   /** Which worksheet to write; defaults to the first. A name matching no sheet throws rather than
    * silently emitting an empty file. */
@@ -42,7 +61,7 @@ export interface CsvWriteOptions {
   /** Render Date cells in UTC rather than the runner's local time. */
   readonly dateUTC?: boolean;
   /** Byte encoding for {@link writeCsv}; defaults to `"utf8"`. */
-  readonly encoding?: BufferEncoding;
+  readonly encoding?: CsvEncoding;
   /** Prepend a UTF-8 byte-order mark (applies only to UTF-8); defaults to `true` for UTF-8. */
   readonly bom?: boolean;
   /** Per-field transform replacing the default value rendering; receives the cell's value (`null`
@@ -82,16 +101,16 @@ export function writeCsvText(workbook: Workbook, options: CsvWriteOptions = {}):
  * The CSV bytes of one worksheet in the requested encoding, with a UTF-8 BOM by default.
  *
  * @throws {AuthoringError} if a field holds an unpaired surrogate and the encoding is UTF-8, which
- * cannot represent one. The alternative is `Buffer.from`'s silent U+FFFD substitution.
+ * cannot represent one. The alternative is a silent U+FFFD substitution.
  */
 export function writeCsv(workbook: Workbook, options: CsvWriteOptions = {}): Uint8Array {
   const text = writeCsvText(workbook, options);
   const encoding = options.encoding ?? 'utf8';
   const utf8 = isUtf8(encoding);
   if (utf8) assertEncodable(text);
-  const body = Buffer.from(text, encoding);
+  const body = encode(text, encoding);
   const wantBom = options.bom ?? utf8;
-  if (!wantBom || !utf8) return Uint8Array.from(body);
+  if (!wantBom || !utf8) return body;
 
   const out = new Uint8Array(UTF8_BOM.length + body.length);
   out.set(UTF8_BOM, 0);
@@ -100,8 +119,31 @@ export function writeCsv(workbook: Workbook, options: CsvWriteOptions = {}): Uin
 }
 
 // Node spells the same encoding two ways, and the BOM is owed to both.
-function isUtf8(encoding: BufferEncoding): boolean {
+function isUtf8(encoding: CsvEncoding): boolean {
   return encoding === 'utf8' || encoding === 'utf-8';
+}
+
+/**
+ * The text's bytes in one of the {@link CsvEncoding} spellings, byte for byte what `Buffer.from`
+ * produced when this went through Node: UTF-16 is little-endian code units with no BOM, and the
+ * two byte-narrow encodings are the low byte of each code unit, `ascii` included, which Node
+ * documents as equivalent to `latin1` in this direction rather than as a 7-bit filter.
+ *
+ * Written out because `Buffer` is a Node global, and a module the browser entry can reach may not
+ * touch one (`scripts/check-browser-safe.ts`). `TextEncoder` covers UTF-8 and is the only encoder
+ * the platform offers; the other two are a loop each.
+ */
+function encode(text: string, encoding: CsvEncoding): Uint8Array {
+  if (isUtf8(encoding)) return new TextEncoder().encode(text);
+  if (encoding === 'ascii' || encoding === 'latin1') {
+    const bytes = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i) & 0xff;
+    return bytes;
+  }
+  const bytes = new Uint8Array(text.length * 2);
+  const view = new DataView(bytes.buffer);
+  for (let i = 0; i < text.length; i++) view.setUint16(i * 2, text.charCodeAt(i), true);
+  return bytes;
 }
 
 /**

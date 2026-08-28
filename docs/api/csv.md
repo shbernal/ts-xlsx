@@ -2,6 +2,32 @@
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
+### `CsvEncoding`
+
+<sub>type</sub>
+
+A byte encoding [`writeCsv`](./csv.md#writecsv) can produce, spelled the way Node's `Buffer` spells it and
+meaning the same bytes.
+
+Named here rather than taken from Node's `BufferEncoding`, which is what this option used to be:
+that type is part of `@types/node`, so it made a browser consumer's public API surface depend on
+Node's types, and it offered `base64` and `hex` as if they were output encodings for a text
+format. The list is what a CSV consumer actually asks for.
+
+```ts
+type CsvEncoding =
+  | 'ascii'
+  | 'latin1'
+  | 'ucs-2'
+  | 'ucs2'
+  | 'utf-8'
+  | 'utf-16le'
+  | 'utf16le'
+  | 'utf8';
+```
+
+---
+
 ### `CsvReadOptions`
 
 <sub>interface</sub>
@@ -41,7 +67,7 @@ interface CsvWriteOptions {
   /** Render Date cells in UTC rather than the runner's local time. */
   readonly dateUTC?: boolean;
   /** Byte encoding for {@link writeCsv}; defaults to `"utf8"`. */
-  readonly encoding?: BufferEncoding;
+  readonly encoding?: CsvEncoding;
   /** Prepend a UTF-8 byte-order mark (applies only to UTF-8); defaults to `true` for UTF-8. */
   readonly bom?: boolean;
   /** Per-field transform replacing the default value rendering; receives the cell's value (`null`
@@ -76,7 +102,7 @@ function writeCsv(workbook: Workbook, options: CsvWriteOptions = {}): Uint8Array
 ```
 
 **Throws:** [`AuthoringError`](./errors.md#authoringerror) if a field holds an unpaired surrogate and the encoding is UTF-8, which
-cannot represent one. The alternative is `Buffer.from`'s silent U+FFFD substitution.
+cannot represent one. The alternative is a silent U+FFFD substitution.
 
 ---
 

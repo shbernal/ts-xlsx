@@ -4,4 +4,4 @@
 // value vocabulary, while reading builds a `Workbook` and therefore pulls the model in whole.
 
 export {type CsvReadOptions, readCsv} from '../io/csv/read.ts';
-export {type CsvWriteOptions, writeCsv, writeCsvText} from '../io/csv/write.ts';
+export {type CsvEncoding, type CsvWriteOptions, writeCsv, writeCsvText} from '../io/csv/write.ts';

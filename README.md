@@ -132,10 +132,12 @@ import {
   readXlsx, writeXlsx,        // buffered .xlsx  (Uint8Array ⇄ Workbook)
   readSheetRows,              // stream one sheet's rows, bounded memory
   readWorkbookStream,         // stream every sheet, rows one at a time
-  WorkbookStreamWriter,       // write a workbook incrementally, bounded memory
   readCsv, writeCsv,          // CSV as Uint8Array
   writeCsvText,               // CSV as a string
 } from '@shbernal/ts-xlsx';
+// The streaming writer opens files and pipes Node streams, so it is the one Node-only face
+// and lives behind its own subpath — which is what keeps everything above browser-safe:
+import {WorkbookStreamWriter} from '@shbernal/ts-xlsx/node';
 
 // Bounded-memory extraction — the whole workbook is never materialized:
 for (const row of readSheetRows(bytes, {sheet: 'People'})) {
@@ -191,18 +193,24 @@ on — a Lambda with no bundler, a service that only classifies failures:
 
 | Import from | You get | It loads |
 | --- | --- | --- |
-| `@shbernal/ts-xlsx` | everything | 902 KB |
-| `@shbernal/ts-xlsx/core` | `Workbook`, `Worksheet`, `Cell`, styles, values, addresses | 332 KB |
-| `@shbernal/ts-xlsx/xlsx` | `readXlsx`, `writeXlsx`/`writeXlsxAsync`, the streaming pair, VBA part edits | 887 KB |
-| `@shbernal/ts-xlsx/xlsb` | `readXlsb` | 469 KB |
-| `@shbernal/ts-xlsx/csv` | `readCsv`, `writeCsv`, `writeCsvText` | 341 KB |
-| `@shbernal/ts-xlsx/vba` | `parseVbaProject`, `addVbaReference`, `removeVbaModule` | 73 KB |
-| `@shbernal/ts-xlsx/customui` | `parseCustomUi` and the ribbon types | 26 KB |
-| `@shbernal/ts-xlsx/errors` | every error class the library throws | 12 KB |
+| `@shbernal/ts-xlsx` | everything except the streaming writer | 501 KB |
+| `@shbernal/ts-xlsx/core` | `Workbook`, `Worksheet`, `Cell`, styles, values, addresses | 185 KB |
+| `@shbernal/ts-xlsx/xlsx` | `readXlsx`, `writeXlsx`/`writeXlsxAsync`, the streaming reader, VBA part edits | 490 KB |
+| `@shbernal/ts-xlsx/xlsb` | `readXlsb` | 256 KB |
+| `@shbernal/ts-xlsx/csv` | `readCsv`, `writeCsv`, `writeCsvText` | 191 KB |
+| `@shbernal/ts-xlsx/node` | `WorkbookStreamWriter` and the rest of the streaming writer | 358 KB |
+| `@shbernal/ts-xlsx/vba` | `parseVbaProject`, `addVbaReference`, `removeVbaModule` | 46 KB |
+| `@shbernal/ts-xlsx/customui` | `parseCustomUi` and the ribbon types | 15 KB |
+| `@shbernal/ts-xlsx/errors` | every error class the library throws | 3 KB |
+
+`/node` is the only one the root specifier does not carry, and the reason is its imports
+rather than its size: it reaches `node:fs` and `node:stream`, and every other entry reaches
+no Node built-in at all, which is what makes them bundle for a browser with nothing to
+configure ([ADR-0040](docs/decisions/0040-the-browser-boundary-is-an-entry-point.md)).
 
 Every error class lives in `/errors` and nowhere else, because a container-level failure
 belongs to no single codec — `readXlsx` and `readXlsb` both raise `UnsupportedFormatError`.
-Catching and classifying therefore costs 12 KB, not a parser.
+Catching and classifying therefore costs 3 KB, not a parser.
 
 `/xlsx` is barely cheaper than the whole package, and that is honest rather than a defect:
 `readXlsx` sniffs the bytes and hands a binary package to the BIFF12 reader, so the `.xlsb`

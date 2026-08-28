@@ -64,10 +64,12 @@ behind it ever existing.
 ## Writing a workbook incrementally
 
 The streaming writer is the mirror: add a sheet, append rows, and commit each one to
-serialise it and let it go.
+serialise it and let it go. It comes from `@shbernal/ts-xlsx/node` rather than from the root
+specifier, because it is the one part of the library that opens files and pipes Node streams;
+[in the browser](./browser.md) says what that boundary buys everything else.
 
 ```ts
-import {WorkbookStreamWriter} from '@shbernal/ts-xlsx';
+import {WorkbookStreamWriter} from '@shbernal/ts-xlsx/node';
 
 const writer = new WorkbookStreamWriter();
 const sheet = writer.addWorksheet('Big');
@@ -89,7 +91,8 @@ its `<row>` is rendered and its cells are released, so the same call is refused 
 emitting a second row carrying that number.
 
 ```ts
-import {AuthoringError, WorkbookStreamWriter} from '@shbernal/ts-xlsx';
+import {AuthoringError} from '@shbernal/ts-xlsx';
+import {WorkbookStreamWriter} from '@shbernal/ts-xlsx/node';
 
 const writer = new WorkbookStreamWriter();
 const sheet = writer.addWorksheet('Report');
@@ -130,8 +133,10 @@ await writer.commit();
 
 It is a genuinely narrower surface, and pretending otherwise would waste your afternoon.
 
-- The streaming **writer is Node-only**: it writes to a Node stream, so it is not available
-  in a browser. [In the browser](./browser.md) says what is.
+- The streaming **writer is Node-only**, which is why it is published from `/node` and not
+  from the root specifier: it writes to a Node stream. A browser build that imports it links
+  a module that throws by name rather than one a bundler cannot resolve.
+  [In the browser](./browser.md) says what runs in a tab.
 - The streaming **reader does not read `.xlsb`**. A binary package cannot be row-streamed,
   and asking raises `UnsupportedFormatError` with `format` saying which kind it was, rather
   than a vague refusal.

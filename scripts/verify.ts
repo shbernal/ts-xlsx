@@ -249,6 +249,7 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
           {command: NODE, args: ['scripts/check-constitution.ts']},
           {command: NODE, args: ['scripts/check-layering.ts']},
           {command: NODE, args: ['scripts/check-entries.ts']},
+          {command: NODE, args: ['scripts/check-browser-safe.ts']},
           {command: NODE, args: ['scripts/check-source-text.ts']},
           // The docs tree and the site cannot disagree quietly: every page reachable, every
           // link resolvable, every title derivable. Sub-second, where the site build that

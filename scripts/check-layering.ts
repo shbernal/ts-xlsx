@@ -40,6 +40,11 @@ const RULES: readonly Rule[] = [
     because: 'joining byte chunks is below every layer that assembles them',
   },
   {
+    layer: 'src/sha512.ts',
+    forbidden: ['src/core', 'src/io', 'src/xml', 'src/vba', 'src/customui'],
+    because: 'a hash function knows nothing about the one credential that asks for it',
+  },
+  {
     layer: 'src/xml',
     forbidden: ['src/core', 'src/io', 'src/vba', 'src/customui'],
     because: 'XML escaping and parsing know nothing about spreadsheets',

@@ -29,7 +29,11 @@ export interface CsvReadOptions {
 
 /** Parse CSV text (or UTF-8 bytes) into a workbook holding a single worksheet. */
 export function readCsv(input: string | Uint8Array, options: CsvReadOptions = {}): Workbook {
-  const text = stripBom(typeof input === 'string' ? input : Buffer.from(input).toString('utf8'));
+  // `ignoreBOM` means "do not strip it", so a leading BOM survives the decode and `stripBom` stays
+  // the single place that knows about one, for text and bytes alike.
+  const text = stripBom(
+    typeof input === 'string' ? input : new TextDecoder('utf-8', {ignoreBOM: true}).decode(input),
+  );
   const delimiter = options.delimiter ?? ',';
   if (delimiter.length !== 1) {
     throw new RangeError(

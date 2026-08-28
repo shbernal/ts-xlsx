@@ -22,7 +22,6 @@ www/
     check.ts        the drift gate: the validation with nothing written
   playground/       what the playground does, as pure modules with a test beside each
   components/       the render functions that mount it
-  node-absent.ts    the three Node built-ins the library reaches, aliased away
   index.md          the home page
   playground.md     the playground page
   docs/             GENERATED from docs/. Git-ignored. Never edit a file here.

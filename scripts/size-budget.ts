@@ -24,7 +24,7 @@ import {fileURLToPath} from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
-const TOTAL_BUDGET_BYTES = 530 * 1024;
+const TOTAL_BUDGET_BYTES = 560 * 1024;
 
 // Roughly a tenth of headroom over the measured closure, per entry: enough that ordinary growth is
 // not a chore, tight enough that a whole codec crossing a boundary cannot hide inside it.
@@ -35,14 +35,26 @@ const TOTAL_BUDGET_BYTES = 530 * 1024;
 // finally being of code. The old figures were ~47% comment, which is what had made this tripwire
 // soft: a codec crossing a boundary is the failure these numbers exist to catch, and at the old
 // scale one could have arrived inside a release's ordinary comment churn without moving them.
+//
+// Re-baselined again when the browser boundary landed (ADR 0040), because two things moved at once
+// and in opposite directions. `src/sha512.ts` and `toBase64` replaced `node:crypto` and `Buffer`,
+// which puts about 5 KB into the bottom layer that every entry reaching `/core` now carries, and
+// `/customui`, which reaches almost nothing, went over a budget with 0.7 KB left in it. Meanwhile
+// the streaming writer left `.` and `/xlsx` for `/node`, so those two fell. The tenth of headroom
+// this comment describes had been eaten to a rounding error on several entries (`/core` sat 0.1 KB
+// under its number); the figures below restore it against today's measurement rather than
+// grandfathering the drift. `/errors` and `/vba` keep theirs, which are already deliberate.
 const ENTRY_BUDGETS_KB: Readonly<Record<string, number>> = {
-  '.': 530,
-  './core': 185,
-  './xlsx': 520,
-  './xlsb': 262,
-  './csv': 190,
+  '.': 550,
+  './core': 205,
+  './xlsx': 540,
+  './xlsb': 282,
+  './csv': 210,
+  // The streaming writer and the write half it rides on, and nothing of the reader: a jump here is
+  // the read path arriving, which would mean the entry had stopped being about one thing.
+  './node': 395,
   './vba': 50,
-  './customui': 14,
+  './customui': 16,
   // The taxonomy reaches nothing but itself, and that is the point: classifying a failure must
   // not cost a parser. A jump here means an error class started importing the layer it describes.
   './errors': 4,

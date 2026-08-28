@@ -14,6 +14,31 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Changed
 
+- **BREAKING: the package entry no longer reaches a Node built-in, and the streaming writer moved
+  to `@shbernal/ts-xlsx/node`.** Three Node modules used to sit on the graph reachable from
+  `src/index.ts`, so a browser build pulled in `node:crypto`, `node:fs` and `node:stream` whether
+  or not the page ever called them: a bundler resolves imports, not call graphs. Webpack reported a
+  module it could not resolve and Vite externalised them with a warning, and this repository's own
+  site could only bundle the library by aliasing all three to a stub. `WorkbookStreamWriter`,
+  `WorksheetStreamWriter`, `StreamedRow` and their options are now published from
+  `@shbernal/ts-xlsx/node` and nowhere else, which is the only import that has to change; the class
+  itself, its sink options and `writer.stream` are untouched. Every other entry, the root specifier
+  included, now bundles for a browser with nothing to configure, and
+  `scripts/check-browser-safe.ts` walks the module graph on every run to keep it that way
+  ([ADR-0040](docs/decisions/0040-the-browser-boundary-is-an-entry-point.md)).
+- **BREAKING: `CsvWriteOptions.encoding` is `CsvEncoding`, not Node's `BufferEncoding`.** The new
+  exported union names the eight spellings a CSV consumer actually asks for (`utf8`, `utf-8`,
+  `utf16le`, `utf-16le`, `ucs2`, `ucs-2`, `latin1`, `ascii`) and drops `base64` and `hex`, which
+  were never output encodings for a text format. The bytes are unchanged: a test asserts each
+  encoding byte-for-byte against what `Buffer.from` produced. The public API no longer depends on
+  `@types/node` to state this option's type.
+- **Sheet-protection passwords are hashed without `node:crypto`,** by this library's own SHA-512
+  (`src/sha512.ts`), with the salt from the platform's `crypto.getRandomValues`. Credentials are
+  identical: the same algorithm, the same salt length, the same default 100000 spins, checked
+  against Node's implementation in tests. `Worksheet.protect(password)` therefore works in a
+  browser, and costs about 0.8 s at the default spin count against `node:crypto`'s 0.4 s.
+- **`readCsv` and `writeCsv` no longer touch `Buffer`,** using `TextDecoder`/`TextEncoder` and two
+  small encoders instead, so the CSV functions run in a tab as the documentation always said.
 - **BREAKING: an out-of-enumeration token is refused at the write and dropped at the read.** A
   `<pageSetup>` orientation or page order, a `<dataValidation>` type/operator/error style, a
   `<cfRule>` type/operator/time period/icon set/anchor type, a sheet tab or document window
