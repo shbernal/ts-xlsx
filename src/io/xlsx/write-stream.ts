@@ -23,8 +23,30 @@
 // finished row: it cannot join whole-sheet derivations, so a shared-formula clone in a committed row
 // is rejected, as is a `getCell` reaching back into a committed row (its `<row>` is already rendered,
 // so the cell could only be emitted as a second row of that number), while rows reached only through
-// `getCell` (never `row.commit()`) stay live and serialise the ordinary way. The package bytes themselves are still assembled once at commit; a later slice
-// can flush each sheet's `<sheetData>` straight into its streamed zip entry to bound that half too.
+// `getCell` (never `row.commit()`) stay live and serialise the ordinary way. The package bytes
+// themselves are still assembled once at commit; a later slice can flush each sheet's `<sheetData>`
+// straight into its streamed zip entry to bound that half too.
+//
+// What `WorksheetStreamWriter` does *not* expose, since a hand-maintained subset of `Worksheet` grows
+// its gaps silently: a verb added to the sheet model simply never appears here, and nothing mechanical
+// would say so. An exhaustiveness proof would be the wrong artifact, because most of `Worksheet` must
+// not be streamable, so the honest one is this list. Two classes are absent because a streamed sheet
+// cannot answer them honestly. Structural edits (`spliceRows`, `insertRow`, `duplicateRow`, and the
+// column verbs) re-anchor rows an eager writer has already rendered and evicted, so they would apply
+// to the live tail alone while looking like they applied to the sheet. Whole-sheet reads (`usedRange`,
+// `getRange`, `hasCell`, `actualRowCount`, `dataValidationAt`) have the same defect one step later:
+// each would compute a plausible answer over whichever rows happen to still be in memory. `rowCount`
+// is the exception that proves it, and is why it keeps its own high-water mark instead of asking the
+// model.
+//
+// The third class is different, and calling it absent-by-design would be a fiction: merges, the frozen
+// pane, column widths, page setup, tables and comment threads are sheet-level state the streamed
+// package already emits, because both writers assemble their parts through `buildPackageParts` (a
+// merge, a freeze and a column width applied to the model survive a streamed write; measured). They
+// are missing because no streaming producer has asked for them yet. Adding one is a delegation and a
+// test, subject to the single ordering rule this writer imposes: column defaults are frozen at the
+// first flushed row, so a column defined after that is still written to `<cols>` but is composed into
+// no eagerly-rendered cell.
 
 import {createWriteStream} from 'node:fs';
 import {PassThrough, type Readable, type Writable} from 'node:stream';
