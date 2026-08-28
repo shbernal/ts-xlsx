@@ -176,6 +176,16 @@ two questions through it: where does this land, and did the delete swallow it wh
 delete swallowed whole takes its entry with it rather than clamping onto the cut line, because
 dropping a rule is legible and silently re-aiming one is not.
 
+The row and column axes are deliberately not mirror images, and where they diverge is a decision
+rather than a gap someone forgot to close. A row takes either input shape, a positional array or an
+object keyed by `ColumnProperties.key`; a column takes only the positional one, because a column's
+values are indexed by *row* and a row carries no key for the other shape to name. `duplicateRow` has
+no column counterpart for a mechanical reason rather than a matter of taste: a row insert carries
+pre-built `Cell`s, so a duplicate keeps the source's per-cell styles, while a column insert carries
+raw `CellValue`s that materialise fresh cells, so the same verb on that axis would silently drop the
+styles it claims to be copying. What is missing is the machinery, not the verb, and adding it means
+giving `spliceColumns` a cell-shaped insert path first.
+
 ### Inside `src/io/xlsx/`: three kinds of module, deliberately flat
 
 Thirty-odd files in one directory reads like something nobody got round to organising, and the
