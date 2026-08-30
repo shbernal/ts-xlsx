@@ -30,9 +30,12 @@ import {
   type CommentPlan,
   type DrawingPlan,
   type ImagePlan,
+  type MediaPlan,
   type PivotPlan,
   type PreservedPartPlan,
+  type PreservedPlan,
   type PreservedReferencePlan,
+  type PreservedWorkbookReferencePlan,
   type PrinterSettingsPlan,
   planMedia,
   planPreservedParts,
@@ -204,6 +207,129 @@ interface SheetPlan {
   readonly pivots: PivotPlan[];
 }
 
+// The workbook-global part counters the per-sheet planning advances: tables, drawings and pivot
+// tables are numbered across the whole package, not per sheet. Passed as one mutable object so the
+// shared state is part of {@link planSheet}'s signature rather than three variables it closes over.
+interface PartNumbering {
+  table: number;
+  drawing: number;
+  pivot: number;
+}
+
+/**
+ * Plan one sheet's parts, drawing every sheet-local relationship id from that sheet's own allocator
+ * in the one canonical order the package wires them: tables, drawing, comments (VML + comments part),
+ * threaded comments, printer settings, external hyperlinks, background, preserved references, pivot
+ * tables.
+ *
+ * That order is the correctness story. One running allocator per sheet is what keeps the ids gapless
+ * and collision-free, because no step re-derives its offset by summing the ones before it, so none
+ * can drift into another's id. A step moved above another here silently renumbers a package, and
+ * nothing but the corpus would say so.
+ */
+function planSheet(context: {
+  readonly sheet: Worksheet;
+  readonly index: number;
+  readonly media: MediaPlan;
+  readonly preserved: PreservedPlan;
+  readonly numbering: PartNumbering;
+}): SheetPlan {
+  const {sheet, index, media, preserved, numbering} = context;
+  const rels = new SheetRelIds();
+
+  const tables: TablePlan[] = sheet.tables.map((table) => ({
+    table,
+    number: ++numbering.table,
+    relId: rels.next(),
+  }));
+
+  let drawing: DrawingPlan | null = null;
+  if (sheet.images.length > 0) {
+    const images: ImagePlan[] = sheet.images.map((image, j) => {
+      const {number, image: registered} = media.resolve(image.imageId);
+      return {
+        anchor: image.anchor,
+        // The embed id is local to the drawing part's own rels, not the sheet's, so it is numbered
+        // per image from rId1 rather than drawn from the sheet allocator.
+        embedId: `rId${j + 1}`,
+        mediaNumber: number,
+        extension: registered.extension,
+      };
+    });
+    drawing = {number: ++numbering.drawing, relId: rels.next(), images};
+  }
+
+  // A conversation and the legacy fallback `<comment>` that binds its cell to it are two halves of one
+  // representation, so both are derived from this single list and neither can be emitted without the
+  // other. Verified against desktop Excel: a `tc=` fallback whose thread part is absent shows as neither
+  // a thread nor a note (the text disappears rather than degrading) and a thread part whose fallback is
+  // absent is ignored, leaving the cell blank. A thread with no messages is not one of them: it has
+  // nothing to say, and no head id for its replies or its fallback to hang off.
+  const threads = sheet.commentThreads.filter((thread) => thread.comments.length > 0);
+  const sheetComments = collectComments(sheet, threads);
+  const comments: CommentPlan | null =
+    sheetComments.length === 0
+      ? null
+      : {
+          number: index + 1,
+          comments: sheetComments,
+          vmlRelId: rels.next(),
+          commentsRelId: rels.next(),
+        };
+  const threadedComments: ThreadedCommentPlan | null =
+    threads.length === 0 ? null : {number: index + 1, threads, relId: rels.next()};
+
+  const printerData = sheet.pageSetup.printerSettings;
+  const printerSettings: PrinterSettingsPlan | null =
+    printerData === undefined ? null : {number: index + 1, data: printerData, relId: rels.next()};
+
+  const hyperlinks = planHyperlinks(collectHyperlinks(sheet), rels);
+
+  let background: BackgroundPlan | null = null;
+  if (sheet.backgroundImageId !== undefined) {
+    const {number, image} = media.resolve(sheet.backgroundImageId);
+    background = {relId: rels.next(), mediaNumber: number, extension: image.extension};
+  }
+
+  const preservedRefs: PreservedReferencePlan[] = (preserved.perSheet[index] ?? []).map(
+    (reference) => ({...reference, relId: rels.next()}),
+  );
+
+  const pivots: PivotPlan[] = sheet.pivotTables.map((table) => {
+    const number = ++numbering.pivot;
+    // Each pivot is numbered globally (its parts and its `cacheId` must be workbook-unique); the
+    // workbook relationship reaching its cache is assigned once the modeled workbook rels are known.
+    return {number, cacheId: String(number), table, sheetRelId: rels.next(), workbookRelId: ''};
+  });
+
+  return {
+    tables,
+    drawing,
+    comments,
+    threadedComments,
+    printerSettings,
+    hyperlinks,
+    background,
+    preservedRefs,
+    pivots,
+  };
+}
+
+// The part numbers of whichever sheets carry a part of one kind. Four call sites spelled this as a
+// map/filter/map triple with a type predicate whose only job was to restate the plan type it had just
+// selected; one picker says the same thing without the predicate.
+function numbersOf(
+  plans: readonly SheetPlan[],
+  pick: (plan: SheetPlan) => {readonly number: number} | null,
+): number[] {
+  const numbers: number[] = [];
+  for (const plan of plans) {
+    const part = pick(plan);
+    if (part !== null) numbers.push(part.number);
+  }
+  return numbers;
+}
+
 // Resolve one sheet's tail reference ids (the `<drawing>`/`<legacyDrawing>`/`<legacyDrawingHF>`/
 // `<picture>` slots and the slicer list) from its plan. A preserved `<drawing>` and a modeled one are
 // mutually exclusive, so the drawing slot takes whichever exists; a comment's VML rides the legacy-
@@ -227,29 +353,60 @@ function resolveSheetReferences(plan: SheetPlan): SheetReferences {
 }
 
 /**
- * Assemble a workbook into the map of OPC package parts (part name → bytes) that make up an `.xlsx`,
- * short of zipping them. This is the whole serialisation (content types, relationships, workbook,
- * per-sheet XML, styles, theme, media, tables, and props) factored out of {@link writeXlsx} so the
- * streaming writer can drive the identical parts through a streamed zip container rather than
- * `zipSync`. Neither writer duplicates a byte of serialisation.
+ * Lay the workbook-level relationship ids out in one place, and return the two the caller needs to
+ * thread onward.
  *
- * @throws {AuthoringError} if the workbook has no worksheets, or holds a value the writer cannot represent.
+ * The order is the whole of it, and it is the subtlest arithmetic in the writer. The modeled rels
+ * come first (one per sheet, then the fixed styles/theme pair, then shared strings when emitted),
+ * because they are the ones an existing package already numbered: anything laid after them can be
+ * added without renumbering an id already in use. The threaded-comment person registry follows, then
+ * the preserved workbook references, then the generated pivot caches.
+ *
+ * A pivot's id is written back onto the shared {@link PivotPlan} rather than returned, because two
+ * separate parts have to agree on it: the workbook body's `<pivotCaches>` registration and the rels
+ * part. Wiring both from one assignment is what makes disagreeing impossible; returning it would put
+ * the burden back on two call sites to use the same value.
  */
-export function buildPackageParts(
-  workbook: Workbook,
-  options: InternalWriteOptions = {},
-): Record<string, Uint8Array> {
-  const sheets = workbook.worksheets;
-  if (sheets.length === 0) {
-    throw new AuthoringError(
-      'cannot write a workbook with no worksheets: a zero-sheet package is corrupt to Excel',
-    );
-  }
+function assignWorkbookRelIds(context: {
+  readonly sheetCount: number;
+  readonly hasSharedStrings: boolean;
+  readonly hasPersons: boolean;
+  readonly preservedWorkbook: readonly PreservedWorkbookReferencePlan[];
+  readonly pivots: readonly PivotPlan[];
+}): {
+  readonly personsRelId: string | null;
+  readonly preservedWorkbookRels: readonly (PreservedWorkbookReferencePlan & {relId: string})[];
+} {
+  const {sheetCount, hasSharedStrings, hasPersons, preservedWorkbook, pivots} = context;
+  const modeledCount = sheetCount + FIXED_WORKBOOK_REL_COUNT + (hasSharedStrings ? 1 : 0);
+  const personsRelId = hasPersons ? `rId${modeledCount + 1}` : null;
+  const preservedBase = modeledCount + (personsRelId === null ? 0 : 1);
+  const preservedWorkbookRels = preservedWorkbook.map((ref, i) => ({
+    ...ref,
+    relId: `rId${preservedBase + 1 + i}`,
+  }));
+  const pivotBase = preservedBase + preservedWorkbook.length;
+  pivots.forEach((pivot, i) => {
+    pivot.workbookRelId = `rId${pivotBase + 1 + i}`;
+  });
+  return {personsRelId, preservedWorkbookRels};
+}
 
-  // With the option on, plain string cell values are pooled into a shared-strings table interned
-  // during the sheet pass (like the style registry); a null table keeps every string inline.
-  const sharedStrings = options.useSharedStrings ? new SharedStringTable() : null;
+// Everything about a package that is resolved before any of its bytes exist: the media every sheet
+// shares, the parts carried over verbatim, and each sheet's own parts with their relationship ids
+// already allocated. Named because it is the boundary between the two halves of the writer: nothing
+// above it serialises, and nothing below it decides what the package contains.
+interface PackagePlan {
+  readonly media: MediaPlan;
+  readonly preserved: PreservedPlan;
+  readonly perSheet: readonly SheetPlan[];
+  readonly allTables: readonly TablePlan[];
+  readonly allPivots: readonly PivotPlan[];
+}
 
+// Resolve the whole package graph: the media the sheets share, the verbatim-preserved parts numbered
+// past the generated ones, then every sheet's parts in a single pass through {@link planSheet}.
+function planPackage(workbook: Workbook, sheets: readonly Worksheet[]): PackagePlan {
   // Anchored images share workbook-wide media: every image a sheet references becomes one media part,
   // addressed by a global number. Resolved before the sheet loop so a drawing's embeds can target it.
   const media = planMedia(workbook, sheets);
@@ -258,170 +415,102 @@ export function buildPackageParts(
   // table and its caches, a slicer) captured on read and re-emitted verbatim onto collision-proof
   // paths. Preserved parts are renumbered past the parts the writer generates of the same kind
   // (drawings, VML, media), so resolving them needs only those generated counts; each sheet's
-  // preserved references take their sheet-local rel ids in canonical position in the loop below.
+  // preserved references take their sheet-local rel ids in canonical position below.
   const generatedDrawingCount = sheets.filter((sheet) => sheet.images.length > 0).length;
   const preserved = planPreservedParts(workbook, generatedDrawingCount, media.parts.length);
 
-  // Plan every sheet's parts in a single pass, drawing each sheet-local relationship id from that
-  // sheet's allocator in canonical order: tables, drawing, comments (VML + comments part), printer
-  // settings, external hyperlinks, background, preserved references, pivot tables. One running
-  // allocator per sheet is what keeps the ids gapless and collision-free: no step re-derives its
-  // offset by summing the ones before it, so none can drift into another's id. Part numbers (tables,
-  // drawings, pivots) are global across the workbook and counted here in the same pass.
-  let tableNumber = 0;
-  let drawingNumber = 0;
-  let pivotNumber = 0;
-  const perSheet = sheets.map((sheet, i): SheetPlan => {
-    const rels = new SheetRelIds();
+  // The part numbers that are global across the workbook (tables, drawings, pivots) run through one
+  // shared counter, which is why this is a `map` over a mutable object rather than a pure one: the
+  // shared state is in the signature instead of being three `let`s a callback happens to close over.
+  const numbering: PartNumbering = {table: 0, drawing: 0, pivot: 0};
+  const perSheet = sheets.map((sheet, index) =>
+    planSheet({sheet, index, media, preserved, numbering}),
+  );
 
-    const tables: TablePlan[] = sheet.tables.map((table) => ({
-      table,
-      number: ++tableNumber,
-      relId: rels.next(),
-    }));
+  return {
+    media,
+    preserved,
+    perSheet,
+    allTables: perSheet.flatMap((plan) => plan.tables),
+    allPivots: perSheet.flatMap((plan) => plan.pivots),
+  };
+}
 
-    let drawing: DrawingPlan | null = null;
-    if (sheet.images.length > 0) {
-      const images: ImagePlan[] = sheet.images.map((image, j) => {
-        const {number, image: registered} = media.resolve(image.imageId);
-        return {
-          anchor: image.anchor,
-          // The embed id is local to the drawing part's own rels, not the sheet's, so it is numbered
-          // per image from rId1 rather than drawn from the sheet allocator.
-          embedId: `rId${j + 1}`,
-          mediaNumber: number,
-          extension: registered.extension,
-        };
-      });
-      drawing = {number: ++drawingNumber, relId: rels.next(), images};
-    }
-
-    // A conversation and the legacy fallback `<comment>` that binds its cell to it are two halves of one
-    // representation, so both are derived from this single list and neither can be emitted without the
-    // other. Verified against desktop Excel: a `tc=` fallback whose thread part is absent shows as neither
-    // a thread nor a note (the text disappears rather than degrading) and a thread part whose fallback is
-    // absent is ignored, leaving the cell blank. A thread with no messages is not one of them: it has
-    // nothing to say, and no head id for its replies or its fallback to hang off.
-    const threads = sheet.commentThreads.filter((thread) => thread.comments.length > 0);
-    const sheetComments = collectComments(sheet, threads);
-    const comments: CommentPlan | null =
-      sheetComments.length === 0
-        ? null
-        : {
-            number: i + 1,
-            comments: sheetComments,
-            vmlRelId: rels.next(),
-            commentsRelId: rels.next(),
-          };
-    const threadedComments: ThreadedCommentPlan | null =
-      threads.length === 0 ? null : {number: i + 1, threads, relId: rels.next()};
-
-    const printerData = sheet.pageSetup.printerSettings;
-    const printerSettings: PrinterSettingsPlan | null =
-      printerData === undefined ? null : {number: i + 1, data: printerData, relId: rels.next()};
-
-    const hyperlinks = planHyperlinks(collectHyperlinks(sheet), rels);
-
-    let background: BackgroundPlan | null = null;
-    if (sheet.backgroundImageId !== undefined) {
-      const {number, image} = media.resolve(sheet.backgroundImageId);
-      background = {relId: rels.next(), mediaNumber: number, extension: image.extension};
-    }
-
-    const preservedRefs: PreservedReferencePlan[] = (preserved.perSheet[i] ?? []).map(
-      (reference) => ({...reference, relId: rels.next()}),
-    );
-
-    const pivots: PivotPlan[] = sheet.pivotTables.map((table) => {
-      const number = ++pivotNumber;
-      // Each pivot is numbered globally (its parts and its `cacheId` must be workbook-unique); the
-      // workbook relationship reaching its cache is assigned once the modeled workbook rels are known.
-      return {number, cacheId: String(number), table, sheetRelId: rels.next(), workbookRelId: ''};
-    });
-
-    return {
-      tables,
-      drawing,
-      comments,
-      threadedComments,
-      printerSettings,
-      hyperlinks,
-      background,
-      preservedRefs,
-      pivots,
-    };
-  });
-
-  const allTables = perSheet.flatMap((plan) => plan.tables);
-  const allPivots = perSheet.flatMap((plan) => plan.pivots);
-
-  // Serialise the worksheets first: interning each cell/row fill into the style table is a
-  // side effect of that pass, so styles.xml can only be generated once every sheet is done. The
-  // streaming writer supplies its own registry (already seeded, and already carrying its eagerly
-  // flushed rows' styles); the buffered path seeds a fresh one here.
-  const styles = options.styles ?? createStyleRegistry(workbook);
-  const sheetXml = sheets.map((sheet, i) => {
-    const plan = perSheet[i] as SheetPlan;
+/**
+ * Serialise every worksheet, in sheet order.
+ *
+ * This runs before `xl/styles.xml` is generated, and must: interning a cell's or row's format into
+ * the style table is a side effect of this pass, so the stylesheet is only complete once every sheet
+ * has been through it. Emitting the styles part first would silently drop the styles of whatever had
+ * not been serialised yet.
+ */
+function serialiseSheets(
+  workbook: Workbook,
+  sheets: readonly Worksheet[],
+  plan: PackagePlan,
+  styles: StyleRegistry,
+  sharedStrings: SharedStringTable | null,
+  flushed: InternalWriteOptions['flushed'],
+): string[] {
+  return sheets.map((sheet, i) => {
+    const sheetPlan = plan.perSheet[i] as SheetPlan;
     return worksheetXml(
       sheet,
-      plan.tables,
+      sheetPlan.tables,
       styles,
-      resolveSheetReferences(plan),
-      plan.hyperlinks,
+      resolveSheetReferences(sheetPlan),
+      sheetPlan.hyperlinks,
       sharedStrings,
       // Exactly one sheet is marked selected; the model resolves which, so no package can ship with
       // none selected (no view initialised on open) or with several (an accidental group selection,
       // where an edit to one sheet lands on all of them).
       i === workbook.activeTabIndex,
-      options.flushed?.get(sheet),
+      flushed?.get(sheet),
     );
   });
+}
+
+/**
+ * Build the part map itself: every part path paired with its bytes.
+ *
+ * The workbook-level relationship ids are laid out here rather than in the plan because two of their
+ * inputs are known only once the sheets are serialised: whether any string was interned into the
+ * shared-strings pool, and whether any sheet carried a conversation for the person registry to serve.
+ */
+function emitPackageParts(context: {
+  readonly workbook: Workbook;
+  readonly sheets: readonly Worksheet[];
+  readonly plan: PackagePlan;
+  readonly styles: StyleRegistry;
+  readonly sharedStrings: SharedStringTable | null;
+  readonly sheetXml: readonly string[];
+}): Record<string, Uint8Array> {
+  const {workbook, sheets, plan, styles, sharedStrings, sheetXml} = context;
+  const {media, preserved, perSheet, allTables, allPivots} = plan;
 
   // The pool is filled only once every sheet is serialised. Emit the part (and its rel + content
   // type) solely when the option is on and at least one string was interned, so a workbook with no
   // string cells never fabricates an empty table.
   const hasSharedStrings = sharedStrings !== null && !sharedStrings.isEmpty;
 
-  const commentNumbers = perSheet
-    .map((plan) => plan.comments)
-    .filter((c): c is CommentPlan => c !== null)
-    .map((c) => c.number);
-  const drawingNumbers = perSheet
-    .map((plan) => plan.drawing)
-    .filter((d): d is DrawingPlan => d !== null)
-    .map((d) => d.number);
-  const printerSettingsNumbers = perSheet
-    .map((plan) => plan.printerSettings)
-    .filter((p): p is PrinterSettingsPlan => p !== null)
-    .map((p) => p.number);
-  const threadedCommentNumbers = perSheet
-    .map((plan) => plan.threadedComments)
-    .filter((t): t is ThreadedCommentPlan => t !== null)
-    .map((t) => t.number);
+  const commentNumbers = numbersOf(perSheet, (sheetPlan) => sheetPlan.comments);
+  const drawingNumbers = numbersOf(perSheet, (sheetPlan) => sheetPlan.drawing);
+  const printerSettingsNumbers = numbersOf(perSheet, (sheetPlan) => sheetPlan.printerSettings);
+  const threadedCommentNumbers = numbersOf(perSheet, (sheetPlan) => sheetPlan.threadedComments);
 
   // The identity registry is emitted only beside the thread parts that point into it. With no conversation
   // in the package nothing can reference a `<person>`, so the part would be a workbook-level relationship
   // to dead weight, and it is the messages, not the registry, that make an identity worth carrying.
   const persons = threadedCommentNumbers.length === 0 ? [] : workbook.persons;
 
-  // A preserved workbook reference's relationship id follows the modeled workbook rels (the sheets,
-  // styles, theme, and, when emitted, shared strings and the threaded-comment person registry) so adding
-  // one never renumbers an id already used. The workbook body and its rels part are wired from the same
-  // assignment, so a pivot cache's `<pivotCaches>` registration and its relationship agree on the id.
-  const modeledWorkbookRelCount =
-    sheets.length + FIXED_WORKBOOK_REL_COUNT + (hasSharedStrings ? 1 : 0);
-  const personsRelId = persons.length === 0 ? null : `rId${modeledWorkbookRelCount + 1}`;
-  const workbookRelBase = modeledWorkbookRelCount + (personsRelId === null ? 0 : 1);
-  const preservedWorkbookRels = preserved.workbook.map((ref, i) => ({
-    ...ref,
-    relId: `rId${workbookRelBase + 1 + i}`,
-  }));
-  // A generated pivot cache's workbook relationship follows the preserved ones; the assignment
-  // mutates the shared plan so the `<pivotCaches>` body and the rels part read the same id.
-  const pivotWorkbookRelBase = workbookRelBase + preserved.workbook.length;
-  allPivots.forEach((pivot, i) => {
-    pivot.workbookRelId = `rId${pivotWorkbookRelBase + 1 + i}`;
+  const {personsRelId, preservedWorkbookRels} = assignWorkbookRelIds({
+    sheetCount: sheets.length,
+    hasSharedStrings,
+    hasPersons: persons.length > 0,
+    preservedWorkbook: preserved.workbook,
+    pivots: allPivots,
   });
+
   const files: Record<string, Uint8Array> = {
     '[Content_Types].xml': strToU8(
       contentTypesXml(
@@ -482,6 +571,43 @@ export function buildPackageParts(
   emitPreservedParts(files, preserved.parts);
 
   return files;
+}
+
+/**
+ * Assemble a workbook into the map of OPC package parts (part name → bytes) that make up an `.xlsx`,
+ * short of zipping them. This is the whole serialisation (content types, relationships, workbook,
+ * per-sheet XML, styles, theme, media, tables, and props) factored out of {@link writeXlsx} so the
+ * streaming writer can drive the identical parts through a streamed zip container rather than
+ * `zipSync`. Neither writer duplicates a byte of serialisation.
+ *
+ * Three steps, and their order is load-bearing. The package is planned in full before anything is
+ * serialised, so a drawing's embed and a pivot's cache can target a part number that already exists.
+ * The sheets are serialised before the parts are emitted, because interning a style is a side effect
+ * of that pass and `xl/styles.xml` is one of the parts emitted in the third step.
+ *
+ * @throws {AuthoringError} if the workbook has no worksheets, or holds a value the writer cannot represent.
+ */
+export function buildPackageParts(
+  workbook: Workbook,
+  options: InternalWriteOptions = {},
+): Record<string, Uint8Array> {
+  const sheets = workbook.worksheets;
+  if (sheets.length === 0) {
+    throw new AuthoringError(
+      'cannot write a workbook with no worksheets: a zero-sheet package is corrupt to Excel',
+    );
+  }
+
+  // With the option on, plain string cell values are pooled into a shared-strings table interned
+  // during the sheet pass (like the style registry); a null table keeps every string inline.
+  const sharedStrings = options.useSharedStrings ? new SharedStringTable() : null;
+  // The streaming writer supplies its own registry (already seeded, and already carrying its eagerly
+  // flushed rows' styles); the buffered path seeds a fresh one here.
+  const styles = options.styles ?? createStyleRegistry(workbook);
+
+  const plan = planPackage(workbook, sheets);
+  const sheetXml = serialiseSheets(workbook, sheets, plan, styles, sharedStrings, options.flushed);
+  return emitPackageParts({workbook, sheets, plan, styles, sharedStrings, sheetXml});
 }
 
 // The map of OPC part paths to their serialised bytes, accumulated by {@link buildPackageParts} and
