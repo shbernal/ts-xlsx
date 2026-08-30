@@ -13,6 +13,7 @@ import {extensionOf, relativePartPath, relsPathFor, THEME_PART_PATH} from '../op
 import {relsPartXml} from '../opc/rels.ts';
 import type {CommentCell} from './comments.ts';
 import type {DrawingImage} from './images.ts';
+import {drawingPart, mediaPart, vmlDrawingPart} from './part-names.ts';
 import {applyThemeOverrides} from './theme-xml.ts';
 
 // A sheet's relationship-id allocator: hands out `rId1`, `rId2`, … in the one canonical order the
@@ -383,10 +384,10 @@ export function planPreservedParts(
 // names intact and letting overlapping closures agree on a single path for a shared part.
 function preservedPartPath(originalPath: string, numbering: PreservedNumbering): string {
   const ext = extensionOf(originalPath);
-  if (ext.toLowerCase() === 'vml') return `xl/drawings/vmlDrawing${++numbering.vml}.vml`;
-  if (originalPath.startsWith('xl/media/')) return `xl/media/image${++numbering.media}.${ext}`;
+  if (ext.toLowerCase() === 'vml') return vmlDrawingPart(++numbering.vml);
+  if (originalPath.startsWith('xl/media/')) return mediaPart(++numbering.media, ext);
   if (originalPath.startsWith('xl/drawings/') && ext.toLowerCase() === 'xml') {
-    return `xl/drawings/drawing${++numbering.drawing}.xml`;
+    return drawingPart(++numbering.drawing);
   }
   return originalPath;
 }

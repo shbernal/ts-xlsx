@@ -14,7 +14,7 @@ import {
   textAttr,
   XML_DECLARATION,
 } from '../../xml/xml.ts';
-import {extensionOf, relativePartPath, THEME_PART_PATH} from '../opc/part-paths.ts';
+import {extensionOf, THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {imageContentType} from './images.ts';
 import {SLICER_CACHES_EXT_URI} from './namespaces.ts';
@@ -25,6 +25,23 @@ import type {
   PreservedWorkbookReferencePlan,
   TablePlan,
 } from './package-plan.ts';
+import {
+  APP_PROPS_PART,
+  commentsPart,
+  CORE_PROPS_PART,
+  drawingPart,
+  PERSONS_PART,
+  pivotCacheDefinitionPart,
+  pivotCacheRecordsPart,
+  pivotTablePart,
+  SHARED_STRINGS_PART,
+  STYLES_PART,
+  tablePart,
+  targetFromWorkbook,
+  threadedCommentsPart,
+  WORKBOOK_PART,
+  worksheetPart,
+} from './part-names.ts';
 import {NS, REL} from './relationships.ts';
 import {x14Ext} from './x14-ext.ts';
 
@@ -183,40 +200,40 @@ function contentTypeOverrides(
         extensionDefaults.get(extensionOf(part.path).toLowerCase())?.contentType !==
         part.contentType,
     )
-    .map((part) => override(`/${part.path}`, part.contentType));
+    .map((part) => override(part.path, part.contentType));
   return [
     override(
-      '/xl/workbook.xml',
+      WORKBOOK_PART,
       isMacroEnabled(preservedWorkbookRefs) ? CT.macroEnabledWorkbook : CT.workbook,
     ),
-    ...Array.from({length: sheetCount}, (_, i) =>
-      override(`/xl/worksheets/sheet${i + 1}.xml`, CT.worksheet),
-    ),
-    ...tables.map(({number}) => override(`/xl/tables/table${number}.xml`, CT.table)),
-    ...drawingNumbers.map((number) => override(`/xl/drawings/drawing${number}.xml`, CT.drawing)),
-    ...commentNumbers.map((number) => override(`/xl/comments${number}.xml`, CT.comments)),
+    ...Array.from({length: sheetCount}, (_, i) => override(worksheetPart(i + 1), CT.worksheet)),
+    ...tables.map(({number}) => override(tablePart(number), CT.table)),
+    ...drawingNumbers.map((number) => override(drawingPart(number), CT.drawing)),
+    ...commentNumbers.map((number) => override(commentsPart(number), CT.comments)),
     ...threadedCommentNumbers.map((number) =>
-      override(`/xl/threadedComments/threadedComment${number}.xml`, CT.threadedComments),
+      override(threadedCommentsPart(number), CT.threadedComments),
     ),
-    ...pivots.map(({number}) => override(`/xl/pivotTables/pivotTable${number}.xml`, CT.pivotTable)),
+    ...pivots.map(({number}) => override(pivotTablePart(number), CT.pivotTable)),
     ...pivots.map(({number}) =>
-      override(`/xl/pivotCache/pivotCacheDefinition${number}.xml`, CT.pivotCacheDefinition),
+      override(pivotCacheDefinitionPart(number), CT.pivotCacheDefinition),
     ),
-    ...pivots.map(({number}) =>
-      override(`/xl/pivotCache/pivotCacheRecords${number}.xml`, CT.pivotCacheRecords),
-    ),
-    override(`/${THEME_PART_PATH}`, CT.theme),
-    override('/xl/styles.xml', CT.styles),
-    ...(hasSharedStrings ? [override('/xl/sharedStrings.xml', CT.sharedStrings)] : []),
-    ...(hasPersons ? [override('/xl/persons/person.xml', CT.person)] : []),
-    override('/docProps/core.xml', CT.core),
-    override('/docProps/app.xml', CT.app),
+    ...pivots.map(({number}) => override(pivotCacheRecordsPart(number), CT.pivotCacheRecords)),
+    override(THEME_PART_PATH, CT.theme),
+    override(STYLES_PART, CT.styles),
+    ...(hasSharedStrings ? [override(SHARED_STRINGS_PART, CT.sharedStrings)] : []),
+    ...(hasPersons ? [override(PERSONS_PART, CT.person)] : []),
+    override(CORE_PROPS_PART, CT.core),
+    override(APP_PROPS_PART, CT.app),
     ...preservedOverrides,
   ].join('');
 }
 
-function override(partName: string, contentType: string): string {
-  return `<Override PartName="${partName}" ContentType="${contentType}"/>`;
+function override(partPath: string, contentType: string): string {
+  // `PartName` is an OPC part *name*, which is the package-absolute path with a leading slash, where
+  // everywhere else in the writer the same part is a bare path. Prefixing here rather than at the
+  // twenty call sites is what lets those call sites hand over the very string the part is emitted
+  // under, so the declaration and the part cannot drift apart by one character.
+  return `<Override PartName="/${partPath}" ContentType="${contentType}"/>`;
 }
 
 // A `<Default>` content-type declaration binding a file extension to the type every part with that
@@ -231,9 +248,9 @@ function defaultType(extension: string, contentType: string): string {
 // round-trip keeps content wired from `_rels/.rels` that the model does not otherwise emit.
 export function rootRelsXml(rootRefs: readonly PreservedRootReferencePlan[]): string {
   return relationshipsPart([
-    relationship('rId1', REL.officeDocument, 'xl/workbook.xml'),
-    relationship('rId2', REL.coreProps, 'docProps/core.xml'),
-    relationship('rId3', REL.extProps, 'docProps/app.xml'),
+    relationship('rId1', REL.officeDocument, WORKBOOK_PART),
+    relationship('rId2', REL.coreProps, CORE_PROPS_PART),
+    relationship('rId3', REL.extProps, APP_PROPS_PART),
     ...rootRefs.map((ref, i) => relationship(`rId${4 + i}`, ref.relType, ref.entryPath)),
   ]);
 }
@@ -433,20 +450,20 @@ export function workbookRelsXml(
 ): string {
   return relationshipsPart([
     ...Array.from({length: sheetCount}, (_, i) =>
-      relationship(`rId${i + 1}`, REL.worksheet, `worksheets/sheet${i + 1}.xml`),
+      relationship(`rId${i + 1}`, REL.worksheet, targetFromWorkbook(worksheetPart(i + 1))),
     ),
     relationship(`rId${sheetCount + 1}`, REL.styles, 'styles.xml'),
     relationship(
       `rId${sheetCount + FIXED_WORKBOOK_REL_COUNT}`,
       REL.theme,
-      relativePartPath('xl/workbook.xml', THEME_PART_PATH),
+      targetFromWorkbook(THEME_PART_PATH),
     ),
     ...(hasSharedStrings
       ? [
           relationship(
             `rId${sheetCount + FIXED_WORKBOOK_REL_COUNT + 1}`,
             REL.sharedStrings,
-            'sharedStrings.xml',
+            targetFromWorkbook(SHARED_STRINGS_PART),
           ),
         ]
       : []),
@@ -454,21 +471,17 @@ export function workbookRelsXml(
     // @mentions through. Workbook-level and singular, so this one relationship serves all the sheets.
     ...(personsRelId === null
       ? []
-      : [relationship(personsRelId, REL.person, 'persons/person.xml')]),
+      : [relationship(personsRelId, REL.person, targetFromWorkbook(PERSONS_PART))]),
     // A preserved cache's target is package-absolute; express it relative to the workbook part.
     ...preservedRels.map((ref) =>
-      relationship(
-        ref.relId,
-        ref.relType,
-        escapeAttr(relativePartPath('xl/workbook.xml', ref.entryPath)),
-      ),
+      relationship(ref.relId, ref.relType, escapeAttr(targetFromWorkbook(ref.entryPath))),
     ),
     // A generated pivot cache's workbook relationship reaches its cache definition part.
     ...pivots.map((pivot) =>
       relationship(
         pivot.workbookRelId,
         REL.pivotCacheDefinition,
-        `pivotCache/pivotCacheDefinition${pivot.number}.xml`,
+        targetFromWorkbook(pivotCacheDefinitionPart(pivot.number)),
       ),
     ),
   ]);

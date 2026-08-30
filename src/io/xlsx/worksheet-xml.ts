@@ -38,7 +38,6 @@ import {
   textElement,
   XML_DECLARATION,
 } from '../../xml/xml.ts';
-import {relativePartPath} from '../opc/part-paths.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import type {XfStyle} from '../style/xf-style.ts';
 import {conditionalFormattingsExtXml, conditionalFormattingsXml} from './conditional-formatting.ts';
@@ -55,6 +54,17 @@ import type {
   TablePlan,
   ThreadedCommentPlan,
 } from './package-plan.ts';
+import {
+  commentsPart,
+  drawingPart,
+  mediaPart,
+  pivotTablePart,
+  printerSettingsPart,
+  tablePart,
+  targetFromWorksheet,
+  threadedCommentsPart,
+  vmlDrawingPart,
+} from './part-names.ts';
 import {NS, REL} from './relationships.ts';
 import {richTextRunsXml} from './rich-text.ts';
 import {planSharedFormulas, type SharedFormulaRole} from './shared-formulas.ts';
@@ -439,7 +449,7 @@ export function worksheetRelsXml(
 ): string {
   const rels = [
     ...tables.map(({relId, number}) =>
-      relationship(relId, REL.table, `../tables/table${number}.xml`),
+      relationship(relId, REL.table, targetFromWorksheet(tablePart(number))),
     ),
     // A pivot table hosted on this sheet is reached by a relationship of type pivotTable; Excel
     // discovers the pivot from the rels part, so the sheet body itself carries no reference to it.
@@ -447,21 +457,31 @@ export function worksheetRelsXml(
       relationship(
         pivot.sheetRelId,
         REL.pivotTable,
-        `../pivotTables/pivotTable${pivot.number}.xml`,
+        targetFromWorksheet(pivotTablePart(pivot.number)),
       ),
     ),
     ...(drawing === null
       ? []
-      : [relationship(drawing.relId, REL.drawing, `../drawings/drawing${drawing.number}.xml`)]),
+      : [
+          relationship(
+            drawing.relId,
+            REL.drawing,
+            targetFromWorksheet(drawingPart(drawing.number)),
+          ),
+        ]),
     ...(comments === null
       ? []
       : [
           relationship(
             comments.vmlRelId,
             REL.vmlDrawing,
-            `../drawings/vmlDrawing${comments.number}.vml`,
+            targetFromWorksheet(vmlDrawingPart(comments.number)),
           ),
-          relationship(comments.commentsRelId, REL.comments, `../comments${comments.number}.xml`),
+          relationship(
+            comments.commentsRelId,
+            REL.comments,
+            targetFromWorksheet(commentsPart(comments.number)),
+          ),
         ]),
     // A threaded-comment part, like a pivot table, is reached by relationship alone: no worksheet element
     // names it, so this relationship is the only thing that makes Excel look for the conversation.
@@ -471,7 +491,7 @@ export function worksheetRelsXml(
           relationship(
             threadedComments.relId,
             REL.threadedComment,
-            `../threadedComments/threadedComment${threadedComments.number}.xml`,
+            targetFromWorksheet(threadedCommentsPart(threadedComments.number)),
           ),
         ]),
     ...(printerSettings === null
@@ -480,7 +500,7 @@ export function worksheetRelsXml(
           relationship(
             printerSettings.relId,
             REL.printerSettings,
-            `../printerSettings/printerSettings${printerSettings.number}.bin`,
+            targetFromWorksheet(printerSettingsPart(printerSettings.number)),
           ),
         ]),
     ...(background === null
@@ -489,16 +509,16 @@ export function worksheetRelsXml(
           relationship(
             background.relId,
             REL.image,
-            `../media/image${background.mediaNumber}.${background.extension}`,
+            targetFromWorksheet(mediaPart(background.mediaNumber, background.extension)),
           ),
         ]),
-    // A preserved reference targets its entry part's new (package-absolute) path; a worksheet always
-    // lives under `xl/worksheets/`, so the target is that path made relative to that directory.
+    // A preserved reference targets its entry part's new (package-absolute) path, made relative the
+    // same way every generated target above is.
     ...preservedReferences.map((reference) =>
       relationship(
         reference.relId,
         reference.relType,
-        escapeAttr(relativePartPath('xl/worksheets/sheet1.xml', reference.entryPath)),
+        escapeAttr(targetFromWorksheet(reference.entryPath)),
       ),
     ),
     // An external hyperlink's target is a URL outside the package, so its relationship carries

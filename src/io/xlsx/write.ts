@@ -19,7 +19,7 @@ import {strToU8, zip, zipSync} from 'fflate';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {AuthoringError} from '../../errors.ts';
-import {THEME_PART_PATH} from '../opc/part-paths.ts';
+import {relativePartPath, relsPathFor, THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relsPartXml} from '../opc/rels.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 import {collectComments, commentsXml, vmlDrawingXml} from './comments.ts';
@@ -43,6 +43,25 @@ import {
   type TablePlan,
   type ThreadedCommentPlan,
 } from './package-plan.ts';
+import {
+  APP_PROPS_PART,
+  commentsPart,
+  CORE_PROPS_PART,
+  drawingPart,
+  mediaPart,
+  PERSONS_PART,
+  pivotCacheDefinitionPart,
+  pivotCacheRecordsPart,
+  pivotTablePart,
+  printerSettingsPart,
+  SHARED_STRINGS_PART,
+  STYLES_PART,
+  tablePart,
+  threadedCommentsPart,
+  vmlDrawingPart,
+  WORKBOOK_PART,
+  worksheetPart,
+} from './part-names.ts';
 import {pivotCacheDefinitionXml, pivotCacheRecordsXml, pivotTableXml} from './pivot.ts';
 import {REL} from './relationships.ts';
 import {SharedStringTable} from './shared-strings.ts';
@@ -529,10 +548,10 @@ function emitPackageParts(context: {
       ),
     ),
     '_rels/.rels': strToU8(rootRelsXml(preserved.root)),
-    'docProps/core.xml': strToU8(corePropsXml(workbook.properties)),
-    'docProps/app.xml': strToU8(appPropsXml(workbook.properties)),
-    'xl/workbook.xml': strToU8(workbookXml(workbook, preservedWorkbookRels, allPivots)),
-    'xl/_rels/workbook.xml.rels': strToU8(
+    [CORE_PROPS_PART]: strToU8(corePropsXml(workbook.properties)),
+    [APP_PROPS_PART]: strToU8(appPropsXml(workbook.properties)),
+    [WORKBOOK_PART]: strToU8(workbookXml(workbook, preservedWorkbookRels, allPivots)),
+    [relsPathFor(WORKBOOK_PART)]: strToU8(
       workbookRelsXml(
         sheets.length,
         hasSharedStrings,
@@ -541,7 +560,7 @@ function emitPackageParts(context: {
         allPivots,
       ),
     ),
-    'xl/styles.xml': strToU8(styles.toXml()),
+    [STYLES_PART]: strToU8(styles.toXml()),
   };
   // A theme read from a source package is emitted through the preserved-part path, closure and all,
   // with any authored overrides already spliced into its entry part by the planner. A workbook without
@@ -556,16 +575,16 @@ function emitPackageParts(context: {
     );
   }
   if (hasSharedStrings) {
-    files['xl/sharedStrings.xml'] = strToU8(sharedStrings.toXml());
+    files[SHARED_STRINGS_PART] = strToU8(sharedStrings.toXml());
   }
   // Singular and unnumbered, unlike the per-sheet thread parts: one registry serves the whole workbook.
-  if (persons.length > 0) files['xl/persons/person.xml'] = strToU8(personsXml(persons));
+  if (persons.length > 0) files[PERSONS_PART] = strToU8(personsXml(persons));
   for (const part of media.parts) {
-    files[`xl/media/image${part.number}.${part.extension}`] = part.data;
+    files[mediaPart(part.number, part.extension)] = part.data;
   }
   emitSheetParts(files, perSheet, sheetXml);
   for (const {table, number} of allTables) {
-    files[`xl/tables/table${number}.xml`] = strToU8(tableXml(table, number));
+    files[tablePart(number)] = strToU8(tableXml(table, number));
   }
   emitPivotParts(files, allPivots);
   emitPreservedParts(files, preserved.parts);
@@ -635,7 +654,7 @@ function emitSheetParts(
       pivots,
     } = plan;
     const hasExternalHyperlink = hyperlinks.some((link) => link.relId !== undefined);
-    files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXml[i] as string);
+    files[worksheetPart(i + 1)] = strToU8(sheetXml[i] as string);
     if (
       tables.length > 0 ||
       drawing !== null ||
@@ -647,7 +666,7 @@ function emitSheetParts(
       preservedRefs.length > 0 ||
       pivots.length > 0
     ) {
-      files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(
+      files[relsPathFor(worksheetPart(i + 1))] = strToU8(
         worksheetRelsXml(
           tables,
           drawing,
@@ -662,26 +681,22 @@ function emitSheetParts(
       );
     }
     if (printerSettings !== null) {
-      files[`xl/printerSettings/printerSettings${printerSettings.number}.bin`] =
-        printerSettings.data;
+      files[printerSettingsPart(printerSettings.number)] = printerSettings.data;
     }
     if (drawing !== null) {
-      files[`xl/drawings/drawing${drawing.number}.xml`] = strToU8(drawingXml(drawing.images));
-      const targets = drawing.images.map(
-        (image) => `../media/image${image.mediaNumber}.${image.extension}`,
+      const drawingPath = drawingPart(drawing.number);
+      files[drawingPath] = strToU8(drawingXml(drawing.images));
+      const targets = drawing.images.map((image) =>
+        relativePartPath(drawingPath, mediaPart(image.mediaNumber, image.extension)),
       );
-      files[`xl/drawings/_rels/drawing${drawing.number}.xml.rels`] = strToU8(
-        drawingRelsXml(targets),
-      );
+      files[relsPathFor(drawingPath)] = strToU8(drawingRelsXml(targets));
     }
     if (comments !== null) {
-      files[`xl/comments${comments.number}.xml`] = strToU8(commentsXml(comments.comments));
-      files[`xl/drawings/vmlDrawing${comments.number}.vml`] = strToU8(
-        vmlDrawingXml(comments.comments),
-      );
+      files[commentsPart(comments.number)] = strToU8(commentsXml(comments.comments));
+      files[vmlDrawingPart(comments.number)] = strToU8(vmlDrawingXml(comments.comments));
     }
     if (threadedComments !== null) {
-      files[`xl/threadedComments/threadedComment${threadedComments.number}.xml`] = strToU8(
+      files[threadedCommentsPart(threadedComments.number)] = strToU8(
         threadedCommentsXml(threadedComments.threads),
       );
     }
@@ -694,27 +709,29 @@ function emitSheetParts(
 function emitPivotParts(files: PackageFiles, allPivots: readonly PivotPlan[]): void {
   for (const pivot of allPivots) {
     const {number, cacheId, table} = pivot;
-    files[`xl/pivotTables/pivotTable${number}.xml`] = strToU8(
-      pivotTableXml(table, `PivotTable${number}`, cacheId),
-    );
-    files[`xl/pivotTables/_rels/pivotTable${number}.xml.rels`] = strToU8(
+    const tablePath = pivotTablePart(number);
+    const definitionPath = pivotCacheDefinitionPart(number);
+    files[tablePath] = strToU8(pivotTableXml(table, `PivotTable${number}`, cacheId));
+    files[relsPathFor(tablePath)] = strToU8(
       relsPartXml([
         {
           id: 'rId1',
           type: REL.pivotCacheDefinition,
-          target: `../pivotCache/pivotCacheDefinition${number}.xml`,
+          target: relativePartPath(tablePath, definitionPath),
         },
       ]),
     );
-    files[`xl/pivotCache/pivotCacheDefinition${number}.xml`] = strToU8(
-      pivotCacheDefinitionXml(table),
-    );
-    files[`xl/pivotCache/_rels/pivotCacheDefinition${number}.xml.rels`] = strToU8(
+    files[definitionPath] = strToU8(pivotCacheDefinitionXml(table));
+    files[relsPathFor(definitionPath)] = strToU8(
       relsPartXml([
-        {id: 'rId1', type: REL.pivotCacheRecords, target: `pivotCacheRecords${number}.xml`},
+        {
+          id: 'rId1',
+          type: REL.pivotCacheRecords,
+          target: relativePartPath(definitionPath, pivotCacheRecordsPart(number)),
+        },
       ]),
     );
-    files[`xl/pivotCache/pivotCacheRecords${number}.xml`] = strToU8(pivotCacheRecordsXml(table));
+    files[pivotCacheRecordsPart(number)] = strToU8(pivotCacheRecordsXml(table));
   }
 }
 
