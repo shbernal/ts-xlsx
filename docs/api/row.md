@@ -7,7 +7,7 @@
 <sub>class</sub>
 
 ```ts
-class Row {
+class Row extends AxisHandle<RowProperties> {
   readonly number: number;
   get properties(): Readonly<RowProperties> | undefined;
   get height(): number | undefined;

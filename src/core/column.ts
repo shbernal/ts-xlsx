@@ -9,13 +9,14 @@
 // length of the row's.
 
 import {assertColumnInBounds, encodeAddress, numberToColumn} from './address.ts';
+import {AxisHandle} from './axis-handle.ts';
 import type {Cell} from './cell.ts';
 import {type AssertNever, INTERNAL} from './internal.ts';
 import type {Alignment, Border, Fill, Font, Protection} from './style.ts';
 import type {CellValue} from './value.ts';
 import type {ColumnProperties, Worksheet} from './worksheet.ts';
 
-export class Column {
+export class Column extends AxisHandle<ColumnProperties> {
   readonly #sheet: Worksheet;
 
   /** 1-based column index. Fixed for this handle's lifetime. */
@@ -23,6 +24,7 @@ export class Column {
 
   /** @throws {RangeError} unless the index is an integer within Excel's column grid (1..16384). */
   constructor(sheet: Worksheet, index: number) {
+    super();
     assertColumnInBounds(index);
     this.#sheet = sheet;
     this.index = index;
@@ -40,7 +42,15 @@ export class Column {
    * is formatted, and they create the record on first write.
    */
   get properties(): Readonly<ColumnProperties> | undefined {
+    return this.propertiesOf();
+  }
+
+  protected override propertiesOf(): ColumnProperties | undefined {
     return this.#sheet[INTERNAL].columnPropertiesOf(this.index);
+  }
+
+  protected override ensureProperties(): ColumnProperties {
+    return this.#sheet[INTERNAL].ensureColumnProperties(this.index);
   }
 
   /**
@@ -48,10 +58,10 @@ export class Column {
    * value under it by name rather than position. In-memory only: never serialized to OOXML.
    */
   get key(): string | undefined {
-    return this.#read('key');
+    return this.read('key');
   }
   set key(key: string | undefined) {
-    this.#write('key', key);
+    this.write('key', key);
   }
 
   /**
@@ -64,82 +74,82 @@ export class Column {
    * width Excel itself preserves.
    */
   get width(): number | undefined {
-    return this.#read('width');
+    return this.read('width');
   }
   set width(width: number | undefined) {
-    this.#write('width', width);
+    this.write('width', width);
   }
 
   /** Whether the column is hidden. */
   get hidden(): boolean | undefined {
-    return this.#read('hidden');
+    return this.read('hidden');
   }
   set hidden(hidden: boolean | undefined) {
-    this.#write('hidden', hidden);
+    this.write('hidden', hidden);
   }
 
   /** Outline (grouping) depth; 0 or `undefined` means ungrouped. */
   get outlineLevel(): number | undefined {
-    return this.#read('outlineLevel');
+    return this.read('outlineLevel');
   }
   set outlineLevel(outlineLevel: number | undefined) {
-    this.#write('outlineLevel', outlineLevel);
+    this.write('outlineLevel', outlineLevel);
   }
 
   /** Whether this column is the collapsed summary of an outline group. */
   get collapsed(): boolean | undefined {
-    return this.#read('collapsed');
+    return this.read('collapsed');
   }
   set collapsed(collapsed: boolean | undefined) {
-    this.#write('collapsed', collapsed);
+    this.write('collapsed', collapsed);
   }
 
   /** Default fill for the column's cells that set none of their own. */
   get fill(): Fill | undefined {
-    return this.#read('fill');
+    return this.read('fill');
   }
   set fill(fill: Fill | undefined) {
-    this.#write('fill', fill);
+    this.write('fill', fill);
   }
 
   /** Default number format for the column's cells that set none of their own. */
   get numFmt(): string | undefined {
-    return this.#read('numFmt');
+    return this.read('numFmt');
   }
   set numFmt(numFmt: string | undefined) {
-    this.#write('numFmt', numFmt);
+    this.write('numFmt', numFmt);
   }
 
   /** Default font for the column's cells that set none of their own. */
   get font(): Font | undefined {
-    return this.#read('font');
+    return this.read('font');
   }
   set font(font: Font | undefined) {
-    this.#write('font', font);
+    this.write('font', font);
   }
 
   /** Default border for the column's cells that set none of their own. */
   get border(): Border | undefined {
-    return this.#read('border');
+    return this.read('border');
   }
   set border(border: Border | undefined) {
-    this.#write('border', border);
+    this.write('border', border);
   }
 
   /** Default alignment for the column's cells that set none of their own. */
   get alignment(): Alignment | undefined {
-    return this.#read('alignment');
+    return this.read('alignment');
   }
   set alignment(alignment: Alignment | undefined) {
-    this.#write('alignment', alignment);
+    this.write('alignment', alignment);
   }
 
   /** Default protection flags for the column's cells that set none of their own. */
   get protection(): Protection | undefined {
-    return this.#read('protection');
+    return this.read('protection');
   }
   set protection(protection: Protection | undefined) {
-    this.#write('protection', protection);
+    this.write('protection', protection);
   }
 
   /**
@@ -178,20 +188,6 @@ export class Column {
     values.forEach((value, index) => {
       if (value !== undefined) this.getCell(index + 1).value = value;
     });
-  }
-
-  #read<K extends keyof ColumnProperties>(key: K): ColumnProperties[K] | undefined {
-    return this.#sheet[INTERNAL].columnPropertiesOf(this.index)?.[key];
-  }
-
-  // `undefined` clears rather than stores; see the note on `Row`'s counterpart.
-  #write<K extends keyof ColumnProperties>(key: K, value: ColumnProperties[K]): void {
-    if (value === undefined) {
-      const properties = this.#sheet[INTERNAL].columnPropertiesOf(this.index);
-      if (properties !== undefined) delete properties[key];
-      return;
-    }
-    this.#sheet[INTERNAL].ensureColumnProperties(this.index)[key] = value;
   }
 }
 

@@ -14,13 +14,14 @@
 // does not extend the used range; assigning `height` is what materialises the record.
 
 import {assertRowInBounds, columnToNumber, encodeAddress} from './address.ts';
+import {AxisHandle} from './axis-handle.ts';
 import type {Cell} from './cell.ts';
 import {type AssertNever, INTERNAL} from './internal.ts';
 import type {Fill} from './style.ts';
 import type {CellValue} from './value.ts';
 import type {RowProperties, Worksheet} from './worksheet.ts';
 
-export class Row {
+export class Row extends AxisHandle<RowProperties> {
   readonly #sheet: Worksheet;
 
   /** 1-based row number. Fixed for this handle's lifetime. */
@@ -28,6 +29,7 @@ export class Row {
 
   /** @throws {RangeError} unless the number is an integer within Excel's row grid (1..1048576). */
   constructor(sheet: Worksheet, number: number) {
+    super();
     assertRowInBounds(number);
     this.#sheet = sheet;
     this.number = number;
@@ -40,7 +42,15 @@ export class Row {
    * formatted, and they create the record on first write.
    */
   get properties(): Readonly<RowProperties> | undefined {
+    return this.propertiesOf();
+  }
+
+  protected override propertiesOf(): RowProperties | undefined {
     return this.#sheet[INTERNAL].rowPropertiesOf(this.number);
+  }
+
+  protected override ensureProperties(): RowProperties {
+    return this.#sheet[INTERNAL].ensureRowProperties(this.number);
   }
 
   /**
@@ -53,42 +63,42 @@ export class Row {
    * one you state and do not get.
    */
   get height(): number | undefined {
-    return this.#read('height');
+    return this.read('height');
   }
   set height(height: number | undefined) {
-    this.#write('height', height);
+    this.write('height', height);
   }
 
   /** Whether the row is hidden. */
   get hidden(): boolean | undefined {
-    return this.#read('hidden');
+    return this.read('hidden');
   }
   set hidden(hidden: boolean | undefined) {
-    this.#write('hidden', hidden);
+    this.write('hidden', hidden);
   }
 
   /** Outline (grouping) depth; 0 or `undefined` means ungrouped. */
   get outlineLevel(): number | undefined {
-    return this.#read('outlineLevel');
+    return this.read('outlineLevel');
   }
   set outlineLevel(outlineLevel: number | undefined) {
-    this.#write('outlineLevel', outlineLevel);
+    this.write('outlineLevel', outlineLevel);
   }
 
   /** Whether this row is the collapsed summary of an outline group. */
   get collapsed(): boolean | undefined {
-    return this.#read('collapsed');
+    return this.read('collapsed');
   }
   set collapsed(collapsed: boolean | undefined) {
-    this.#write('collapsed', collapsed);
+    this.write('collapsed', collapsed);
   }
 
   /** Background fill for the row's cells that carry no fill of their own. */
   get fill(): Fill | undefined {
-    return this.#read('fill');
+    return this.read('fill');
   }
   set fill(fill: Fill | undefined) {
-    this.#write('fill', fill);
+    this.write('fill', fill);
   }
 
   /**
@@ -135,24 +145,6 @@ export class Row {
     values.forEach((value, index) => {
       if (value !== undefined) this.getCell(index + 1).value = value;
     });
-  }
-
-  #read<K extends keyof RowProperties>(key: K): RowProperties[K] | undefined {
-    return this.#sheet[INTERNAL].rowPropertiesOf(this.number)?.[key];
-  }
-
-  // `undefined` clears rather than stores: `RowProperties` is declared with optional fields under
-  // `exactOptionalPropertyTypes`, so a present-but-undefined key is not the same shape as an absent
-  // one, and it would make a formatting-free row look formatted to anything reading `properties`.
-  // Clearing a row that has no record at all is a no-op, so a write of `undefined` never
-  // materialises one.
-  #write<K extends keyof RowProperties>(key: K, value: RowProperties[K]): void {
-    if (value === undefined) {
-      const properties = this.#sheet[INTERNAL].rowPropertiesOf(this.number);
-      if (properties !== undefined) delete properties[key];
-      return;
-    }
-    this.#sheet[INTERNAL].ensureRowProperties(this.number)[key] = value;
   }
 }
 
