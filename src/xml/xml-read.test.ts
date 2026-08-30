@@ -36,7 +36,9 @@ function events(source: string): Event[] {
   const out: Event[] = [];
   parseXml(source, {
     onOpen(name, attrs, selfClosing) {
-      out.push({kind: 'open', name, attrs, selfClosing});
+      // Spread onto a plain object: the parsed map is deliberately null-prototype (a file supplies
+      // the attribute names), which strict deep equality counts as a difference from a literal.
+      out.push({kind: 'open', name, attrs: {...attrs}, selfClosing});
     },
     onText(text) {
       out.push({kind: 'text', text});
@@ -81,9 +83,12 @@ test('decodeEntities leaves an Object.prototype name verbatim rather than expand
 });
 
 test('parseXml keeps an attribute named for an Object.prototype member out of the prototype chain', () => {
-  const [open] = events('<a constructor="1"/>');
-  assert.equal(open?.attrs?.['constructor'], '1');
-  assert.equal(open?.attrs?.['toString'], undefined);
+  // Read off the parser's own map rather than through the helper above: the property under test is
+  // the map's prototype, and the spread the helper does to compare against literals restores it.
+  const [event] = [...xmlEvents('<a constructor="1"/>')];
+  const attrs = event?.kind === 'open' ? event.attrs : undefined;
+  assert.equal(attrs?.['constructor'], '1');
+  assert.equal(attrs?.['toString'], undefined);
 });
 
 test('parseXml reports open/text/close for a simple element', () => {
@@ -213,9 +218,7 @@ test('parseXml with closeEmptyElements fires onClose only for the named self-clo
 
 test('parseXml parses attributes in both quote styles and decodes their entities', () => {
   const [open] = events(`<c r="A1" t='inlineStr' note="a &amp; b"/>`);
-  // Spread onto a plain object: the parsed map is deliberately null-prototype, which strict deep
-  // equality counts as a difference from the literal on the right.
-  assert.deepEqual({...open?.attrs}, {r: 'A1', t: 'inlineStr', note: 'a & b'});
+  assert.deepEqual(open?.attrs, {r: 'A1', t: 'inlineStr', note: 'a & b'});
   assert.equal(open?.selfClosing, true);
 });
 
@@ -278,6 +281,48 @@ test('parseXml throws on an unterminated tag', () => {
 
 test('parseXml throws on an unterminated comment', () => {
   assert.throws(() => events('<!-- oops'), /unterminated comment/);
+});
+
+// Both scanners in this file classify markup through one shared step, so each truncation is pinned
+// from both sides: a form that stopped throwing in one of them would otherwise be caught in neither.
+const TRUNCATED: readonly [string, RegExp][] = [
+  ['<r><!-- oops', /unterminated comment/],
+  ['<r><![CDATA[ oops', /unterminated CDATA section/],
+  ['<r><?oops', /unterminated processing instruction/],
+];
+
+test('an unterminated comment, CDATA section or processing instruction throws in both scanners', () => {
+  for (const [source, message] of TRUNCATED) {
+    assert.throws(() => events(source), message, `xmlEvents on ${source}`);
+    assert.throws(() => elementSubtrees(source, DXFS), message, `elementSubtrees on ${source}`);
+  }
+});
+
+test('the two scanners agree on what is markup and what is element content', () => {
+  // They run over the same part (the stylesheet goes through both), so a form one recognises and the
+  // other does not would make them disagree about where an element ends. Every one of the four
+  // non-tag forms here holds a `</dxf>` that is text, not a close tag.
+  const xml =
+    '<?xml version="1.0"?><!DOCTYPE s><s><dxfs>' +
+    '<dxf><!-- </dxf> --><![CDATA[</dxf>]]><?pi </dxf> ?><b/></dxf>' +
+    '</dxfs></s>';
+
+  const {fragments} = elementSubtrees(xml, DXFS);
+  assert.deepEqual(fragments.get('dxfs'), [
+    '<dxf><!-- </dxf> --><![CDATA[</dxf>]]><?pi </dxf> ?><b/></dxf>',
+  ]);
+
+  // The same source through the event stream: the CDATA arrives as text (the one form the two
+  // deliberately treat differently) and nothing else does, so no `</dxf>` is reported twice.
+  const evs = events(xml);
+  assert.deepEqual(
+    evs.filter((e) => e.kind === 'text').map((e) => e.text),
+    ['</dxf>'],
+  );
+  assert.deepEqual(
+    evs.filter((e) => e.kind === 'close').map((e) => e.name),
+    ['dxf', 'dxfs', 's'],
+  );
 });
 
 // The `_xHHHH_` convention, in the direction that reads it. Every expectation here was checked

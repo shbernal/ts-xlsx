@@ -156,6 +156,79 @@ function skipDeclaration(source: string, start: number): number {
   throw new XmlParseError('unterminated markup declaration: missing ">"');
 }
 
+// Non-tag markup: a comment, a CDATA section, a processing instruction, or a markup declaration
+// (`<!DOCTYPE ...>`). `next` is where the scan resumes past it. A CDATA section additionally reports
+// its content bounds, because that is the one form the two scanners below treat differently: the
+// event stream yields the text, the verbatim capture steps over it.
+type Markup =
+  | {readonly kind: 'comment' | 'pi' | 'declaration'; readonly next: number}
+  | {
+      readonly kind: 'cdata';
+      readonly contentStart: number;
+      readonly contentEnd: number;
+      readonly next: number;
+    };
+
+// What counts as markup rather than element content, stated once for both scanners below.
+//
+// Both are run over the same part (`parseStyleTable` puts both over `xl/styles.xml`), so a form one
+// of them recognised and the other did not would make them disagree about where an element ends: a
+// `</dxf>` inside a comment would close a capture in one and not the other. Classifying here keeps
+// that impossible rather than merely unlikely. Returns undefined at a tag, which is the one form
+// each scanner handles for itself, since that is where they genuinely differ.
+function markupAt(source: string, lt: number): Markup | undefined {
+  if (source.startsWith('<!--', lt)) {
+    const end = source.indexOf('-->', lt + 4);
+    if (end === -1) throw new XmlParseError('unterminated comment');
+    return {kind: 'comment', next: end + 3};
+  }
+  if (source.startsWith('<![CDATA[', lt)) {
+    const end = source.indexOf(']]>', lt + 9);
+    if (end === -1) throw new XmlParseError('unterminated CDATA section');
+    return {kind: 'cdata', contentStart: lt + 9, contentEnd: end, next: end + 3};
+  }
+  if (source.startsWith('<?', lt)) {
+    const end = source.indexOf('?>', lt + 2);
+    if (end === -1) throw new XmlParseError('unterminated processing instruction');
+    return {kind: 'pi', next: end + 2};
+  }
+  if (source.startsWith('<!', lt)) return {kind: 'declaration', next: skipDeclaration(source, lt)};
+  return undefined;
+}
+
+// A tag at `lt`, split into the pieces both scanners want: whether it is a close tag, the name as
+// written (namespace prefix included), the body after the name for {@link parseAttributes}, whether
+// it closed itself, and where the scan resumes. The counterpart to {@link markupAt} for the one form
+// that is not markup, shared for the same reason: the split is identical in both, and only what each
+// builds from the pieces differs.
+interface Tag {
+  readonly close: boolean;
+  readonly name: string;
+  readonly attrSource: string;
+  readonly selfClosing: boolean;
+  /** One past the tag's `>`, so a caller capturing verbatim source can slice up to it. */
+  readonly next: number;
+}
+
+function tagAt(source: string, lt: number): Tag {
+  const gt = findTagEnd(source, lt);
+  const raw = source.slice(lt + 1, gt);
+  const next = gt + 1;
+  if (raw.charCodeAt(0) === 0x2f /* / */) {
+    return {close: true, name: raw.slice(1).trim(), attrSource: '', selfClosing: false, next};
+  }
+  const selfClosing = raw.charCodeAt(raw.length - 1) === 0x2f;
+  const body = selfClosing ? raw.slice(0, -1) : raw;
+  const nameEnd = firstWhitespace(body);
+  return {
+    close: false,
+    name: nameEnd === -1 ? body : body.slice(0, nameEnd),
+    attrSource: nameEnd === -1 ? '' : body.slice(nameEnd),
+    selfClosing,
+    next,
+  };
+}
+
 /**
  * Scan an XML document as a *pull* stream of {@link XmlEvent}s in a single O(n) pass with no
  * recursion. This is the parser's core; {@link parseXml} is a thin push adapter over it. A
@@ -180,43 +253,27 @@ export function* xmlEvents(source: string): Generator<XmlEvent> {
       if (chunk.length > 0) yield {kind: 'text', text: decodeEntities(normalizeLineEndings(chunk))};
     }
 
-    if (source.startsWith('<!--', lt)) {
-      const end = source.indexOf('-->', lt + 4);
-      if (end === -1) throw new XmlParseError('unterminated comment');
-      i = end + 3;
-      continue;
-    }
-    if (source.startsWith('<![CDATA[', lt)) {
-      const end = source.indexOf(']]>', lt + 9);
-      if (end === -1) throw new XmlParseError('unterminated CDATA section');
-      yield {kind: 'text', text: source.slice(lt + 9, end)};
-      i = end + 3;
-      continue;
-    }
-    if (source.startsWith('<?', lt)) {
-      const end = source.indexOf('?>', lt + 2);
-      if (end === -1) throw new XmlParseError('unterminated processing instruction');
-      i = end + 2;
-      continue;
-    }
-    if (source.startsWith('<!', lt)) {
-      i = skipDeclaration(source, lt);
+    const markup = markupAt(source, lt);
+    if (markup !== undefined) {
+      // The one place the two scanners part company: an event stream owes its consumer the CDATA
+      // text, a verbatim capture owes it nothing and takes the bounds only to step over them.
+      if (markup.kind === 'cdata') {
+        yield {kind: 'text', text: source.slice(markup.contentStart, markup.contentEnd)};
+      }
+      i = markup.next;
       continue;
     }
 
-    const gt = findTagEnd(source, lt);
-    const raw = source.slice(lt + 1, gt);
-    if (raw.charCodeAt(0) === 0x2f /* / */) {
-      yield {kind: 'close', name: raw.slice(1).trim()};
-    } else {
-      const selfClosing = raw.charCodeAt(raw.length - 1) === 0x2f;
-      const body = selfClosing ? raw.slice(0, -1) : raw;
-      const nameEnd = firstWhitespace(body);
-      const name = nameEnd === -1 ? body : body.slice(0, nameEnd);
-      const attrs = nameEnd === -1 ? {} : parseAttributes(body.slice(nameEnd));
-      yield {kind: 'open', name, attrs, selfClosing};
-    }
-    i = gt + 1;
+    const tag = tagAt(source, lt);
+    yield tag.close
+      ? {kind: 'close', name: tag.name}
+      : {
+          kind: 'open',
+          name: tag.name,
+          attrs: parseAttributes(tag.attrSource),
+          selfClosing: tag.selfClosing,
+        };
+    i = tag.next;
   }
 }
 
@@ -274,37 +331,19 @@ export function elementSubtrees(source: string, selection: SubtreeSelection): Su
   while (i < length) {
     const lt = source.indexOf('<', i);
     if (lt === -1) break;
-    if (source.startsWith('<!--', lt)) {
-      const end = source.indexOf('-->', lt + 4);
-      if (end === -1) throw new XmlParseError('unterminated comment');
-      i = end + 3;
-      continue;
-    }
-    if (source.startsWith('<![CDATA[', lt)) {
-      const end = source.indexOf(']]>', lt + 9);
-      if (end === -1) throw new XmlParseError('unterminated CDATA section');
-      i = end + 3;
-      continue;
-    }
-    if (source.startsWith('<?', lt)) {
-      const end = source.indexOf('?>', lt + 2);
-      if (end === -1) throw new XmlParseError('unterminated processing instruction');
-      i = end + 2;
-      continue;
-    }
-    if (source.startsWith('<!', lt)) {
-      i = skipDeclaration(source, lt);
+    const markup = markupAt(source, lt);
+    if (markup !== undefined) {
+      i = markup.next;
       continue;
     }
 
-    const gt = findTagEnd(source, lt);
-    const raw = source.slice(lt + 1, gt);
-    if (raw.charCodeAt(0) === 0x2f /* / */) {
-      const local = localName(raw.slice(1).trim());
+    const tag = tagAt(source, lt);
+    const local = localName(tag.name);
+    if (tag.close) {
       if (capture !== undefined && local === capture.local) {
         if (capture.depth > 0) capture.depth -= 1;
         else {
-          fragments.get(container?.local ?? '')?.push(source.slice(capture.start, gt + 1));
+          fragments.get(container?.local ?? '')?.push(source.slice(capture.start, tag.next));
           capture = undefined;
         }
       } else if (capture === undefined && container !== undefined && local === container.local) {
@@ -314,27 +353,23 @@ export function elementSubtrees(source: string, selection: SubtreeSelection): Su
           container = undefined;
         }
       }
-      i = gt + 1;
+      i = tag.next;
       continue;
     }
 
-    const selfClosing = raw.charCodeAt(raw.length - 1) === 0x2f;
-    const body = selfClosing ? raw.slice(0, -1) : raw;
-    const nameEnd = firstWhitespace(body);
-    const name = nameEnd === -1 ? body : body.slice(0, nameEnd);
-    const local = localName(name);
+    const {selfClosing} = tag;
     if (capture !== undefined) {
       if (!selfClosing && local === capture.local) capture.depth += 1;
     } else if (container !== undefined) {
       if (!selfClosing && local === container.local) container.depth += 1;
       else if (local === container.child) {
-        if (selfClosing) fragments.get(container.local)?.push(source.slice(lt, gt + 1));
+        if (selfClosing) fragments.get(container.local)?.push(source.slice(lt, tag.next));
         else capture = {local, start: lt, depth: 0};
       }
     } else {
       const child = selection.get(local);
       if (child !== undefined && !finished.has(local)) {
-        attributes.set(local, nameEnd === -1 ? {} : parseAttributes(body.slice(nameEnd)));
+        attributes.set(local, parseAttributes(tag.attrSource));
         if (selfClosing) finished.add(local);
         else {
           fragments.set(local, fragments.get(local) ?? []);
@@ -342,7 +377,7 @@ export function elementSubtrees(source: string, selection: SubtreeSelection): Su
         }
       }
     }
-    i = gt + 1;
+    i = tag.next;
   }
 
   if (capture !== undefined) {
