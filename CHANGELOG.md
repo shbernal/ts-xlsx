@@ -12,6 +12,19 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-08-30
+
+Appending rows and reading a sheet are the two things every caller does, and both were
+carrying a quadratic. Appending 16,000 rows in a loop went from 15 seconds to 82 ms, a
+20,000-row sheet reads in 1.03 s instead of 1.75 s, and a workbook of 20,000 merges loads in
+65 ms instead of 1.37 s. Not one observable value changes with any of them.
+
+**One break, and it is small.** `duplicateRow` now copies the source row's own properties
+(height, hidden flag, outline level, row fill) onto every copy, and `{insert: false}` replaces
+the destination row rather than overlaying it. If you relied on a duplicate coming back at the
+default height, or on a destination cell surviving in a column the source leaves empty, that
+changes. Everything else here is a fix or an internal change.
+
 ### Changed
 
 - **BREAKING: `duplicateRow` carries the source row's height, hidden flag, outline level and row
@@ -24,6 +37,44 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   other. A copy is now the whole row in both modes: values, per-cell styles, and row properties,
   with a source that declares no properties clearing the destination's.
 
+- **Appending is no longer quadratic in the number of appended lines.** `rowCount` and
+  `columnCount` walked every cell on every read, and `addRow`, `addRows` and the streaming writer
+  each read one of them once per line they append. Ten columns wide: 16,000 rows through `addRow`
+  in a loop, 15,039 ms to 82 ms; the same rows through `addRows`, 85 ms to 66 ms; 8,000 rows
+  streamed with `useSharedStrings`, 1,056 ms to 15 ms. The streamed case is the sharpest, because
+  bounding memory on a large sheet is that writer's whole reason to exist. The extent is not
+  cached: a caller holding a `Cell` can style or clear it without the sheet hearing about it, and
+  a stale used range is worse than a slow one, since it is what lets an append land on a row
+  someone had prepared. What is maintained is the structure the sheet does observe, confirmed
+  against the live grid at a cost of one row.
+
+- **Merged regions are indexed by row band rather than scanned.** `mergeCells` rejected an
+  overlapping region by walking every region on the sheet, and the reader calls it once per
+  `<mergeCell>` in the part, so loading a file's merges was quadratic on an untrusted path,
+  reachable with a few megabytes of XML. 20,000 merges: 1,368 ms to 65 ms. `getCell` paid the
+  same scan resolving a covered address to its region's master and now rides the same index.
+  Memory is one entry per region, so a sheet of whole-column merges (legal, disjoint, cheap to
+  write) cannot turn the index itself into the cost.
+
+- **A worksheet part is parsed once, not five times.** Reading a sheet drove five full SAX passes
+  over the same XML: the body, then hyperlinks, standard validations, extended validations and
+  conditional formattings. A plain data sheet paid all five in full, because the cost is
+  structural rather than proportional to what the scans find. A 20,000-row sheet with none of the
+  four features present: 1,749 ms to 1,030 ms.
+
+- **The VBA writer's mini stream stays as bytes.** Every sub-cutoff stream in a project (`dir`,
+  `PROJECT`, `PROJECTwm`, and each module's compressed source) was spread into a `number[]` and
+  converted back at layout time, so writing a real macro project built hundreds of thousands of
+  boxed numbers to produce bytes the caller had already handed over as bytes. The spread goes
+  with it, and with it an argument-count ceiling bounded only by the mini cutoff happening to be
+  small.
+
+- **The size budgets run under `pnpm run verify` and the pre-push hook, not only at publish
+  time.** A budget the publish step alone checks is a surprise rather than a tripwire: the
+  `/customui` entry spent a release 3 KB over its budget while every gate anyone actually ran
+  stayed green. It is now the ninth gate of `verify --full`, and `/customui` is back under it at
+  12.8 KB, after the XML scanner was split from the traversals that had accumulated beside it.
+
 ### Fixed
 
 - **The VBA decompressor accumulates into a growable `Uint8Array` rather than a `number[]`, and
@@ -33,6 +84,54 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   suggests. The bound itself was always correct; the representation was not the one for it. Growth
   is now capped at the ceiling too, so the limit bounds the allocation rather than being checked
   after it.
+
+- **A lookup table keyed by text taken out of a file no longer inherits a prototype.** Six tables
+  in the tree were plain object literals indexed by an untrusted string, so about a dozen
+  attacker-chosen keys resolved to a function off `Object.prototype`, at sites that all detect a
+  miss with `??` or `=== undefined`. The reach was widest at entity decoding, which runs over
+  every text node and every attribute value of every part of every package read: `&constructor;`
+  decoded to the source text of `Object`, contradicting the documented promise that an
+  unrecognised entity is left verbatim. `imageContentType('constructor')` returned a function into
+  a `[Content_Types].xml` attribute, a `PROJECT` line reading `constructor=Foo` published `Object`
+  as a VBA module kind, and a zip entry named `__proto__` re-pointed the inflated part map's
+  prototype at its own bytes. Nothing was ever written through any of them, so this is the read
+  side of that mistake rather than prototype pollution.
+
+- **A macro-enabled workbook whose office document is not at `xl/workbook.xml` no longer reads as
+  macro-free.** `editVbaProject` resolved the `vbaProject` relationship through a second resolver
+  that prefixed `xl/` instead of resolving against the part that declared it, and that resolver
+  never collapsed `..`. For a workbook one directory deeper the project key answered to no part in
+  the package, so it was silently treated as absent, on the path whose whole purpose is not losing
+  someone's macros. It now uses the resolver every other reader path already used.
+
+- **A streaming write that fails destroys its streams instead of abandoning them.**
+  `WorkbookStreamWriter.commit()` ran without a `try`/`finally`, so a throw from the package build
+  (where a value OOXML cannot spell is refused, which happens routinely) rejected the promise and
+  left every stream open forever. A caller following the documented `writer.stream.pipe(out)`
+  idiom waited on a stream that would never end, and a caller-supplied sink was neither ended nor
+  awaited, so an outer `await finished(sink)` hung on a writer that had already announced its
+  failure. The failure now reaches every stream as a failure, by `destroy(err)` rather than
+  `end()`, because ending would claim that a truncated archive is a complete package.
+
+- **A row or column carrying only its own formatting counts toward the used range.** `rowCount`
+  promised "the last row carrying anything (data or its own formatting)" and measured values
+  alone, so a pre-formatted band, which is how anyone lays out a template, was invisible to it and
+  `addRow` appended onto the styled row rather than below it. The row's styles survived, which is
+  what made it quiet: the caller's row 2 and row 3 were now one row. `addColumn` failed identically
+  on the other axis, and `usedRange` handed `autoFilter` a ref that under-covered the sheet it was
+  meant to span. `actualRowCount` deliberately keeps the value-only reading, since how many rows
+  hold data is a different question, and a cell materialised by `getCell` and left untouched still
+  carries nothing, so reading a far address cannot grow the sheet.
+
+- **An unregistered image id is refused once, with a message naming the sheet and the role.** Two
+  places checked it, and the one that could actually fire carried the worse message: "a worksheet
+  anchors image id 999", which named neither. It now reads `sheet "Sales" anchors image id 999,
+  which is not registered on the workbook`, or `sets background image id 999` for the other role.
+
+- **`StreamedSheetReader.merges` hands back a copy, as its sibling `hiddenColumns` already did.**
+  Beyond the ownership question, `rows()` assigns a fresh array at the start of each iteration, so
+  a caller who kept the returned array across a second pass was holding a detached snapshot of the
+  first, with nothing to tell them so.
 
 ## [2.1.0] — 2026-08-28
 
@@ -1003,7 +1102,8 @@ author a new one ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round
   table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
   (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
 
-[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/shbernal/ts-xlsx/compare/v2.1.0...v3.0.0
 [2.1.0]: https://github.com/shbernal/ts-xlsx/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/shbernal/ts-xlsx/compare/v1.3.1...v2.0.0
 [1.3.1]: https://github.com/shbernal/ts-xlsx/compare/v1.2.0...v1.3.1
