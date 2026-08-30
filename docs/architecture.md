@@ -119,8 +119,8 @@ file, and there is no point at which you can see what the object *is*.
 
 Both push cohesive slices of state into their own objects and keep the public accessors in front of
 them. `Worksheet` holds `DataValidationOverlay`, `ConditionalFormattingOverlay`, `GridEdits`,
-`WorksheetPictures` (`core/worksheet-pictures.ts`) and `WorksheetComments`
-(`core/worksheet-comments.ts`); `Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`),
+`UsedExtent` (`core/used-extent.ts`), `WorksheetPictures` (`core/worksheet-pictures.ts`) and
+`WorksheetComments` (`core/worksheet-comments.ts`); `Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`),
 `WorkbookTheme` (`core/workbook-theme.ts`) and `WorkbookStyleTables` (`core/workbook-styles.ts`).
 The public surface does not move: an accessor stays on the model class, keeps its name, its type
 and its full doc comment, and becomes a one-line delegation. The doc comment staying put is not
@@ -164,6 +164,20 @@ page-layout fields (`view`, `pageSetup`, `printOptions`, `pageMargins`, `headerF
 break lists) are plain mutable objects with no accessors and no behaviour, so there is nothing to
 delegate and grouping them would change the public API to no end. The line count is the symptom the
 rule watches for, not the rule; a slice that is not one costs more than the lines it removes.
+
+`UsedExtent` is the narrowest of them: its only edge is the four storage collections it is handed,
+and it exists because the used range is read far more often than the grid changes shape. Deriving it
+by scanning every cell is what made appending quadratic, since each of the three appenders (`addRows`,
+`addColumns`, and the streaming writer's row numbering) reads it once per line it appends. Caching
+the answer is not available: a caller holding a `Cell` styles or clears it without the sheet hearing
+about it, so a remembered extent goes stale invisibly, and a wrong used range is worse than a slow
+one because it is what lets an append land on a row someone had prepared. What the extent keeps
+instead is the *structure*, which the sheet does observe: the highest row key, the highest
+materialised column, and the highest line declared by a row height, a column width or a merge. Those
+bound the extent from above, the top line is the one that was just appended in the case that matters,
+and confirming it against the live grid costs a single row. A bound may overstate, which costs a
+scan; it may never understate, which is why every edit that can pull the grid inward marks the bounds
+stale rather than adjusting them.
 
 `GridEdits` owns that splice arithmetic for *everything* anchored to the grid, which is a wider set
 than the cell rows: line metadata, merges, tables, anchored images and shared-formula anchors move

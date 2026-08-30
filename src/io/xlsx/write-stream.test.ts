@@ -540,3 +540,36 @@ test('a live getCell row and a committed appended row serialise in ascending ord
   assert.equal(reread.getCell('A1').value, 'live');
   assert.equal(reread.getCell('A2').value, 'flushed');
 });
+
+// Committing a row evicts it, which keeps the model small and the append point cheap to find. With
+// `useSharedStrings` on there is no eviction (the strings stay interned until commit), so every
+// appended row is still live when the next one asks where to land, and appending was quadratic while
+// the used range was derived by scanning: 8k rows took a second where 2k took fifty milliseconds.
+//
+// A ratio rather than a millisecond budget, and taken as the fastest of several runs, because a
+// single run of an allocation-heavy loop is at the mercy of whenever the collector pauses.
+function appendStreamedRows(count: number): void {
+  const writer = new WorkbookStreamWriter({useSharedStrings: true});
+  const sheet = writer.addWorksheet('S');
+  for (let i = 0; i < count; i++) sheet.addRow([`a${i}`, i, i * 2]).commit();
+}
+
+function fastestRun(runs: number, work: () => void): number {
+  let best = Infinity;
+  for (let i = 0; i < runs; i++) {
+    const start = performance.now();
+    work();
+    best = Math.min(best, performance.now() - start);
+  }
+  return best;
+}
+
+test('a streamed sheet with useSharedStrings appends linearly, not quadratically', () => {
+  const small = fastestRun(5, () => appendStreamedRows(2000));
+  const large = fastestRun(5, () => appendStreamedRows(8000));
+  // Four times the rows: linear measures around 4x, the scanning extent measured 20x.
+  assert.ok(
+    large < small * 9,
+    `8k rows took ${large.toFixed(1)}ms against ${small.toFixed(1)}ms for 2k: that is ${(large / small).toFixed(1)}x, which is not linear`,
+  );
+});

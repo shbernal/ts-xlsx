@@ -15,7 +15,7 @@ import {
   tryDecodeCellRef,
 } from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
-import {applyCellStyle, Cell, cellCarriesContent, copyCellContent} from './cell.ts';
+import {applyCellStyle, Cell, copyCellContent} from './cell.ts';
 import {Column} from './column.ts';
 import type {CommentThread} from './comment-thread.ts';
 import {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
@@ -40,6 +40,7 @@ import {buildRowCells, positionalPlacements, rowPlacements} from './row-input.ts
 import {Row} from './row.ts';
 import type {CellStyle, Color, Fill} from './style.ts';
 import {Table, type TableOptions} from './table.ts';
+import {UsedExtent} from './used-extent.ts';
 import type {CellValue} from './value.ts';
 import {WorksheetComments} from './worksheet-comments.ts';
 import {WORKSHEET_MODEL_FACETS} from './worksheet-model.ts';
@@ -327,10 +328,20 @@ export class Worksheet {
   // initializer, reordering the class body could silently hand GridEdits a still-undefined map.
   readonly #edits: GridEdits;
 
+  // The used-range extent, maintained as the grid is built rather than rescanned on every read. Wired
+  // in the constructor body for the same reason #edits is: it holds the storage maps by reference.
+  readonly #extent: UsedExtent;
+
   constructor(name: string, id: number, state: WorksheetState['state'] = 'visible') {
     this.name = name;
     this.id = id;
     this.state = state;
+    this.#extent = new UsedExtent({
+      rows: this.#rows,
+      rowProperties: this.#rowProperties,
+      columns: this.#columns,
+      mergeRects: this.#mergeRects,
+    });
     this.#edits = new GridEdits({
       rows: this.#rows,
       rowProperties: this.#rowProperties,
@@ -436,19 +447,7 @@ export class Worksheet {
    * nothing, so reading a far address never grows the sheet.
    */
   get rowCount(): number {
-    let last = 0;
-    for (const [number, cols] of this.#rows) {
-      if (number > last && this.#rowIsUsed(cols)) last = number;
-    }
-    for (const number of this.#rowProperties.keys()) {
-      if (number > last) last = number;
-    }
-    // A merged region occupies its whole rectangle even where the covered cells are empty, so a merge
-    // extending past the last populated row still belongs to the used range.
-    for (const rect of this.#mergeRects) {
-      if (rect.bottom > last) last = rect.bottom;
-    }
-    return last;
+    return this.#extent.lastRow;
   }
 
   /** The number of rows that hold at least one non-empty cell, ignoring gaps and formatting-only rows. */
@@ -460,20 +459,11 @@ export class Worksheet {
     return count;
   }
 
-  // Whether any cell materialised in a row is used: the extent test behind {@link rowCount}, which
-  // counts a cell the caller has formatted or noted but not filled. Deliberately not the same
-  // predicate as {@link #rowIsPopulated}: a formatting-only row bounds the used range but is not a
-  // populated row, and collapsing the two is what let an append land on a styled row. Short-circuits
-  // on the first used cell rather than allocating the row's cells into a throwaway array to scan.
-  #rowIsUsed(cols: Map<number, Cell>): boolean {
-    for (const cell of cols.values()) {
-      if (cellCarriesContent(cell)) return true;
-    }
-    return false;
-  }
-
   // Whether any cell materialised in a row holds a value: the tally test behind
   // {@link actualRowCount}, which asks how many rows have data, not how far the grid reaches.
+  // Deliberately not the used-range test {@link UsedExtent} applies: a formatting-only row bounds the
+  // used range but is not a populated row, and collapsing the two is what let an append land on a
+  // row someone had styled.
   #rowIsPopulated(cols: Map<number, Cell>): boolean {
     for (const cell of cols.values()) {
       if (cell.value !== null) return true;
@@ -488,19 +478,7 @@ export class Worksheet {
    * columns B–D are empty, and a column holding nothing but a styled empty cell is still used.
    */
   get columnCount(): number {
-    let last = 0;
-    for (const cols of this.#rows.values()) {
-      for (const [col, cell] of cols) {
-        if (col > last && cellCarriesContent(cell)) last = col;
-      }
-    }
-    for (const index of this.#columns.keys()) {
-      if (index > last) last = index;
-    }
-    for (const rect of this.#mergeRects) {
-      if (rect.right > last) last = rect.right;
-    }
-    return last;
+    return this.#extent.lastColumn;
   }
 
   /**
@@ -757,6 +735,7 @@ export class Worksheet {
         throw new AuthoringError(`merged range "${range}" overlaps an existing merged region`);
       }
       this.#mergeRects.push(rect);
+      this.#extent.noteMerge(rect);
       clearCoveredValues(this.#rows, rect);
     }
     this.#merges.push(range);
@@ -801,7 +780,10 @@ export class Worksheet {
       const rectIndex = this.#mergeRects.findIndex(
         (r) => r.top === top && r.left === left && r.bottom === bottom && r.right === right,
       );
-      if (rectIndex !== -1) this.#mergeRects.splice(rectIndex, 1);
+      if (rectIndex !== -1) {
+        this.#mergeRects.splice(rectIndex, 1);
+        this.#extent.invalidate();
+      }
     }
     return true;
   }
@@ -865,6 +847,7 @@ export class Worksheet {
     assertStartAndCount('splice', 'row', start, count);
     const inserted = inserts.map((values, i) => buildRowCells(start + i, values, this.#columns));
     this.#edits.spliceRows(start, count, inserted);
+    this.#extent.invalidate();
   }
 
   /**
@@ -970,8 +953,10 @@ export class Worksheet {
     if (insert) {
       const copies = Array.from({length: count}, () => snapshot(start));
       this.#edits.spliceRows(start + 1, 0, copies);
+      this.#extent.invalidate();
     } else {
       for (let i = 1; i <= count; i++) this.#rows.set(start + i, snapshot(start + i));
+      this.#extent.invalidate();
     }
   }
 
@@ -987,6 +972,7 @@ export class Worksheet {
   spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void {
     assertStartAndCount('splice', 'column', start, count);
     this.#edits.spliceColumns(start, count, inserts);
+    this.#extent.invalidate();
   }
 
   /**
@@ -1064,6 +1050,7 @@ export class Worksheet {
     this.#dataValidations.clear();
     this.#conditionalFormattings.clear();
     this.#tables.length = 0;
+    this.#extent.reset();
   }
 
   // Assigning a model replaces this sheet's content wholesale: the sheet becomes the model, with no
@@ -1115,6 +1102,7 @@ export class Worksheet {
       cell = new Cell(row, col);
       cols.set(col, cell);
     }
+    this.#extent.noteCell(row, col);
     return cell;
   }
 
@@ -1126,6 +1114,7 @@ export class Worksheet {
     evictRow: (number) => {
       this.#rows.delete(number);
       this.#rowProperties.delete(number);
+      this.#extent.invalidate();
     },
     addLoadedPivotTable: (pivot) => {
       this.#loadedPivotTables.push(pivot);
@@ -1147,6 +1136,7 @@ export class Worksheet {
         properties = {};
         this.#rowProperties.set(number, properties);
       }
+      this.#extent.noteDeclaredRow(number);
       return properties;
     },
     rowCells: (number) => {
@@ -1160,6 +1150,7 @@ export class Worksheet {
         properties = {};
         this.#columns.set(index, properties);
       }
+      this.#extent.noteDeclaredColumn(index);
       return properties;
     },
     columnCells: (index) => {
