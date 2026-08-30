@@ -5,6 +5,7 @@
 // unset field is omitted and a round-trip never fabricates one.
 
 import {tokenSet} from '../token-set.ts';
+import type {AssertNever} from './internal.ts';
 
 /**
  * Paper orientation, as `<pageSetup orientation>` carries it.
@@ -61,6 +62,56 @@ export interface PageSetup {
 }
 
 /**
+ * How one `<pageSetup>` attribute encodes: which model key it is and what kind of value it carries.
+ *
+ * Format-blind on purpose, the same way {@link AlignmentFacet} is: `PageSetup` is a core type and
+ * the layering gate forbids core importing a serialisation, so the table states what an attribute
+ * *is* and each codec supplies the reading and the writing off the `kind`. The OOXML attribute name
+ * is the model key throughout, so it is not restated.
+ */
+export type PageSetupFacet =
+  | {
+      readonly key: 'paperSize' | 'scale' | 'fitToWidth' | 'fitToHeight';
+      /** A non-negative integer: a page count, a percentage, or a paper-size id. */
+      readonly kind: 'count';
+    }
+  | {
+      readonly key: 'pageOrder' | 'orientation';
+      readonly kind: 'token';
+      /** The enumeration guard, and what to call it in the error when a value fails it. */
+      readonly isValid: (value: string) => boolean;
+      readonly label: string;
+    };
+
+/**
+ * The six `<pageSetup>` attributes, declared once, in CT_PageSetup order. Both directions key off
+ * this list, so an attribute written but not read (it survives a re-write and vanishes on load) or
+ * read but not written is a compile error rather than something a reviewer has to notice.
+ */
+export const PAGE_SETUP_FACETS = [
+  {key: 'paperSize', kind: 'count'},
+  {key: 'scale', kind: 'count'},
+  {key: 'fitToWidth', kind: 'count'},
+  {key: 'fitToHeight', kind: 'count'},
+  {key: 'pageOrder', kind: 'token', isValid: isPageOrder, label: 'page order'},
+  {key: 'orientation', kind: 'token', isValid: isPageOrientation, label: 'page orientation'},
+] as const satisfies readonly PageSetupFacet[];
+
+/**
+ * Compile-time proof that {@link PAGE_SETUP_FACETS} covers every `<pageSetup>` attribute.
+ *
+ * `fitToPage` and `printerSettings` are excluded because neither is one: `fitToPage` is a
+ * `<sheetPr>` child's flag and `printerSettings` is the blob behind an `r:id`, so both are written
+ * and read somewhere else entirely and a table entry for them would describe nothing.
+ */
+export type EveryPageSetupFacetIsDeclared = AssertNever<
+  Exclude<
+    keyof PageSetup,
+    'fitToPage' | 'printerSettings' | (typeof PAGE_SETUP_FACETS)[number]['key']
+  >
+>;
+
+/**
  * Print-toggle flags from the `<printOptions>` element. Each maps to a boolean OOXML attribute that
  * defaults false, except `gridLinesSet`, which defaults true and gates whether `gridLines` is
  * honoured. The model stores only what the source or caller set, so an unset flag is omitted and a
@@ -78,6 +129,21 @@ export interface PrintOptions {
   /** Whether the `gridLines` flag is authoritative; when `false`, Excel ignores `gridLines`. */
   gridLinesSet?: boolean;
 }
+
+/** The `<printOptions>` flags, in CT_PrintOptions attribute order. Each is a plain OOXML boolean, so
+ * the list is the whole of what either direction needs to know. */
+export const PRINT_OPTION_FLAGS = [
+  'horizontalCentered',
+  'verticalCentered',
+  'headings',
+  'gridLines',
+  'gridLinesSet',
+] as const satisfies readonly (keyof PrintOptions)[];
+
+/** Compile-time proof that {@link PRINT_OPTION_FLAGS} covers every {@link PrintOptions} flag. */
+export type EveryPrintOptionFlagIsDeclared = AssertNever<
+  Exclude<keyof PrintOptions, (typeof PRINT_OPTION_FLAGS)[number]>
+>;
 
 /**
  * A manual page break (`<brk>`). For a row break, `id` is the row the layout splits *before*; for a
@@ -108,6 +174,21 @@ export interface PageMargins {
   footer?: number;
 }
 
+/** The `<pageMargins>` sides, in the order CT_PageMargins declares them. */
+export const MARGIN_SIDES = [
+  'left',
+  'right',
+  'top',
+  'bottom',
+  'header',
+  'footer',
+] as const satisfies readonly (keyof PageMargins)[];
+
+/** Compile-time proof that {@link MARGIN_SIDES} covers every {@link PageMargins} side. */
+export type EveryMarginSideIsDeclared = AssertNever<
+  Exclude<keyof PageMargins, (typeof MARGIN_SIDES)[number]>
+>;
+
 /**
  * Page header/footer text, one string per page class. Excel only honours the even- and
  * first-page variants when the writer also sets the gating flags (`differentOddEven`,
@@ -122,3 +203,19 @@ export interface HeaderFooter {
   firstHeader?: string;
   firstFooter?: string;
 }
+
+/** The `<headerFooter>` children, in CT_HeaderFooter child order. The element name is the model key
+ * throughout, so one list serves the reader's capture, the reader's commit, and the writer. */
+export const HEADER_FOOTER_ELEMENTS = [
+  'oddHeader',
+  'oddFooter',
+  'evenHeader',
+  'evenFooter',
+  'firstHeader',
+  'firstFooter',
+] as const satisfies readonly (keyof HeaderFooter)[];
+
+/** Compile-time proof that {@link HEADER_FOOTER_ELEMENTS} covers every {@link HeaderFooter} slot. */
+export type EveryHeaderFooterElementIsDeclared = AssertNever<
+  Exclude<keyof HeaderFooter, (typeof HEADER_FOOTER_ELEMENTS)[number]>
+>;

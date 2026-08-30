@@ -7,11 +7,13 @@ import {encodeAddress} from '../../core/address.ts';
 import type {AutoFilter, FilterColumn, FilterCriteria} from '../../core/autofilter.ts';
 import {
   type HeaderFooter,
-  isPageOrder,
-  isPageOrientation,
+  HEADER_FOOTER_ELEMENTS,
+  MARGIN_SIDES,
+  PAGE_SETUP_FACETS,
   type PageBreak,
   type PageMargins,
   type PageSetup,
+  PRINT_OPTION_FLAGS,
   type PrintOptions,
 } from '../../core/page-setup.ts';
 import {SHEET_PROTECTION_FLAGS, type SheetProtection} from '../../core/protection.ts';
@@ -149,20 +151,11 @@ function filterCriteriaXml(criteria: FilterCriteria): string {
   return `<customFilters${andAttr}>${predicates}</customFilters>`;
 }
 
-// CT_HeaderFooter child order, paired with the flag their presence gates: the even- and
-// first-page variants are silently ignored by Excel unless differentOddEven / differentFirst
-// are set, so the writer derives each flag from whether any variant in its class was provided.
-const HF_CHILDREN = [
-  {tag: 'oddHeader', key: 'oddHeader'},
-  {tag: 'oddFooter', key: 'oddFooter'},
-  {tag: 'evenHeader', key: 'evenHeader'},
-  {tag: 'evenFooter', key: 'evenFooter'},
-  {tag: 'firstHeader', key: 'firstHeader'},
-  {tag: 'firstFooter', key: 'firstFooter'},
-] as const;
-
+// The even- and first-page variants are silently ignored by Excel unless differentOddEven /
+// differentFirst are set, so the writer derives each flag from whether any variant in its class was
+// provided.
 export function headerFooterXml(hf: HeaderFooter): string {
-  const children = HF_CHILDREN.filter(({key}) => hf[key] !== undefined);
+  const children = HEADER_FOOTER_ELEMENTS.filter((key) => hf[key] !== undefined);
   if (children.length === 0) return '';
   const differentOddEven = hf.evenHeader !== undefined || hf.evenFooter !== undefined;
   const differentFirst = hf.firstHeader !== undefined || hf.firstFooter !== undefined;
@@ -174,7 +167,9 @@ export function headerFooterXml(hf: HeaderFooter): string {
     // text exactly as it does to a cell value: it decodes an escape on load and writes one back on
     // save (measured over COM). So a header may carry a character XML itself cannot, and a header
     // that legitimately reads `_x0041_` must have its underscore escaped or it would decode to `A`.
-    .map(({tag, key}) => `<${tag}>${escapeSpreadsheetText(hf[key] as string)}</${tag}>`)
+    // The `?? ''` is unreachable: `children` is the keys `hf` carries. TypeScript cannot see that
+    // across the filter, and a default is a smaller claim than an assertion.
+    .map((key) => `<${key}>${escapeSpreadsheetText(hf[key] ?? '')}</${key}>`)
     .join('');
   return `<headerFooter${attrs}>${body}</headerFooter>`;
 }
@@ -188,19 +183,13 @@ const DEFAULT_MARGINS = {
   header: 0.3,
   footer: 0.3,
 } as const;
-const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as const;
 
 // `<printOptions>` carries the print-toggle flags and sits just before `<pageMargins>` in
 // CT_Worksheet order. Each attribute is emitted only when the model carries it, as an explicit
 // `="1"`/`="0"` so a caller can force a flag off against Excel's default, and an untouched sheet
 // keeps the element out of the file entirely.
 export function printOptionsXml(printOptions: PrintOptions): string {
-  const attrs =
-    boolAttr('horizontalCentered', printOptions.horizontalCentered) +
-    boolAttr('verticalCentered', printOptions.verticalCentered) +
-    boolAttr('headings', printOptions.headings) +
-    boolAttr('gridLines', printOptions.gridLines) +
-    boolAttr('gridLinesSet', printOptions.gridLinesSet);
+  const attrs = PRINT_OPTION_FLAGS.map((flag) => boolAttr(flag, printOptions[flag])).join('');
   return attrs === '' ? '' : `<printOptions${attrs}/>`;
 }
 
@@ -222,18 +211,22 @@ export function pageMarginsXml(margins: PageMargins): string {
 // `printerSettingsRelId` links the sheet's opaque printer-settings blob and forces the element out
 // even when no scaling attribute is set: the reference is the only thing the model has to carry.
 export function pageSetupXml(pageSetup: PageSetup, printerSettingsRelId: string | null): string {
-  const attrs =
-    numAttr('paperSize', pageSetup.paperSize) +
-    numAttr('scale', pageSetup.scale) +
-    numAttr('fitToWidth', pageSetup.fitToWidth) +
-    numAttr('fitToHeight', pageSetup.fitToHeight) +
-    (pageSetup.pageOrder === undefined
-      ? ''
-      : ` pageOrder="${checkedToken(pageSetup.pageOrder, isPageOrder, 'page order')}"`) +
-    (pageSetup.orientation === undefined
-      ? ''
-      : ` orientation="${checkedToken(pageSetup.orientation, isPageOrientation, 'page orientation')}"`) +
-    (printerSettingsRelId !== null ? ` r:id="${printerSettingsRelId}"` : '');
+  let attrs = '';
+  for (const facet of PAGE_SETUP_FACETS) {
+    switch (facet.kind) {
+      case 'count':
+        attrs += numAttr(facet.key, pageSetup[facet.key]);
+        break;
+      case 'token': {
+        const value = pageSetup[facet.key];
+        if (value !== undefined) {
+          attrs += ` ${facet.key}="${checkedToken(value, facet.isValid, facet.label)}"`;
+        }
+        break;
+      }
+    }
+  }
+  if (printerSettingsRelId !== null) attrs += ` r:id="${printerSettingsRelId}"`;
   return attrs === '' ? '' : `<pageSetup${attrs}/>`;
 }
 

@@ -14,28 +14,31 @@
 // **Prose the user typed** is escaped `_xHHHH_`. That is SpreadsheetML's own convention, and
 // where it applies Excel both writes it and decodes it on the way back in. Which elements are
 // in that group is a measured fact, not a schema one, and each was settled over COM against
-// Excel Desktop: a `<t>` inline string, the cached `<v>` of a `t="str"` formula cell, and a
-// threaded comment's `<text>`, which all read back as the decoded character and are written
-// back out re-escaped by Excel itself. So `textElement`, the `t="str"` result and the
-// threaded-comment body get `escapeSpreadsheetText`.
+// Excel Desktop: a `<t>` inline string, the cached `<v>` of a `t="str"` formula cell, a
+// threaded comment's `<text>`, and a `<headerFooter>` child's print header text, which all read
+// back as the decoded character and are written back out re-escaped by Excel itself. So
+// `textElement`, the `t="str"` result, the threaded-comment body and the header/footer children
+// get `escapeSpreadsheetText`.
 //
 // **Everything else is refused.** The schema is no help in drawing that line: `ST_Xstring`
-// types a sheet name and a print header just as it types `<t>`, so following the type alone
+// types a sheet name and a defined name just as it types `<t>`, so following the type alone
 // would have us escape a sheet name too, and a workbook whose tab reads `Sheet_x0001_A` is
 // not a faithful rendering of the name the author asked for, it is a different name. Where
 // there is no faithful representation the honest answer is `AuthoringError`, which is the
 // stance `numberText` below already takes on a non-finite number for the same reason. That
 // covers every structural string: sheet and defined names, formulas, table column names,
-// document properties, relationship targets, and a print header's text.
+// document properties, and relationship targets.
 //
 // The two comment systems land on the same side of that line by two different routes, which
 // is why the test is *does Excel decode it here* rather than *does this read as prose*. A
 // legacy note's body is a `<t>` in a `CT_Rst`, the very type the convention is defined on. A
 // threaded comment's `<text>` is a different element in the 2018 extension namespace with no
 // documented escape at all; it took a measurement to put it here, and it decodes with the
-// same closed grammar and the same single pass. A print header stays refused: nobody has
-// measured a decode there, and its own `&`-prefixed formatting codes are the only in-band
-// syntax it has.
+// same closed grammar and the same single pass. A print header was refused on that reading
+// until it too was measured: its `&`-prefixed section codes look like the only in-band syntax
+// it has, but Excel decodes `_xHHHH_` in a header exactly as it does in a cell and writes a
+// control character back out escaped, so the two syntaxes share one string without either
+// knowing about the other.
 //
 // Refusing is a new throw on a path that used to "succeed" by producing a file Excel reports
 // as damaged, so the failure moved earlier and got louder, which is the whole trade.

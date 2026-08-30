@@ -12,11 +12,13 @@ import {
 } from '../../core/autofilter.ts';
 import {INTERNAL} from '../../core/internal.ts';
 import {
-  isPageOrder,
-  isPageOrientation,
+  HEADER_FOOTER_ELEMENTS,
+  MARGIN_SIDES,
+  PAGE_SETUP_FACETS,
   type PageBreak,
   type PageMargins,
   type PageSetup,
+  PRINT_OPTION_FLAGS,
   type PrintOptions,
 } from '../../core/page-setup.ts';
 import {
@@ -32,7 +34,6 @@ import {
   boolStrict,
   boolTristate,
   decodeSpreadsheetText,
-  enumToken,
   localName,
   numFinite,
   numInteger,
@@ -46,7 +47,14 @@ import {CellAccumulator} from './cell-accumulator.ts';
 import type {SharedString} from './cell-value.ts';
 import {parseColor} from './color-xml.ts';
 
-const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as const;
+// Membership, not order: the reader meets a `<headerFooter>` child by name and needs only to know
+// whether it is one, on both the open (start capturing) and the close (commit). The order the tuple
+// carries is the writer's concern.
+const HEADER_FOOTER_CHILDREN: ReadonlySet<string> = new Set(HEADER_FOOTER_ELEMENTS);
+
+function isHeaderFooterElement(local: string): local is (typeof HEADER_FOOTER_ELEMENTS)[number] {
+  return HEADER_FOOTER_CHILDREN.has(local);
+}
 
 // Worksheet elements that commit on their close: a formatted-but-empty `<c/>` and a criteria-free
 // self-closing `<autoFilter/>` are expanded to open+close so each finalises once in onClose. The
@@ -261,6 +269,13 @@ export function worksheetPass(
     onOpen(name, attrs, selfClosing) {
       const local = localName(name);
       if (cell.openElement(local, attrs, selfClosing)) return;
+      if (HEADER_FOOTER_CHILDREN.has(local)) {
+        // A `<headerFooter>` child carries its header/footer definition as text (the `&`-prefixed
+        // section/format tokens, e.g. `&C&"Arial"&G`). Capture the whole of it so a round-trip
+        // preserves a header image's `&G` picture token and every other formatting directive.
+        cell.capture();
+        return;
+      }
       switch (local) {
         case 'col':
           applyColumn(sheet, attrs, xfStyles, columnStyle);
@@ -269,17 +284,6 @@ export function worksheetPass(
           applyRow(sheet, attrs);
           rowStyle = numInteger(attrs.s, 0) ?? -1;
           rowCustomFormat = boolStrict(attrs.customFormat);
-          break;
-        case 'oddHeader':
-        case 'oddFooter':
-        case 'evenHeader':
-        case 'evenFooter':
-        case 'firstHeader':
-        case 'firstFooter':
-          // A `<headerFooter>` child carries its header/footer definition as text (the `&`-prefixed
-          // section/format tokens, e.g. `&C&"Arial"&G`). Capture the whole of it so a round-trip
-          // preserves a header image's `&G` picture token and every other formatting directive.
-          cell.capture();
           break;
         case 'mergeCell':
           // A well-formed file never declares overlapping merges; a corrupt one might. Reject the
@@ -348,19 +352,15 @@ export function worksheetPass(
         return;
       }
       if (claimed === 'claimed') return;
+      if (isHeaderFooterElement(local)) {
+        // Header text carries the `_xHHHH_` convention, same as a cell value: Excel decodes it
+        // here and re-emits it on save (measured: a patched `_x0001_` reads back over COM as
+        // U+0001, and a `_x005F_x0041_` as the literal `_x0041_`). The decode is on the whole
+        // element text, never on a SAX chunk. See {@link decodeSpreadsheetText}.
+        sheet.headerFooter[local] = decodeSpreadsheetText(cell.capturedText);
+        return;
+      }
       switch (local) {
-        case 'oddHeader':
-        case 'oddFooter':
-        case 'evenHeader':
-        case 'evenFooter':
-        case 'firstHeader':
-        case 'firstFooter':
-          // Header text carries the `_xHHHH_` convention, same as a cell value: Excel decodes it
-          // here and re-emits it on save (measured: a patched `_x0001_` reads back over COM as
-          // U+0001, and a `_x005F_x0041_` as the literal `_x0041_`). The decode is on the whole
-          // element text, never on a SAX chunk. See {@link decodeSpreadsheetText}.
-          sheet.headerFooter[local] = decodeSpreadsheetText(cell.capturedText);
-          break;
         case 'row':
           rowStyle = -1;
           rowCustomFormat = false;
@@ -506,16 +506,10 @@ function applyRow(sheet: Worksheet, attrs: XmlAttributes): void {
 // carried so a re-write stays byte-clean. An OOXML boolean is `1`/`true` for on and `0`/`false` for
 // off; a present-but-unrecognised token is dropped rather than coerced.
 function applyPrintOptions(printOptions: PrintOptions, attrs: XmlAttributes): void {
-  const horizontalCentered = boolTristate(attrs.horizontalCentered);
-  if (horizontalCentered !== undefined) printOptions.horizontalCentered = horizontalCentered;
-  const verticalCentered = boolTristate(attrs.verticalCentered);
-  if (verticalCentered !== undefined) printOptions.verticalCentered = verticalCentered;
-  const headings = boolTristate(attrs.headings);
-  if (headings !== undefined) printOptions.headings = headings;
-  const gridLines = boolTristate(attrs.gridLines);
-  if (gridLines !== undefined) printOptions.gridLines = gridLines;
-  const gridLinesSet = boolTristate(attrs.gridLinesSet);
-  if (gridLinesSet !== undefined) printOptions.gridLinesSet = gridLinesSet;
+  for (const flag of PRINT_OPTION_FLAGS) {
+    const value = boolTristate(attrs[flag]);
+    if (value !== undefined) printOptions[flag] = value;
+  }
 }
 
 function applyMargins(margins: PageMargins, attrs: XmlAttributes): void {
@@ -530,16 +524,31 @@ function applyMargins(margins: PageMargins, attrs: XmlAttributes): void {
 // so a fractional or negative one carries no meaning and is dropped; the enumerated string
 // attributes are trusted verbatim (an unexpected token round-trips harmlessly as an unknown string).
 function applyPageSetup(pageSetup: PageSetup, attrs: XmlAttributes): void {
-  const paperSize = numInteger(attrs.paperSize, 0);
-  if (paperSize !== undefined) pageSetup.paperSize = paperSize;
-  const scale = numInteger(attrs.scale, 0);
-  if (scale !== undefined) pageSetup.scale = scale;
-  const fitToWidth = numInteger(attrs.fitToWidth, 0);
-  if (fitToWidth !== undefined) pageSetup.fitToWidth = fitToWidth;
-  const fitToHeight = numInteger(attrs.fitToHeight, 0);
-  if (fitToHeight !== undefined) pageSetup.fitToHeight = fitToHeight;
-  const pageOrder = enumToken(attrs.pageOrder, isPageOrder);
-  if (pageOrder !== undefined) pageSetup.pageOrder = pageOrder;
-  const orientation = enumToken(attrs.orientation, isPageOrientation);
-  if (orientation !== undefined) pageSetup.orientation = orientation;
+  for (const facet of PAGE_SETUP_FACETS) {
+    const raw = attrs[facet.key];
+    switch (facet.kind) {
+      case 'count': {
+        const value = numInteger(raw, 0);
+        if (value !== undefined) pageSetup[facet.key] = value;
+        break;
+      }
+      case 'token':
+        if (raw !== undefined && facet.isValid(raw))
+          assignPageSetupToken(pageSetup, facet.key, raw);
+        break;
+    }
+  }
+}
+
+// One token attribute at a time, so the write's key type is a single member rather than the whole
+// union and `pageSetup[key] = value` typechecks: the correlated-key access TypeScript cannot verify
+// when the key is a union, the same shape `assignAlignmentToken` takes in read-styles.ts. The cast
+// restates the guard's own proof: `isValid` has already accepted `raw` for this facet's
+// enumeration, which the table cannot say in a type because both token entries share one shape.
+function assignPageSetupToken<K extends 'pageOrder' | 'orientation'>(
+  pageSetup: PageSetup,
+  key: K,
+  raw: string,
+): void {
+  pageSetup[key] = raw as PageSetup[K];
 }
