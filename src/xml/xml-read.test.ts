@@ -11,6 +11,8 @@ import {
   numInteger,
   openElements,
   parseXml,
+  parseXmlPasses,
+  type SaxHandlers,
   TextCapture,
   type XmlAttributes,
   xmlEvents,
@@ -405,4 +407,38 @@ test('TextCapture over a set tells the caller which element it captured, by the 
     ]),
     ['T', 'C'],
   );
+});
+
+test('parseXmlPasses delivers every event to every pass', () => {
+  const seen: string[][] = [[], []];
+  const record = (index: number): SaxHandlers => ({
+    onOpen: (name, _attrs, selfClosing) =>
+      seen[index]?.push(`open ${name}${selfClosing ? '/' : ''}`),
+    onText: (text) => seen[index]?.push(`text ${text}`),
+    onClose: (name) => seen[index]?.push(`close ${name}`),
+  });
+  parseXmlPasses('<a x="1">hi<b/></a>', [{handlers: record(0)}, {handlers: record(1)}]);
+  assert.deepEqual(seen[0], ['open a', 'text hi', 'open b/', 'close a']);
+  assert.deepEqual(seen[1], seen[0], 'both passes see the same events, in the same order');
+});
+
+test('parseXmlPasses unions the self-closing expansions its passes ask for', () => {
+  const seen: string[] = [];
+  // Only the second pass needs `<b/>` expanded, and only the first `<c/>`. Sharing one parse means
+  // both expansions happen for both, which is the one way a pass can tell it is sharing.
+  parseXmlPasses('<r><b/><c/></r>', [
+    {
+      handlers: {
+        onOpen: (name, _attrs, selfClosing) => seen.push(`open ${name}${selfClosing ? '/' : ''}`),
+        onClose: (name) => seen.push(`close ${name}`),
+      },
+      closeEmptyElements: new Set(['c']),
+    },
+    {handlers: {onOpen: () => {}}, closeEmptyElements: new Set(['b'])},
+  ]);
+  assert.deepEqual(seen, ['open r', 'open b', 'close b', 'open c', 'close c', 'close r']);
+});
+
+test('parseXmlPasses over no passes is a parse that reaches nobody, not a throw', () => {
+  assert.doesNotThrow(() => parseXmlPasses('<a><b/></a>', []));
 });

@@ -96,6 +96,7 @@ implementation is shaped. Current vocabulary:
 
 | Capability | Meaning |
 |---|---|
+| `worksheetPartCarryingEveryKind()` | Author one sheet holding a hyperlink, a standard validation, an extended x14 validation, a classic conditional format and an x14-facetted data bar, round-trip; return `{hyperlink, cellText, standardValidation, extendedValidation, classicRuleType, dataBarGradient, dataBarNegativeFill}`. Use it to assert the five readers that share one parse of the part do not shadow each other. |
 | `decodeAddress(ref)` | Decode a single cell/row/column reference → `{col, row, …}` (absent axis = `undefined`). |
 | `decodeRange(ref)` | Decode a range reference → corners + serialized dimensions. |
 | `probeCellFonts({apply, read})` | On a fresh worksheet, assign a font to each `apply` cell, then return `{ <address>: font }` for the `read` cells. Use it to assert per-cell style stays local. |

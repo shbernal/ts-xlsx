@@ -6,7 +6,18 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 import type {Fill} from '../../core/style.ts';
 import {isFormulaValue} from '../../core/value.ts';
 import {DEFAULT_WORKBOOK_VIEW, Workbook} from '../../core/workbook.ts';
+import {Worksheet} from '../../core/worksheet.ts';
+import {parseXmlPasses} from '../../xml/xml-read.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
+import {conditionalFormattingPass, parseConditionalFormattings} from './conditional-formatting.ts';
+import {
+  dataValidationPass,
+  extendedDataValidationPass,
+  parseDataValidations,
+  parseExtendedDataValidations,
+} from './data-validation.ts';
+import {parseSheetHyperlinks, sheetHyperlinkPass} from './hyperlinks.ts';
+import {parseWorksheet, worksheetPass} from './read-worksheet.ts';
 import {applyWorkbookView, readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -1631,4 +1642,47 @@ test('an authored default font moves the cells that only inherited the file’s,
   assert.doesNotMatch(fonts, /Calibri/);
   // The cell that named a face keeps it: that was an authored intent, not an inherited default.
   assert.match(fonts, /<name val="Courier New"\/>/);
+});
+
+// Five readers want the worksheet part, and it is the largest in the package. Reading it once each
+// spent 45% of a large file's read on four scans that matched no element, so they share one parse.
+// The guard measures exactly that: the shared parse against the five separate ones over the same
+// XML, as the fastest of several runs, because a single timed run of an allocation-heavy parse is at
+// the mercy of whenever the collector pauses. Five parses cannot come near 0.7 of five parses.
+function fastestRun(runs: number, work: () => void): number {
+  let best = Infinity;
+  for (let i = 0; i < runs; i++) {
+    const start = performance.now();
+    work();
+    best = Math.min(best, performance.now() - start);
+  }
+  return best;
+}
+
+test('the worksheet part is read in one pass, not once per reader', () => {
+  const workbook = new Workbook();
+  const sheet = workbook.addWorksheet('S');
+  for (let row = 1; row <= 3000; row++) sheet.addRow([`a${row}`, row, row * 2, 'text', row / 3]);
+  const xml = strFromU8(unzipSync(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] as Uint8Array);
+
+  const separate = fastestRun(3, () => {
+    parseWorksheet(xml, new Worksheet('S', 1), [], []);
+    parseSheetHyperlinks(xml);
+    parseDataValidations(xml);
+    parseExtendedDataValidations(xml);
+    parseConditionalFormattings(xml);
+  });
+  const shared = fastestRun(3, () => {
+    parseXmlPasses(xml, [
+      worksheetPass(new Worksheet('S', 1), [], []),
+      sheetHyperlinkPass(),
+      dataValidationPass(),
+      extendedDataValidationPass(),
+      conditionalFormattingPass(),
+    ]);
+  });
+  assert.ok(
+    shared < separate * 0.7,
+    `one shared parse took ${shared.toFixed(1)}ms against ${separate.toFixed(1)}ms for five separate ones: that is ${(shared / separate).toFixed(2)} of the cost, so the part is still being read more than once`,
+  );
 });

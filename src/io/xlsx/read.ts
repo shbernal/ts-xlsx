@@ -37,6 +37,7 @@ import {
   numInteger,
   openElements,
   parseXml,
+  parseXmlPasses,
 } from '../../xml/xml-read.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
 import {extensionOf} from '../opc/part-paths.ts';
@@ -57,13 +58,13 @@ import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-option
 import {inflateSpreadsheetPackage} from '../opc/sniff-format.ts';
 import {readXlsbPackage, XLSB_WORKBOOK_PART} from '../xlsb/read.ts';
 import {applyNotes, type ParsedComment, parseComments} from './comments.ts';
-import {parseConditionalFormattings, parseDxfs} from './conditional-formatting.ts';
+import {conditionalFormattingPass, parseDxfs} from './conditional-formatting.ts';
 import {
   applyDataValidations,
-  parseDataValidations,
-  parseExtendedDataValidations,
+  dataValidationPass,
+  extendedDataValidationPass,
 } from './data-validation.ts';
-import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
+import {applyHyperlinks, sheetHyperlinkPass} from './hyperlinks.ts';
 import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
 import {parsePivotTable} from './read-pivot.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
@@ -73,7 +74,7 @@ import {
   parseStyleTable,
   parseTableStyles,
 } from './read-styles.ts';
-import {parseWorksheet} from './read-worksheet.ts';
+import {worksheetPass} from './read-worksheet.ts';
 import {parseTable} from './tables.ts';
 import {parseThemeColorScheme, parseThemeFontScheme} from './theme-xml.ts';
 import {buildCommentThreads, parsePersons, parseThreadedComments} from './threaded-comments.ts';
@@ -175,18 +176,31 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
     sheetOrder.push(name);
     const path = target === undefined ? undefined : resolveWorkbookPart(target);
     const sheetXml = path === undefined ? undefined : partText(path);
-    if (sheetXml !== undefined) parseWorksheet(sheetXml, sheet, sharedStrings, xfStyles);
+    // Five readers want the worksheet part, and it is the largest in the package by a wide margin, so
+    // they share one parse of it rather than scanning it once each. Only the body commits as it goes;
+    // the other four gather, and are applied below, after the sheet's relationships are in hand
+    // (a hyperlink resolves its target through them) and in the order they were always applied.
+    const hyperlinks = sheetHyperlinkPass();
+    const validations = dataValidationPass();
+    const extendedValidations = extendedDataValidationPass();
+    const formattings = conditionalFormattingPass();
+    if (sheetXml !== undefined) {
+      parseXmlPasses(sheetXml, [
+        worksheetPass(sheet, sharedStrings, xfStyles),
+        hyperlinks,
+        validations,
+        extendedValidations,
+        formattings,
+      ]);
+    }
     if (path !== undefined) {
       // The sheet's rels are the index to nearly every part hanging off it, so they are parsed once
       // here and threaded through the readers below rather than re-read by each.
       const sheetRels = readPartRelationships(path, partText);
       if (sheetXml !== undefined) {
-        applyHyperlinks(sheet, parseSheetHyperlinks(sheetXml), (id) => sheetRels.byId(id)?.target);
-        applyDataValidations(sheet, [
-          ...parseDataValidations(sheetXml),
-          ...parseExtendedDataValidations(sheetXml),
-        ]);
-        for (const cf of parseConditionalFormattings(sheetXml)) sheet.addConditionalFormatting(cf);
+        applyHyperlinks(sheet, hyperlinks.result(), (id) => sheetRels.byId(id)?.target);
+        applyDataValidations(sheet, [...validations.result(), ...extendedValidations.result()]);
+        for (const cf of formattings.result()) sheet.addConditionalFormatting(cf);
       }
       // Threads before notes: a threaded cell's comments-part entry is the thread's legacy fallback, not
       // a note, and `applyNotes` reads the sheet's restored threads to tell the two apart.

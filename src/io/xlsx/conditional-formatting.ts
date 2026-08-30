@@ -32,11 +32,13 @@ import {
   boolPresent,
   boolStrict,
   coerceNumericLiteral,
+  type CollectingPass,
   enumToken,
   localName,
   numFinite,
   numInteger,
-  parseXml,
+  parseXmlPasses,
+  type SaxHandlers,
   TextCapture,
 } from '../../xml/xml-read.ts';
 import {
@@ -336,14 +338,14 @@ interface DataBarExt {
 }
 
 /**
- * Parse a worksheet's conditional formatting into the model. The classic `<conditionalFormatting>`
+ * A pass reading a worksheet's conditional formatting into the model. The classic `<conditionalFormatting>`
  * blocks supply every rule; the x14 extension (`<x14:conditionalFormatting>` inside `<extLst>`) is
  * read only to enrich a classic data bar with the facets the classic element cannot carry (the
  * gradient flag and the negative-fill and axis colours) matched by the shared id the two ends link
  * on. An extension rule with no classic counterpart (a rule that lives only in x14) is ignored, so it
  * is never half-read into a broken classic rule.
  */
-export function parseConditionalFormattings(xml: string): ConditionalFormatting[] {
+export function conditionalFormattingPass(): CollectingPass<ConditionalFormatting[]> {
   const blocks: ConditionalFormatting[] = [];
   let block: ConditionalFormatting | undefined;
   let draft: RuleDraft | undefined;
@@ -359,7 +361,7 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
   let x14ExtId: string | undefined;
   const x14IdCapture = new TextCapture('id');
 
-  parseXml(xml, {
+  const handlers: SaxHandlers = {
     onOpen(name, attrs, selfClosing) {
       const ln = localName(name);
       if (name.includes(':')) {
@@ -442,16 +444,29 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
         block = undefined;
       }
     },
-  });
+  };
 
-  for (const {rule, id} of linked) {
-    const ext = extById.get(id);
-    if (ext === undefined) continue;
-    if (ext.gradient !== undefined) rule.gradient = ext.gradient;
-    if (ext.negativeFillColor !== undefined) rule.negativeFillColor = ext.negativeFillColor;
-    if (ext.axisColor !== undefined) rule.axisColor = ext.axisColor;
-  }
-  return blocks;
+  // The marrying step is the pass's result rather than part of the pass, which is what lets it share
+  // a parse: the extension always follows the classic blocks in document order, so both ends are in
+  // hand by the time the parse ends, whoever else was reading alongside.
+  const result = (): ConditionalFormatting[] => {
+    for (const {rule, id} of linked) {
+      const ext = extById.get(id);
+      if (ext === undefined) continue;
+      if (ext.gradient !== undefined) rule.gradient = ext.gradient;
+      if (ext.negativeFillColor !== undefined) rule.negativeFillColor = ext.negativeFillColor;
+      if (ext.axisColor !== undefined) rule.axisColor = ext.axisColor;
+    }
+    return blocks;
+  };
+  return {handlers, result};
+}
+
+/** Parse a worksheet's conditional formatting into the model, over a parse of its own. */
+export function parseConditionalFormattings(xml: string): ConditionalFormatting[] {
+  const pass = conditionalFormattingPass();
+  parseXmlPasses(xml, [pass]);
+  return pass.result();
 }
 
 function emptyExt(): DataBarExt {

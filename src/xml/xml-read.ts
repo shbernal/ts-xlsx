@@ -278,6 +278,59 @@ export interface ParseXmlOptions {
 }
 
 /**
+ * One reader's share of a parse: the handlers it wants the events delivered to, and the self-closing
+ * elements it needs expanded. Named separately from {@link ParseXmlOptions} because several readers
+ * of the same part run over a single parse of it, and each has to bring its own requirements rather
+ * than have the caller remember them; see {@link parseXmlPasses}.
+ */
+export interface SaxPass {
+  readonly handlers: SaxHandlers;
+  /** As {@link ParseXmlOptions.closeEmptyElements}, for this reader's elements. */
+  readonly closeEmptyElements?: ReadonlySet<string>;
+}
+
+/** A {@link SaxPass} that gathers something during the parse rather than committing as it goes. */
+export interface CollectingPass<T> extends SaxPass {
+  /** What the pass collected. Meaningful only once the parse driving it has finished. */
+  result(): T;
+}
+
+/**
+ * Parse `source` once, delivering every event to each pass in turn. The alternative, a parse per
+ * reader, costs a full scan of the document per reader and finds nothing in most of them: the
+ * worksheet part is the largest in a package, and reading it five times over spent 45% of a large
+ * file's read on four scans that matched no element.
+ *
+ * The expansions the passes ask for are unioned, so *every* pass sees `<x/>` as an open plus a close
+ * for any name *any* of them named. That is the one way a pass can observe that it is sharing a
+ * parse, and it is why the option is a set of element names rather than a flag: a pass sees an extra
+ * close only for elements another pass had to name, and reaching a close for an element a reader
+ * does not handle is already the ordinary case.
+ */
+export function parseXmlPasses(source: string, passes: readonly SaxPass[]): void {
+  const expanded = new Set<string>();
+  for (const pass of passes) {
+    for (const name of pass.closeEmptyElements ?? []) expanded.add(name);
+  }
+  const handlers = passes.map((pass) => pass.handlers);
+  parseXml(
+    source,
+    {
+      onOpen(name, attrs, selfClosing) {
+        for (const handler of handlers) handler.onOpen(name, attrs, selfClosing);
+      },
+      onText(text) {
+        for (const handler of handlers) handler.onText?.(text);
+      },
+      onClose(name) {
+        for (const handler of handlers) handler.onClose?.(name);
+      },
+    },
+    expanded.size > 0 ? {closeEmptyElements: expanded} : undefined,
+  );
+}
+
+/**
  * Parse an XML document, dispatching SAX events to `handlers`. A thin push adapter over
  * {@link xmlEvents}: one scanning core serves both the callback and the pull consumers.
  * Throws {@link XmlParseError} on malformed markup.

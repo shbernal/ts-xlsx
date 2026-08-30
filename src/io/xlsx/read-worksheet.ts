@@ -36,7 +36,9 @@ import {
   localName,
   numFinite,
   numInteger,
-  parseXml,
+  parseXmlPasses,
+  type SaxHandlers,
+  type SaxPass,
   type XmlAttributes,
 } from '../../xml/xml-read.ts';
 import type {XfStyle} from '../style/xf-style.ts';
@@ -215,12 +217,19 @@ class PageBreakAccumulator {
   }
 }
 
-export function parseWorksheet(
-  xml: string,
+/**
+ * A pass reading a worksheet part into `sheet`: cells and their styles, the column and row metadata,
+ * merges, the autofilter, page breaks, and the view and print layout. It commits as it goes rather
+ * than gathering, so it has nothing to hand back once the parse ends.
+ *
+ * Offered as a pass because the worksheet is the largest part in a package and four other readers
+ * want the same events; {@link parseWorksheet} is this over a parse of its own.
+ */
+export function worksheetPass(
   sheet: Worksheet,
   sharedStrings: readonly SharedString[],
   xfStyles: ReadonlyArray<XfStyle>,
-): void {
+): SaxPass {
   // The one `<c>` currently being read: its address/type/style, formula, value, inline text, rich
   // runs, and the sheet-spanning shared-formula master map. Each `<c>` resets it and commits it.
   const cell = new CellAccumulator({richRuns: true});
@@ -248,133 +257,140 @@ export function parseWorksheet(
     cell.finalize(sheet, sharedStrings, style);
   };
 
-  parseXml(
-    xml,
-    {
-      onOpen(name, attrs, selfClosing) {
-        const local = localName(name);
-        if (cell.openElement(local, attrs, selfClosing)) return;
-        switch (local) {
-          case 'col':
-            applyColumn(sheet, attrs, xfStyles, columnStyle);
-            break;
-          case 'row':
-            applyRow(sheet, attrs);
-            rowStyle = numInteger(attrs.s, 0) ?? -1;
-            rowCustomFormat = boolStrict(attrs.customFormat);
-            break;
-          case 'oddHeader':
-          case 'oddFooter':
-          case 'evenHeader':
-          case 'evenFooter':
-          case 'firstHeader':
-          case 'firstFooter':
-            // A `<headerFooter>` child carries its header/footer definition as text (the `&`-prefixed
-            // section/format tokens, e.g. `&C&"Arial"&G`). Capture the whole of it so a round-trip
-            // preserves a header image's `&G` picture token and every other formatting directive.
-            cell.capture();
-            break;
-          case 'mergeCell':
-            // A well-formed file never declares overlapping merges; a corrupt one might. Reject the
-            // bad range at the model boundary, but don't let one abort the whole parse: drop it and
-            // keep reading the valid geometry.
-            if (attrs.ref !== undefined && attrs.ref !== '') {
-              try {
-                sheet.mergeCells(attrs.ref);
-              } catch {
-                // overlapping/malformed merge in the source file: skip it
-              }
+  const handlers: SaxHandlers = {
+    onOpen(name, attrs, selfClosing) {
+      const local = localName(name);
+      if (cell.openElement(local, attrs, selfClosing)) return;
+      switch (local) {
+        case 'col':
+          applyColumn(sheet, attrs, xfStyles, columnStyle);
+          break;
+        case 'row':
+          applyRow(sheet, attrs);
+          rowStyle = numInteger(attrs.s, 0) ?? -1;
+          rowCustomFormat = boolStrict(attrs.customFormat);
+          break;
+        case 'oddHeader':
+        case 'oddFooter':
+        case 'evenHeader':
+        case 'evenFooter':
+        case 'firstHeader':
+        case 'firstFooter':
+          // A `<headerFooter>` child carries its header/footer definition as text (the `&`-prefixed
+          // section/format tokens, e.g. `&C&"Arial"&G`). Capture the whole of it so a round-trip
+          // preserves a header image's `&G` picture token and every other formatting directive.
+          cell.capture();
+          break;
+        case 'mergeCell':
+          // A well-formed file never declares overlapping merges; a corrupt one might. Reject the
+          // bad range at the model boundary, but don't let one abort the whole parse: drop it and
+          // keep reading the valid geometry.
+          if (attrs.ref !== undefined && attrs.ref !== '') {
+            try {
+              sheet.mergeCells(attrs.ref);
+            } catch {
+              // overlapping/malformed merge in the source file: skip it
             }
-            break;
-          case 'tabColor':
-          case 'outlinePr':
-          case 'sheetView':
-          case 'pane':
-          case 'pageSetUpPr':
-          case 'printOptions':
-          case 'pageMargins':
-          case 'pageSetup':
-            applySheetProperties(local, attrs, sheet);
-            break;
-          case 'rowBreaks':
-            pageBreaks.begin(sheet.rowBreaks);
-            break;
-          case 'colBreaks':
-            pageBreaks.begin(sheet.columnBreaks);
-            break;
-          case 'brk':
-            pageBreaks.add(attrs);
-            break;
-          case 'sheetProtection': {
-            const protection = parseSheetProtection(attrs);
-            if (protection !== undefined) sheet[INTERNAL].restoreProtection(protection);
-            break;
           }
-          case 'autoFilter':
-            autoFilter.begin(attrs);
-            break;
-          case 'filterColumn':
-            autoFilter.beginColumn(attrs);
-            break;
-          case 'filters':
-            autoFilter.beginValues(attrs);
-            break;
-          case 'filter':
-            autoFilter.addValue(attrs);
-            break;
-          case 'customFilters':
-            autoFilter.beginCustom(attrs);
-            break;
-          case 'customFilter':
-            autoFilter.addCustom(attrs);
-            break;
+          break;
+        case 'tabColor':
+        case 'outlinePr':
+        case 'sheetView':
+        case 'pane':
+        case 'pageSetUpPr':
+        case 'printOptions':
+        case 'pageMargins':
+        case 'pageSetup':
+          applySheetProperties(local, attrs, sheet);
+          break;
+        case 'rowBreaks':
+          pageBreaks.begin(sheet.rowBreaks);
+          break;
+        case 'colBreaks':
+          pageBreaks.begin(sheet.columnBreaks);
+          break;
+        case 'brk':
+          pageBreaks.add(attrs);
+          break;
+        case 'sheetProtection': {
+          const protection = parseSheetProtection(attrs);
+          if (protection !== undefined) sheet[INTERNAL].restoreProtection(protection);
+          break;
         }
-      },
-      onText(chunk) {
-        cell.appendChunk(chunk);
-      },
-      onClose(name) {
-        const local = localName(name);
-        const claimed = cell.closeElement(local);
-        if (claimed === 'cell') {
-          finalizeCellFromState();
-          return;
-        }
-        if (claimed === 'claimed') return;
-        switch (local) {
-          case 'oddHeader':
-          case 'oddFooter':
-          case 'evenHeader':
-          case 'evenFooter':
-          case 'firstHeader':
-          case 'firstFooter':
-            // Header text carries the `_xHHHH_` convention, same as a cell value: Excel decodes it
-            // here and re-emits it on save (measured: a patched `_x0001_` reads back over COM as
-            // U+0001, and a `_x005F_x0041_` as the literal `_x0041_`). The decode is on the whole
-            // element text, never on a SAX chunk. See {@link decodeSpreadsheetText}.
-            sheet.headerFooter[local] = decodeSpreadsheetText(cell.capturedText);
-            break;
-          case 'row':
-            rowStyle = -1;
-            rowCustomFormat = false;
-            break;
-          case 'filterColumn':
-            autoFilter.endColumn();
-            break;
-          case 'autoFilter':
-            autoFilter.commit(sheet);
-            break;
-          case 'rowBreaks':
-          case 'colBreaks':
-            pageBreaks.end();
-            break;
-          default:
-            break;
-        }
-      },
+        case 'autoFilter':
+          autoFilter.begin(attrs);
+          break;
+        case 'filterColumn':
+          autoFilter.beginColumn(attrs);
+          break;
+        case 'filters':
+          autoFilter.beginValues(attrs);
+          break;
+        case 'filter':
+          autoFilter.addValue(attrs);
+          break;
+        case 'customFilters':
+          autoFilter.beginCustom(attrs);
+          break;
+        case 'customFilter':
+          autoFilter.addCustom(attrs);
+          break;
+      }
     },
-    {closeEmptyElements: WORKSHEET_EMPTY_CLOSES},
-  );
+    onText(chunk) {
+      cell.appendChunk(chunk);
+    },
+    onClose(name) {
+      const local = localName(name);
+      const claimed = cell.closeElement(local);
+      if (claimed === 'cell') {
+        finalizeCellFromState();
+        return;
+      }
+      if (claimed === 'claimed') return;
+      switch (local) {
+        case 'oddHeader':
+        case 'oddFooter':
+        case 'evenHeader':
+        case 'evenFooter':
+        case 'firstHeader':
+        case 'firstFooter':
+          // Header text carries the `_xHHHH_` convention, same as a cell value: Excel decodes it
+          // here and re-emits it on save (measured: a patched `_x0001_` reads back over COM as
+          // U+0001, and a `_x005F_x0041_` as the literal `_x0041_`). The decode is on the whole
+          // element text, never on a SAX chunk. See {@link decodeSpreadsheetText}.
+          sheet.headerFooter[local] = decodeSpreadsheetText(cell.capturedText);
+          break;
+        case 'row':
+          rowStyle = -1;
+          rowCustomFormat = false;
+          break;
+        case 'filterColumn':
+          autoFilter.endColumn();
+          break;
+        case 'autoFilter':
+          autoFilter.commit(sheet);
+          break;
+        case 'rowBreaks':
+        case 'colBreaks':
+          pageBreaks.end();
+          break;
+        default:
+          break;
+      }
+    },
+  };
+  return {handlers, closeEmptyElements: WORKSHEET_EMPTY_CLOSES};
+}
+
+/** Read a worksheet part into `sheet`, over a parse of its own. */
+export function parseWorksheet(
+  xml: string,
+  sheet: Worksheet,
+  sharedStrings: readonly SharedString[],
+  xfStyles: ReadonlyArray<XfStyle>,
+): void {
+  parseXmlPasses(xml, [worksheetPass(sheet, sharedStrings, xfStyles)]);
 }
 
 // Apply one `<sheetPr>` / `<sheetView>` / print-setup child to the sheet. These are the worksheet's

@@ -43,6 +43,68 @@ export const core = {
     });
   },
 
+  // Author one sheet carrying all five kinds of content the reader takes out of a worksheet part (a
+  // hyperlink, a standard data validation, an extended x14 validation, a classic conditional format,
+  // and a data bar whose gradient and negative-fill facets can only live in the x14 extension), write
+  // it, and report what comes back → { hyperlink, cellText, standardValidation, extendedValidation,
+  // classicRuleType, dataBarGradient, dataBarNegativeFill }. The reader takes all five from a single
+  // parse of the part, so this is where one kind's handler swallowing another kind's events would
+  // show: every fact below comes from a different reader over the same event stream.
+  worksheetPartCarryingEveryKind() {
+    const workbook = new Workbook();
+    const other = workbook.addWorksheet('Other');
+    other.getCell('A1').value = 'listed';
+    const sheet = workbook.addWorksheet('S');
+    sheet.getCell('A1').value = {text: 'go', hyperlink: 'https://example.com/'};
+    for (let row = 1; row <= 3; row++) sheet.getCell(`D${row}`).value = row / 3;
+    sheet.addDataValidation('B1:B5', {type: 'list', formulae: ['"one,two,three"']});
+    sheet.addDataValidation(
+      'C1:C5',
+      {type: 'list', formulae: ['Other!$A$1:$A$1']},
+      {extended: true},
+    );
+    sheet.addConditionalFormatting({
+      ref: 'D1:D3',
+      rules: [{type: 'cellIs', operator: 'greaterThan', formulae: ['0.5'], priority: 1}],
+    });
+    sheet.addConditionalFormatting({
+      ref: 'E1:E3',
+      rules: [
+        {
+          type: 'dataBar',
+          priority: 2,
+          gradient: false,
+          color: {argb: 'FF638EC6'},
+          negativeFillColor: {argb: 'FFFF0000'},
+          cfvo: [
+            {type: 'num', value: 0},
+            {type: 'num', value: 1},
+          ],
+        },
+      ],
+    });
+
+    const back = readXlsx(writeXlsx(workbook)).getWorksheet('S')!;
+    const value = back.getCell('A1').value as Untyped;
+    const validations = back.dataValidations as Untyped[];
+    const rules = (back.conditionalFormattings as Untyped[]).flatMap(
+      (cf: Untyped) => cf.rules as Untyped[],
+    );
+    const dataBar = rules.find((rule: Untyped) => rule.type === 'dataBar');
+    return {
+      hyperlink: value?.hyperlink ?? null,
+      cellText: value?.text ?? null,
+      standardValidation:
+        validations.find((entry) => entry.sqref === 'B1:B5' && entry.extended !== true)?.rule
+          ?.formulae?.[0] ?? null,
+      extendedValidation:
+        validations.find((entry) => entry.extended === true)?.rule?.formulae?.[0] ?? null,
+      classicRuleType: rules.find((rule: Untyped) => rule.type === 'cellIs')?.type ?? null,
+      dataBarGradient: dataBar?.gradient ?? null,
+      dataBarNegativeFill: dataBar?.negativeFillColor?.argb ?? null,
+    };
+  },
+
   decodeAddress(reference: string) {
     return decodeAddress(reference);
   },

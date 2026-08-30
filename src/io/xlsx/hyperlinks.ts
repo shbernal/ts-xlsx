@@ -13,7 +13,7 @@
 import {tryDecodeRange} from '../../core/address.ts';
 import {type HyperlinkValue, isHyperlinkValue, isRichTextValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {localName, parseXml} from '../../xml/xml-read.ts';
+import {type CollectingPass, localName, parseXmlPasses} from '../../xml/xml-read.ts';
 import {escapeAttr, textAttr} from '../../xml/xml.ts';
 import type {SheetRelIds} from './package-plan.ts';
 
@@ -99,23 +99,34 @@ interface ParsedHyperlink {
   readonly tooltip?: string;
 }
 
+/** A pass gathering every `<hyperlink>` element of a worksheet part, for a caller reading the part
+ * alongside its other readers in one parse. {@link parseSheetHyperlinks} is the same thing over a
+ * parse of its own. */
+export function sheetHyperlinkPass(): CollectingPass<ParsedHyperlink[]> {
+  const links: ParsedHyperlink[] = [];
+  return {
+    handlers: {
+      onOpen(name, attrs) {
+        if (localName(name) !== 'hyperlink') return;
+        const ref = attrs.ref;
+        if (ref === undefined) return;
+        links.push({
+          ref,
+          ...(attrs['r:id'] !== undefined ? {rid: attrs['r:id']} : {}),
+          ...(attrs.location !== undefined ? {location: attrs.location} : {}),
+          ...(attrs.tooltip !== undefined ? {tooltip: attrs.tooltip} : {}),
+        });
+      },
+    },
+    result: () => links,
+  };
+}
+
 /** Parse every `<hyperlink>` element out of a worksheet part. */
 export function parseSheetHyperlinks(xml: string): ParsedHyperlink[] {
-  const links: ParsedHyperlink[] = [];
-  parseXml(xml, {
-    onOpen(name, attrs) {
-      if (localName(name) !== 'hyperlink') return;
-      const ref = attrs.ref;
-      if (ref === undefined) return;
-      links.push({
-        ref,
-        ...(attrs['r:id'] !== undefined ? {rid: attrs['r:id']} : {}),
-        ...(attrs.location !== undefined ? {location: attrs.location} : {}),
-        ...(attrs.tooltip !== undefined ? {tooltip: attrs.tooltip} : {}),
-      });
-    },
-  });
-  return links;
+  const pass = sheetHyperlinkPass();
+  parseXmlPasses(xml, [pass]);
+  return pass.result();
 }
 
 /** Fold parsed hyperlinks onto a sheet's cells, wrapping each cell's existing value (its visible
