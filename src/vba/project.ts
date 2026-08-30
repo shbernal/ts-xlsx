@@ -76,11 +76,11 @@ export interface VbaProjectSignature {
 // (2006 / 2014 / 2020) is incidental and varies. The closure walk already carries any such part
 // through verbatim regardless of type, so recognising the generation token is all detection needs:
 // no exact URI to pin, and a future scheme this map does not know stays preserved but unreported.
-const SIGNATURE_KIND_BY_REL_SEGMENT: Readonly<Record<string, VbaProjectSignatureKind>> = {
-  vbaProjectSignature: 'legacy',
-  vbaProjectSignatureAgile: 'agile',
-  vbaProjectSignatureV3: 'v3',
-};
+const SIGNATURE_KIND_BY_REL_SEGMENT: ReadonlyMap<string, VbaProjectSignatureKind> = new Map([
+  ['vbaProjectSignature', 'legacy'],
+  ['vbaProjectSignatureAgile', 'agile'],
+  ['vbaProjectSignatureV3', 'v3'],
+]);
 
 /**
  * The VBA-signature generation a relationship Type names, or `undefined` if it is not a signature
@@ -88,7 +88,7 @@ const SIGNATURE_KIND_BY_REL_SEGMENT: Readonly<Record<string, VbaProjectSignature
  * carries (`.../office/2006/...` vs `.../2014/...` vs `.../2020/...`).
  */
 export function vbaProjectSignatureKind(relType: string): VbaProjectSignatureKind | undefined {
-  return SIGNATURE_KIND_BY_REL_SEGMENT[relType.slice(relType.lastIndexOf('/') + 1)];
+  return SIGNATURE_KIND_BY_REL_SEGMENT.get(relType.slice(relType.lastIndexOf('/') + 1));
 }
 
 interface PendingModule {
@@ -168,6 +168,15 @@ function readModuleSource(
   return decoder.decode(decompressContainer(stream, textOffset));
 }
 
+// A Map, not an object literal: the keyword is whatever text precedes the `=` on a PROJECT line, so
+// an object would answer `constructor=Foo` with the Object function and publish it as a module kind.
+const MODULE_KIND_BY_PROJECT_KEYWORD: ReadonlyMap<string, VbaModuleKind> = new Map([
+  ['Document', 'document'],
+  ['Module', 'procedural'],
+  ['Class', 'class'],
+  ['BaseClass', 'designer'],
+]);
+
 // The `PROJECT` stream (uncounted, plain MBCS text) declares each module's exact kind by keyword:
 // `Document=`, `Module=` (procedural .bas), `Class=`, `BaseClass=` (designer/UserForm). The `dir`
 // stream's MODULETYPE only distinguishes procedural from non-procedural, so PROJECT refines it. Absent
@@ -177,16 +186,10 @@ function readProjectStreamKinds(cfb: CompoundFile, decoder: Decoder): Map<string
   const stream = cfb.readStream('PROJECT');
   if (!stream) return kinds;
   const text = decoder.decode(stream);
-  const keyword: Record<string, VbaModuleKind> = {
-    Document: 'document',
-    Module: 'procedural',
-    Class: 'class',
-    BaseClass: 'designer',
-  };
   for (const line of text.split(/\r\n|\r|\n/)) {
     const eq = line.indexOf('=');
     if (eq < 0) continue;
-    const kind = keyword[line.slice(0, eq)];
+    const kind = MODULE_KIND_BY_PROJECT_KEYWORD.get(line.slice(0, eq));
     if (kind === undefined) continue;
     // Value is `Name` or `Name/&H00000000` (document modules carry a cookie); take the name.
     const name = (line.slice(eq + 1).split('/')[0] ?? '').trim();

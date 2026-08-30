@@ -13,7 +13,7 @@ import {CompoundFile} from './cfb.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 import {compressContainer, decompressContainer} from './ms-ovba.ts';
 import {addVbaReference, removeVbaModule} from './project-editor.ts';
-import {parseVbaProject} from './project.ts';
+import {parseVbaProject, vbaProjectSignatureKind} from './project.ts';
 
 // ── Fixture builders ──────────────────────────────────────────────────────────────────────────────
 // These construct a genuine, spec-valid `vbaProject.bin` from scratch: an MS-OVBA "store" encoder
@@ -366,6 +366,49 @@ test('parseVbaProject decodes modules, code page, kinds, and source past the p-c
 test('parseVbaProject throws VbaParseError on a corrupt dir stream', () => {
   const bin = buildVbaProjectBin(CODE_PAGE, MODULES);
   assert.throws(() => parseVbaProject(bin.subarray(0, 900)), VbaParseError);
+});
+
+test('a PROJECT keyword naming an Object.prototype member does not become a module kind', () => {
+  // The keyword table is indexed by text taken straight off the PROJECT stream, so a table that
+  // inherits Object.prototype answers `constructor=` with the Object function, and that value is
+  // published as VbaModuleKind. An unrecognised keyword must fall back to the dir stream's coarser
+  // MODULETYPE, exactly as `Reference=` and `ID=` already do.
+  const dir = compressContainer(
+    Uint8Array.from(
+      buildDirStream(1252, [
+        {name: 'Demo', documentType: false, sourceBytes: [], pcodePrefixLen: 0},
+      ]),
+    ),
+  );
+  const bin = writeCompoundFile([
+    {name: 'PROJECT', data: strToU8('constructor=Demo\r\n')},
+    {
+      name: 'VBA',
+      children: [
+        {name: 'dir', data: dir},
+        {name: 'Demo', data: compressContainer(strToU8('Sub Demo()\r\nEnd Sub'))},
+      ],
+    },
+  ]);
+
+  const kind = parseVbaProject(bin).modules[0]!.kind;
+  assert.equal(typeof kind, 'string');
+  assert.equal(kind, 'procedural');
+});
+
+test('vbaProjectSignatureKind reports undefined for a rel type naming an Object.prototype member', () => {
+  // The final segment comes off a relationship Type in the package, so the table it indexes must
+  // not answer with an inherited function that `workbook-vba` would then publish as a kind.
+  assert.equal(
+    vbaProjectSignatureKind('http://example.invalid/relationships/constructor'),
+    undefined,
+  );
+  assert.equal(
+    vbaProjectSignatureKind(
+      'http://schemas.microsoft.com/office/2020/relationships/vbaProjectSignatureV3',
+    ),
+    'v3',
+  );
 });
 
 // ── CFB writer (§2.3a): the encoder inside a VBA project ────────────────────────────────

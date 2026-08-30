@@ -680,6 +680,21 @@ The stack is deliberately small and each choice is recorded as an ADR under
 - **Security- and correctness-first.** Every parser path is hostile-input-facing: no
   unbounded allocation, no zip-bomb naïveté. Entities are decoded but never expanded;
   inflation is bounded by a running output counter, not any declared size.
+- **A lookup table on a parser path is a `Map`, or an object with no prototype.** A plain object
+  literal indexed by a string the file supplies answers about a dozen attacker-chosen keys with a
+  *function*: `constructor`, `toString`, `valueOf`, `hasOwnProperty` and the rest of
+  `Object.prototype`. Every miss check spelled `?? ` or `=== undefined` then reads that as a hit.
+  This is not prototype pollution (nothing is written), it is the read side of the same mistake, and
+  it lands where the format's own vocabulary is open-ended: an entity name, a media extension, a
+  `PROJECT` keyword, a relationship type's final segment, a part path resolved out of a relationship
+  target. Prefer the `Map`, which makes the property impossible rather than merely absent;
+  `Object.create(null)` is for the accumulator that must stay an object because its type is an index
+  signature (the SAX reader's attribute map, the inflated part map). A table whose keys come from a
+  fixed regex character class or from our own writer is not on this path and stays an object literal.
+  No rule in this toolchain gates it: oxlint carries no `security/detect-object-injection`
+  equivalent, and `no-prototype-builtins` catches the `obj.hasOwnProperty(k)` call rather than the
+  `obj[k]` read. So this paragraph is the gate, and the corpus's
+  `undefined-entity-in-cell-text-stays-verbatim` is the lock on the site that reaches furthest.
 - **On a round-tripping surface, ask whether input is safe to *write back*.** Bounding what a
   parser will hold is only half of it. What the reader accepts, the writer re-emits, so a value
   a foreign part carries can leave *our* output invalid, and one invalid attribute is enough for

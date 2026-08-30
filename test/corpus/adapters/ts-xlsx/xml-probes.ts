@@ -56,6 +56,20 @@ export function reloadPatched(buffer: Uint8Array, edits: Record<string, (xml: st
   return readXlsx(zipSync(files));
 }
 
+// Substitute a marker the author planted in a cell for arbitrary markup, in every text part that
+// carries it, then read the package back. The writer escapes `&`, so an entity reference is markup
+// it can never emit: rewriting the written package after the fact is the only way to put one in
+// front of the reader, and it is exactly what a hostile file does.
+export function reloadWithMarkupSubstituted(buffer: Uint8Array, marker: string, markup: string) {
+  const files = unzipSync(buffer);
+  for (const [name, bytes] of Object.entries(files)) {
+    if (!name.endsWith('.xml')) continue;
+    const xml = strFromU8(bytes);
+    if (xml.includes(marker)) files[name] = strToU8(xml.split(marker).join(markup));
+  }
+  return readXlsx(zipSync(files));
+}
+
 // Parse an XML tag's attributes into a plain { name: value } map. base64 salt/hash values use
 // only XML-safe characters, so a naive quoted-value scan is sufficient here.
 export function attrsOf(tag: string) {

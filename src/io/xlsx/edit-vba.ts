@@ -74,8 +74,13 @@ function applyToVbaProjectPart(
   apply: (bin: Uint8Array) => Uint8Array,
 ): Uint8Array {
   // Widen off fflate's `Uint8Array<ArrayBuffer>` element type so spliced/re-serialised parts (whose
-  // buffers are `ArrayBufferLike`) assign back into the map.
-  const files: Record<string, Uint8Array> = unzipSync(xlsx);
+  // buffers are `ArrayBufferLike`) assign back into the map. Copied onto a null prototype rather
+  // than used as handed over: entry names are attacker-chosen, so `fflate`'s plain object answers a
+  // part path of `constructor` with a function and takes an entry named `__proto__` as a prototype.
+  const files: Record<string, Uint8Array> = Object.assign(
+    Object.create(null) as Record<string, Uint8Array>,
+    unzipSync(xlsx),
+  );
 
   const binPath = locateVbaProjectPart(files);
   const bin = binPath === undefined ? undefined : files[binPath];

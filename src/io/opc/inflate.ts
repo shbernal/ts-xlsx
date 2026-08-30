@@ -39,7 +39,10 @@ const INPUT_SLICE = 1 << 14;
  *   one thing that must not reach a caller unfiltered.
  */
 export function inflatePackage(data: Uint8Array, cap: number): Record<string, Uint8Array> {
-  const files: Record<string, Uint8Array> = {};
+  // Null-prototype, and on both sides of the map. A zip entry name is attacker-chosen: an entry
+  // called `__proto__` would otherwise re-point this object's prototype at its bytes, and a part
+  // path resolved out of a relationship target would otherwise find `constructor` already present.
+  const files: Record<string, Uint8Array> = Object.create(null) as Record<string, Uint8Array>;
   let total = 0;
   let failure: Error | undefined;
 

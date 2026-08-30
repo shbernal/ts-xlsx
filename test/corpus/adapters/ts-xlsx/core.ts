@@ -31,6 +31,7 @@ import {
   classifyReadError,
   type ReadInputKind,
   reloadPatched,
+  reloadWithMarkupSubstituted,
 } from './xml-probes.ts';
 
 export const core = {
@@ -281,6 +282,23 @@ export const core = {
       writeError = messageOf(error);
     }
     return {writeOk, writeError, partsWithRawChar, emittedText, readValue};
+  },
+
+  // Put an entity reference no DTD defines into a cell's text and report what the reader makes of
+  // each → a map of entity name → { value, type }. An OOXML package carries no DTD, so there is
+  // nothing an unrecognised `&name;` could expand to and the only safe reading is the literal text.
+  // The names worth asking about are the ones a JavaScript object answers for free.
+  unknownEntityReport(names: string[]) {
+    const marker = 'ENTITYSLOT';
+    return Object.fromEntries(
+      names.map((name) => {
+        const workbook = new Workbook();
+        workbook.addWorksheet('S').getCell('A1').value = marker;
+        const reloaded = reloadWithMarkupSubstituted(writeXlsx(workbook), marker, `&${name};`);
+        const value = reloaded.worksheets[0]?.getCell('A1').value ?? null;
+        return [name, {value, type: typeof value}];
+      }),
+    );
   },
 
   // Read a fixture whose cells hold `_xHHHH_` escapes, three ways → { eager, streaming, roundtrip }.

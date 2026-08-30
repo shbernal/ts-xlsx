@@ -21,23 +21,26 @@ const IMAGE_REL_TYPE = `${RELATIONSHIPS_NS}/image`;
 
 // The content type Excel expects for each image kind, keyed by lower-case extension. An unlisted
 // extension falls back to `image/<ext>`, which is what a well-behaved consumer infers anyway.
-const IMAGE_CONTENT_TYPES: Readonly<Record<string, string>> = {
-  png: 'image/png',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  gif: 'image/gif',
-  bmp: 'image/bmp',
-  tif: 'image/tiff',
-  tiff: 'image/tiff',
-  emf: 'image/x-emf',
-  wmf: 'image/x-wmf',
-  svg: 'image/svg+xml',
-};
+// A Map, not an object literal: the extension comes off a media part's name in the package, and an
+// object would answer `constructor` with a function that then stringifies into a content-type
+// attribute.
+const IMAGE_CONTENT_TYPES: ReadonlyMap<string, string> = new Map([
+  ['png', 'image/png'],
+  ['jpg', 'image/jpeg'],
+  ['jpeg', 'image/jpeg'],
+  ['gif', 'image/gif'],
+  ['bmp', 'image/bmp'],
+  ['tif', 'image/tiff'],
+  ['tiff', 'image/tiff'],
+  ['emf', 'image/x-emf'],
+  ['wmf', 'image/x-wmf'],
+  ['svg', 'image/svg+xml'],
+]);
 
 /** The content type for a media part's `<Default Extension>` entry in `[Content_Types].xml`. */
 export function imageContentType(extension: string): string {
   const ext = extension.toLowerCase();
-  return IMAGE_CONTENT_TYPES[ext] ?? `image/${ext}`;
+  return IMAGE_CONTENT_TYPES.get(ext) ?? `image/${ext}`;
 }
 
 /** One image placed in a drawing: where it sits and the drawing-local relationship id that ties it

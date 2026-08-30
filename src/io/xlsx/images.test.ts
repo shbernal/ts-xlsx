@@ -5,6 +5,7 @@ import {strFromU8, unzipSync} from 'fflate';
 
 import {isOneCellAnchor} from '../../core/image.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {imageContentType} from './images.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -276,4 +277,13 @@ test('one image anchored on two sheets is stored as a single media part', () => 
   const files = unzipSync(writeXlsx(wb));
   const mediaParts = Object.keys(files).filter((n) => n.startsWith('xl/media/'));
   assert.strictEqual(mediaParts.length, 1, 'the shared image is written once');
+});
+
+test('imageContentType falls back to a string for an extension naming an Object.prototype member', () => {
+  // The extension comes off a media part's name, so the table it indexes must not answer with
+  // an inherited function: that value goes straight into a [Content_Types].xml attribute.
+  const type = imageContentType('constructor');
+  assert.strictEqual(typeof type, 'string');
+  assert.strictEqual(type, 'image/constructor');
+  assert.strictEqual(imageContentType('PNG'), 'image/png', 'the known table still answers');
 });

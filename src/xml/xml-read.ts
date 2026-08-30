@@ -43,13 +43,16 @@ export type XmlEvent =
   | {readonly kind: 'text'; readonly text: string}
   | {readonly kind: 'close'; readonly name: string};
 
-const PREDEFINED_ENTITIES: Readonly<Record<string, string>> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: "'",
-};
+// A Map, not an object literal, because the key comes straight out of the file: an object would
+// answer `constructor`, `toString` and a dozen other attacker-chosen names out of Object.prototype,
+// and the miss check below would take that function for a definition.
+const PREDEFINED_ENTITIES: ReadonlyMap<string, string> = new Map([
+  ['amp', '&'],
+  ['lt', '<'],
+  ['gt', '>'],
+  ['quot', '"'],
+  ['apos', "'"],
+]);
 
 const ENTITY = /&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);/g;
 
@@ -74,8 +77,7 @@ export function decodeEntities(value: string): string {
         return match;
       }
     }
-    const named = PREDEFINED_ENTITIES[body];
-    return named ?? match;
+    return PREDEFINED_ENTITIES.get(body) ?? match;
   });
 }
 
@@ -111,7 +113,9 @@ export function decodeSpreadsheetText(value: string): string {
 const ATTRIBUTE = /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
 function parseAttributes(source: string): XmlAttributes {
-  const attrs: Record<string, string> = {};
+  // Null-prototype: attribute names are file-derived, and `XmlAttributes` is an index signature
+  // every reader reads through, so an inherited `constructor` would read as a present attribute.
+  const attrs: Record<string, string> = Object.create(null) as Record<string, string>;
   ATTRIBUTE.lastIndex = 0;
   let match = ATTRIBUTE.exec(source);
   while (match !== null) {

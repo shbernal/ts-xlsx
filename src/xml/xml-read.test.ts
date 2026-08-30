@@ -68,6 +68,24 @@ test('decodeEntities leaves an out-of-range character reference verbatim', () =>
   assert.equal(decodeEntities('&#x110000;'), '&#x110000;');
 });
 
+test('decodeEntities leaves an Object.prototype name verbatim rather than expanding it', () => {
+  // The entity table is indexed by a name taken straight out of the file, so a table that
+  // inherits Object.prototype hands back a *function* for a dozen attacker-chosen names and
+  // stringifies engine source into the model. `&custom;` above proves the miss path; these
+  // prove the miss path is reached at all for the names the prototype would otherwise answer.
+  for (const name of ['constructor', 'toString', 'hasOwnProperty']) {
+    const decoded = decodeEntities(`a&${name};b`);
+    assert.equal(typeof decoded, 'string');
+    assert.equal(decoded, `a&${name};b`);
+  }
+});
+
+test('parseXml keeps an attribute named for an Object.prototype member out of the prototype chain', () => {
+  const [open] = events('<a constructor="1"/>');
+  assert.equal(open?.attrs?.['constructor'], '1');
+  assert.equal(open?.attrs?.['toString'], undefined);
+});
+
 test('parseXml reports open/text/close for a simple element', () => {
   assert.deepEqual(events('<a>hi</a>'), [
     {kind: 'open', name: 'a', attrs: {}, selfClosing: false},
@@ -195,7 +213,9 @@ test('parseXml with closeEmptyElements fires onClose only for the named self-clo
 
 test('parseXml parses attributes in both quote styles and decodes their entities', () => {
   const [open] = events(`<c r="A1" t='inlineStr' note="a &amp; b"/>`);
-  assert.deepEqual(open?.attrs, {r: 'A1', t: 'inlineStr', note: 'a & b'});
+  // Spread onto a plain object: the parsed map is deliberately null-prototype, which strict deep
+  // equality counts as a difference from the literal on the right.
+  assert.deepEqual({...open?.attrs}, {r: 'A1', t: 'inlineStr', note: 'a & b'});
   assert.equal(open?.selfClosing, true);
 });
 

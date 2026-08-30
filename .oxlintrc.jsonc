@@ -194,6 +194,16 @@
     // format being encoded counts UTF-16 code units, which is the kind of thing this list is for
     // deciding is not worth catching.
 
+    // ── Wanted and unavailable. Indexing a plain object with a string taken out of a file is a real
+    // defect class here (it resolves `constructor`, `toString` and the rest of Object.prototype to a
+    // function, which every `?? `/`=== undefined` miss check then reads as a hit) and it was made
+    // four times before anyone looked. Nothing in this toolchain gates it: oxlint ships no
+    // `eslint-plugin-security` equivalent of `detect-object-injection`, and `no-prototype-builtins`
+    // above catches the `obj.hasOwnProperty(k)` *call*, not the `obj[k]` *read*. The stance is
+    // written down instead, in docs/architecture.md beside the other hostile-input rules: a lookup
+    // table on a parser path is a Map, or an object with no prototype. Revisit if oxlint gains the
+    // rule.
+
     "import/no-duplicates": ["error", {"preferInline": true}],
     "import/no-cycle": "error",
     "import/no-self-import": "error",
