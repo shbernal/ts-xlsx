@@ -8,6 +8,8 @@ import {strFromU8} from 'fflate';
 import type {PreservedPart, PreservedRelationship} from '../../core/preserved.ts';
 import {openElements} from '../../xml/xml-read.ts';
 import {extensionOf, relsPathFor} from './part-paths.ts';
+import {DEFAULT_MAX_UNCOMPRESSED} from './read-options.ts';
+import {inflateSpreadsheetPackage} from './sniff-format.ts';
 
 // The two ways a reader reaches into an inflated package: a part's UTF-8-decoded text, or its raw
 // bytes. Built once per read (see {@link packageAccessors}) so the buffered and streaming readers
@@ -18,6 +20,37 @@ export interface PackageAccessors {
   partText: (path: string) => string | undefined;
   /** A part's raw bytes, or undefined when the package holds no such part. */
   partBytes: (path: string) => Uint8Array | undefined;
+}
+
+/** A spreadsheet package opened for reading: inflated under the read bound, its parts bound to
+ * accessors, and its XML office document read if it has one. */
+export interface OpenedSpreadsheet {
+  /** The inflated parts, for a reader that hands the whole package on to another codec. */
+  readonly files: Record<string, Uint8Array>;
+  readonly pkg: PackageAccessors;
+  /** `xl/workbook.xml`, or undefined when the package carries no XML office document (a `.xlsb`
+   * carries `xl/workbook.bin` instead). Each entry point answers that case for itself: they
+   * genuinely want different answers, and the difference is documented where they diverge. */
+  readonly workbookXml: string | undefined;
+}
+
+/**
+ * Open a spreadsheet package: the six-step preamble every reader shares, and in particular the two
+ * decisions worth having exactly one of. The inflate bound is a security decision (an unbounded
+ * inflate is a zip bomb) and "does this package carry an XML office document" is the dispatch
+ * decision between the two codecs, so neither should be restated once per entry point.
+ *
+ * It deliberately stops short of the shared strings and the style table: those are codec-specific
+ * (`xl/sharedStrings.xml` against BIFF12's own record stream), and lifting them here would put
+ * SpreadsheetML knowledge into the container layer.
+ */
+export function openSpreadsheetPackage(
+  data: Uint8Array,
+  maxUncompressedBytes: number | undefined,
+): OpenedSpreadsheet {
+  const files = inflateSpreadsheetPackage(data, maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED);
+  const pkg = packageAccessors(files);
+  return {files, pkg, workbookXml: pkg.partText('xl/workbook.xml')};
 }
 
 // Bind the part-lookup accessors over an inflated package (a part-path → bytes map).
@@ -101,11 +134,6 @@ export function parseRelationshipRecords(xml: string): RelationshipRecord[] {
     }
   }
   return records;
-}
-
-// The id → target view, for a caller that resolves by id and does not care about type or target mode.
-export function parseRelationships(xml: string): Map<string, string> {
-  return new Map(parseRelationshipRecords(xml).map((record) => [record.id, record.target]));
 }
 
 // One part's `.rels`, parsed once and then queried many times, with the owning part's path bound in so

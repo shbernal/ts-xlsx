@@ -46,13 +46,12 @@ import {
   contentTypeResolver,
   type PackageAccessors,
   type PartRelationships,
-  packageAccessors,
+  openSpreadsheetPackage,
   parseRelationshipRecords,
   readPartRelationships,
   resolveRelativePart,
 } from '../opc/read-opc.ts';
-import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-options.ts';
-import {inflateSpreadsheetPackage} from '../opc/sniff-format.ts';
+import type {ReadXlsxOptions} from '../opc/read-options.ts';
 import type {XfStyle} from '../style/xf-style.ts';
 import {readXlsbPackage, XLSB_WORKBOOK_PART} from '../xlsb/read.ts';
 import type {SharedString} from './cell-value.ts';
@@ -73,13 +72,10 @@ import {parseTable} from './tables.ts';
 import {parseThemeColorScheme, parseThemeFontScheme} from './theme-xml.ts';
 import {buildCommentThreads, parsePersons, parseThreadedComments} from './threaded-comments.ts';
 
-// Re-exported for the streaming reader (`./read-rows.ts`) and the public barrel, which import these
-// from here: the split into per-part parsers is internal, so the reader's import surface is stable.
-export {parseRelationships, resolveWorkbookPart} from '../opc/read-opc.ts';
-// The inflate bound and its option bag are shared with the `.xlsb` reader and the row streamer, so
-// they are declared apart from all three; they stay reachable here because this is the entry point
-// callers reach for.
-export {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-options.ts';
+// The read option bag is shared with the `.xlsb` reader and the row streamer, so it is declared apart
+// from all three; it stays reachable here because this is the entry point callers reach for. The
+// bound's default is not re-exported: `openSpreadsheetPackage` applies it, and no caller names it.
+export type {ReadXlsxOptions} from '../opc/read-options.ts';
 export type {StyleTable, XfStyle} from '../style/xf-style.ts';
 export {parseStyleTable} from './read-styles.ts';
 
@@ -99,12 +95,9 @@ export {parseStyleTable} from './read-styles.ts';
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
 export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook {
-  const cap = options.maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED;
-  const files = inflateSpreadsheetPackage(data, cap);
-  const pkg = packageAccessors(files);
+  const {files, pkg, workbookXml} = openSpreadsheetPackage(data, options.maxUncompressedBytes);
   const {partText} = pkg;
 
-  const workbookXml = partText('xl/workbook.xml');
   if (workbookXml === undefined) {
     // No XML office document. A binary one means this is an `.xlsb`, which reads through the BIFF12
     // codec over the very same model. The package is already inflated, so it is handed over as-is.

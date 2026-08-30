@@ -19,9 +19,8 @@ import {INTERNAL} from '../../core/internal.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {WorksheetState} from '../../core/worksheet.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
-import {packageAccessors, parseRelationships, resolveWorkbookPart} from '../opc/read-opc.ts';
-import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-options.ts';
-import {inflateSpreadsheetPackage} from '../opc/sniff-format.ts';
+import {openSpreadsheetPackage, packageAccessors, readPartRelationships} from '../opc/read-opc.ts';
+import type {ReadXlsxOptions} from '../opc/read-options.ts';
 import {decodeFormula, type ExternSheetRef, type FormulaScope} from './formula.ts';
 import {RecordReader} from './primitives.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
@@ -43,8 +42,7 @@ export const XLSB_WORKBOOK_PART = 'xl/workbook.bin';
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
 export function readXlsb(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook {
-  const cap = options.maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED;
-  return readXlsbPackage(inflateSpreadsheetPackage(data, cap));
+  return readXlsbPackage(openSpreadsheetPackage(data, options.maxUncompressedBytes).files);
 }
 
 /**
@@ -62,7 +60,7 @@ export function readXlsbPackage(files: Record<string, Uint8Array>): Workbook {
     );
   }
 
-  const rels = parseRelationships(partText('xl/_rels/workbook.bin.rels') ?? '');
+  const rels = readPartRelationships(XLSB_WORKBOOK_PART, partText);
   const sharedStrings = parseSharedStrings(partBytes('xl/sharedStrings.bin'));
   const {cellXfs, namedStyles, defaultFont} = parseStyleTable(partBytes('xl/styles.bin'));
 
@@ -84,8 +82,8 @@ export function readXlsbPackage(files: Record<string, Uint8Array>): Workbook {
 
   for (const declared of declaration.sheets) {
     const sheet = workbook.addWorksheet(declared.name, {state: declared.state});
-    const target = declared.relId === undefined ? undefined : rels.get(declared.relId);
-    const part = target === undefined ? undefined : partBytes(resolveWorkbookPart(target));
+    const target = declared.relId === undefined ? undefined : rels.byId(declared.relId)?.target;
+    const part = target === undefined ? undefined : partBytes(rels.pathOf(target));
     if (part !== undefined) parseWorksheet(part, sheet, sharedStrings, cellXfs, scope);
   }
   for (const defined of definedNames(declaration, scope)) workbook.defineName(defined);

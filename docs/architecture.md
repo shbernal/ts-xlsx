@@ -463,6 +463,16 @@ There is deliberately no "not implemented yet" code. Every candidate turned out 
 unreachable exhaustiveness guard, and the one real feature gap, that a binary `.xlsb` cannot be
 row-streamed, is already reported through `UnsupportedFormatError`'s `format` branch.
 
+That gap makes the two read entry points answer the same bytes differently, and the asymmetry is
+deliberate. Handed an `.xlsb` package, `readXlsx` dispatches to the BIFF12 codec and returns a
+workbook, because both codecs build the same model and a caller who asked for a workbook gets one.
+`readSheetRows` refuses, because row streaming is built on the XML worksheet parser and the binary
+cell table has no streaming path: the honest answer to "stream me these rows" is that this format
+cannot be streamed yet, not a silent buffer of the whole workbook under a streaming name. The two
+share their package opening (`openSpreadsheetPackage`), so the divergence is one branch on whether
+the package carries an XML office document, stated once in each of the two functions that hold a
+different opinion about it.
+
 ## Two serialisations, one model
 
 `.xlsb` is not a second library bolted on; it is a second codec over the same `Workbook`. The two

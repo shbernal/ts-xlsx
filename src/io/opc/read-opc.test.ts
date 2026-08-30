@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strToU8} from 'fflate';
+import {strToU8, unzipSync} from 'fflate';
 
+import {Workbook} from '../../core/workbook.ts';
+import {readXlsb} from '../xlsb/read.ts';
+import {readSheetRows} from '../xlsx/read-rows.ts';
+import {readXlsx} from '../xlsx/read.ts';
+import {writeXlsx} from '../xlsx/write.ts';
 import {
   capturePartClosure,
   packageAccessors,
@@ -211,4 +216,47 @@ test('readPartRelationships reads the rels part once, however many queries follo
   rels.targetPaths('table');
   rels.byId('rId1');
   assert.strictEqual(reads, 1);
+});
+
+// `openSpreadsheetPackage` is the one place the inflate bound is defaulted and applied, so the
+// property worth pinning is that every entry point built on it enforces the same bound at the same
+// byte. Before it, each of the three carried its own `?? DEFAULT_MAX_UNCOMPRESSED`, and a reader
+// that dropped it or reached for a different constant would have been caught by nothing.
+
+/** The bomb-guard message if `run` raised it, else null. A reader may fail for its own reasons at a
+ * bound it accepts (an `.xlsb` reader handed an `.xlsx` package, say); only the guard is under test. */
+function zipBombMessage(run: () => void): string | null {
+  try {
+    run();
+    return null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return /possible zip bomb/.test(message) ? message : null;
+  }
+}
+
+test('every reader entry point enforces the inflate bound at the same byte', () => {
+  const workbook = new Workbook();
+  workbook.addWorksheet('S').addRow(['x']);
+  const bytes = writeXlsx(workbook);
+  const inflated = Object.values(unzipSync(bytes)).reduce((total, part) => total + part.length, 0);
+
+  const entryPoints: readonly [string, (cap: number) => void][] = [
+    ['readXlsx', (cap) => void readXlsx(bytes, {maxUncompressedBytes: cap})],
+    ['readXlsb', (cap) => void readXlsb(bytes, {maxUncompressedBytes: cap})],
+    ['readSheetRows', (cap) => void [...readSheetRows(bytes, {maxUncompressedBytes: cap})]],
+  ];
+
+  for (const [name, read] of entryPoints) {
+    assert.notStrictEqual(
+      zipBombMessage(() => read(inflated - 1)),
+      null,
+      `${name} refuses a package one byte over its bound`,
+    );
+    assert.strictEqual(
+      zipBombMessage(() => read(inflated)),
+      null,
+      `${name} accepts a package exactly at its bound`,
+    );
+  }
 });

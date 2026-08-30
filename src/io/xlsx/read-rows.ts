@@ -28,19 +28,16 @@ import {
   numInteger,
   xmlEvents,
 } from '../../xml/xml-read.ts';
-import {packageAccessors} from '../opc/read-opc.ts';
-import {inflateSpreadsheetPackage, unsupportedWorkbookPart} from '../opc/sniff-format.ts';
+import {openSpreadsheetPackage, readPartRelationships} from '../opc/read-opc.ts';
+import {unsupportedWorkbookPart} from '../opc/sniff-format.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
 import type {SharedString} from './cell-value.ts';
 import {XlsxParseError} from './errors.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {
-  DEFAULT_MAX_UNCOMPRESSED,
-  parseRelationships,
   parseStyleTable,
   parseWorkbookSheets,
   type ReadXlsxOptions,
-  resolveWorkbookPart,
   type SheetEntry,
   type XfStyle,
 } from './read.ts';
@@ -172,10 +169,9 @@ interface OpenPackage {
 }
 
 function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined): OpenPackage {
-  const cap = maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED;
-  const {partText: text} = packageAccessors(inflateSpreadsheetPackage(data, cap));
+  const {pkg, workbookXml} = openSpreadsheetPackage(data, maxUncompressedBytes);
+  const {partText: text} = pkg;
 
-  const workbookXml = text('xl/workbook.xml');
   // A binary `.xlsb` is a workbook this library *can* read, just not through here. Row streaming is
   // built on the XML worksheet parser, so the binary cell table has no streaming path yet; say so,
   // rather than reporting the format as unreadable when `readXlsx` would take the very same bytes.
@@ -187,7 +183,7 @@ function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined)
   }
 
   const sheets = parseWorkbookSheets(workbookXml);
-  const rels = parseRelationships(text('xl/_rels/workbook.xml.rels') ?? '');
+  const rels = readPartRelationships('xl/workbook.xml', text);
   const sharedStrings = parseSharedStrings(text('xl/sharedStrings.xml') ?? '');
   const {cellXfs: xfStyles} = parseStyleTable(text('xl/styles.xml') ?? '');
 
@@ -196,9 +192,8 @@ function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined)
     sharedStrings,
     xfStyles,
     sheetXml(relId: string): string | undefined {
-      const target = rels.get(relId);
-      const path = target === undefined ? undefined : resolveWorkbookPart(target);
-      return path === undefined ? undefined : text(path);
+      const target = rels.byId(relId)?.target;
+      return target === undefined ? undefined : text(rels.pathOf(target));
     },
   };
 }
