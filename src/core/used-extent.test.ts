@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {decodeRange} from './address.ts';
-import {cellCarriesContent} from './cell.ts';
+import {type Cell, cellCarriesContent} from './cell.ts';
 import {INTERNAL} from './internal.ts';
+import {UsedExtent} from './used-extent.ts';
 import {Worksheet} from './worksheet.ts';
 
 // An independent recomputation of the used range: the naive scan the maintained extent replaced,
@@ -124,35 +125,109 @@ test('duplicateRow over the rows below leaves the extent agreeing with a scan', 
 });
 
 // Each appender reads the extent once per line it appends, so deriving the extent by scanning made
-// appending quadratic. The guard is a ratio rather than a millisecond budget: the ratio is what tells
-// linear from quadratic, and it does not depend on how fast the machine is.
+// appending quadratic. What follows counts that work rather than timing it.
 //
-// The timing is taken as the fastest of several runs. A single run of an allocation-heavy loop is at
-// the mercy of whenever the collector decides to pause, which on this workload swings the ratio from
-// 1.5x to 20x on unchanged code; the fastest run is the one that was interrupted least, and across
-// repeated trials it lands within a few tenths of the true figure.
-function fastestRun(runs: number, work: () => void): number {
-  let best = Infinity;
-  for (let i = 0; i < runs; i++) {
-    const start = performance.now();
-    work();
-    best = Math.min(best, performance.now() - start);
+// It used to be timed, as a ratio between two sizes taken as the fastest of several runs. A ratio
+// does tell linear from quadratic and does not depend on how fast the machine is, but it does depend
+// on the machine being *free*: one `verify` run had another gate holding the CPU and the budget
+// failed, then passed on three serial re-runs. A gate that fails on scheduling teaches an agent to
+// re-run rather than to read. Counting the rows the extent visits is exact, is the property itself
+// rather than a proxy for it, and cannot be knocked over by a neighbouring process.
+
+/**
+ * A row map that reports every row the extent looks at, whether by key or by walking. A real `Map`
+ * subclass rather than an object shaped like one, so the iterator types line up exactly with what
+ * `UsedExtent` declares it is handed and nothing has to be cast past the typechecker.
+ */
+class CountingRows extends Map<number, ReadonlyMap<number, Cell>> {
+  visits = 0;
+
+  override get(key: number): ReadonlyMap<number, Cell> | undefined {
+    this.visits++;
+    return super.get(key);
   }
-  return best;
+
+  *#walk<T>(source: Iterable<T>): Generator<T> {
+    for (const item of source) {
+      this.visits++;
+      yield item;
+    }
+  }
+
+  override entries(): MapIterator<[number, ReadonlyMap<number, Cell>]> {
+    return this.#walk(super.entries());
+  }
+
+  override keys(): MapIterator<number> {
+    return this.#walk(super.keys());
+  }
+
+  override values(): MapIterator<ReadonlyMap<number, Cell>> {
+    return this.#walk(super.values());
+  }
+
+  override [Symbol.iterator](): MapIterator<[number, ReadonlyMap<number, Cell>]> {
+    return this.entries();
+  }
 }
 
-function appendRows(count: number): void {
+/** An extent over `count` fully-populated rows, and the row map that counts what it visits. */
+function populatedExtent(count: number): {extent: UsedExtent; rows: CountingRows} {
   const sheet = new Worksheet('S', 1);
   for (let i = 0; i < count; i++) sheet.addRow(['a', 'b', 'c', 'd', 'e']);
+  return extentOver(sheet);
 }
 
-test('addRow in a loop scales linearly, not quadratically', () => {
-  const small = fastestRun(5, () => appendRows(4000));
-  const large = fastestRun(5, () => appendRows(16000));
-  // Four times the rows. Linear measures around 4x here and the scanning extent measured 23x, so a
-  // bound of 9x separates them with roughly a doubling of headroom over the worst observed run.
-  assert.ok(
-    large < small * 9,
-    `16k rows took ${large.toFixed(1)}ms against ${small.toFixed(1)}ms for 4k: that is ${(large / small).toFixed(1)}x, which is not linear`,
+// Rebuilt from a sheet's own cells rather than from a stub, so what is counted is a walk of the real
+// grid: exactly the cells the scan this class replaced would have had to visit.
+function extentOver(sheet: Worksheet): {extent: UsedExtent; rows: CountingRows} {
+  const rows = new CountingRows();
+  for (const row of sheet.rows()) {
+    rows.set(row.number, new Map(row.cells.map((cell) => [cell.col, cell])));
+  }
+  const extent = new UsedExtent({
+    rows,
+    rowProperties: new Map(),
+    columns: new Map(),
+    mergeRects: [],
+  });
+  for (const [number, cols] of new Map(rows)) {
+    for (const col of cols.keys()) extent.noteCell(number, col);
+  }
+  rows.visits = 0;
+  return {extent, rows};
+}
+
+test('reading the extent after an append visits one row, whatever the sheet already holds', () => {
+  // The case the whole class exists for: an appender asks where the grid reaches, immediately after
+  // putting a row at the top of it. The answer is one map lookup, and it is still one lookup at
+  // sixteen times the size. The scan it replaced visited every row, which is what made appending
+  // quadratic.
+  for (const count of [1000, 4000, 16000]) {
+    const {extent, rows} = populatedExtent(count);
+    assert.equal(extent.lastRow, count, `lastRow over ${count} rows`);
+    assert.equal(rows.visits, 1, `lastRow over ${count} rows visited ${rows.visits} row(s)`);
+  }
+});
+
+test('an unused topmost row is what costs the walk, and it is the only thing that does', () => {
+  // The bound may overstate: a row materialised by `getCell` and never filled is a key the extent
+  // believes in until the read confirms it. That case falls back to the walk this class replaced,
+  // and pinning it is what keeps the constant above meaningful - the fast path is a fast path, not
+  // an absence of a scan, and the gap between the two counts is the whole design.
+  const sheet = new Worksheet('S', 1);
+  for (let i = 0; i < 1000; i++) sheet.addRow(['a']);
+  assert.equal(
+    cellCarriesContent(sheet.getCell('A1001')),
+    false,
+    'the topmost row is materialised but empty',
+  );
+
+  const {extent, rows} = extentOver(sheet);
+  assert.equal(extent.lastRow, 1000, 'the empty top row does not extend the used range');
+  assert.equal(
+    rows.visits,
+    1002,
+    'the lookup that failed, then one visit per row of the fallback walk',
   );
 });

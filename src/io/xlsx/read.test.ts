@@ -1637,43 +1637,61 @@ test('an authored default font moves the cells that only inherited the file’s,
 
 // Five readers want the worksheet part, and it is the largest in the package. Reading it once each
 // spent 45% of a large file's read on four scans that matched no element, so they share one parse.
-// The guard measures exactly that: the shared parse against the five separate ones over the same
-// XML, as the fastest of several runs, because a single timed run of an allocation-heavy parse is at
-// the mercy of whenever the collector pauses. Five parses cannot come near 0.7 of five parses.
-function fastestRun(runs: number, work: () => void): number {
-  let best = Infinity;
-  for (let i = 0; i < runs; i++) {
-    const start = performance.now();
-    work();
-    best = Math.min(best, performance.now() - start);
-  }
-  return best;
+//
+// The guard counts the scanning rather than timing it. It used to be a wall-clock ratio between the
+// two arrangements, taken as the fastest of several runs to duck the collector; what that could not
+// duck was another process, and one `verify` run failed it with a neighbouring gate on the CPU. A
+// gate that fails on scheduling teaches an agent to re-run rather than to read.
+//
+// What is counted is every read the scanner makes of the source, by handing it a source that reports
+// them. The unit is arbitrary - it is neither characters nor tags - but it is *exactly* proportional
+// to how many times the document was walked, which is the only thing this test is about: five
+// separate parses read five times what one shared parse reads, and any other ratio means the passes
+// are not sharing a scan.
+function countingSource(xml: string): {source: string; reads: () => number} {
+  let reads = 0;
+  const target = new String(xml);
+  const source = new Proxy(target, {
+    get(boxed, property, receiver) {
+      reads++;
+      const value: unknown = Reflect.get(boxed, property, receiver);
+      // Bound to the boxed string, so a method the scanner calls does its own internal reads against
+      // the target rather than back through this trap: what is counted is the scanner's reads, not
+      // the standard library's.
+      return typeof value === 'function'
+        ? (value as (...args: never[]) => unknown).bind(boxed)
+        : value;
+    },
+  });
+  return {source: source as unknown as string, reads: () => reads};
 }
 
 test('the worksheet part is read in one pass, not once per reader', () => {
   const workbook = new Workbook();
   const sheet = workbook.addWorksheet('S');
-  for (let row = 1; row <= 3000; row++) sheet.addRow([`a${row}`, row, row * 2, 'text', row / 3]);
+  for (let row = 1; row <= 500; row++) sheet.addRow([`a${row}`, row, row * 2, 'text', row / 3]);
   const xml = sheetXml(writeXlsx(workbook));
 
-  const separate = fastestRun(3, () => {
-    parseXmlPasses(xml, [worksheetPass(new Worksheet('S', 1), [], [])]);
-    parseXmlPasses(xml, [sheetHyperlinkPass()]);
-    parseXmlPasses(xml, [dataValidationPass()]);
-    parseXmlPasses(xml, [extendedDataValidationPass()]);
-    parseXmlPasses(xml, [conditionalFormattingPass()]);
-  });
-  const shared = fastestRun(3, () => {
-    parseXmlPasses(xml, [
-      worksheetPass(new Worksheet('S', 1), [], []),
-      sheetHyperlinkPass(),
-      dataValidationPass(),
-      extendedDataValidationPass(),
-      conditionalFormattingPass(),
-    ]);
-  });
-  assert.ok(
-    shared < separate * 0.7,
-    `one shared parse took ${shared.toFixed(1)}ms against ${separate.toFixed(1)}ms for five separate ones: that is ${(shared / separate).toFixed(2)} of the cost, so the part is still being read more than once`,
+  const apart = countingSource(xml);
+  parseXmlPasses(apart.source, [worksheetPass(new Worksheet('S', 1), [], [])]);
+  parseXmlPasses(apart.source, [sheetHyperlinkPass()]);
+  parseXmlPasses(apart.source, [dataValidationPass()]);
+  parseXmlPasses(apart.source, [extendedDataValidationPass()]);
+  parseXmlPasses(apart.source, [conditionalFormattingPass()]);
+
+  const together = countingSource(xml);
+  parseXmlPasses(together.source, [
+    worksheetPass(new Worksheet('S', 1), [], []),
+    sheetHyperlinkPass(),
+    dataValidationPass(),
+    extendedDataValidationPass(),
+    conditionalFormattingPass(),
+  ]);
+
+  assert.equal(
+    apart.reads(),
+    together.reads() * 5,
+    `five separate parses read the part ${apart.reads()} times against ${together.reads()} for one shared parse: ` +
+      'that is not five times one, so the passes are not sharing a scan',
   );
 });

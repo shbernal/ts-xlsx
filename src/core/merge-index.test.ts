@@ -87,30 +87,86 @@ test('invalidating rereads a list that was rewritten behind the index', () => {
 });
 
 // The reader calls mergeCells once per <mergeCell> in the part, so overlap-checking each new region
-// against every existing one made loading a sheet's merges quadratic. A ratio rather than a
-// millisecond budget, taken as the fastest of several runs because a single timed run is at the
-// mercy of whenever the collector pauses.
-function fastestRun(runs: number, work: () => void): number {
-  let best = Infinity;
-  for (let i = 0; i < runs; i++) {
-    const start = performance.now();
-    work();
-    best = Math.min(best, performance.now() - start);
-  }
-  return best;
+// against every existing one made loading a sheet's merges quadratic. What follows counts the
+// regions a query actually compares against, rather than timing a large one.
+//
+// It used to be timed, as a ratio between two sizes taken as the fastest of several runs. A ratio
+// does tell linear from quadratic without depending on how fast the machine is, but it does depend
+// on the machine being *free*: one `verify` run had another gate holding the CPU and the budget
+// failed, then passed on three serial re-runs. Counting is exact, states the invariant directly
+// (a query visits the bands its window spans, not the sheet), and no neighbouring process can move
+// the number.
+
+/**
+ * A region that reports being compared against. `rectsOverlap` reads at least one of a candidate's
+ * four bounds, and *which* one depends on where its conjunction short-circuits, so any read marks
+ * the region once: the question is how many regions a query touched, not how many field reads it
+ * took to touch them.
+ */
+function reporting(rect: MergeRect, touched: Set<MergeRect>): MergeRect {
+  const view: MergeRect = {
+    get top() {
+      touched.add(view);
+      return rect.top;
+    },
+    get left() {
+      touched.add(view);
+      return rect.left;
+    },
+    get bottom() {
+      touched.add(view);
+      return rect.bottom;
+    },
+    get right() {
+      touched.add(view);
+      return rect.right;
+    },
+  };
+  return view;
 }
 
-function addMerges(count: number): void {
-  const sheet = new Worksheet('S', 1);
-  for (let i = 1; i <= count; i++) sheet.mergeCells(`A${i * 2}:C${i * 2}`);
-}
-
-test('adding non-overlapping merges scales linearly, not quadratically', () => {
-  const small = fastestRun(5, () => addMerges(5000));
-  const large = fastestRun(5, () => addMerges(20000));
-  // Four times the merges. Linear measures around 4x; the scan it replaced measured 16x.
-  assert.ok(
-    large < small * 9,
-    `20k merges took ${large.toFixed(1)}ms against ${small.toFixed(1)}ms for 5k: that is ${(large / small).toFixed(1)}x, which is not linear`,
+/** `count` disjoint single-row regions, one every other row, each reporting when it is compared. */
+function reportingBand(count: number, touched: Set<MergeRect>): MergeRect[] {
+  return Array.from({length: count}, (_, i) =>
+    reporting(rect(i * 2 + 1, 1, i * 2 + 1, 3), touched),
   );
+}
+
+test('a query compares against its own band, not against every region on the sheet', () => {
+  // Four times the regions, and the query still reads the same handful: the index buckets a region
+  // under its top row alone and the tallest region here is one row, so the window a query opens is
+  // one band wide however far down the sheet the regions run. The scan this replaced compared every
+  // region, which is what made loading a file's merges quadratic.
+  const counts = [5_000, 20_000];
+  const compared = counts.map((count) => {
+    const touched = new Set<MergeRect>();
+    const index = new MergeIndex(reportingBand(count, touched));
+    // Warm the rebuild first: it reads every region's bounds to place them, which is the O(n) pass
+    // the index is entitled to and not the per-query cost under test.
+    index.overlapping(rect(1, 1, 1, 1));
+    touched.clear();
+    assert.equal(index.overlapping(rect(4001, 1, 4001, 3))?.top, 4001, `over ${count} regions`);
+    return touched.size;
+  });
+  assert.deepEqual(
+    compared,
+    [compared[0], compared[0]],
+    `a query compared against ${compared[1]} regions at ${counts[1]} where it compared against ${compared[0]} at ${counts[0]}`,
+  );
+  // A band is 64 rows and these regions sit on every other row, so a full band holds 32 of them.
+  assert.ok(
+    (compared[0] as number) <= 32,
+    `a query compared against ${compared[0]} regions, which is more than one band holds`,
+  );
+});
+
+test('adding a merge through the sheet asks the index once, whatever the sheet already holds', () => {
+  // The end-to-end half: `mergeCells` overlap-checks, and with the query above bounded, the loading
+  // path is bounded too. Asserted as a result rather than a duration - every one of these regions
+  // is admitted, which a quadratic re-scan would also manage, but slowly enough to have been the
+  // original bug report.
+  const sheet = new Worksheet('S', 1);
+  for (let i = 1; i <= 20_000; i++) sheet.mergeCells(`A${i * 2}:C${i * 2}`);
+  assert.equal(sheet.merges.length, 20_000);
+  assert.throws(() => sheet.mergeCells('A2:C2'), /overlap/i, 'and an overlap is still refused');
 });
