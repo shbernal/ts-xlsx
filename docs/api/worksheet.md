@@ -432,6 +432,12 @@ or 0 for an empty sheet. Spans gaps: a value in row 5 makes this 5 even if rows 
 are empty. This is the used-range extent, not a populated-row tally (see
 [`actualRowCount`](./worksheet.md#worksheetactualrowcount)).
 
+*Carrying anything* is deliberately wide: a value, a cell's own style facet, quote-prefix flag
+or named-style link, a note, a row height or outline level, or a merge reaching down. Styling a
+band of empty rows is how a template is laid out, so those rows are used and [`addRow`](./worksheet.md#worksheetaddrow)
+appends past them. A cell merely materialised by [`getCell`](./worksheet.md#worksheetgetcell) and left untouched carries
+nothing, so reading a far address never grows the sheet.
+
 #### `Worksheet.actualRowCount`
 
 ```ts
@@ -446,9 +452,10 @@ The number of rows that hold at least one non-empty cell, ignoring gaps and form
 get columnCount(): number;
 ```
 
-The 1-based index of the last column carrying anything (a non-empty cell or its own format
+The 1-based index of the last column carrying anything (a used cell or the column's own format
 properties), or 0 for an empty sheet. The used-range width, mirroring [`rowCount`](./worksheet.md#worksheetrowcount) for the
-other axis: a value in column E makes this 5 even if columns B–D are empty.
+other axis, down to what *carrying anything* means: a value in column E makes this 5 even if
+columns B–D are empty, and a column holding nothing but a styled empty cell is still used.
 
 #### `Worksheet.usedRange`
 

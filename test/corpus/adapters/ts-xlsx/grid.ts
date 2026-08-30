@@ -389,6 +389,41 @@ export const grid = {
     return {rows};
   },
 
+  // Lay out a template the way an author does (a header, then a band of rows and columns styled
+  // ahead of the data that will fill them), then append, and report where the append landed and what
+  // survived → { rowCountBeforeAppend, appendedRowValue, styledRowValue, styledRowKeptFill,
+  // columnCountBeforeAppend, appendedColumnValue, styledColumnValue, actualRowCount,
+  // usedRangeAfterRoundtrip }. Formatting a cell is how a caller claims it; an append that treats a
+  // pre-formatted line as free ground writes over the layout, silently merging two of the author's
+  // rows into one.
+  appendOverPreformattedBandReport() {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'header';
+    ws.getCell('A2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFFFF00'}};
+    const rowCountBeforeAppend = ws.rowCount;
+    ws.addRow(['appended']);
+
+    ws.getCell('B1').font = {bold: true};
+    const columnCountBeforeAppend = ws.columnCount;
+    ws.addColumn(['appended-col']);
+
+    const rt = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+    return {
+      rowCountBeforeAppend,
+      appendedRowValue: ws.getCell('A3').value ?? null,
+      styledRowValue: ws.getCell('A2').value ?? null,
+      styledRowKeptFill: ws.getCell('A2').fill?.type ?? null,
+      columnCountBeforeAppend,
+      appendedColumnValue: ws.getCell('C1').value ?? null,
+      styledColumnValue: ws.getCell('B1').value ?? null,
+      // A formatting-only line bounds the used range but is not a populated row: the two counts
+      // answer different questions and must not collapse into one.
+      actualRowCount: ws.actualRowCount,
+      usedRangeAfterRoundtrip: rt.usedRange?.address ?? null,
+    };
+  },
+
   // Feed addRow an array built in another realm (a vm context): Array.isArray must recognize it so its
   // elements fill columns → { isArrayCrossRealm, a, b, c }. `instanceof Array` would miss it and place
   // nothing, walking it as a keyed object instead.

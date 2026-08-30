@@ -6,7 +6,7 @@
 // the sheet's `<tableParts>` back-references to them.
 
 import {decodeRange, encodeAddress} from '../../core/address.ts';
-import type {Cell} from '../../core/cell.ts';
+import {type Cell, cellHasOwnStyle} from '../../core/cell.ts';
 import {DEFAULT_DATE_NUMFMT, dateToSerial} from '../../core/date.ts';
 import {mangleFormula} from '../../core/formula.ts';
 import {NAMED_STYLE_ID} from '../../core/internal.ts';
@@ -296,7 +296,7 @@ export function renderRow(
   // A cell earns a <c> element if it holds a value OR carries its own style: a formatted-but-empty
   // cell (a fill/border on a null value) is a real cell to Excel, and dropping it would lose the
   // formatting. A cell with neither is inherited from its row/column and needs no element of its own.
-  const rendered = cells.filter((cell) => cell.value !== null || hasOwnStyle(cell));
+  const rendered = cells.filter((cell) => cell.value !== null || cellHasOwnStyle(cell));
   const attrs = rowAttrs(properties, ctx.styles, ctx.collapsedSummaries.has(number));
   // A row with neither data nor its own formatting has nothing to serialise.
   if (rendered.length === 0 && attrs === '') return {xml: '', minCol: Infinity, maxCol: -Infinity};
@@ -763,17 +763,6 @@ function cellXml(
   // this is unreachable. It exists because the union is not exhaustively narrowed here.
   throw new InternalError(
     `writing a ${detectValueType(value)} cell value has no arm: every CellValue kind is handled above`,
-  );
-}
-
-// Whether a cell carries any style facet of its own: the reason to serialise it even when empty.
-// A note is not a style: it lives in the comments part, not the cell's <c> element, so it does not
-// count here. Row/column-inherited formatting is likewise excluded; only the cell's own facets do.
-function hasOwnStyle(cell: Cell): boolean {
-  return (
-    CELL_STYLE_FACETS.some((facet) => cell[facet] !== undefined) ||
-    cell.quotePrefix === true ||
-    cell[NAMED_STYLE_ID] !== undefined
   );
 }
 

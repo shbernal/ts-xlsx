@@ -11,6 +11,7 @@ import {
   type Alignment,
   assignStyleFacets,
   type Border,
+  CELL_STYLE_FACETS,
   type CellStyle,
   type Fill,
   type Font,
@@ -261,6 +262,40 @@ export class Cell {
   set note(note: string | undefined) {
     this.#note = note;
   }
+}
+
+/**
+ * Whether a cell carries formatting of its own: one of the {@link CellStyle} facets, the quote-prefix
+ * flag, or a link to a named style. Driven by {@link CELL_STYLE_FACETS}, so a facet added to the
+ * tuple reaches every "is this cell blank" decision without anyone remembering to widen a literal.
+ *
+ * Row- and column-inherited formatting is not the cell's own and does not count. Neither does a
+ * note: it lives in the comments part, not the cell's `<c>` element, so a writer deciding whether an
+ * empty cell needs serialising asks exactly this. A caller asking whether the cell is *used* wants
+ * {@link cellCarriesContent}, which is this plus the value and the note.
+ */
+export function cellHasOwnStyle(cell: Cell): boolean {
+  return (
+    CELL_STYLE_FACETS.some((facet) => cell[facet] !== undefined) ||
+    cell.quotePrefix === true ||
+    cell[NAMED_STYLE_ID] !== undefined
+  );
+}
+
+/**
+ * Whether a cell carries anything at all: a value, formatting of its own, or a note. This is the
+ * used-range test, the "carrying anything (data or its own formatting)" that `rowCount` and
+ * `columnCount` promise, and it is deliberately wider than "holds a value": someone who pre-formats
+ * an empty band has
+ * laid claim to those cells, and an append that treats them as free ground writes over the layout
+ * they just built; someone who notes an empty cell has put content in it by the note's own
+ * definition.
+ *
+ * A cell merely materialised by `getCell` and then left alone carries nothing, which is what keeps
+ * reading a far address from growing the sheet.
+ */
+export function cellCarriesContent(cell: Cell): boolean {
+  return cell.value !== null || cell.note !== undefined || cellHasOwnStyle(cell);
 }
 
 // Lay each present style facet of `style` onto `cell`, leaving facets it omits untouched. A {@link Cell}

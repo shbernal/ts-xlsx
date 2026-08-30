@@ -15,7 +15,7 @@ import {
   tryDecodeCellRef,
 } from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
-import {applyCellStyle, Cell, copyCellContent} from './cell.ts';
+import {applyCellStyle, Cell, cellCarriesContent, copyCellContent} from './cell.ts';
 import {Column} from './column.ts';
 import type {CommentThread} from './comment-thread.ts';
 import {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
@@ -428,11 +428,17 @@ export class Worksheet {
    * or 0 for an empty sheet. Spans gaps: a value in row 5 makes this 5 even if rows 2–4
    * are empty. This is the used-range extent, not a populated-row tally (see
    * {@link actualRowCount}).
+   *
+   * *Carrying anything* is deliberately wide: a value, a cell's own style facet, quote-prefix flag
+   * or named-style link, a note, a row height or outline level, or a merge reaching down. Styling a
+   * band of empty rows is how a template is laid out, so those rows are used and {@link addRow}
+   * appends past them. A cell merely materialised by {@link getCell} and left untouched carries
+   * nothing, so reading a far address never grows the sheet.
    */
   get rowCount(): number {
     let last = 0;
     for (const [number, cols] of this.#rows) {
-      if (number > last && this.#rowHasContent(cols)) last = number;
+      if (number > last && this.#rowIsUsed(cols)) last = number;
     }
     for (const number of this.#rowProperties.keys()) {
       if (number > last) last = number;
@@ -449,15 +455,26 @@ export class Worksheet {
   get actualRowCount(): number {
     let count = 0;
     for (const cols of this.#rows.values()) {
-      if (this.#rowHasContent(cols)) count++;
+      if (this.#rowIsPopulated(cols)) count++;
     }
     return count;
   }
 
-  // Whether any cell materialised in a row holds a value: the used-range test {@link rowCount} and
-  // {@link actualRowCount} share. Short-circuits on the first non-empty cell rather than allocating the
-  // row's values into a throwaway array to scan them.
-  #rowHasContent(cols: Map<number, Cell>): boolean {
+  // Whether any cell materialised in a row is used: the extent test behind {@link rowCount}, which
+  // counts a cell the caller has formatted or noted but not filled. Deliberately not the same
+  // predicate as {@link #rowIsPopulated}: a formatting-only row bounds the used range but is not a
+  // populated row, and collapsing the two is what let an append land on a styled row. Short-circuits
+  // on the first used cell rather than allocating the row's cells into a throwaway array to scan.
+  #rowIsUsed(cols: Map<number, Cell>): boolean {
+    for (const cell of cols.values()) {
+      if (cellCarriesContent(cell)) return true;
+    }
+    return false;
+  }
+
+  // Whether any cell materialised in a row holds a value: the tally test behind
+  // {@link actualRowCount}, which asks how many rows have data, not how far the grid reaches.
+  #rowIsPopulated(cols: Map<number, Cell>): boolean {
     for (const cell of cols.values()) {
       if (cell.value !== null) return true;
     }
@@ -465,15 +482,16 @@ export class Worksheet {
   }
 
   /**
-   * The 1-based index of the last column carrying anything (a non-empty cell or its own format
+   * The 1-based index of the last column carrying anything (a used cell or the column's own format
    * properties), or 0 for an empty sheet. The used-range width, mirroring {@link rowCount} for the
-   * other axis: a value in column E makes this 5 even if columns B–D are empty.
+   * other axis, down to what *carrying anything* means: a value in column E makes this 5 even if
+   * columns B–D are empty, and a column holding nothing but a styled empty cell is still used.
    */
   get columnCount(): number {
     let last = 0;
     for (const cols of this.#rows.values()) {
       for (const [col, cell] of cols) {
-        if (cell.value !== null && col > last) last = col;
+        if (col > last && cellCarriesContent(cell)) last = col;
       }
     }
     for (const index of this.#columns.keys()) {

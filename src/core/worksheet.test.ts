@@ -945,6 +945,58 @@ test('usedRange agrees with rowCount and columnCount, formatting-only lines incl
   assert.equal(sheet.usedRange?.address, 'A1:C4');
 });
 
+test('addRow lands below a row carrying only its own formatting, never on top of it', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'header';
+  // A pre-formatted band with no values yet is how a template is laid out: the styling is the
+  // caller's declaration that the row is theirs, so appending must respect it.
+  sheet.getCell('A2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFFFF00'}};
+  assert.equal(sheet.rowCount, 2, 'the styled row is part of the used range');
+  sheet.addRow(['appended']);
+  assert.equal(sheet.getCell('A2').value, null, 'the styled row keeps its emptiness');
+  assert.equal(sheet.getCell('A3').value, 'appended', 'the new row lands below it');
+});
+
+test('addColumn lands beyond a column carrying only its own formatting', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'header';
+  sheet.getCell('B1').font = {bold: true};
+  assert.equal(sheet.columnCount, 2, 'the styled column is part of the used range');
+  sheet.addColumn(['appended']);
+  assert.equal(sheet.getCell('B1').value, null, 'the styled column keeps its emptiness');
+  assert.equal(sheet.getCell('C1').value, 'appended', 'the new column lands beyond it');
+});
+
+test('a noted but valueless cell is used: a note is content a cell carries', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'only value';
+  sheet.getCell('C3').note = 'ask about this one';
+  assert.equal(sheet.usedRange?.address, 'A1:C3');
+});
+
+test('the used range spans a styled-but-empty cell; actualRowCount does not count it', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'only value';
+  sheet.getCell('E3').font = {bold: true};
+  assert.equal(sheet.rowCount, 3);
+  assert.equal(sheet.columnCount, 5);
+  assert.equal(sheet.usedRange?.address, 'A1:E3');
+  assert.equal(
+    sheet.actualRowCount,
+    1,
+    'a populated-row tally asks a different question: only row 1 holds a value',
+  );
+});
+
+test('materialising a cell without setting anything leaves the extent where it was', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'only value';
+  sheet.getCell('Z100');
+  assert.equal(sheet.rowCount, 1, 'reading a far address does not use it');
+  assert.equal(sheet.columnCount, 1);
+  assert.equal(sheet.usedRange?.address, 'A1:A1');
+});
+
 test('usedRange is undefined when no rectangle is spanned', () => {
   const empty = new Worksheet('S', 1);
   assert.equal(empty.usedRange, undefined, 'an empty sheet spans nothing');
