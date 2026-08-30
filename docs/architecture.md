@@ -535,6 +535,31 @@ since `readXlsx` and `readXlsb` both raise `UnsupportedFormatError`, so putting 
 codecs would have forced exactly the duplication the union cannot survive. That entry costs 3 KB,
 so classifying a failure never loads a parser.
 
+### The size budgets are per entry, and they are a `verify` gate
+
+`scripts/size-budget.ts` measures the whole emitted `dist/**/*.js` against a total, and each
+published subpath against its own budget by walking that entry's static imports to a closure. The
+per-entry numbers are the ones that catch anything: the total cannot see a codec acquiring a value
+import of something it previously needed only as a type, or the model reaching into a parser, since
+neither changes the number of bytes in the tarball. The closure is a lower bound on any bundler's
+answer, because `sideEffects: false` lets a bundler prune *within* those modules and never add to
+them, which is what makes an over-budget reading a statement about the module graph rather than
+about minification.
+
+It runs inside `verify --full`, not only under `prepublishOnly`, and that placement is the whole
+lesson of the one breach that happened. `/customui` is a ribbon reader that wanted three symbols
+from the XML layer; every traversal helper added to the module those three lived in was charged to
+its closure, and it sat 3 KB over a 16 KB budget across a release while every gate a developer or a
+pre-push hook ran stayed green. A budget only the publish step checks is not a tripwire, it is a
+surprise. Measuring it needs an emitted artifact, so the gate builds first
+(`scripts/build.ts`, the single definition of the build that `package.json` also names); the build
+is a few seconds and runs inside the corpus gate's shadow.
+
+Budgets are tripwires, not targets. Raise one deliberately, with the same eyes a dependency addition
+would get, and say in the commit *what* the entry gained. The alternative the `/customui` breach
+actually called for was the module boundary rather than the number: see
+[ADR-0004](decisions/0004-xml-read-path.md)'s 2026-08-30 update.
+
 The barrels are curated, not exhaustive: modelled core-feature types (autofilter, page setup,
 sheet views, defined names, image options) are public, and internal helper functions stay off
 them. `src/vba/index.ts` and `src/customui/index.ts` are *internal* barrels that the model and

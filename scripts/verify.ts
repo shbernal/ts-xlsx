@@ -201,8 +201,21 @@ function scopedLint(changed: string[]): Gate {
 async function gateSet(mode: Mode): Promise<Gate[]> {
   const lint = mode === 'full' ? wholeTreeLint() : scopedLint(await changedLintTargets());
   const gates: Gate[] = [];
-  if (mode === 'full')
+  if (mode === 'full') {
     gates.push({name: 'corpus', steps: [{command: NODE, args: ['test/corpus/run.ts']}]});
+    gates.push({
+      // The only gate that needs an emitted artifact, and the reason it is here at all: the
+      // per-entry bundle budgets are measured on `dist/**/*.js`, so nothing in a source-only gate
+      // set can see a codec crossing an entry boundary. Left to `prepublishOnly` alone, `/customui`
+      // spent a release drifting 3 KB over its budget on a tree that was green everywhere a
+      // developer looked. The build is ~7 s, which is well inside the corpus's shadow.
+      name: 'size',
+      steps: [
+        {command: NODE, args: ['scripts/build.ts']},
+        {command: NODE, args: ['scripts/size-budget.ts']},
+      ],
+    });
+  }
   gates.push(
     lint,
     {name: 'test:src', steps: [{command: NODE, args: ['--test', 'src/**/*.test.ts']}]},

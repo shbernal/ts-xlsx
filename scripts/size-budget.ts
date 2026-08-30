@@ -16,6 +16,11 @@
 // Budgets are tripwires, not targets. Raise one deliberately, with the same eyes a dependency
 // addition would get. When you do, say in the commit *what* the entry gained.
 //
+// Run by the `size` gate of `verify --full`, which builds first, as well as by `prepublishOnly`.
+// It used to be the publish step's alone, and `/customui` spent a release 3 KB over its budget on a
+// tree that was green everywhere anyone looked: a budget only the publish step checks is not a
+// tripwire. `docs/architecture.md` ("The size budgets are per entry") carries the reasoning.
+//
 //   node scripts/size-budget.ts
 
 import {readdirSync, readFileSync, statSync} from 'node:fs';
