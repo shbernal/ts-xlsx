@@ -31,6 +31,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ENTRIES = [join(ROOT, 'src/index.ts'), join(ROOT, 'src/entries/node.ts')];
 const CONFIG = join(ROOT, 'tsconfig.json');
 const OUT_DIR = join(ROOT, 'docs/api');
+// Compared against compiler file names, which are always forward-slashed even on Windows.
+const SRC = `${join(ROOT, 'src').replaceAll('\\', '/')}/`;
 
 /**
  * `TypeFormatFlags.NoTruncation`. TypeScript 7 does not export that enum, but the checker
@@ -384,6 +386,52 @@ function renderClassMembers(
   return {sigs, docs};
 }
 
+/**
+ * The heritage clauses worth printing, or `undefined` when none are.
+ *
+ * A base type earns its place in a documented signature only when a reader can follow it: another
+ * documented symbol, or a platform type like `Error`. `Row extends AxisHandle<RowProperties>` named
+ * a class that no entry point exports and no public member reaches, so the clause pointed at
+ * plumbing the reference cannot link to and said nothing about what a `Row` can do.
+ */
+function visibleHeritage(
+  node: ast.ClassDeclaration,
+  sourceFile: ast.SourceFile,
+  checker: Checker,
+  project: Project,
+  documented: ReadonlyMap<string, string>,
+): string | undefined {
+  const clauses: string[] = [];
+  for (const clause of node.heritageClauses ?? []) {
+    const kept = clause.types.filter((type) =>
+      isReachableBase(type.expression, checker, project, documented),
+    );
+    if (kept.length === 0) continue;
+    const keyword = clause.token === ast.SyntaxKind.ExtendsKeyword ? 'extends' : 'implements';
+    clauses.push(`${keyword} ${kept.map((type) => type.getText(sourceFile)).join(', ')}`);
+  }
+  return clauses.length > 0 ? clauses.join(' ') : undefined;
+}
+
+/** Whether a base type is one the reader can look up: documented here, or declared outside `src/`. */
+function isReachableBase(
+  expression: ast.Expression,
+  checker: Checker,
+  project: Project,
+  documented: ReadonlyMap<string, string>,
+): boolean {
+  if (ast.isIdentifier(expression) && documented.has(expression.text)) return true;
+  const symbol = checker.getSymbolAtLocation(expression);
+  // An unresolved base is printed as the source wrote it: silence is the renderer's bug, not a
+  // verdict that the reader has nowhere to go.
+  if (!symbol) return true;
+  const resolved = symbol.flags & SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+  return resolved.declarations.every((handle) => {
+    const file = handle.resolve(project)?.getSourceFile().fileName.replaceAll('\\', '/');
+    return file === undefined || !file.startsWith(SRC);
+  });
+}
+
 /** Every heading a page emits, as the anchor a reader's browser will resolve. */
 function anchorsIn(body: string): Set<string> {
   const found = new Set<string>();
@@ -510,7 +558,7 @@ function main(project: Project) {
     let memberDocs: string[] = [];
     if (ast.isClassDeclaration(decl)) {
       const {sigs, docs} = renderClassMembers(decl, sourceFile, name, checker, href);
-      const heritage = decl.heritageClauses?.map((h) => h.getText(sourceFile)).join(' ');
+      const heritage = visibleHeritage(decl, sourceFile, checker, project, targets);
       signature = `class ${name}${heritage ? ` ${heritage}` : ''} {\n${sigs.join('\n')}\n}`;
       memberDocs = docs;
     } else if (ast.isVariableDeclaration(decl)) {
