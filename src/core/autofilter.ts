@@ -1,4 +1,5 @@
 import {AuthoringError} from '../errors.ts';
+import {tokenSet} from '../token-set.ts';
 import {decodeRange, encodeAddress} from './address.ts';
 import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 
@@ -59,19 +60,15 @@ export type CustomFilterOperator =
   | 'greaterThan'
   | 'greaterThanOrEqual';
 
-const CUSTOM_FILTER_OPERATORS: Record<CustomFilterOperator, true> = {
+/** Narrow a raw `operator` attribute to a known {@link CustomFilterOperator}. */
+export const isCustomFilterOperator = tokenSet<CustomFilterOperator>({
   equal: true,
   notEqual: true,
   lessThan: true,
   lessThanOrEqual: true,
   greaterThan: true,
   greaterThanOrEqual: true,
-};
-
-/** Narrow a raw `operator` attribute to a known {@link CustomFilterOperator}. */
-export function isCustomFilterOperator(value: string): value is CustomFilterOperator {
-  return Object.hasOwn(CUSTOM_FILTER_OPERATORS, value);
-}
+});
 
 /**
  * Validate and normalise a settable autofilter into its canonical stored form. A bare range string

@@ -11,6 +11,7 @@
 // once, here, so the pivot is a stable snapshot independent of later edits to the source.
 
 import {AuthoringError, InternalError} from '../errors.ts';
+import {tokenSet} from '../token-set.ts';
 import {encodeAddress} from './address.ts';
 import {
   type CellValue,
@@ -54,9 +55,7 @@ const PIVOT_METRICS: Record<PivotMetric, true> = {
 };
 
 /** Narrow a raw `subtotal` attribute (or any string) to a known {@link PivotMetric}. */
-function isPivotMetric(value: string): value is PivotMetric {
-  return Object.hasOwn(PIVOT_METRICS, value);
-}
+const isPivotMetric = tokenSet<PivotMetric>(PIVOT_METRICS);
 
 /** Map an OOXML `<dataField subtotal="…">` value back to its metric. The attribute is absent for
  * `sum` (Excel's implicit default), so `undefined` reads as `sum`; an unrecognised value also reads
@@ -78,22 +77,16 @@ export interface ParsedPivotField {
  * `unknown` covers a `type` the file declares that is none of these. */
 export type PivotSourceKind = 'worksheet' | 'external' | 'consolidation' | 'scenario' | 'unknown';
 
-// Keyed by the union minus `unknown`, so the compiler refuses a foreign key and an omitted member
-// alike. `unknown` is this library's word for a token it did not recognise and is never one a file
-// declares, so admitting it here would let the very token the guard exists to catch through.
-const DECLARABLE_PIVOT_SOURCE_KINDS: Record<Exclude<PivotSourceKind, 'unknown'>, true> = {
+// Keyed by the union minus `unknown`: that is this library's word for a token it did not recognise
+// and is never one a file declares, so admitting it here would let the very token the guard exists
+// to catch through.
+/** Narrow a raw `<cacheSource type>` token to a {@link PivotSourceKind} a file may declare. */
+export const isDeclarablePivotSourceKind = tokenSet<Exclude<PivotSourceKind, 'unknown'>>({
   worksheet: true,
   external: true,
   consolidation: true,
   scenario: true,
-};
-
-/** Narrow a raw `<cacheSource type>` token to a {@link PivotSourceKind} a file may declare. */
-export function isDeclarablePivotSourceKind(
-  value: string,
-): value is Exclude<PivotSourceKind, 'unknown'> {
-  return Object.hasOwn(DECLARABLE_PIVOT_SOURCE_KINDS, value);
-}
+});
 
 /** Where a pivot cache draws its rows from. {@link kind} names the source type; {@link sheet} and
  * {@link ref} locate the range only when it is `worksheet` and are empty strings otherwise, so a

@@ -4,12 +4,11 @@
 // whichever rule's range contains it. Keying by range is what keeps a whole-column dropdown a single
 // entry rather than a million per-cell copies.
 
-// Each union below is paired with a `Record` keyed by it, and the guard tests that record. The
-// pairing is what keeps the two honest: the compiler refuses a key the union does not name *and* a
-// union member the record omits, so a token cannot be added to one side and forgotten on the other.
-// The keys are `ST_DataValidationType`, `ST_DataValidationOperator` and `ST_DataValidationErrorStyle`
-// verbatim; a token outside them is not a value this model can hold, and a reader narrows through
-// the guard rather than asserting past it.
+// The three unions below are `ST_DataValidationType`, `ST_DataValidationOperator` and
+// `ST_DataValidationErrorStyle` verbatim; a token outside them is not a value this model can hold,
+// and a reader narrows through the guard rather than asserting past it.
+
+import {tokenSet} from '../token-set.ts';
 
 /** The kind of constraint a validation enforces. `list` is a dropdown; `custom` is an arbitrary
  * boolean formula; `none` constrains nothing and exists only to carry the rule's messages; the rest
@@ -24,7 +23,8 @@ export type DataValidationType =
   | 'textLength'
   | 'custom';
 
-const DATA_VALIDATION_TYPES: Record<DataValidationType, true> = {
+/** Narrow a raw `<dataValidation type>` token to a known {@link DataValidationType}. */
+export const isDataValidationType = tokenSet<DataValidationType>({
   none: true,
   list: true,
   whole: true,
@@ -33,12 +33,7 @@ const DATA_VALIDATION_TYPES: Record<DataValidationType, true> = {
   time: true,
   textLength: true,
   custom: true,
-};
-
-/** Narrow a raw `<dataValidation type>` token to a known {@link DataValidationType}. */
-export function isDataValidationType(value: string): value is DataValidationType {
-  return Object.hasOwn(DATA_VALIDATION_TYPES, value);
-}
+});
 
 /** How a typed validation compares its operand(s). Absent on a `list`/`custom` rule; defaults to
  * `between` on a typed rule (the value Excel omits from the XML). */
@@ -52,7 +47,8 @@ export type DataValidationOperator =
   | 'greaterThanOrEqual'
   | 'lessThanOrEqual';
 
-const DATA_VALIDATION_OPERATORS: Record<DataValidationOperator, true> = {
+/** Narrow a raw `<dataValidation operator>` token to a known {@link DataValidationOperator}. */
+export const isDataValidationOperator = tokenSet<DataValidationOperator>({
   between: true,
   notBetween: true,
   equal: true,
@@ -61,26 +57,17 @@ const DATA_VALIDATION_OPERATORS: Record<DataValidationOperator, true> = {
   lessThan: true,
   greaterThanOrEqual: true,
   lessThanOrEqual: true,
-};
-
-/** Narrow a raw `<dataValidation operator>` token to a known {@link DataValidationOperator}. */
-export function isDataValidationOperator(value: string): value is DataValidationOperator {
-  return Object.hasOwn(DATA_VALIDATION_OPERATORS, value);
-}
+});
 
 /** How Excel reacts to input that fails the rule. */
 export type DataValidationErrorStyle = 'stop' | 'warning' | 'information';
 
-const DATA_VALIDATION_ERROR_STYLES: Record<DataValidationErrorStyle, true> = {
+/** Narrow a raw `<dataValidation errorStyle>` token to a known {@link DataValidationErrorStyle}. */
+export const isDataValidationErrorStyle = tokenSet<DataValidationErrorStyle>({
   stop: true,
   warning: true,
   information: true,
-};
-
-/** Narrow a raw `<dataValidation errorStyle>` token to a known {@link DataValidationErrorStyle}. */
-export function isDataValidationErrorStyle(value: string): value is DataValidationErrorStyle {
-  return Object.hasOwn(DATA_VALIDATION_ERROR_STYLES, value);
-}
+});
 
 /** One validation rule. `formulae` holds the operand(s), `formula1` then optional `formula2`: a
  * numeric literal is stored as a number, while a cell reference, defined name, or list source keeps

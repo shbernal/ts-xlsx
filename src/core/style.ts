@@ -4,6 +4,7 @@
 // formats, protection). The rewrite grows them corpus-first; this module models the
 // facets landed so far: colours, fills, borders, fonts, alignment, and protection.
 
+import {tokenSet} from '../token-set.ts';
 import type {AssertNever} from './internal.ts';
 
 /** Underline can be a plain flag or one of Excel's named underline styles. */
@@ -15,30 +16,14 @@ export type UnderlineStyle =
   | 'singleAccounting'
   | 'doubleAccounting';
 
-// Keyed by the union rather than listed beside it, so the compiler refuses a foreign key and an
-// omitted member alike. A bare list is checked one way only: it cannot name a token the union does
-// not, but it can quietly omit one the union does, and a guard narrower than its union silently
-// drops a token real files legitimately carry. This is how every closed-token guard here is spelled,
-// and `data-validation.ts`, `conditional-formatting.ts`, `autofilter.ts`, `table.ts` and
-// `pivot-table.ts` spell theirs the same way.
-//
-// Deriving the union from an `as const` list instead (`(typeof TOKENS)[number]`, as
-// `table-style.ts` does) makes divergence impossible rather than merely detected, and is the better
-// shape for a type that is not public. It is not available here: the API reference renders a
-// declaration by slicing its own source text, so a derived alias reaches the published docs as that
-// expression instead of as its members.
-const NAMED_UNDERLINE_STYLES: Record<Exclude<UnderlineStyle, boolean>, true> = {
+/** Narrow a raw `<u val>` token to a named {@link UnderlineStyle} (the non-boolean members). */
+export const isNamedUnderlineStyle = tokenSet<Exclude<UnderlineStyle, boolean>>({
   none: true,
   single: true,
   double: true,
   singleAccounting: true,
   doubleAccounting: true,
-};
-
-/** Narrow a raw `<u val>` token to a named {@link UnderlineStyle} (the non-boolean members). */
-export function isNamedUnderlineStyle(value: string): value is Exclude<UnderlineStyle, boolean> {
-  return Object.hasOwn(NAMED_UNDERLINE_STYLES, value);
-}
+});
 
 /** A colour, expressed as an ARGB hex string (`"FF0000FF"`) or an indexed theme colour. */
 export interface Color {
@@ -104,7 +89,8 @@ export type FillPatternType =
   | 'lightGrid'
   | 'lightTrellis';
 
-const FILL_PATTERN_TYPES: Record<FillPatternType, true> = {
+/** Narrow a raw `<patternFill patternType>` token to a known {@link FillPatternType}. */
+export const isFillPatternType = tokenSet<FillPatternType>({
   none: true,
   solid: true,
   gray125: true,
@@ -124,12 +110,7 @@ const FILL_PATTERN_TYPES: Record<FillPatternType, true> = {
   lightUp: true,
   lightGrid: true,
   lightTrellis: true,
-};
-
-/** Narrow a raw `<patternFill patternType>` token to a known {@link FillPatternType}. */
-export function isFillPatternType(value: string): value is FillPatternType {
-  return Object.hasOwn(FILL_PATTERN_TYPES, value);
-}
+});
 
 /**
  * A pattern fill. For a `solid` fill the visible colour is the pattern *foreground*
@@ -190,7 +171,8 @@ export type BorderStyle =
   | 'mediumDashDotDot'
   | 'slantDashDot';
 
-const BORDER_STYLES: Record<BorderStyle, true> = {
+/** Narrow a raw border-edge `style` attribute to a known {@link BorderStyle}. */
+export const isBorderStyle = tokenSet<BorderStyle>({
   thin: true,
   medium: true,
   thick: true,
@@ -204,12 +186,7 @@ const BORDER_STYLES: Record<BorderStyle, true> = {
   dashDotDot: true,
   mediumDashDotDot: true,
   slantDashDot: true,
-};
-
-/** Narrow a raw border-edge `style` attribute to a known {@link BorderStyle}. */
-export function isBorderStyle(value: string): value is BorderStyle {
-  return Object.hasOwn(BORDER_STYLES, value);
-}
+});
 
 /** One edge of a cell border: its line style, and optionally the line colour. */
 export interface BorderEdge {
@@ -236,26 +213,18 @@ export interface Border {
 /** Vertical alignment of a font relative to the baseline (super/subscript). */
 export type FontVerticalAlignment = 'superscript' | 'subscript';
 
-const FONT_VERTICAL_ALIGNMENTS: Record<FontVerticalAlignment, true> = {
+/** Narrow a raw `<vertAlign val>` token to a known {@link FontVerticalAlignment}. */
+export const isFontVerticalAlignment = tokenSet<FontVerticalAlignment>({
   superscript: true,
   subscript: true,
-};
-
-/** Narrow a raw `<vertAlign val>` token to a known {@link FontVerticalAlignment}. */
-export function isFontVerticalAlignment(value: string): value is FontVerticalAlignment {
-  return Object.hasOwn(FONT_VERTICAL_ALIGNMENTS, value);
-}
+});
 
 /** The theme-font role a `<scheme val>` names: `"minor"`/`"major"` bind the font to whichever
  * face the workbook theme assigns that role, `"none"` leaves it a literal, unbound face. */
 export type FontScheme = 'minor' | 'major' | 'none';
 
-const FONT_SCHEMES: Record<FontScheme, true> = {minor: true, major: true, none: true};
-
 /** Narrow a raw `<scheme val>` token to a known {@link FontScheme}. */
-export function isFontScheme(value: string): value is FontScheme {
-  return Object.hasOwn(FONT_SCHEMES, value);
-}
+export const isFontScheme = tokenSet<FontScheme>({minor: true, major: true, none: true});
 
 /** A font, as it applies to a cell or a single rich-text run. Every facet is optional and
  * independent, like {@link Border}/{@link Alignment}/{@link Protection}: a font sets only the
@@ -289,7 +258,8 @@ export type HorizontalAlignment =
   | 'centerContinuous'
   | 'distributed';
 
-const HORIZONTAL_ALIGNMENTS: Record<HorizontalAlignment, true> = {
+/** Narrow a raw `<alignment horizontal>` token to a known {@link HorizontalAlignment}. */
+export const isHorizontalAlignment = tokenSet<HorizontalAlignment>({
   general: true,
   left: true,
   center: true,
@@ -298,29 +268,20 @@ const HORIZONTAL_ALIGNMENTS: Record<HorizontalAlignment, true> = {
   justify: true,
   centerContinuous: true,
   distributed: true,
-};
-
-/** Narrow a raw `<alignment horizontal>` token to a known {@link HorizontalAlignment}. */
-export function isHorizontalAlignment(value: string): value is HorizontalAlignment {
-  return Object.hasOwn(HORIZONTAL_ALIGNMENTS, value);
-}
+});
 
 /** How a cell's content sits vertically within its bounds, as OOXML's `ST_VerticalAlignment`
  *  enumerates it. */
 export type VerticalAlignment = 'top' | 'center' | 'bottom' | 'justify' | 'distributed';
 
-const VERTICAL_ALIGNMENTS: Record<VerticalAlignment, true> = {
+/** Narrow a raw `<alignment vertical>` token to a known {@link VerticalAlignment}. */
+export const isVerticalAlignment = tokenSet<VerticalAlignment>({
   top: true,
   center: true,
   bottom: true,
   justify: true,
   distributed: true,
-};
-
-/** Narrow a raw `<alignment vertical>` token to a known {@link VerticalAlignment}. */
-export function isVerticalAlignment(value: string): value is VerticalAlignment {
-  return Object.hasOwn(VERTICAL_ALIGNMENTS, value);
-}
+});
 
 /**
  * A cell's alignment. Every facet is optional and independent; an absent facet means the cell

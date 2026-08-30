@@ -4,6 +4,8 @@
 // a worksheet then anchors that image to a rectangle of cells. Storing the bytes centrally means the
 // same picture used on two sheets (a logo in a header band, say) is one media part, not two.
 
+import {tokenSet} from '../token-set.ts';
+
 /** A point in the drawing grid: a 0-based column and row, plus an EMU offset into that cell.
  * The offsets default to zero, pinning the point to the cell's top-left corner. */
 export interface AnchorPoint {
@@ -26,14 +28,8 @@ export const PX_TO_EMU = 9525;
  * defaults to `oneCell` when the attribute is omitted. */
 export type ImageEditAs = 'oneCell' | 'twoCell' | 'absolute';
 
-// Keyed by the union so the compiler refuses a foreign key and an omitted member alike, which is what
-// lets the reader narrow a token out of a foreign file instead of asserting one.
-const IMAGE_EDIT_AS: Record<ImageEditAs, true> = {oneCell: true, twoCell: true, absolute: true};
-
 /** Narrow a raw `<xdr:twoCellAnchor editAs>` token to a known {@link ImageEditAs}. */
-export function isImageEditAs(value: string): value is ImageEditAs {
-  return Object.hasOwn(IMAGE_EDIT_AS, value);
-}
+export const isImageEditAs = tokenSet<ImageEditAs>({oneCell: true, twoCell: true, absolute: true});
 
 /** A fixed image size in EMUs: the extent of a one-cell anchor, which pixel dimensions convert into
  * via {@link PX_TO_EMU}. */

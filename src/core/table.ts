@@ -8,6 +8,7 @@
 // on the *shape* itself: a legal name, at least one column, and at least one row.
 
 import {AuthoringError} from '../errors.ts';
+import {tokenSet} from '../token-set.ts';
 import {type CellPosition, decodeCellRef, encodeAddress, type GridRect} from './address.ts';
 import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 import type {CellStyle} from './style.ts';
@@ -127,7 +128,8 @@ export type TotalsRowFunction =
   | 'custom'
   | 'none';
 
-const TOTALS_ROW_FUNCTIONS: Record<TotalsRowFunction, true> = {
+/** Narrow a raw `totalsRowFunction` attribute to a known {@link TotalsRowFunction}. */
+export const isTotalsRowFunction = tokenSet<TotalsRowFunction>({
   average: true,
   countNums: true,
   count: true,
@@ -138,12 +140,7 @@ const TOTALS_ROW_FUNCTIONS: Record<TotalsRowFunction, true> = {
   var: true,
   custom: true,
   none: true,
-};
-
-/** Narrow a raw `totalsRowFunction` attribute to a known {@link TotalsRowFunction}. */
-export function isTotalsRowFunction(value: string): value is TotalsRowFunction {
-  return Object.hasOwn(TOTALS_ROW_FUNCTIONS, value);
-}
+});
 
 /** One column of a table: a header name and its optional totals-row behaviour. */
 export interface TableColumn {

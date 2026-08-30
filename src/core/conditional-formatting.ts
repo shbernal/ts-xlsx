@@ -7,26 +7,21 @@
 // the library does not interpret in depth still round-trips its `type`, `priority`, `operator`,
 // `formulae`, and differential-style reference, so a read/write cycle never silently drops a rule.
 
+import {tokenSet} from '../token-set.ts';
 import type {Color, DifferentialStyle} from './style.ts';
 
 /** How a {@link CfValueObject} reads its `value`: `ST_CfvoType` verbatim. */
 export type CfValueObjectType = 'num' | 'percent' | 'max' | 'min' | 'percentile' | 'formula';
 
-// Keyed by the union so the compiler refuses a foreign key and an omitted member alike, which is
-// what lets a reader narrow a `<cfvo type>` out of a foreign file instead of asserting one.
-const CF_VALUE_OBJECT_TYPES: Record<CfValueObjectType, true> = {
+/** Narrow a raw `<cfvo type>` token to a known {@link CfValueObjectType}. */
+export const isCfValueObjectType = tokenSet<CfValueObjectType>({
   num: true,
   percent: true,
   max: true,
   min: true,
   percentile: true,
   formula: true,
-};
-
-/** Narrow a raw `<cfvo type>` token to a known {@link CfValueObjectType}. */
-export function isCfValueObjectType(value: string): value is CfValueObjectType {
-  return Object.hasOwn(CF_VALUE_OBJECT_TYPES, value);
-}
+});
 
 /**
  * One anchor of a colour-scale, data-bar, or icon-set scale: a "conditional format value object".
@@ -66,7 +61,8 @@ export type ConditionalFormattingType =
   | 'timePeriod'
   | 'aboveAverage';
 
-const CONDITIONAL_FORMATTING_TYPES: Record<ConditionalFormattingType, true> = {
+/** Narrow a raw `<cfRule type>` token to a known {@link ConditionalFormattingType}. */
+export const isConditionalFormattingType = tokenSet<ConditionalFormattingType>({
   expression: true,
   cellIs: true,
   colorScale: true,
@@ -85,12 +81,7 @@ const CONDITIONAL_FORMATTING_TYPES: Record<ConditionalFormattingType, true> = {
   notContainsErrors: true,
   timePeriod: true,
   aboveAverage: true,
-};
-
-/** Narrow a raw `<cfRule type>` token to a known {@link ConditionalFormattingType}. */
-export function isConditionalFormattingType(value: string): value is ConditionalFormattingType {
-  return Object.hasOwn(CONDITIONAL_FORMATTING_TYPES, value);
-}
+});
 
 /**
  * How a `cellIs` or text rule compares, as `ST_ConditionalFormattingOperator` enumerates it.
@@ -113,7 +104,8 @@ export type ConditionalFormattingOperator =
   | 'beginsWith'
   | 'endsWith';
 
-const CONDITIONAL_FORMATTING_OPERATORS: Record<ConditionalFormattingOperator, true> = {
+/** Narrow a raw `<cfRule operator>` token to a known {@link ConditionalFormattingOperator}. */
+export const isConditionalFormattingOperator = tokenSet<ConditionalFormattingOperator>({
   lessThan: true,
   lessThanOrEqual: true,
   equal: true,
@@ -126,14 +118,7 @@ const CONDITIONAL_FORMATTING_OPERATORS: Record<ConditionalFormattingOperator, tr
   notContains: true,
   beginsWith: true,
   endsWith: true,
-};
-
-/** Narrow a raw `<cfRule operator>` token to a known {@link ConditionalFormattingOperator}. */
-export function isConditionalFormattingOperator(
-  value: string,
-): value is ConditionalFormattingOperator {
-  return Object.hasOwn(CONDITIONAL_FORMATTING_OPERATORS, value);
-}
+});
 
 /** The window a `timePeriod` rule matches against, relative to the day the sheet is recalculated. */
 export type CfTimePeriod =
@@ -148,7 +133,8 @@ export type CfTimePeriod =
   | 'lastWeek'
   | 'nextWeek';
 
-const CF_TIME_PERIODS: Record<CfTimePeriod, true> = {
+/** Narrow a raw `<cfRule timePeriod>` token to a known {@link CfTimePeriod}. */
+export const isCfTimePeriod = tokenSet<CfTimePeriod>({
   today: true,
   yesterday: true,
   tomorrow: true,
@@ -159,12 +145,7 @@ const CF_TIME_PERIODS: Record<CfTimePeriod, true> = {
   thisWeek: true,
   lastWeek: true,
   nextWeek: true,
-};
-
-/** Narrow a raw `<cfRule timePeriod>` token to a known {@link CfTimePeriod}. */
-export function isCfTimePeriod(value: string): value is CfTimePeriod {
-  return Object.hasOwn(CF_TIME_PERIODS, value);
-}
+});
 
 /**
  * The named icon family an `iconSet` rule draws from, as `ST_IconSetType` enumerates it. The leading
@@ -193,7 +174,8 @@ export type IconSetType =
   | '5Rating'
   | '5Quarters';
 
-const ICON_SET_TYPES: Record<IconSetType, true> = {
+/** Narrow a raw `<iconSet iconSet>` token to a known {@link IconSetType}. */
+export const isIconSetType = tokenSet<IconSetType>({
   '3Arrows': true,
   '3ArrowsGray': true,
   '3Flags': true,
@@ -211,12 +193,7 @@ const ICON_SET_TYPES: Record<IconSetType, true> = {
   '5ArrowsGray': true,
   '5Rating': true,
   '5Quarters': true,
-};
-
-/** Narrow a raw `<iconSet iconSet>` token to a known {@link IconSetType}. */
-export function isIconSetType(value: string): value is IconSetType {
-  return Object.hasOwn(ICON_SET_TYPES, value);
-}
+});
 
 /**
  * A single conditional-formatting rule. `type` is the OOXML cfRule type; the remaining fields carry

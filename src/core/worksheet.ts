@@ -7,6 +7,7 @@
 // Merges and views layer on in later slices.
 
 import {AuthoringError} from '../errors.ts';
+import {tokenSet} from '../token-set.ts';
 import {decodeCellRef, decodeRange, encodeAddress, tryDecodeCellRef} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, copyCellContent} from './cell.ts';
@@ -50,14 +51,8 @@ import {WorksheetPictures} from './worksheet-pictures.ts';
  */
 export type Visibility = 'visible' | 'hidden' | 'veryHidden';
 
-// Keyed by the union so the compiler refuses a foreign key and an omitted member alike, which is what
-// lets the reader narrow a token out of a foreign file instead of asserting one.
-const VISIBILITIES: Record<Visibility, true> = {visible: true, hidden: true, veryHidden: true};
-
 /** Narrow a raw `<sheet state>` or `<workbookView visibility>` token to a known {@link Visibility}. */
-export function isVisibility(value: string): value is Visibility {
-  return Object.hasOwn(VISIBILITIES, value);
-}
+export const isVisibility = tokenSet<Visibility>({visible: true, hidden: true, veryHidden: true});
 
 export interface WorksheetState {
   /** Sheet visibility, as Excel models it. Defaults to `visible`. */

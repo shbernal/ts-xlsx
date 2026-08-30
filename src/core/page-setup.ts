@@ -4,6 +4,8 @@
 // `<pageMargins>`, `<headerFooter>`); the model stores only what an author or source file set, so an
 // unset field is omitted and a round-trip never fabricates one.
 
+import {tokenSet} from '../token-set.ts';
+
 /**
  * Paper orientation, as `<pageSetup orientation>` carries it.
  *
@@ -13,24 +15,14 @@
  */
 export type PageOrientation = 'portrait' | 'landscape';
 
-// Keyed by the union so the compiler refuses a foreign key and an omitted member alike, which is what
-// lets the reader narrow a token out of a foreign file instead of asserting one.
-const PAGE_ORIENTATIONS: Record<PageOrientation, true> = {portrait: true, landscape: true};
-
 /** Narrow a raw `<pageSetup orientation>` token to a known {@link PageOrientation}. */
-export function isPageOrientation(value: string): value is PageOrientation {
-  return Object.hasOwn(PAGE_ORIENTATIONS, value);
-}
+export const isPageOrientation = tokenSet<PageOrientation>({portrait: true, landscape: true});
 
 /** The order pages are numbered and printed in across a sheet wider and taller than one page. */
 export type PageOrder = 'downThenOver' | 'overThenDown';
 
-const PAGE_ORDERS: Record<PageOrder, true> = {downThenOver: true, overThenDown: true};
-
 /** Narrow a raw `<pageSetup pageOrder>` token to a known {@link PageOrder}. */
-export function isPageOrder(value: string): value is PageOrder {
-  return Object.hasOwn(PAGE_ORDERS, value);
-}
+export const isPageOrder = tokenSet<PageOrder>({downThenOver: true, overThenDown: true});
 
 /**
  * Print-scaling and orientation settings. These map onto two OOXML elements: `fitToPage` is the

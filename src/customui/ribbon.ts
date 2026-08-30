@@ -18,6 +18,7 @@
 
 import {strFromU8} from 'fflate';
 
+import {tokenSet} from '../token-set.ts';
 import {boolStrict, localName, type XmlAttributes, xmlEvents} from '../xml/xml-read.ts';
 import {CustomUiParseError} from './errors.ts';
 
@@ -143,10 +144,10 @@ export interface CustomUiDocument {
 // bound is unreachable by any legitimate document.
 const MAX_DEPTH = 256;
 
-// Keyed by the union minus `unknown`, so the compiler refuses a foreign key and an omitted member
-// alike, which a `Set<RibbonControlKind>` cannot: `unknown` is this reader's word for an element it
-// did not recognise, never one a part declares, and a member left out of a set is simply absent.
-const KNOWN_KINDS: Record<Exclude<RibbonControlKind, 'unknown'>, true> = {
+// Keyed by the union minus `unknown`: that is this reader's word for an element it did not
+// recognise, never one a part declares.
+/** Narrow a raw element's local name to a {@link RibbonControlKind} this reader models. */
+const isKnownControlKind = tokenSet<Exclude<RibbonControlKind, 'unknown'>>({
   button: true,
   toggleButton: true,
   checkBox: true,
@@ -165,12 +166,7 @@ const KNOWN_KINDS: Record<Exclude<RibbonControlKind, 'unknown'>, true> = {
   dialogBoxLauncher: true,
   control: true,
   item: true,
-};
-
-/** Narrow a raw element's local name to a {@link RibbonControlKind} this reader models. */
-function isKnownControlKind(local: string): local is Exclude<RibbonControlKind, 'unknown'> {
-  return Object.hasOwn(KNOWN_KINDS, local);
-}
+});
 
 // A minimal element node built from the SAX event stream: enough to walk the small customUI tree
 // without a general-purpose DOM dependency. `name` keeps the qualified form so namespace resolution can
