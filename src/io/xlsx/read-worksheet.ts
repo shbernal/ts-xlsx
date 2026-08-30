@@ -76,7 +76,7 @@ function pendingFilterCriteria(
 // exactly what the writer emitted. A password credential is preserved verbatim in its agile form
 // (algorithm, hash, salt, spin count); there is no plaintext password to recover, so it is not re-hashed.
 function parseSheetProtection(attrs: XmlAttributes): SheetProtection | undefined {
-  if (attrs.sheet === '0' || attrs.sheet === 'false') return undefined;
+  if (boolTristate(attrs.sheet) === false) return undefined;
   const flags: {-readonly [K in keyof SheetProtectionFlags]?: boolean} = {};
   for (const {key} of SHEET_PROTECTION_FLAGS) {
     const raw = attrs[key];

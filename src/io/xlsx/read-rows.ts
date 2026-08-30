@@ -375,7 +375,7 @@ function collectHiddenColumn(
   attrs: {readonly [k: string]: string | undefined},
   hiddenColumns: Set<number>,
 ): void {
-  if (attrs.hidden !== '1' && attrs.hidden !== 'true') return;
+  if (!boolStrict(attrs.hidden)) return;
   const min = numInteger(attrs.min, 1);
   const max = numInteger(attrs.max, 1);
   if (min === undefined || max === undefined) return;

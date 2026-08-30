@@ -31,6 +31,7 @@ import {
 import {
   boolPresent,
   boolStrict,
+  boolTristate,
   closeEmptyElements,
   localName,
   numFinite,
@@ -567,7 +568,7 @@ function parseAlignment(attrs: XmlAttributes): Alignment | undefined {
 // defaults to false, so only `hidden="1"` is carried. An element with only defaults yields undefined.
 function parseProtection(attrs: XmlAttributes): Protection | undefined {
   const out: {-readonly [K in keyof Protection]?: Protection[K]} = {};
-  if (attrs.locked === '0' || attrs.locked === 'false') out.locked = false;
+  if (boolTristate(attrs.locked) === false) out.locked = false;
   if (boolStrict(attrs.hidden)) out.hidden = true;
   return Object.keys(out).length > 0 ? out : undefined;
 }
