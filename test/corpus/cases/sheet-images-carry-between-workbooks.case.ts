@@ -52,8 +52,10 @@ export default {
       name: 'an anchor holding an unregistered media id is refused by name, not written dangling',
       expect(api: CorpusApi, assert: Assert) {
         const report = api.carrySheetImagesAcrossWorkbooks();
-        assert.match(String(report.danglingAnchorError), /image id 41/);
-        assert.match(String(report.danglingAnchorError), /not registered on the workbook/);
+        assert.strictEqual(
+          String(report.danglingAnchorError),
+          'sheet "O" anchors image id 41, which is not registered on the workbook',
+        );
       },
     },
   ],

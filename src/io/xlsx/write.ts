@@ -16,7 +16,6 @@
 
 import {strToU8, zip, zipSync} from 'fflate';
 
-import type {WorkbookImage} from '../../core/image.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {AuthoringError} from '../../errors.ts';
@@ -284,13 +283,13 @@ export function buildPackageParts(
     let drawing: DrawingPlan | null = null;
     if (sheet.images.length > 0) {
       const images: ImagePlan[] = sheet.images.map((image, j) => {
-        const registered = workbook.getImage(image.imageId) as WorkbookImage;
+        const {number, image: registered} = media.resolve(image.imageId);
         return {
           anchor: image.anchor,
           // The embed id is local to the drawing part's own rels, not the sheet's, so it is numbered
           // per image from rId1 rather than drawn from the sheet allocator.
           embedId: `rId${j + 1}`,
-          mediaNumber: media.numberById.get(image.imageId) as number,
+          mediaNumber: number,
           extension: registered.extension,
         };
       });
@@ -325,17 +324,8 @@ export function buildPackageParts(
 
     let background: BackgroundPlan | null = null;
     if (sheet.backgroundImageId !== undefined) {
-      const registered = workbook.getImage(sheet.backgroundImageId);
-      if (registered === undefined) {
-        throw new AuthoringError(
-          `sheet "${sheet.name}" sets background image id ${sheet.backgroundImageId}, which is not registered on the workbook`,
-        );
-      }
-      background = {
-        relId: rels.next(),
-        mediaNumber: media.numberById.get(sheet.backgroundImageId) as number,
-        extension: registered.extension,
-      };
+      const {number, image} = media.resolve(sheet.backgroundImageId);
+      background = {relId: rels.next(), mediaNumber: number, extension: image.extension};
     }
 
     const preservedRefs: PreservedReferencePlan[] = (preserved.perSheet[i] ?? []).map(

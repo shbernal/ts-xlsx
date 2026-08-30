@@ -3,6 +3,7 @@
 // and the sheet-/workbook-local relationship ids that wire them) before any XML is serialised.
 
 import type {CommentThread} from '../../core/comment-thread.ts';
+import type {WorkbookImage} from '../../core/image.ts';
 import type {PivotTable} from '../../core/pivot-table.ts';
 import type {Table} from '../../core/table.ts';
 import type {Workbook} from '../../core/workbook.ts';
@@ -172,13 +173,24 @@ export interface MediaPart {
   readonly data: Uint8Array;
 }
 
-// The workbook's media, resolved for writing: the parts to emit, a map from a workbook image id to
-// its media part number (so a drawing embed can target it), and the distinct extensions in use (so
-// content types can declare an image `<Default>` per extension).
+// A referenced image, resolved: the media part number a relationship targets, and the registered
+// image behind it. Both together, because every caller that wants the number also wants the
+// extension, and looking the image up a second time is what would need an assertion to type.
+export interface ResolvedMedia {
+  readonly number: number;
+  readonly image: WorkbookImage;
+}
+
+// The workbook's media, resolved for writing: the parts to emit, the resolution of a workbook image
+// id (so a drawing embed can target its media part), and the distinct extensions in use (so content
+// types can declare an image `<Default>` per extension).
 export interface MediaPlan {
   readonly parts: readonly MediaPart[];
-  readonly numberById: ReadonlyMap<number, number>;
   readonly extensions: readonly string[];
+  /** The media part number and registered image for a referenced id. Total over the ids
+   * {@link planMedia} saw on the sheets it planned, because planning already threw on any it could
+   * not resolve; an id from anywhere else is a caller bug and is reported as one. */
+  resolve(id: number): ResolvedMedia;
 }
 
 // Per-kind counters for numbering preserved parts, each seeded past the generated parts of its kind.
@@ -188,39 +200,64 @@ interface PreservedNumbering {
   media: number;
 }
 
+// Where a sheet first referenced an image id, kept so a failure to resolve it can say which sheet
+// and in which of the two roles. The role is carried as a token rather than a phrase because the
+// two readings ("anchors image id 7" against "sets background image id 7") are one sentence apart
+// and are better built at the throw than stored pre-worded.
+interface MediaUse {
+  readonly id: number;
+  readonly sheetName: string;
+  readonly role: 'anchor' | 'background';
+}
+
 // Gather the workbook images actually referenced by some sheet, either anchored in a drawing or set
 // as a sheet background (an unreferenced image is not written), number them in first-use order, and
-// record the extensions in play. A sheet referencing an id with no registered image is a programming
-// error the writer surfaces rather than emitting a dangling relationship.
+// record the extensions in play. This is the *only* place a sheet's image id is checked against the
+// workbook's registry: a referenced-but-unregistered id is a programming error surfaced here, named
+// by sheet and role, rather than emitted as a dangling relationship or re-checked downstream.
 export function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): MediaPlan {
-  const usedIds: number[] = [];
+  const uses: MediaUse[] = [];
   const seen = new Set<number>();
-  const use = (id: number): void => {
+  const use = (id: number, sheetName: string, role: MediaUse['role']): void => {
     if (!seen.has(id)) {
       seen.add(id);
-      usedIds.push(id);
+      uses.push({id, sheetName, role});
     }
   };
   for (const sheet of sheets) {
-    for (const image of sheet.images) use(image.imageId);
-    if (sheet.backgroundImageId !== undefined) use(sheet.backgroundImageId);
+    for (const image of sheet.images) use(image.imageId, sheet.name, 'anchor');
+    if (sheet.backgroundImageId !== undefined) {
+      use(sheet.backgroundImageId, sheet.name, 'background');
+    }
   }
   const parts: MediaPart[] = [];
-  const numberById = new Map<number, number>();
+  const byId = new Map<number, ResolvedMedia>();
   const extensions = new Set<string>();
-  usedIds.forEach((id, i) => {
+  uses.forEach(({id, sheetName, role}, i) => {
     const image = workbook.getImage(id);
     if (image === undefined) {
+      const reference =
+        role === 'anchor' ? `anchors image id ${id}` : `sets background image id ${id}`;
       throw new AuthoringError(
-        `a worksheet anchors image id ${id}, which is not registered on the workbook`,
+        `sheet "${sheetName}" ${reference}, which is not registered on the workbook`,
       );
     }
     const number = i + 1;
     parts.push({number, extension: image.extension, data: image.data});
-    numberById.set(id, number);
+    byId.set(id, {number, image});
     extensions.add(image.extension);
   });
-  return {parts, numberById, extensions: [...extensions]};
+  return {
+    parts,
+    extensions: [...extensions],
+    resolve(id: number): ResolvedMedia {
+      const resolved = byId.get(id);
+      if (resolved === undefined) {
+        throw new AuthoringError(`image id ${id} was not planned into this workbook's media`);
+      }
+      return resolved;
+    },
+  };
 }
 
 // Resolve every sheet's verbatim-preserved worksheet references (a vector-shape drawing, a

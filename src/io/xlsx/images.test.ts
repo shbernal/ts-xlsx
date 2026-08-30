@@ -239,6 +239,20 @@ test('a background image, a note, and an anchored image on one sheet keep unique
   );
 });
 
+test('a background image id the workbook never registered is refused by sheet and role', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Sales').addBackgroundImage(999);
+  assert.throws(
+    () => writeXlsx(wb),
+    // The message names the sheet and says which of the two roles the id was used in: a workbook
+    // whose sheets both anchor and background images is otherwise a search for which one is broken.
+    {
+      message:
+        'sheet "Sales" sets background image id 999, which is not registered on the workbook',
+    },
+  );
+});
+
 test('removeBackgroundImage clears the background and omits its now-orphaned media', () => {
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');
