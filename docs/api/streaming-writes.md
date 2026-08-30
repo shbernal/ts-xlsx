@@ -131,6 +131,12 @@ Assemble the workbook into its package, stream the bytes through [`stream`](./st
 the same bytes. Every sheet is frozen first, so a row added after this rejects legibly. Idempotent
 only in that a second call throws rather than re-emitting.
 
+If assembling or zipping the package fails, the returned promise rejects *and* every stream this
+writer was given or handed out is destroyed with that error. A caller piping [`stream`](./streaming-writes.md#workbookstreamwriterstream), or
+awaiting its own sink, therefore sees an `error` rather than waiting on a stream that will never
+end; and it is an `error` rather than a clean `end` because the bytes written so far are a
+truncated package that must not be read as a whole one.
+
 ---
 
 ### `WorkbookStreamWriterOptions`

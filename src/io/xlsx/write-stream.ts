@@ -438,21 +438,13 @@ export class WorkbookStreamWriter {
    * media part backs an image anchored on several sheets. Rejected once the workbook is committed.
    */
   addImage(options: AddImageOptions): number {
-    if (this.#committed) {
-      throw new AuthoringError(
-        'the workbook is already committed: no more images can be registered',
-      );
-    }
+    this.#assertOpen('no more images can be registered');
     return this.#workbook.addImage(options);
   }
 
   /** Create a worksheet and append it to the workbook. */
   addWorksheet(name: string, options: AddWorksheetOptions = {}): WorksheetStreamWriter {
-    if (this.#committed) {
-      throw new AuthoringError(
-        'the workbook is already committed: no more worksheets can be added',
-      );
-    }
+    this.#assertOpen('no more worksheets can be added');
     const sheet = new WorksheetStreamWriter(
       this.#workbook.addWorksheet(name, options),
       this.#eager,
@@ -466,11 +458,15 @@ export class WorkbookStreamWriter {
    * Assemble the workbook into its package, stream the bytes through {@link stream}, and resolve with
    * the same bytes. Every sheet is frozen first, so a row added after this rejects legibly. Idempotent
    * only in that a second call throws rather than re-emitting.
+   *
+   * If assembling or zipping the package fails, the returned promise rejects *and* every stream this
+   * writer was given or handed out is destroyed with that error. A caller piping {@link stream}, or
+   * awaiting its own sink, therefore sees an `error` rather than waiting on a stream that will never
+   * end; and it is an `error` rather than a clean `end` because the bytes written so far are a
+   * truncated package that must not be read as a whole one.
    */
   async commit(): Promise<Uint8Array> {
-    if (this.#committed) {
-      throw new AuthoringError('the workbook is already committed');
-    }
+    this.#assertOpen('its package is already assembled and cannot be re-emitted');
     this.#committed = true;
     for (const sheet of this.#sheets) sheet.commit();
     if (this.calcProperties.fullCalcOnLoad) this.#workbook.fullCalcOnLoad = true;
@@ -483,27 +479,47 @@ export class WorkbookStreamWriter {
       const sheetFlushed = sheet.flushedSheet();
       if (sheetFlushed) flushed.set(sheet.model, sheetFlushed);
     }
-    const parts = buildPackageParts(this.#workbook, {
-      ...this.#writeOptions,
-      styles: this.#styles,
-      flushed,
-    });
     const owned = this.#stream;
     const sink = this.#sink;
     // Track the caller sink's terminal state before writing a byte, so an open failure that errors on a
     // later tick (a bad filename) is caught rather than lost, which is the whole point of the reject-not-hang
-    // contract.
+    // contract. Ahead of the serialisation too, which throws routinely: a rejection handler created
+    // after the first possible throw is a handler the failure path cannot reach.
     const sinkSettled = sink ? settleOnFinish(sink) : undefined;
 
-    const bytes = await streamZipPackage(parts, (chunk) => {
-      owned?.write(chunk);
-      sink?.write(chunk);
-    });
-    owned?.end();
-    sink?.end();
+    try {
+      const parts = buildPackageParts(this.#workbook, {
+        ...this.#writeOptions,
+        styles: this.#styles,
+        flushed,
+      });
+      const bytes = await streamZipPackage(parts, (chunk) => {
+        owned?.write(chunk);
+        sink?.write(chunk);
+      });
+      owned?.end();
+      sink?.end();
 
-    await sinkSettled;
-    return bytes;
+      await sinkSettled;
+      return bytes;
+    } catch (error) {
+      // `destroy(err)`, never `end()`: ending says the package is complete, and a consumer handed a
+      // truncated archive that ended cleanly will read it as whole. Destroying propagates through
+      // `pipe` as the destination's `error`, which is what a `pipeline()` caller already handles.
+      const failure = error instanceof Error ? error : new Error(String(error));
+      // The sink is about to error because we are destroying it, and that is not the failure worth
+      // reporting: the original is. Claim the rejection so it does not surface as unhandled.
+      sinkSettled?.catch(() => {});
+      owned?.destroy(failure);
+      sink?.destroy(failure);
+      throw error;
+    }
+  }
+
+  #assertOpen(what: string): void {
+    if (this.#committed) {
+      throw new AuthoringError(`the workbook is already committed: ${what}`);
+    }
   }
 }
 

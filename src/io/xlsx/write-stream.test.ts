@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {Duplex, PassThrough} from 'node:stream';
+import {Duplex, PassThrough, type Readable} from 'node:stream';
 import {test} from 'node:test';
 
 import {strFromU8, unzipSync} from 'fflate';
@@ -201,6 +201,69 @@ test('commit over a Duplex sink resolves: completion does not depend on the writ
   const reread = readXlsx(Buffer.concat(chunks)).getWorksheet('S');
   assert.ok(reread);
   assert.equal(reread.getCell('A1').value, 'a');
+});
+
+// The stream's terminal event: 'error' with its message, or 'end'. A stream that settles neither way
+// reports 'open' after a short grace period, so the assertion below names what went wrong instead of
+// hanging the suite on a promise that will never resolve. The grace period is only ever paid by a
+// regression: a stream that does settle settles in the same tick as the commit it belongs to.
+function terminalEvent(stream: Readable): Promise<{event: string; message: string}> {
+  return new Promise((resolve) => {
+    stream.on('error', (error: Error) => resolve({event: 'error', message: error.message}));
+    stream.on('end', () => resolve({event: 'end', message: ''}));
+    setTimeout(() => resolve({event: 'open', message: ''}), 250).unref();
+    stream.resume();
+  });
+}
+
+// A title carrying a character XML 1.0 cannot spell. Core properties have no `_xHHHH_` convention to
+// escape it into, so this is refused when the package is serialised rather than when it is assigned:
+// the way to make a commit fail after the caller already holds the output stream.
+const UNSPELLABLE_TITLE = `bad${String.fromCharCode(1)}title`;
+const UNSPELLABLE = /XML 1\.0 has no representation/;
+
+test('a commit that fails destroys the writer-owned stream instead of leaving it open forever', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  sheet.getCell('A1').value = 'ok';
+  writer.properties.title = UNSPELLABLE_TITLE;
+  sheet.commit();
+
+  const terminal = terminalEvent(writer.stream);
+  await assert.rejects(writer.commit(), UNSPELLABLE);
+
+  const outcome = await terminal;
+  // Not `end`: a consumer told the stream ended cleanly would treat a truncated package as whole.
+  assert.equal(outcome.event, 'error', 'the failure reaches the stream as a failure');
+  assert.match(outcome.message, UNSPELLABLE);
+});
+
+test('a commit that fails destroys a caller-supplied sink, so an outer await on it settles', async () => {
+  const sink = new PassThrough();
+  const writer = new WorkbookStreamWriter({stream: sink});
+  const sheet = writer.addWorksheet('S');
+  sheet.getCell('A1').value = 'ok';
+  writer.properties.title = UNSPELLABLE_TITLE;
+  sheet.commit();
+
+  const terminal = terminalEvent(sink);
+  await assert.rejects(writer.commit(), UNSPELLABLE);
+
+  const outcome = await terminal;
+  assert.equal(outcome.event, 'error', 'the sink the caller is awaiting learns the commit failed');
+  assert.match(outcome.message, UNSPELLABLE);
+  assert.equal(sink.destroyed, true);
+});
+
+test('a successful commit still ends the stream cleanly, with no error event', async () => {
+  const writer = new WorkbookStreamWriter();
+  writer.addWorksheet('S').addRow(['a']).commit();
+
+  const terminal = terminalEvent(writer.stream);
+  const bytes = await writer.commit();
+
+  assert.deepEqual(await terminal, {event: 'end', message: ''});
+  assert.equal(readXlsx(bytes).getWorksheet('S')?.getCell('A1').value, 'a');
 });
 
 test('commit to a valid filename writes a re-openable package to disk', async () => {
