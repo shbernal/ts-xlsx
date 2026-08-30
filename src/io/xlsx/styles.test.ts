@@ -5,7 +5,9 @@ import type {Fill, Font} from '../../core/style.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {XlsxError} from '../../errors.ts';
 import {parseIndexedColors} from './read-styles.ts';
+import {readXlsx} from './read.ts';
 import {StyleRegistry} from './styles.ts';
+import {writeXlsx} from './write.ts';
 
 const solid = (argb: string): Fill => ({type: 'pattern', pattern: 'solid', fgColor: {argb}});
 
@@ -629,5 +631,46 @@ test('a number format code keeps its bare apostrophe but not a character XML can
     () => hostile.toXml(),
     {name: 'AuthoringError'},
     'and the unrepresentable one is refused',
+  );
+});
+
+test('every alignment facet set to a non-default value survives a round-trip', () => {
+  // The assertion the shared facet table makes cheap and nobody wrote while it was seven hand-paired
+  // clauses: a facet written but not read would survive the write and vanish here, and one read but
+  // not written would never reach the file at all.
+  const alignment = {
+    horizontal: 'centerContinuous',
+    vertical: 'justify',
+    textRotation: 45,
+    wrapText: true,
+    indent: 3,
+    shrinkToFit: true,
+    readingOrder: 2,
+  } as const;
+  const workbook = new Workbook();
+  workbook.addWorksheet('S').getCell('A1').alignment = alignment;
+  const back = readXlsx(writeXlsx(workbook)).getWorksheet('S')?.getCell('A1').alignment;
+  assert.deepEqual(back, alignment, 'all seven facets come back exactly as they were set');
+});
+
+test('alignment attributes are emitted in CT_CellAlignment order', () => {
+  // ECMA-376 orders the attributes, and the facet table is the declaration that fixes that order for
+  // both directions; a table reordered for readability would quietly reorder the output.
+  const styles = new StyleRegistry();
+  styles.styleId({
+    alignment: {
+      horizontal: 'right',
+      vertical: 'top',
+      textRotation: 90,
+      wrapText: true,
+      indent: 1,
+      shrinkToFit: true,
+      readingOrder: 1,
+    },
+  });
+  const tag = /<alignment ([^/>]*)\/>/.exec(styles.toXml())?.[1];
+  assert.equal(
+    tag,
+    'horizontal="right" vertical="top" textRotation="90" wrapText="1" indent="1" shrinkToFit="1" readingOrder="1"',
   );
 });

@@ -14,6 +14,7 @@
 // An unstyled cell/row/column resolves to xf 0.
 
 import {
+  ALIGNMENT_FACETS,
   type Alignment,
   type Border,
   type BorderEdge,
@@ -26,9 +27,7 @@ import {
   isFillPatternType,
   isFontScheme,
   isFontVerticalAlignment,
-  isHorizontalAlignment,
   isNamedUnderlineStyle,
-  isVerticalAlignment,
   type NamedCellStyle,
   type Protection,
   type TableStyleTable,
@@ -600,32 +599,31 @@ function cellStyleTag(entry: {name: string; builtinId?: number; xfId: number}): 
   return `<cellStyle name="${escapeAttr(entry.name)}" xfId="${entry.xfId}"${builtin}/>`;
 }
 
-// Serialise a cell's alignment as `<alignment>` attributes in ECMA-376 CT_CellAlignment order.
-// A facet at its default contributes nothing; an all-default alignment yields the empty string,
-// so it forces neither an <alignment> child nor a distinct xf.
+// Serialise a cell's alignment as `<alignment>` attributes, driven by ALIGNMENT_FACETS so the writer
+// and the reader cannot disagree on a facet's name, kind, or default. The table is in CT_CellAlignment
+// order, which is the order ECMA-376 requires the attributes in. A facet at its default contributes
+// nothing; an all-default alignment yields the empty string, so it forces neither an <alignment> child
+// nor a distinct xf.
 function alignmentAttrs(alignment: Alignment): string {
   const parts: string[] = [];
-  // `general` is the type-dependent default and is expressed by omitting the attribute.
-  if (alignment.horizontal !== undefined && alignment.horizontal !== 'general') {
-    parts.push(
-      `horizontal="${checkedToken(alignment.horizontal, isHorizontalAlignment, 'horizontal alignment')}"`,
-    );
-  }
-  if (alignment.vertical !== undefined) {
-    parts.push(
-      `vertical="${checkedToken(alignment.vertical, isVerticalAlignment, 'vertical alignment')}"`,
-    );
-  }
-  if (alignment.textRotation !== undefined && alignment.textRotation !== 0) {
-    parts.push(`textRotation="${numberText(alignment.textRotation)}"`);
-  }
-  if (alignment.wrapText) parts.push('wrapText="1"');
-  if (alignment.indent !== undefined && alignment.indent !== 0) {
-    parts.push(`indent="${numberText(alignment.indent)}"`);
-  }
-  if (alignment.shrinkToFit) parts.push('shrinkToFit="1"');
-  if (alignment.readingOrder !== undefined && alignment.readingOrder !== 0) {
-    parts.push(`readingOrder="${numberText(alignment.readingOrder)}"`);
+  for (const facet of ALIGNMENT_FACETS) {
+    switch (facet.kind) {
+      case 'token': {
+        const value = alignment[facet.key];
+        if (value === undefined || value === facet.omit) break;
+        parts.push(`${facet.key}="${checkedToken(value, facet.isValid, facet.label)}"`);
+        break;
+      }
+      case 'number': {
+        const value = alignment[facet.key];
+        if (value === undefined || value === 0) break;
+        parts.push(`${facet.key}="${numberText(value)}"`);
+        break;
+      }
+      case 'flag':
+        if (alignment[facet.key]) parts.push(`${facet.key}="1"`);
+        break;
+    }
   }
   return parts.join(' ');
 }

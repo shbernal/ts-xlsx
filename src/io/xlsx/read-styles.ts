@@ -10,6 +10,7 @@
 // and finishes through the same `resolveStyleTable`.
 
 import {
+  ALIGNMENT_FACETS,
   type Alignment,
   type Border,
   type Color,
@@ -21,9 +22,7 @@ import {
   isFillPatternType,
   isFontScheme,
   isFontVerticalAlignment,
-  isHorizontalAlignment,
   isNamedUnderlineStyle,
-  isVerticalAlignment,
   type Protection,
   type TableStyleNamespace,
   type TableStyleTable,
@@ -554,32 +553,46 @@ function borderToStyle(draft: BorderDraft): Border | undefined {
   return draft;
 }
 
-// Read an <alignment> element's attributes into an Alignment, keeping only facets that differ
-// from the default. Boolean flags honour their parsed value (wrapText="0" is off, so it must
-// not fabricate a { wrapText: false } alignment) and an element carrying only defaults yields
-// undefined rather than an empty alignment object.
+// Read an <alignment> element's attributes into an Alignment, driven by the same ALIGNMENT_FACETS the
+// writer emits from, so neither direction can carry a facet the other does not. Only facets that
+// differ from the default are kept: boolean flags honour their parsed value (wrapText="0" is off, so
+// it must not fabricate a { wrapText: false } alignment), an unrecognised token (an out-of-enum
+// vertical one, say) is dropped rather than trusted into the model, and an element carrying only
+// defaults yields undefined rather than an empty alignment object.
 function parseAlignment(attrs: XmlAttributes): Alignment | undefined {
   const out: {-readonly [K in keyof Alignment]?: Alignment[K]} = {};
-  // `general` is the default and reads back as no explicit horizontal alignment; an unrecognised
-  // token (like an out-of-enum vertical one) is dropped rather than trusted into the model.
-  if (
-    attrs.horizontal !== undefined &&
-    attrs.horizontal !== 'general' &&
-    isHorizontalAlignment(attrs.horizontal)
-  ) {
-    out.horizontal = attrs.horizontal;
+  for (const facet of ALIGNMENT_FACETS) {
+    const raw = attrs[facet.key];
+    switch (facet.kind) {
+      case 'token':
+        if (raw !== undefined && raw !== facet.omit && facet.isValid(raw)) {
+          assignAlignmentToken(out, facet.key, raw);
+        }
+        break;
+      case 'number': {
+        const value = numFinite(raw);
+        if (value !== undefined && value !== 0) out[facet.key] = value;
+        break;
+      }
+      case 'flag':
+        if (boolStrict(raw)) out[facet.key] = true;
+        break;
+    }
   }
-  if (attrs.vertical !== undefined && isVerticalAlignment(attrs.vertical))
-    out.vertical = attrs.vertical;
-  const rotation = numFinite(attrs.textRotation);
-  if (rotation !== undefined && rotation !== 0) out.textRotation = rotation;
-  if (boolStrict(attrs.wrapText)) out.wrapText = true;
-  const indent = numInteger(attrs.indent);
-  if (indent !== undefined && indent !== 0) out.indent = indent;
-  if (boolStrict(attrs.shrinkToFit)) out.shrinkToFit = true;
-  const order = numInteger(attrs.readingOrder);
-  if (order !== undefined && order !== 0) out.readingOrder = order;
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+// One token facet at a time, so the write's key type is a single member rather than the whole union
+// and `out[key] = value` typechecks: the correlated-key access TypeScript cannot verify when the key
+// is a union, the same shape `copyFacet` takes in core/style.ts. The cast restates the guard's own
+// proof: `isValid` has already accepted `raw` for this facet's enumeration, which the table cannot
+// say in a type because all its token entries share one shape.
+function assignAlignmentToken<K extends 'horizontal' | 'vertical'>(
+  out: {-readonly [P in keyof Alignment]?: Alignment[P]},
+  key: K,
+  raw: string,
+): void {
+  out[key] = raw as Alignment[K];
 }
 
 // Read a <protection> element into a Protection, keeping only facets that differ from the OOXML

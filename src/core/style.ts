@@ -4,6 +4,8 @@
 // formats, protection). The rewrite grows them corpus-first; this module models the
 // facets landed so far: colours, fills, borders, fonts, alignment, and protection.
 
+import type {AssertNever} from './internal.ts';
+
 /** Underline can be a plain flag or one of Excel's named underline styles. */
 export type UnderlineStyle =
   | boolean
@@ -335,6 +337,71 @@ export interface Alignment {
   readonly shrinkToFit?: boolean;
   readonly readingOrder?: number;
 }
+
+/**
+ * How one `<alignment>` facet encodes: which model key it is, what kind of value it carries, and the
+ * value that means "default", which the writer omits and the reader drops.
+ *
+ * Format-blind on purpose. `Alignment` is a core type and the layering gate forbids core importing a
+ * serialisation, so the table states what a facet *is* and each codec supplies the reading and the
+ * writing off the `kind`. That is where {@link SHEET_PROTECTION_FLAGS} sits and how it is consumed,
+ * and it is the shape the BIFF12 codec would want if alignment ever reaches it.
+ *
+ * The OOXML attribute name is the model key for all seven facets, so it is not restated here: a
+ * second list that is always identical is a second list to keep in step. A future facet whose
+ * attribute differs from its key is the one that would have to add the field.
+ */
+export type AlignmentFacet =
+  | {
+      readonly key: 'horizontal' | 'vertical';
+      readonly kind: 'token';
+      /** The enumeration guard, and what to call it in the error when a value fails it. */
+      readonly isValid: (value: string) => boolean;
+      readonly label: string;
+      /** The token that means the OOXML default, expressed by omitting the attribute. */
+      readonly omit?: string;
+    }
+  | {readonly key: 'textRotation' | 'indent' | 'readingOrder'; readonly kind: 'number'}
+  | {readonly key: 'wrapText' | 'shrinkToFit'; readonly kind: 'flag'};
+
+/**
+ * The seven `<alignment>` facets, declared once. Both directions key off this list, so a facet
+ * written but not read (it survives a re-write and vanishes on load) or read but not written (the
+ * reverse) is no longer something a reviewer has to notice: {@link EveryAlignmentFacetIsDeclared}
+ * makes a facet added to {@link Alignment} and forgotten here a compile error.
+ *
+ * In ECMA-376 CT_CellAlignment order, which is the order the writer emits.
+ */
+export const ALIGNMENT_FACETS: readonly AlignmentFacet[] = [
+  {
+    key: 'horizontal',
+    kind: 'token',
+    isValid: isHorizontalAlignment,
+    label: 'horizontal alignment',
+    // `general` is the type-dependent default and is expressed by omitting the attribute.
+    omit: 'general',
+  },
+  {key: 'vertical', kind: 'token', isValid: isVerticalAlignment, label: 'vertical alignment'},
+  // ST_TextRotation is an integer, 0 to 180 plus the sentinel 255, so a fractional rotation is not
+  // schema-legal. The reader still takes one, deliberately: the model accepts any number an author
+  // assigns and the writer emits it, so a reader stricter than the writer would make an authored or
+  // foreign 45.5 write out and then vanish on reload. Losing a facet on a round trip is the worse of
+  // the two failures, and tightening only this end would be the one that causes it.
+  {key: 'textRotation', kind: 'number'},
+  {key: 'wrapText', kind: 'flag'},
+  {key: 'indent', kind: 'number'},
+  {key: 'shrinkToFit', kind: 'flag'},
+  {key: 'readingOrder', kind: 'number'},
+];
+
+/**
+ * Compile-time proof that {@link ALIGNMENT_FACETS} covers every {@link Alignment} facet. A facet
+ * added to the type without a table entry resolves this to that facet's name, which does not satisfy
+ * `never`, so the error names what is missing.
+ */
+export type EveryAlignmentFacetIsDeclared = AssertNever<
+  Exclude<keyof Alignment, (typeof ALIGNMENT_FACETS)[number]['key']>
+>;
 
 /**
  * A cell's protection state, enforced only when the worksheet itself is protected. The flags
