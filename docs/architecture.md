@@ -119,8 +119,9 @@ file, and there is no point at which you can see what the object *is*.
 
 Both push cohesive slices of state into their own objects and keep the public accessors in front of
 them. `Worksheet` holds `DataValidationOverlay`, `ConditionalFormattingOverlay`, `GridEdits`,
-`UsedExtent` (`core/used-extent.ts`), `WorksheetPictures` (`core/worksheet-pictures.ts`) and
-`WorksheetComments` (`core/worksheet-comments.ts`); `Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`),
+`UsedExtent` (`core/used-extent.ts`), `MergeIndex` (`core/merge-index.ts`), `WorksheetPictures`
+(`core/worksheet-pictures.ts`) and `WorksheetComments` (`core/worksheet-comments.ts`);
+`Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`),
 `WorkbookTheme` (`core/workbook-theme.ts`) and `WorkbookStyleTables` (`core/workbook-styles.ts`).
 The public surface does not move: an accessor stays on the model class, keeps its name, its type
 and its full doc comment, and becomes a one-line delegation. The doc comment staying put is not
@@ -178,6 +179,18 @@ bound the extent from above, the top line is the one that was just appended in t
 and confirming it against the live grid costs a single row. A bound may overstate, which costs a
 scan; it may never understate, which is why every edit that can pull the grid inward marks the bounds
 stale rather than adjusting them.
+
+`MergeIndex` is the same shape one step further, and its design turns on what a hostile file can
+ask for. Overlap-checking a new merged region against every existing one made loading them quadratic
+(20,000 regions took 1.4 seconds against 58 ms for 2,000), and the reader calls `mergeCells` once per
+`<mergeCell>` in the part, so that scan sat on an untrusted path. The obvious index, a bucket per row
+holding every region covering it, is the one that cannot ship: a sheet of whole-column merges is
+legal, disjoint and cheap to write, and would claim a bucket entry per row per region. So the index
+buckets a region under its *top* row alone, in bands, and keeps the height of the tallest region on
+the sheet; a region overlapping a query must begin within that height above it, which bounds the
+bands worth visiting. Memory is one entry per region, and the price is that a sheet of tall regions
+widens the window until the query is the scan it replaced, never worse. Resolving a covered address
+to its region's master rides the same index, which takes that scan off `getCell` as well.
 
 `GridEdits` owns that splice arithmetic for *everything* anchored to the grid, which is a wider set
 than the cell rows: line metadata, merges, tables, anchored images and shared-formula anchors move

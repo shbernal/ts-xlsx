@@ -2,13 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {Cell} from './cell.ts';
-import {
-  clearCoveredValues,
-  decodeSqrefRects,
-  masterOf,
-  type MergeRect,
-  shiftSqref,
-} from './merge.ts';
+import {clearCoveredValues, decodeSqrefRects, shiftSqref} from './merge.ts';
 
 // Build the row/column store `clearCoveredValues` walks, from `ref -> value` pairs.
 function grid(cells: Readonly<Record<string, string>>): Map<number, Map<number, Cell>> {
@@ -96,22 +90,6 @@ test('an area the machine cannot read is returned untouched rather than dropped'
   // The `sqref` is still the file's own text; moving what cannot be decoded would be a guess, and
   // dropping it would lose a region on the strength of that guess.
   assert.equal(shiftSqref('junk!! A9', 'row', 1, 0, 1), 'junk!! A10');
-});
-
-test('masterOf resolves a covered position to its region top-left and any other to itself', () => {
-  const rects: MergeRect[] = [{top: 2, left: 2, bottom: 3, right: 4}];
-  assert.deepEqual(masterOf(rects, 3, 4), {row: 2, col: 2}, 'the far corner of the region');
-  assert.deepEqual(masterOf(rects, 2, 2), {row: 2, col: 2}, 'the anchor itself');
-  assert.deepEqual(masterOf(rects, 4, 2), {row: 4, col: 2}, 'a row below the region');
-  assert.deepEqual(masterOf([], 3, 4), {row: 3, col: 4}, 'no regions at all');
-});
-
-test('masterOf takes the first covering region, since a sheet admits no overlap', () => {
-  const rects: MergeRect[] = [
-    {top: 1, left: 1, bottom: 5, right: 5},
-    {top: 2, left: 2, bottom: 3, right: 3},
-  ];
-  assert.deepEqual(masterOf(rects, 2, 2), {row: 1, col: 1});
 });
 
 test('clearCoveredValues empties the covered cells and leaves the anchor alone', () => {

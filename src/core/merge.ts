@@ -1,12 +1,13 @@
 // Inclusive grid rectangles and the geometry a worksheet uses to reason about merged regions and the
-// `sqref` ranges that overlays (data validations, conditional formats) apply to: overlap detection,
-// decoding an OOXML `sqref` into containment rectangles, resolving a covered position to its region's
-// master, and collapsing the values a new merge covers.
+// `sqref` ranges that overlays (data validations, conditional formats) apply to: decoding an OOXML
+// `sqref` into containment rectangles, re-anchoring one through a splice, and collapsing the values a
+// new merge covers.
 //
-// The last two used to be private methods on `Worksheet`, which split merge geometry across two files:
-// the rectangle type and the overlap test lived here, while the two operations that consume them lived
-// there. Reasoning about "what does a merge do to the grid" meant reading both. The storage arrives as
-// a parameter, so these stay pure functions of the rects and rows handed in.
+// These used to be private methods on `Worksheet`, which split merge geometry across two files: the
+// rectangle type and the overlap test lived here, while the operations that consume them lived there.
+// Reasoning about "what does a merge do to the grid" meant reading both. The storage arrives as a
+// parameter, so these stay pure functions of the rects and rows handed in. Resolving a covered
+// position to its region's master is the one that did not stay a scan; it lives on `MergeIndex`.
 
 import {encodeCornerRef, type GridRect, tryDecodeRange} from './address.ts';
 import type {Cell} from './cell.ts';
@@ -14,25 +15,6 @@ import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 
 /** A merged region, as the {@link GridRect} every range-shaped thing in the library is. */
 export type MergeRect = GridRect;
-
-/**
- * Resolve a position to the master (top-left) of the merged region covering it, or to itself when no
- * region does. First covering region wins; `Worksheet.mergeCells` rejects overlaps, so at most one
- * region ever applies. Only fully-bounded rects participate: an unbounded whole-row/column merge
- * carries no rect and so resolves nothing.
- */
-export function masterOf(
-  rects: readonly MergeRect[],
-  row: number,
-  col: number,
-): {row: number; col: number} {
-  for (const rect of rects) {
-    if (row >= rect.top && row <= rect.bottom && col >= rect.left && col <= rect.right) {
-      return {row: rect.top, col: rect.left};
-    }
-  }
-  return {row, col};
-}
 
 /**
  * Drop any value already sitting in a merge's covered non-anchor cells, keeping only the top-left
