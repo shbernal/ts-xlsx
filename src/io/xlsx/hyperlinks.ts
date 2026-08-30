@@ -13,7 +13,8 @@
 import {tryDecodeRange} from '../../core/address.ts';
 import {type HyperlinkValue, isHyperlinkValue, isRichTextValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {type CollectingPass, localName} from '../../xml/xml-read.ts';
+import {type CollectingPass} from '../../xml/xml-read.ts';
+import {localName} from '../../xml/xml-scan.ts';
 import {escapeAttr, textAttr} from '../../xml/xml.ts';
 import type {SheetRelIds} from './package-plan.ts';
 

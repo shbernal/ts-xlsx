@@ -23,7 +23,7 @@ import type {
   SharedFormulaValue,
 } from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {boolStrict, numInteger, type XmlAttributes} from '../../xml/xml-read.ts';
+import {boolStrict, numInteger, type XmlAttributes} from '../../xml/xml-scan.ts';
 import {applyXfToCell, type XfStyle} from '../style/xf-style.ts';
 import {
   decodeCellContent,

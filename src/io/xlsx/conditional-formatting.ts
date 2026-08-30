@@ -29,18 +29,20 @@ import {
 } from '../../core/conditional-formatting.ts';
 import type {Color} from '../../core/style.ts';
 import {
+  type CollectingPass,
+  elementSubtrees,
+  type SaxHandlers,
+  TextCapture,
+} from '../../xml/xml-read.ts';
+import {
   boolPresent,
   boolStrict,
   coerceNumericLiteral,
-  type CollectingPass,
-  elementSubtrees,
   enumToken,
   localName,
   numFinite,
   numInteger,
-  type SaxHandlers,
-  TextCapture,
-} from '../../xml/xml-read.ts';
+} from '../../xml/xml-scan.ts';
 import {
   boolAttr,
   checkedToken,

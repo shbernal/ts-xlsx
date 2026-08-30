@@ -12,14 +12,14 @@
 // `contextualTabs` are NOT parsed; they still round-trip byte-for-byte, they are just not surfaced here.
 //
 // Security posture: the part is untrusted input. The underlying `xmlEvents` scanner never expands
-// entities or DTDs (see `xml-read.ts`); on top of that this parser caps nesting depth and fails closed
+// entities or DTDs (see `xml-scan.ts`); on top of that this parser caps nesting depth and fails closed
 // with {@link CustomUiParseError} on any malformed or unrecognised structure rather than returning a
 // half-built tree.
 
 import {strFromU8} from 'fflate';
 
 import {tokenSet} from '../token-set.ts';
-import {boolStrict, localName, type XmlAttributes, xmlEvents} from '../xml/xml-read.ts';
+import {boolStrict, localName, type XmlAttributes, xmlEvents} from '../xml/xml-scan.ts';
 import {CustomUiParseError} from './errors.ts';
 
 /** The `customUI` schema a part is written against. The read model keys off this, not the (frequently

@@ -25,7 +25,8 @@
 
 import type {Font} from '../../core/style.ts';
 import type {RichTextRun} from '../../core/value.ts';
-import {decodeSpreadsheetText, TextCapture, type XmlAttributes} from '../../xml/xml-read.ts';
+import {TextCapture} from '../../xml/xml-read.ts';
+import {decodeSpreadsheetText, type XmlAttributes} from '../../xml/xml-scan.ts';
 import {applyFontChild, type FontDraft} from './read-styles.ts';
 
 /**

@@ -151,7 +151,7 @@ carry any character a note or a cell may.
 ## What follows for this library
 
 Both directions are in `src/xml/`: `escapeSpreadsheetText` in `xml.ts`, `decodeSpreadsheetText` in
-`xml-read.ts`. They are inverses, and three corpus cases lock that with the packages above as their
+`xml-scan.ts`. They are inverses, and three corpus cases lock that with the packages above as their
 fixtures: `escaped-characters-in-cell-text-decode-on-read` for cell text,
 `threaded-comment-text-decodes-xhhhh-escape` for the conversation body, and
 `print-header-text-decodes-xhhhh-escape` for the header/footer definition.

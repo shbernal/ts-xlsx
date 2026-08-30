@@ -418,7 +418,7 @@ at the single point where the value becomes bytes, and `src/xml/xml.ts` states a
   sheet named `Sheet_x0001_A` is a different name rather than a rendering of the one asked for.
 
 The read side is the same grammar with one asymmetry, and stating it is what makes the pair
-trustworthy. `enumToken`, `numFinite`, `numInteger` and the `bool*` family in `xml-read.ts` *drop*
+trustworthy. `enumToken`, `numFinite`, `numInteger` and the `bool*` family in `xml-scan.ts` *drop*
 what they cannot read, where the writer throws. A file the library did not write is allowed to be
 wrong, and losing one attribute beats losing the sheet; a value an author supplied is a mistake at
 the call. Both halves lean on one guard per enumeration, so what the reader accepts is always

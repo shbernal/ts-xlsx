@@ -34,7 +34,7 @@ import {
   type UnderlineStyle,
 } from '../../core/style.ts';
 import {TABLE_STYLE_ELEMENT_TYPES, type TableStyle} from '../../core/table-style.ts';
-import {decodeEntities} from '../../xml/xml-read.ts';
+import {decodeEntities} from '../../xml/xml-scan.ts';
 import {
   assertRepresentable,
   checkedToken,

@@ -23,14 +23,8 @@ import {
 } from '../../core/data-validation.ts';
 import {decodeSqrefRects} from '../../core/merge.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {
-  boolStrict,
-  coerceNumericLiteral,
-  type CollectingPass,
-  localName,
-  type SaxHandlers,
-  TextCapture,
-} from '../../xml/xml-read.ts';
+import {type CollectingPass, type SaxHandlers, TextCapture} from '../../xml/xml-read.ts';
+import {boolStrict, coerceNumericLiteral, localName} from '../../xml/xml-scan.ts';
 import {checkedToken, escapeAttr, escapeText, stripFormulaEquals, textAttr} from '../../xml/xml.ts';
 // The x14/xm extension namespaces and `DATA_VALIDATION_EXT_URI` are declared inline on the elements
 // that need them, exactly as Excel writes them, so the block is self-contained and the worksheet root

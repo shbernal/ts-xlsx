@@ -12,7 +12,7 @@
 // interning table; it just happened to be where the first caller was.
 
 import {type Color, parseArgb} from '../../core/style.ts';
-import {numFinite, numInteger} from '../../xml/xml-read.ts';
+import {numFinite, numInteger} from '../../xml/xml-scan.ts';
 import {numberText} from '../../xml/xml.ts';
 
 // The write side of the ARGB grammar `parseArgb` states: this is the single choke point through

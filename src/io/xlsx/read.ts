@@ -29,16 +29,8 @@ import {
 } from '../../core/workbook-protection.ts';
 import {type DefinedName, Workbook, type WorkbookView} from '../../core/workbook.ts';
 import {isVisibility, type Worksheet, type WorksheetState} from '../../core/worksheet.ts';
-import {
-  boolStrict,
-  capturedText,
-  enumToken,
-  localName,
-  numInteger,
-  openElements,
-  parseXml,
-  parseXmlPasses,
-} from '../../xml/xml-read.ts';
+import {capturedText, openElements, parseXml, parseXmlPasses} from '../../xml/xml-read.ts';
+import {boolStrict, enumToken, localName, numInteger} from '../../xml/xml-scan.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
 import {extensionOf, resolveRelativePart} from '../opc/part-paths.ts';
 import {

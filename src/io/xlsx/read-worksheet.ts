@@ -29,6 +29,7 @@ import {
 } from '../../core/protection.ts';
 import {assignStyleFacets} from '../../core/style.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import {type SaxHandlers, type SaxPass} from '../../xml/xml-read.ts';
 import {
   boolPresent,
   boolStrict,
@@ -37,10 +38,8 @@ import {
   localName,
   numFinite,
   numInteger,
-  type SaxHandlers,
-  type SaxPass,
   type XmlAttributes,
-} from '../../xml/xml-read.ts';
+} from '../../xml/xml-scan.ts';
 import type {XfStyle} from '../style/xf-style.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
 import type {SharedString} from './cell-value.ts';

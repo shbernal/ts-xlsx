@@ -22,7 +22,7 @@ import {
   type ThemeFontScheme,
   type ThemeOverrides,
 } from '../../core/theme.ts';
-import {decodeEntities} from '../../xml/xml-read.ts';
+import {decodeEntities} from '../../xml/xml-scan.ts';
 import {escapeAttr} from '../../xml/xml.ts';
 
 // One `<a:slot>` of a `<a:clrScheme>` and the colour element inside it. Two colour models appear in

@@ -21,13 +21,8 @@
 import {MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
 import type {CellValue} from '../../core/value.ts';
 import {AuthoringError} from '../../errors.ts';
-import {
-  boolStrict,
-  closeEmptyElements,
-  localName,
-  numInteger,
-  xmlEvents,
-} from '../../xml/xml-read.ts';
+import {closeEmptyElements} from '../../xml/xml-read.ts';
+import {boolStrict, localName, numInteger, xmlEvents} from '../../xml/xml-scan.ts';
 import {openSpreadsheetPackage, readPartRelationships} from '../opc/read-opc.ts';
 import {unsupportedWorkbookPart} from '../opc/sniff-format.ts';
 import {CellAccumulator} from './cell-accumulator.ts';

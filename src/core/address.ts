@@ -15,7 +15,7 @@
 // `decodeRange` face a caller and throw, because a reference a caller supplied is a mistake at the
 // call. `tryDecodeCellRef`/`tryDecodeRange` face a file and return `undefined`, because a file this
 // library did not write is allowed to be wrong and losing one attribute beats losing the sheet.
-// Read-side code uses the second pair and nothing else; the rule and the reasoning are `xml-read.ts`'s.
+// Read-side code uses the second pair and nothing else; the rule and the reasoning are `xml-scan.ts`'s.
 
 /** Excel's column bounds: `A` (1) through `XFD` (16384). */
 export const MAX_COLUMN = 16384;
@@ -206,7 +206,7 @@ export function decodeCellRef(reference: string): CellPosition {
 
 // The tolerant half of the decoders, and the read side's only door to them.
 //
-// `xml-read.ts` states the rule these honour: a file the library did not write is allowed to be
+// `xml-scan.ts` states the rule these honour: a file the library did not write is allowed to be
 // wrong, and losing one attribute beats losing the sheet. Every other foreign scalar already has
 // its tolerant reader (`numInteger`, `boolTristate`, `enumToken`); a reference had none, so a
 // malformed `r`/`ref`/`sqref` in an untrusted package aborted the whole read with a native

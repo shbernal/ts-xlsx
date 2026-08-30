@@ -28,20 +28,22 @@ import {
   type TableStyleTable,
 } from '../../core/style.ts';
 import {
+  closeEmptyElements,
+  elementSubtrees,
+  openElements,
+  type SubtreeSelection,
+} from '../../xml/xml-read.ts';
+import {
   boolPresent,
   boolStrict,
   boolTristate,
-  closeEmptyElements,
-  elementSubtrees,
   localName,
   numFinite,
   numInteger,
-  openElements,
-  type SubtreeSelection,
   type XmlAttributes,
   type XmlEvent,
   xmlEvents,
-} from '../../xml/xml-read.ts';
+} from '../../xml/xml-scan.ts';
 import {
   NO_PRESERVED_STYLE_TABLES,
   numFmtCodeFor,

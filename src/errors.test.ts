@@ -13,7 +13,7 @@ import {XlsxParseError} from './io/xlsx/errors.ts';
 import {writeXlsx} from './io/xlsx/write.ts';
 import {VbaAuthorError, VbaParseError} from './vba/errors.ts';
 import {XmlParseError} from './xml/errors.ts';
-import {xmlEvents} from './xml/xml-read.ts';
+import {xmlEvents} from './xml/xml-scan.ts';
 
 // Every class in the taxonomy, with the code it is contracted to carry. A class added without a
 // row here is one whose category nobody chose. The `every class` tests below are only as complete

@@ -2,7 +2,8 @@
 // Split out of read.ts beside its sibling parsers (read-styles.ts, rich-runs.ts) so read.ts stays
 // orchestration; the run structure it decodes is owned by RunAccumulator, shared with inline strings.
 
-import {localName, parseXml} from '../../xml/xml-read.ts';
+import {parseXml} from '../../xml/xml-read.ts';
+import {localName} from '../../xml/xml-scan.ts';
 import type {SharedString} from './cell-value.ts';
 import {RunAccumulator} from './rich-runs.ts';
 

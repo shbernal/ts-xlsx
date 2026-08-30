@@ -27,7 +27,8 @@ same component that path will extend, not throwaway work.
 
 ## Decision
 
-- **The reader is a lean, hand-written SAX pull parser** (`src/io/xlsx/xml-read.ts`),
+- **The reader is a lean, hand-written SAX pull parser** (`src/xml/xml-scan.ts`; see the
+  2026-08-30 update below, and note it lived at `src/io/xlsx/xml-read.ts` when this was written),
   no XML-library dependency. It emits open/text/close events in a single O(n) pass with
   no recursion; the OOXML reader (`src/io/xlsx/read.ts`) consumes them and builds only
   the model, so peak memory tracks real content, not document structure.
@@ -137,3 +138,24 @@ so there is exactly one `RawCell`-build and one decode. Sharing gathering while 
 is what lets the two readers stay honest to their different contracts without duplicating the fragile
 part. A malformed non-empty `<c r>` now throws in `beginCell` for *both* readers, closing another way
 the two could have diverged.
+
+## Update (2026-08-30): the scanner and the ways of driving it are two modules
+
+The parser grew a second half. Beside `xmlEvents` there are now the pull generators a reader writes
+a `for..of` over (`openElements`, `capturedText`), the push adapter and the multi-pass driver that
+lets five readers of the worksheet part share one scan of it, the verbatim subtree capture
+(`elementSubtrees`, itself a second scanner over the same text), and `TextCapture`. Those are ways
+of *driving* a scan, and they had accumulated in the same file as the scan.
+
+They are now `src/xml/xml-read.ts`, and the scanner - the events, and the readings of one
+attribute's text that go with them - is `src/xml/xml-scan.ts`. Nothing changed about the parse; the
+seam is where a helper stops answering "what does this markup say" and starts walking a document.
+
+What forced the question was a bundle budget. `/customui` is a ribbon reader that wants `xmlEvents`,
+`localName` and `boolStrict` and none of the traversals, so every helper added to the far half was
+charged to that entry's closure: it drifted 3 KB over its 16 KB budget on growth it will never call.
+That is precisely the drift the per-entry budgets of [ADR 0023](./0023-subpath-entry-points-and-disjoint-barrels.md)
+exist to surface, and the honest fix was the module boundary rather than the number. `elementSubtrees`
+is why the scanner exports `markupAt` and `tagAt` rather than keeping them private: the two scanners
+must agree to the character about where an element ends, which is the property the shared
+classification was introduced to guarantee.

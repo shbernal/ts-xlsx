@@ -16,7 +16,8 @@ import {
   type TableStyleInfo,
   type TotalsRowFunction,
 } from '../../core/table.ts';
-import {boolPresent, localName, numInteger, parseXml, TextCapture} from '../../xml/xml-read.ts';
+import {parseXml, TextCapture} from '../../xml/xml-read.ts';
+import {boolPresent, localName, numInteger} from '../../xml/xml-scan.ts';
 import {boolAttr, escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
 import {NS} from './relationships.ts';
 
