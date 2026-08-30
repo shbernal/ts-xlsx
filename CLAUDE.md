@@ -114,7 +114,11 @@ that is not done — it is in progress.
   everything regenerable — lives in the repo's `.tmp/` (also exported as `$SCRATCH`, and as
   `$TMPDIR` for shells that would otherwise find it unset). Never the repo root, never an
   absolute system temp path: in-repo keeps it inspectable and already git-ignored, and
-  relative keeps the command short enough to reuse.
+  relative keeps the command short enough to reuse. A probe earns its place only while its
+  question is open: once the answer is locked somewhere durable (a test, a corpus case, a
+  fixture's recorded verdict, an ADR), delete the probe in the same change that lands the
+  answer. Scratch that outlives the work it served is not a record, it is a haystack, and a
+  `.tmp/` nobody can read is no longer inspectable, which was the whole reason it lives here.
 - **Commit messages go through a file, never through a shell.** Write the message with
   your file-writing tool, then `git commit -F <file>`. Only a one-line
   `git commit -m "subject"` may be typed inline. This is not style: an agent on Windows
