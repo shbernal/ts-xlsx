@@ -262,7 +262,11 @@ class StreamedSheetReader implements StreamedSheet {
 
   get merges(): readonly string[] {
     this.#ensureScanned();
-    return this.#merges;
+    // Copied, like `hiddenColumns` above: `readonly` is a compile-time claim only, and handing out
+    // the live array lets an untyped caller edit the reader's state. `rows()` also assigns a fresh
+    // array on each iteration, so a caller holding this one across a second pass would be holding a
+    // detached snapshot without having been told.
+    return [...this.#merges];
   }
 
   // Drain a scan purely for its summaries when the caller reads them without (or before) iterating
