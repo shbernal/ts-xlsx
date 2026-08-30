@@ -158,8 +158,6 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // those conversations, not alongside the other workbook-level parts below.
   readWorkbookPersons(workbookRels, pkg, workbook);
 
-  // A picture used on more than one sheet is one media part; caching by media path keeps it a single
-  // workbook image so a re-write does not duplicate the bytes.
   const context: SheetReadContext = {
     pkg,
     workbook,
