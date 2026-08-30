@@ -56,7 +56,9 @@ import {
 } from '../opc/read-opc.ts';
 import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-options.ts';
 import {inflateSpreadsheetPackage} from '../opc/sniff-format.ts';
+import type {XfStyle} from '../style/xf-style.ts';
 import {readXlsbPackage, XLSB_WORKBOOK_PART} from '../xlsb/read.ts';
+import type {SharedString} from './cell-value.ts';
 import {applyNotes, type ParsedComment, parseComments} from './comments.ts';
 import {conditionalFormattingPass} from './conditional-formatting.ts';
 import {
@@ -166,56 +168,22 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
 
   // A picture used on more than one sheet is one media part; caching by media path keeps it a single
   // workbook image so a re-write does not duplicate the bytes.
-  const imageIdByMediaPath = new Map<string, number>();
+  const context: SheetReadContext = {
+    pkg,
+    workbook,
+    contentTypeOf,
+    sharedStrings,
+    xfStyles,
+    // A picture used on more than one sheet is one media part; caching by media path across the
+    // whole loop keeps it a single workbook image so a re-write does not duplicate the bytes.
+    imageIdByMediaPath: new Map<string, number>(),
+  };
   const sheetOrder: string[] = [];
   for (const {name, relId, state} of parseWorkbookSheets(workbookXml)) {
     const target = rels.get(relId);
     const sheet = workbook.addWorksheet(name, state === undefined ? undefined : {state});
     sheetOrder.push(name);
-    const path = target === undefined ? undefined : resolveWorkbookPart(target);
-    const sheetXml = path === undefined ? undefined : partText(path);
-    // Five readers want the worksheet part, and it is the largest in the package by a wide margin, so
-    // they share one parse of it rather than scanning it once each. Only the body commits as it goes;
-    // the other four gather, and are applied below, after the sheet's relationships are in hand
-    // (a hyperlink resolves its target through them) and in the order they were always applied.
-    const hyperlinks = sheetHyperlinkPass();
-    const validations = dataValidationPass();
-    const extendedValidations = extendedDataValidationPass();
-    const formattings = conditionalFormattingPass();
-    if (sheetXml !== undefined) {
-      parseXmlPasses(sheetXml, [
-        worksheetPass(sheet, sharedStrings, xfStyles),
-        hyperlinks,
-        validations,
-        extendedValidations,
-        formattings,
-      ]);
-    }
-    if (path !== undefined) {
-      // The sheet's rels are the index to nearly every part hanging off it, so they are parsed once
-      // here and threaded through the readers below rather than re-read by each.
-      const sheetRels = readPartRelationships(path, partText);
-      if (sheetXml !== undefined) {
-        applyHyperlinks(sheet, hyperlinks.result(), (id) => sheetRels.byId(id)?.target);
-        applyDataValidations(sheet, [...validations.result(), ...extendedValidations.result()]);
-        for (const cf of formattings.result()) sheet.addConditionalFormatting(cf);
-      }
-      // Threads before notes: a threaded cell's comments-part entry is the thread's legacy fallback, not
-      // a note, and `applyNotes` reads the sheet's restored threads to tell the two apart.
-      const threads = readSheetCommentThreads(sheetRels, pkg, workbook);
-      if (threads.length > 0) sheet[INTERNAL].restoreCommentThreads(threads);
-      const comments = readSheetComments(sheetRels, pkg);
-      if (comments !== undefined) applyNotes(sheet, comments);
-      readSheetImages(sheetRels, pkg, workbook, sheet, imageIdByMediaPath);
-      readSheetBackground(sheetRels, pkg, workbook, sheet, imageIdByMediaPath);
-      if (sheetXml !== undefined) {
-        readSheetPreservedReferences(sheetRels, sheetXml, pkg, contentTypeOf, sheet);
-      }
-      readSheetTables(sheetRels, pkg, sheet);
-      readSheetPivotTables(sheetRels, pkg, sheet);
-      const printerSettings = readSheetPrinterSettings(sheetRels, pkg);
-      if (printerSettings !== undefined) sheet.pageSetup.printerSettings = printerSettings;
-    }
+    readSheet(sheet, target === undefined ? undefined : resolveWorkbookPart(target), context);
   }
 
   readWorkbookPreservedReferences(workbookXml, pkg, contentTypeOf, workbook);
@@ -227,6 +195,89 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
     workbook.defineName(name);
   }
   return workbook;
+}
+
+/**
+ * Everything a single sheet needs from the package around it, gathered once for the whole sheet loop
+ * so {@link readSheet} takes a context rather than seven positional arguments. `imageIdByMediaPath`
+ * is the one mutable member, and is deliberately shared across sheets: that sharing is what makes a
+ * picture used on two of them resolve to one workbook image rather than two copies of the bytes.
+ */
+interface SheetReadContext {
+  readonly pkg: PackageAccessors;
+  readonly workbook: Workbook;
+  readonly contentTypeOf: (path: string) => string;
+  readonly sharedStrings: readonly SharedString[];
+  readonly xfStyles: readonly XfStyle[];
+  readonly imageIdByMediaPath: Map<string, number>;
+}
+
+/**
+ * Read one worksheet at `path`: its body, the four overlays that ride the same parse of the worksheet
+ * part, and every part hanging off the sheet's own relationships.
+ *
+ * The stages are ordered, not merely sequential, and each constraint is non-local:
+ *
+ * - the overlays are gathered during the body's parse but *applied* only once the sheet's rels are in
+ *   hand, because a hyperlink resolves its target through them;
+ * - threads land before notes, because a threaded cell's comments-part entry is that thread's legacy
+ *   fallback rather than a note, and `applyNotes` reads the restored threads to tell the two apart;
+ * - preserved references are captured after the images, because that capture excludes what the image
+ *   reader already modelled and would otherwise re-emit a drawing the writer also emits.
+ *
+ * Defined names are deliberately *not* read here: a sheet-scoped name indexes the workbook's sheet
+ * order, so `readXlsx` reads them only once every sheet is registered.
+ *
+ * A sheet whose relationship is dangling (`path === undefined`) stays an empty sheet in its place in
+ * the order rather than vanishing from the workbook.
+ */
+function readSheet(sheet: Worksheet, path: string | undefined, context: SheetReadContext): void {
+  const {pkg, workbook, contentTypeOf, sharedStrings, xfStyles, imageIdByMediaPath} = context;
+  const {partText} = pkg;
+  const sheetXml = path === undefined ? undefined : partText(path);
+
+  // Five readers want the worksheet part, and it is the largest in the package by a wide margin, so
+  // they share one parse of it rather than scanning it once each. Only the body commits as it goes;
+  // the other four gather, and are applied below in the order they were always applied.
+  const hyperlinks = sheetHyperlinkPass();
+  const validations = dataValidationPass();
+  const extendedValidations = extendedDataValidationPass();
+  const formattings = conditionalFormattingPass();
+  if (sheetXml !== undefined) {
+    parseXmlPasses(sheetXml, [
+      worksheetPass(sheet, sharedStrings, xfStyles),
+      hyperlinks,
+      validations,
+      extendedValidations,
+      formattings,
+    ]);
+  }
+  if (path === undefined) return;
+
+  // The sheet's rels are the index to nearly every part hanging off it, so they are parsed once here
+  // and threaded through the readers below rather than re-read by each.
+  const sheetRels = readPartRelationships(path, partText);
+  if (sheetXml !== undefined) {
+    applyHyperlinks(sheet, hyperlinks.result(), (id) => sheetRels.byId(id)?.target);
+    applyDataValidations(sheet, [...validations.result(), ...extendedValidations.result()]);
+    for (const cf of formattings.result()) sheet.addConditionalFormatting(cf);
+  }
+
+  const threads = readSheetCommentThreads(sheetRels, pkg, workbook);
+  if (threads.length > 0) sheet[INTERNAL].restoreCommentThreads(threads);
+  const comments = readSheetComments(sheetRels, pkg);
+  if (comments !== undefined) applyNotes(sheet, comments);
+
+  readSheetImages(sheetRels, pkg, workbook, sheet, imageIdByMediaPath);
+  readSheetBackground(sheetRels, pkg, workbook, sheet, imageIdByMediaPath);
+  if (sheetXml !== undefined) {
+    readSheetPreservedReferences(sheetRels, sheetXml, pkg, contentTypeOf, sheet);
+  }
+
+  readSheetTables(sheetRels, pkg, sheet);
+  readSheetPivotTables(sheetRels, pkg, sheet);
+  const printerSettings = readSheetPrinterSettings(sheetRels, pkg);
+  if (printerSettings !== undefined) sheet.pageSetup.printerSettings = printerSettings;
 }
 
 // A sheet's comments live in a comments part reached through the sheet's own relationships: the sheet
