@@ -153,6 +153,24 @@ or two such edges, that is the signal it is not one. The media block on `Workboo
 example of a candidate that fails it: `exportImages`/`importImages` reach five different things on
 `Worksheet`, so grouping them would move the coupling rather than remove it.
 
+A collection accessor on either class hands back the *live* array, not a copy, and that is a
+decision rather than an omission. These are views onto a document that is still being edited: a
+caller holding `workbook.worksheets` across an `addWorksheet` should see the sheet that was just
+added, exactly as it would from a re-read, and a copy would quietly turn every such reference into a
+snapshot taken at a moment the caller did not choose. It is also the cheap answer on paths that read
+them per sheet or per row. What `readonly` buys is a compile-time refusal, and it is honest about
+being only that: an untyped caller can push onto `merges` and leave `MergeIndex` believing something
+the list no longer says. That is the same class of hazard as reaching into any other internal, and
+the library does not defend against it here.
+
+`StreamedSheetReader.merges` (`io/xlsx/read-rows.ts`) does copy, and the reason is not that one is
+more careful than the other. Its array is *reassigned* on each pass over the part, so a caller
+holding the live one across a second iteration would be holding a detached snapshot without ever
+having been told - the very thing the model's live array is not. Copying is what makes the detachment
+explicit at the one place it can happen. The rule, then, is about lifetime rather than about trust:
+an accessor on the owner of the state returns the state; an accessor on a transient view over
+somebody else's scan returns a copy.
+
 `Worksheet` is still over the thousand lines after those two, and deliberately so. What is left on
 it is the grid and the things that reach into the grid constantly: tables and pivots materialise
 header and totals rows and re-pin themselves through `GridEdits` on every splice, so lifting them

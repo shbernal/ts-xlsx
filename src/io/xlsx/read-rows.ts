@@ -257,10 +257,12 @@ class StreamedSheetReader implements StreamedSheet {
 
   get merges(): readonly string[] {
     this.#ensureScanned();
-    // Copied, like `hiddenColumns` above: `readonly` is a compile-time claim only, and handing out
-    // the live array lets an untyped caller edit the reader's state. `rows()` also assigns a fresh
-    // array on each iteration, so a caller holding this one across a second pass would be holding a
-    // detached snapshot without having been told.
+    // Copied, like `hiddenColumns` above, and for the reason the model's collection accessors are
+    // not: `rows()` assigns a fresh array on each iteration, so a caller holding the live one across
+    // a second pass would be holding a detached snapshot without ever having been told. A copy makes
+    // that explicit at the one place it can happen. A `Worksheet` accessor hands back its live array
+    // because it *is* the owner and the array outlives the call; see the collection-accessor rule in
+    // `docs/architecture.md`.
     return [...this.#merges];
   }
 
