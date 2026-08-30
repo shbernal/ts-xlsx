@@ -101,13 +101,6 @@ export function resolveRelativePart(basePart: string, target: string): string {
   return out.join('/');
 }
 
-// A workbook relationship target is relative to the `xl/` directory (`worksheets/sheet1.xml`)
-// or absolute from the package root (`/xl/worksheets/sheet1.xml`); normalise both to a part path.
-export function resolveWorkbookPart(target: string): string {
-  if (target.startsWith('/')) return target.slice(1);
-  return `xl/${target.replace(/^\.\//, '')}`;
-}
-
 // A relationship as declared, with the fields a preserved-part closure needs: its id, Type URI,
 // Target, and whether the target lies outside the package (`TargetMode="External"`). This is the one
 // shape a `.rels` part is read into; the narrower views above and below are projections of it, so the

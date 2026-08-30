@@ -1231,6 +1231,40 @@ test('editXlsxVbaRemoveModule drops a stale signature part', () => {
   assert.equal(after['xl/vbaProjectSignature.bin'], undefined, 'the signature part is dropped');
 });
 
+// The same package with its office document one directory deeper, the shape a producer other than
+// Excel may emit: OPC fixes nothing but `_rels/.rels`, so `xl/` is a convention rather than a rule and
+// every target below it is resolved relative to its referrer.
+function nestedXlsmPackage(vbaBin: Uint8Array): Uint8Array {
+  const files = unzipSync(xlsmPackage(vbaBin));
+  const moved: Record<string, Uint8Array> = {};
+  for (const [name, bytes] of Object.entries(files)) {
+    moved[name.startsWith('xl/') ? `xl/sub/${name.slice('xl/'.length)}` : name] = bytes;
+  }
+  moved['_rels/.rels'] = strToU8(
+    strFromU8(files['_rels/.rels']!).replace(
+      'Target="xl/workbook.xml"',
+      'Target="xl/sub/workbook.xml"',
+    ),
+  );
+  moved['[Content_Types].xml'] = strToU8(
+    strFromU8(files['[Content_Types].xml']!).replaceAll('PartName="/xl/', 'PartName="/xl/sub/'),
+  );
+  return zipSync(moved);
+}
+
+test('editXlsxVbaRemoveModule finds a project whose workbook is not at xl/workbook.xml', () => {
+  const pkg = nestedXlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
+
+  const after = unzipSync(editXlsxVbaRemoveModule(pkg, 'Module1'));
+
+  const project = parseVbaProject(after['xl/sub/vbaProject.bin']!);
+  assert.deepEqual(
+    project.modules.map((m) => m.name),
+    ['ThisWorkbook', 'Class1'],
+    'the relationship target resolves against the workbook that declares it, not against a fixed xl/',
+  );
+});
+
 test('editXlsxVbaRemoveModule throws for a macro-free package', () => {
   const wb = new Workbook();
   wb.addWorksheet('Sheet1');

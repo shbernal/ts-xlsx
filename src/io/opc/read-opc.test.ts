@@ -13,7 +13,6 @@ import {
   packageAccessors,
   readPartRelationships,
   resolveRelativePart,
-  resolveWorkbookPart,
 } from './read-opc.ts';
 
 // Path resolution is a hostile-input parser path: a relationship Target comes verbatim from an
@@ -45,58 +44,14 @@ test('resolveRelativePart drops empty segments from a doubled slash', () => {
   );
 });
 
-test('resolveWorkbookPart roots a relative target under `xl/`', () => {
-  assert.strictEqual(
-    resolveWorkbookPart('worksheets/sheet1.xml'),
-    'xl/worksheets/sheet1.xml',
-    'a workbook-relative target is prefixed with the xl directory',
-  );
-});
-
-test('resolveWorkbookPart treats a leading slash as package-root-absolute', () => {
-  assert.strictEqual(
-    resolveWorkbookPart('/xl/styles.xml'),
-    'xl/styles.xml',
-    'an absolute target is not prefixed, only de-slashed',
-  );
-});
-
-test('resolveWorkbookPart strips a leading `./` before rooting under `xl/`', () => {
-  assert.strictEqual(
-    resolveWorkbookPart('./styles.xml'),
-    'xl/styles.xml',
-    'the current-directory prefix does not double the xl segment',
-  );
-});
-
-test('resolving a workbook target against `xl/workbook.xml` agrees with rooting it under `xl/`', () => {
-  // The workbook's own relationships are read through `readPartRelationships('xl/workbook.xml', ...)`,
-  // which resolves relative to the part rather than through `resolveWorkbookPart`. For every target a
-  // real package carries, the two agree, and that agreement is what makes the workbook's rels readable
-  // with the same machinery as a sheet's.
-  for (const target of [
-    'worksheets/sheet1.xml',
-    '/xl/styles.xml',
-    './styles.xml',
-    'theme/theme1.xml',
-  ]) {
-    assert.strictEqual(
-      resolveRelativePart('xl/workbook.xml', target),
-      resolveWorkbookPart(target),
-      `the two resolvers agree on ${target}`,
-    );
-  }
-});
-
-test('a workbook target escaping `xl/` resolves to a real part path rather than an unwalkable one', () => {
-  // The one shape the two do not agree on, and the direction of the disagreement is the point:
-  // `resolveWorkbookPart` only prefixes, so it yields a path with a `..` still in it that can never
-  // match a package part, while resolving against the part collapses the segment as OPC says to.
+test('a workbook target escaping `xl/` resolves to a part path outside it', () => {
+  // The workbook's own relationships resolve against the workbook part like any other part's do, so a
+  // target that climbs out of `xl/` lands where OPC says it does. A resolver that only prefixed `xl/`
+  // would yield a path with the `..` still in it, which no package part can ever answer to.
   assert.strictEqual(
     resolveRelativePart('xl/workbook.xml', '../docProps/custom.xml'),
     'docProps/custom.xml',
   );
-  assert.strictEqual(resolveWorkbookPart('../docProps/custom.xml'), 'xl/../docProps/custom.xml');
 });
 
 // An externalLink part points at its source workbook through a `TargetMode="External"` relationship.

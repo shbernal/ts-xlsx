@@ -27,7 +27,6 @@ import {
   parseRelationshipRecords,
   relationshipTargetByType,
   resolveRelativePart,
-  resolveWorkbookPart,
 } from '../opc/read-opc.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 
@@ -111,15 +110,7 @@ function locateVbaProjectPart(files: Record<string, Uint8Array>): string | undef
   if (workbookRels === undefined) return undefined;
   const vbaTarget = relationshipTargetByType(workbookRels, VBA_PROJECT_REL);
   if (vbaTarget === undefined) return undefined;
-  return resolveVbaTarget(workbookPath, vbaTarget);
-}
-
-// The workbook's vbaProject relationship uses a workbook-relative target (`vbaProject.bin`); resolve it
-// through the workbook-part rule so both that and an absolute `/xl/vbaProject.bin` land on the part path.
-function resolveVbaTarget(workbookPath: string, target: string): string {
-  if (target.startsWith('/')) return target.slice(1);
-  if (workbookPath.startsWith('xl/')) return resolveWorkbookPart(target);
-  return resolveRelativePart(workbookPath, target);
+  return resolveRelativePart(workbookPath, vbaTarget);
 }
 
 // Editing the project invalidates any signature over it, so remove every signature part the project's
