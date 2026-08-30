@@ -88,14 +88,14 @@ jobs:
 
           echo "tag=${tag} prerelease=${prerelease} dry_run=${DRY_RUN:-false}"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The tag, never the branch the release was cut from: master moves on, and what
           # ships must be the commit the release names.
           ref: ${{ steps.target.outputs.tag }}
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
       # `registry-url` is required, not optional, and not merely a default being restated: it
       # writes the .npmrc entry that tells npm which registry this publish authenticates
@@ -105,11 +105,16 @@ jobs:
       # private dependencies.
       #
       # No dependency cache: a release build should resolve everything from the lockfile
-      # rather than from whatever a previous run left behind.
-      - uses: actions/setup-node@v4
+      # rather than from whatever a previous run left behind. Since v5 this action caches on
+      # its own when package.json names a package manager, so omitting `cache` no longer
+      # states that — `package-manager-cache: false` does. Today the automatic path only
+      # fires for npm and this repo is on pnpm, which makes the line look redundant; it is
+      # what keeps the property from depending on that coincidence.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
 
       # Trusted publishing needs npm >= 11.5.1; Node 24 does not yet ship one that new.
       # Pinned to the major that implements the OIDC exchange, not to `latest`, so a future
