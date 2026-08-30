@@ -28,7 +28,6 @@ import {
   coerceNumericLiteral,
   type CollectingPass,
   localName,
-  parseXmlPasses,
   type SaxHandlers,
   TextCapture,
 } from '../../xml/xml-read.ts';
@@ -127,8 +126,7 @@ function extendedDataValidationXml(sqref: string, rule: DataValidation): string 
 }
 
 /** A pass gathering the standard `<dataValidation>` elements of a worksheet part, for a caller
- * reading the part alongside its other readers in one parse. {@link parseDataValidations} is the same
- * thing over a parse of its own. */
+ * reading the part alongside its other readers in one parse. */
 export function dataValidationPass(): CollectingPass<DataValidationEntry[]> {
   const entries: DataValidationEntry[] = [];
   let current: {attrs: Record<string, string>; formulae: string[]} | undefined;
@@ -167,13 +165,6 @@ export function dataValidationPass(): CollectingPass<DataValidationEntry[]> {
     },
   };
   return {handlers, result: () => entries};
-}
-
-/** Parse every standard `<dataValidation>` out of a worksheet part into range-bound rules. */
-export function parseDataValidations(xml: string): DataValidationEntry[] {
-  const pass = dataValidationPass();
-  parseXmlPasses(xml, [pass]);
-  return pass.result();
 }
 
 function buildEntry(
@@ -279,14 +270,6 @@ export function extendedDataValidationPass(): CollectingPass<DataValidationEntry
     },
   };
   return {handlers, result: () => entries};
-}
-
-/** Parse every extended `<x14:dataValidation>` out of a worksheet's `<extLst>` into range-bound
- * rules tagged `extended`, over a parse of its own. */
-export function parseExtendedDataValidations(xml: string): DataValidationEntry[] {
-  const pass = extendedDataValidationPass();
-  parseXmlPasses(xml, [pass]);
-  return pass.result();
 }
 
 function buildExtendedEntry(

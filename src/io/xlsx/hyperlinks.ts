@@ -13,7 +13,7 @@
 import {tryDecodeRange} from '../../core/address.ts';
 import {type HyperlinkValue, isHyperlinkValue, isRichTextValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {type CollectingPass, localName, parseXmlPasses} from '../../xml/xml-read.ts';
+import {type CollectingPass, localName} from '../../xml/xml-read.ts';
 import {escapeAttr, textAttr} from '../../xml/xml.ts';
 import type {SheetRelIds} from './package-plan.ts';
 
@@ -100,8 +100,7 @@ interface ParsedHyperlink {
 }
 
 /** A pass gathering every `<hyperlink>` element of a worksheet part, for a caller reading the part
- * alongside its other readers in one parse. {@link parseSheetHyperlinks} is the same thing over a
- * parse of its own. */
+ * alongside its other readers in one parse. */
 export function sheetHyperlinkPass(): CollectingPass<ParsedHyperlink[]> {
   const links: ParsedHyperlink[] = [];
   return {
@@ -120,13 +119,6 @@ export function sheetHyperlinkPass(): CollectingPass<ParsedHyperlink[]> {
     },
     result: () => links,
   };
-}
-
-/** Parse every `<hyperlink>` element out of a worksheet part. */
-export function parseSheetHyperlinks(xml: string): ParsedHyperlink[] {
-  const pass = sheetHyperlinkPass();
-  parseXmlPasses(xml, [pass]);
-  return pass.result();
 }
 
 /** Fold parsed hyperlinks onto a sheet's cells, wrapping each cell's existing value (its visible

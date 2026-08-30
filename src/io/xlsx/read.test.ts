@@ -9,15 +9,10 @@ import {DEFAULT_WORKBOOK_VIEW, Workbook} from '../../core/workbook.ts';
 import {Worksheet} from '../../core/worksheet.ts';
 import {parseXmlPasses} from '../../xml/xml-read.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
-import {conditionalFormattingPass, parseConditionalFormattings} from './conditional-formatting.ts';
-import {
-  dataValidationPass,
-  extendedDataValidationPass,
-  parseDataValidations,
-  parseExtendedDataValidations,
-} from './data-validation.ts';
-import {parseSheetHyperlinks, sheetHyperlinkPass} from './hyperlinks.ts';
-import {parseWorksheet, worksheetPass} from './read-worksheet.ts';
+import {conditionalFormattingPass} from './conditional-formatting.ts';
+import {dataValidationPass, extendedDataValidationPass} from './data-validation.ts';
+import {sheetHyperlinkPass} from './hyperlinks.ts';
+import {worksheetPass} from './read-worksheet.ts';
 import {applyWorkbookView, readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -1666,11 +1661,11 @@ test('the worksheet part is read in one pass, not once per reader', () => {
   const xml = strFromU8(unzipSync(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] as Uint8Array);
 
   const separate = fastestRun(3, () => {
-    parseWorksheet(xml, new Worksheet('S', 1), [], []);
-    parseSheetHyperlinks(xml);
-    parseDataValidations(xml);
-    parseExtendedDataValidations(xml);
-    parseConditionalFormattings(xml);
+    parseXmlPasses(xml, [worksheetPass(new Worksheet('S', 1), [], [])]);
+    parseXmlPasses(xml, [sheetHyperlinkPass()]);
+    parseXmlPasses(xml, [dataValidationPass()]);
+    parseXmlPasses(xml, [extendedDataValidationPass()]);
+    parseXmlPasses(xml, [conditionalFormattingPass()]);
   });
   const shared = fastestRun(3, () => {
     parseXmlPasses(xml, [

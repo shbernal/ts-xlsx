@@ -38,7 +38,6 @@ import {
   localName,
   numFinite,
   numInteger,
-  parseXmlPasses,
   type SaxHandlers,
   TextCapture,
 } from '../../xml/xml-read.ts';
@@ -461,13 +460,6 @@ export function conditionalFormattingPass(): CollectingPass<ConditionalFormattin
     return blocks;
   };
   return {handlers, result};
-}
-
-/** Parse a worksheet's conditional formatting into the model, over a parse of its own. */
-export function parseConditionalFormattings(xml: string): ConditionalFormatting[] {
-  const pass = conditionalFormattingPass();
-  parseXmlPasses(xml, [pass]);
-  return pass.result();
 }
 
 function emptyExt(): DataBarExt {

@@ -3,20 +3,23 @@ import {test} from 'node:test';
 
 import {MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {parseWorksheet} from './read-worksheet.ts';
+import {parseXmlPasses} from '../../xml/xml-read.ts';
+import {worksheetPass} from './read-worksheet.ts';
 import {sheetViewsXml} from './sheet-properties.ts';
 
 // `customWidth`/`customHeight` are xsd:booleans, so a foreign producer may spell false either way.
 // Excel writes the digit, which is why the long spelling went unnoticed for so long.
+//
+// The body pass alone, which is what every assertion below is about: none of them involves a second
+// reader of the part, so running the four the package read composes it with would add nothing to
+// check. `self-closing-capture.test.ts` is where the composition itself is under test.
 function sheet(body: string) {
   const worksheet = new Workbook().addWorksheet('S');
-  parseWorksheet(
+  parseXmlPasses(
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
       body +
       '</worksheet>',
-    worksheet,
-    [],
-    [],
+    [worksheetPass(worksheet, [], [])],
   );
   return worksheet;
 }

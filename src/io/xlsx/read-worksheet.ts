@@ -37,7 +37,6 @@ import {
   localName,
   numFinite,
   numInteger,
-  parseXmlPasses,
   type SaxHandlers,
   type SaxPass,
   type XmlAttributes,
@@ -231,7 +230,7 @@ class PageBreakAccumulator {
  * than gathering, so it has nothing to hand back once the parse ends.
  *
  * Offered as a pass because the worksheet is the largest part in a package and four other readers
- * want the same events; {@link parseWorksheet} is this over a parse of its own.
+ * want the same events, so the five share one parse of it rather than scanning it once each.
  */
 export function worksheetPass(
   sheet: Worksheet,
@@ -381,16 +380,6 @@ export function worksheetPass(
     },
   };
   return {handlers, closeEmptyElements: WORKSHEET_EMPTY_CLOSES};
-}
-
-/** Read a worksheet part into `sheet`, over a parse of its own. */
-export function parseWorksheet(
-  xml: string,
-  sheet: Worksheet,
-  sharedStrings: readonly SharedString[],
-  xfStyles: ReadonlyArray<XfStyle>,
-): void {
-  parseXmlPasses(xml, [worksheetPass(sheet, sharedStrings, xfStyles)]);
 }
 
 // Apply one `<sheetPr>` / `<sheetView>` / print-setup child to the sheet. These are the worksheet's

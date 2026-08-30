@@ -13,8 +13,6 @@ import {test} from 'node:test';
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
-import {parseConditionalFormattings} from './conditional-formatting.ts';
-import {parseExtendedDataValidations} from './data-validation.ts';
 import {parseDrawing} from './images.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {readXlsx} from './read.ts';
@@ -22,20 +20,50 @@ import {parseTable} from './tables.ts';
 import {parseThreadedComments} from './threaded-comments.ts';
 import {writeXlsx} from './write.ts';
 
+// Every parser below is reached the way a file reaches it: through a package with one part
+// rewritten, read by `readXlsx`. That matters beyond convenience for the worksheet parsers, which
+// production runs as five passes sharing one event stream; a capture that leaks in that arrangement
+// but not in a parse of its own is exactly the bug these tests exist to catch.
+function readWithPart(part: string, xml: string): Workbook {
+  const workbook = new Workbook();
+  workbook.addWorksheet('S').getCell('A1').value = 1;
+  const unzipped = unzipSync(writeXlsx(workbook));
+  const files: Record<string, Uint8Array> = {};
+  for (const [name, bytes] of Object.entries(unzipped)) {
+    files[name] = name === part ? strToU8(xml) : bytes;
+  }
+  return readXlsx(zipSync(files));
+}
+
+// The worksheet part around whatever fragment a test is pinning, with the cell `readWithPart`'s
+// guard reads back.
+const worksheetWith = (body: string): string =>
+  '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+  '<sheetData><row r="1"><c r="A1"><v>1</v></c></row></sheetData>' +
+  body +
+  '</worksheet>';
+
+const SHEET_PART = 'xl/worksheets/sheet1.xml';
+
 test('the shared-string pool keeps an empty <t/> empty and the next entry its own', () => {
   const pool = parseSharedStrings('<sst><si><t/></si><si><t>after</t></si></sst>');
   assert.deepEqual(pool, ['', 'after']);
 });
 
 test('an extended data validation keeps an empty <xm:f/> and <xm:sqref/> from eating the next', () => {
-  const entries = parseExtendedDataValidations(
-    '<x14:dataValidations>' +
-      '<x14:dataValidation type="list"><x14:formula1><xm:f/></x14:formula1>' +
-      '<xm:sqref>A1</xm:sqref></x14:dataValidation>' +
-      '<x14:dataValidation type="list"><x14:formula1><xm:f>Sheet2!A1:A3</xm:f></x14:formula1>' +
-      '<xm:sqref>B1</xm:sqref></x14:dataValidation>' +
-      '</x14:dataValidations>',
+  const back = readWithPart(
+    SHEET_PART,
+    worksheetWith(
+      '<extLst><ext><x14:dataValidations>' +
+        '<x14:dataValidation type="list"><x14:formula1><xm:f/></x14:formula1>' +
+        '<xm:sqref>A1</xm:sqref></x14:dataValidation>' +
+        '<x14:dataValidation type="list"><x14:formula1><xm:f>Sheet2!A1:A3</xm:f></x14:formula1>' +
+        '<xm:sqref>B1</xm:sqref></x14:dataValidation>' +
+        '</x14:dataValidations></ext></extLst>',
+    ),
   );
+
+  const entries = back.getWorksheet('S')?.dataValidations ?? [];
   assert.equal(entries.length, 2);
   assert.equal(entries[0]?.sqref, 'A1');
   assert.deepEqual(entries[1]?.rule.formulae, ['Sheet2!A1:A3']);
@@ -83,40 +111,37 @@ test('a table keeps an empty <totalsRowFormula/> off the column that follows it'
 });
 
 test('a conditional formatting keeps an empty <formula/> from taking the next operand', () => {
-  const blocks = parseConditionalFormattings(
-    '<worksheet><conditionalFormatting sqref="A1:A5">' +
-      '<cfRule type="cellIs" operator="between" priority="1">' +
-      '<formula/><formula>10</formula></cfRule>' +
-      '</conditionalFormatting></worksheet>',
+  const back = readWithPart(
+    SHEET_PART,
+    worksheetWith(
+      '<conditionalFormatting sqref="A1:A5">' +
+        '<cfRule type="cellIs" operator="between" priority="1">' +
+        '<formula/><formula>10</formula></cfRule>' +
+        '</conditionalFormatting>',
+    ),
   );
+
   // The empty element contributes no operand; what matters is that the one after it is `10` and not
   // an operand list shifted by one.
+  const blocks = back.getWorksheet('S')?.conditionalFormattings ?? [];
   assert.deepEqual(blocks[0]?.rules[0]?.formulae, [10]);
 });
 
 test('a data-bar extension link keeps an empty <x14:id/> from taking the next rule', () => {
-  const blocks = parseConditionalFormattings(
-    '<worksheet><conditionalFormatting sqref="A1:A5">' +
-      '<cfRule type="dataBar" priority="1"><dataBar><cfvo type="min"/><cfvo type="max"/>' +
-      '<color rgb="FF638EC6"/></dataBar>' +
-      '<extLst><ext><x14:id/></ext></extLst></cfRule>' +
-      '</conditionalFormatting></worksheet>',
+  const back = readWithPart(
+    SHEET_PART,
+    worksheetWith(
+      '<conditionalFormatting sqref="A1:A5">' +
+        '<cfRule type="dataBar" priority="1"><dataBar><cfvo type="min"/><cfvo type="max"/>' +
+        '<color rgb="FF638EC6"/></dataBar>' +
+        '<extLst><ext><x14:id/></ext></extLst></cfRule>' +
+        '</conditionalFormatting>',
+    ),
   );
+
+  const blocks = back.getWorksheet('S')?.conditionalFormattings ?? [];
   assert.equal(blocks[0]?.rules[0]?.type, 'dataBar');
 });
-
-// The two document-property parsers are private to read.ts, so they are reached the way a file
-// reaches them: through a package whose docProps part has been rewritten.
-function readWithPart(part: string, xml: string): Workbook {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').getCell('A1').value = 1;
-  const unzipped = unzipSync(writeXlsx(workbook));
-  const files: Record<string, Uint8Array> = {};
-  for (const [name, bytes] of Object.entries(unzipped)) {
-    files[name] = name === part ? strToU8(xml) : bytes;
-  }
-  return readXlsx(zipSync(files));
-}
 
 test('the core properties keep an empty <dc:title/> off the property that follows it', () => {
   const back = readWithPart(
