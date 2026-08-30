@@ -45,6 +45,15 @@ tidiness:
   it exercises (`address.ts` ↔ `address.test.ts`), imports src internals freely, and moves
   or dies with that module under refactor. Co-location keeps the test honest about one unit
   and makes an untested module visible at a glance. Run by `test:src`.
+- **Shared test support, `src/**/*.test-support.ts`.** The plumbing several co-located
+  tests need and none of them owns: unzipping a written package, reaching one part, patching
+  a part and reading the package back (`io/xlsx/package.test-support.ts`). It earns its own
+  suffix rather than living in a `.test.ts` file, which `node --test` would try to run, or in
+  a production module, which would ship it. `tsconfig.build.json` excludes the suffix, so a
+  new one is invisible to `dist/` without further wiring. One rule holds it together: an
+  accessor here fails loudly on a part that is not there. A helper that answers a missing
+  part with an empty string makes every negative assertion built on it pass for the wrong
+  reason.
 - **The regression corpus, `test/corpus/`.** Black-box and implementation-blind (see
   above): cases reach the implementation *only* through the adapter and must never import a
   src internal, because that blindness is the whole reason the corpus outlived the rewrite.
