@@ -22,12 +22,8 @@ import {
   removeVbaModule,
   type VbaLibraryReference,
 } from '../../vba/project-editor.ts';
-import {relsPathFor} from '../opc/part-paths.ts';
-import {
-  parseRelationshipRecords,
-  relationshipTargetByType,
-  resolveRelativePart,
-} from '../opc/read-opc.ts';
+import {relsPathFor, resolveRelativePart} from '../opc/part-paths.ts';
+import {parseRelationshipRecords, relationshipTargetByType} from '../opc/read-opc.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 
 const OFFICE_DOCUMENT_REL = 'officeDocument';

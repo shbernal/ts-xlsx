@@ -40,7 +40,7 @@ import {
   parseXmlPasses,
 } from '../../xml/xml-read.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
-import {extensionOf} from '../opc/part-paths.ts';
+import {extensionOf, resolveRelativePart} from '../opc/part-paths.ts';
 import {
   capturePartClosure,
   contentTypeResolver,
@@ -49,7 +49,6 @@ import {
   openSpreadsheetPackage,
   parseRelationshipRecords,
   readPartRelationships,
-  resolveRelativePart,
 } from '../opc/read-opc.ts';
 import type {ReadXlsxOptions} from '../opc/read-options.ts';
 import type {XfStyle} from '../style/xf-style.ts';

@@ -1,13 +1,14 @@
-// The OPC (Open Packaging Conventions) layer of the reader: resolving relationship targets to part
-// paths, reading a part's `.rels`, resolving a part's declared content type, and walking the transitive
-// closure of parts a preserved reference reaches. Every helper here is pure over the inflated package:
-// it takes part text/bytes accessors and returns paths or records, touching no Workbook model.
+// The OPC (Open Packaging Conventions) layer of the reader: reading a part's `.rels`, resolving a
+// part's declared content type, and walking the transitive closure of parts a preserved reference
+// reaches. Every helper here is pure over the inflated package: it takes part text/bytes accessors
+// and returns paths or records, touching no Workbook model. The path arithmetic those answers are
+// expressed in is `part-paths.ts`, which holds both directions of it.
 
 import {strFromU8} from 'fflate';
 
 import type {PreservedPart, PreservedRelationship} from '../../core/preserved.ts';
 import {openElements} from '../../xml/xml-read.ts';
-import {extensionOf, relsPathFor} from './part-paths.ts';
+import {extensionOf, relsPathFor, resolveRelativePart} from './part-paths.ts';
 import {DEFAULT_MAX_UNCOMPRESSED} from './read-options.ts';
 import {inflateSpreadsheetPackage} from './sniff-format.ts';
 
@@ -85,20 +86,6 @@ export function relationshipTargetsByType(xml: string, suffix: string): string[]
   return parseRelationshipRecords(xml)
     .filter((record) => record.type.endsWith(`/${suffix}`))
     .map((record) => record.target);
-}
-
-// Resolve a relationship target (relative to the referencing part's directory, or absolute from the
-// package root) into a package part path, collapsing `.`/`..` segments.
-export function resolveRelativePart(basePart: string, target: string): string {
-  if (target.startsWith('/')) return target.slice(1);
-  const baseDir = basePart.slice(0, basePart.lastIndexOf('/') + 1);
-  const out: string[] = [];
-  for (const segment of `${baseDir}${target}`.split('/')) {
-    if (segment === '' || segment === '.') continue;
-    if (segment === '..') out.pop();
-    else out.push(segment);
-  }
-  return out.join('/');
 }
 
 // A relationship as declared, with the fields a preserved-part closure needs: its id, Type URI,

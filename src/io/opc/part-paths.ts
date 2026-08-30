@@ -22,6 +22,11 @@ export function relsPathFor(partPath: string): string {
   return `${dir}_rels/${base}.rels`;
 }
 
+// The two directions of a relationship target, kept side by side because they are inverses: the
+// writer names a part from the part that references it, and the reader turns that name back into a
+// package path. A change to either that is not made to the other is a round trip that no longer
+// round-trips, which is the property `part-paths.test.ts` pins across the pair.
+
 // A relationship target expressed relative to the part that carries it: the `..` hops out of the
 // referencing part's directory up to the common ancestor, then down to the target. Both paths are
 // package-absolute (`xl/drawings/preservedP1.vml` → `xl/media/preservedP2.jpeg` → `../media/preservedP2.jpeg`).
@@ -38,4 +43,21 @@ export function relativePartPath(fromPath: string, toPath: string): string {
   }
   const up = fromDir.length - common;
   return [...Array<string>(up).fill('..'), ...toSegments.slice(common)].join('/');
+}
+
+// The inverse: resolve a relationship target (relative to the referencing part's directory, or
+// absolute from the package root) into a package part path, collapsing `.`/`..` segments. Unlike
+// {@link relativePartPath}, whose inputs the writer produced, this one reads a Target that came
+// verbatim out of an untrusted package, so every OPC-legal shape a well-formed writer never emits
+// still has to land on a bounded path.
+export function resolveRelativePart(basePart: string, target: string): string {
+  if (target.startsWith('/')) return target.slice(1);
+  const baseDir = basePart.slice(0, basePart.lastIndexOf('/') + 1);
+  const out: string[] = [];
+  for (const segment of `${baseDir}${target}`.split('/')) {
+    if (segment === '' || segment === '.') continue;
+    if (segment === '..') out.pop();
+    else out.push(segment);
+  }
+  return out.join('/');
 }
