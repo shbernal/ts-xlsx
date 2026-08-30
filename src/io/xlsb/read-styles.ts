@@ -26,6 +26,7 @@ import type {
 } from '../../core/style.ts';
 import {
   numFmtCodeFor,
+  NO_PRESERVED_STYLE_TABLES,
   resolveStyleTable,
   type StyleLabel,
   type StyleTable,
@@ -71,7 +72,8 @@ const COLLECTION_ENDS: ReadonlySet<number> = new Set([
 
 /** Parse `xl/styles.bin` into the flat cell-format table a worksheet's style indices resolve against. */
 export function parseStyleTable(part: Uint8Array | undefined): StyleTable {
-  if (part === undefined) return {cellXfs: [], namedStyles: []};
+  if (part === undefined)
+    return {cellXfs: [], namedStyles: [], preserved: NO_PRESERVED_STYLE_TABLES};
 
   const numFmtCodes = new Map<number, string>();
   const fonts: Array<Font | undefined> = [];
@@ -122,7 +124,12 @@ export function parseStyleTable(part: Uint8Array | undefined): StyleTable {
     }
   }
 
-  return resolveStyleTable({directXfs, namedXfs, labels, fonts});
+  // BIFF12 records carry no verbatim XML, so there is nothing of the four preserved sub-tables for
+  // this reader to keep; the model is the whole of what a `.xlsb` stylesheet says.
+  return {
+    ...resolveStyleTable({directXfs, namedXfs, labels, fonts}),
+    preserved: NO_PRESERVED_STYLE_TABLES,
+  };
 }
 
 // `BrtXF` ([MS-XLSB] 2.4.876): five facet indices, the two inline alignment scalars, then two flag

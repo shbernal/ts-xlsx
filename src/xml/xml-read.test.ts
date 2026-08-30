@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
+import {XmlParseError} from './errors.ts';
 import {
   capturedText,
   closeEmptyElements,
   decodeEntities,
   decodeSpreadsheetText,
+  elementSubtrees,
   localName,
   numFinite,
   numInteger,
@@ -18,6 +20,9 @@ import {
   xmlEvents,
 } from './xml-read.ts';
 import {escapeSpreadsheetText} from './xml.ts';
+
+// The selection every `elementSubtrees` test below that captures differential styles shares.
+const DXFS = new Map([['dxfs', 'dxf']]);
 
 interface Event {
   readonly kind: 'open' | 'text' | 'close';
@@ -441,4 +446,97 @@ test('parseXmlPasses unions the self-closing expansions its passes ask for', () 
 
 test('parseXmlPasses over no passes is a parse that reaches nobody, not a throw', () => {
   assert.doesNotThrow(() => parseXmlPasses('<a><b/></a>', []));
+});
+
+test('elementSubtrees captures a child element verbatim, tags included', () => {
+  const {fragments} = elementSubtrees('<s><dxfs count="1"><dxf><b/></dxf></dxfs></s>', DXFS);
+  assert.deepEqual(fragments.get('dxfs'), ['<dxf><b/></dxf>']);
+});
+
+test('elementSubtrees counts nesting, so a same-named descendant does not end the capture', () => {
+  const {fragments} = elementSubtrees(
+    '<s><dxfs><dxf>a<dxf>inner</dxf>b</dxf><dxf>second</dxf></dxfs></s>',
+    DXFS,
+  );
+  assert.deepEqual(fragments.get('dxfs'), ['<dxf>a<dxf>inner</dxf>b</dxf>', '<dxf>second</dxf>']);
+});
+
+test('elementSubtrees captures a self-closing child as its own tag', () => {
+  const {fragments} = elementSubtrees(
+    '<s><indexedColors><rgbColor rgb="FF00FF00"/><rgbColor rgb="FF0000FF"/></indexedColors></s>',
+    new Map([['indexedColors', 'rgbColor']]),
+  );
+  assert.deepEqual(fragments.get('indexedColors'), [
+    '<rgbColor rgb="FF00FF00"/>',
+    '<rgbColor rgb="FF0000FF"/>',
+  ]);
+});
+
+test('elementSubtrees keeps CDATA and comments inside a subtree, and reads neither as markup', () => {
+  // A `</dxf>` inside a comment or a CDATA section is text, not the element's end. A regex scanner
+  // is exactly what cannot tell the difference.
+  const xml = '<s><dxfs><dxf><![CDATA[</dxf>]]><!-- </dxf> --><b/></dxf></dxfs></s>';
+  const {fragments} = elementSubtrees(xml, DXFS);
+  assert.deepEqual(fragments.get('dxfs'), ['<dxf><![CDATA[</dxf>]]><!-- </dxf> --><b/></dxf>']);
+});
+
+test('elementSubtrees scopes the child to its container', () => {
+  // `<color>` appears all over a stylesheet; only the ones inside `<mruColors>` are the swatches.
+  const xml =
+    '<s><fonts><font><color rgb="FFAAAAAA"/></font></fonts>' +
+    '<colors><mruColors><color rgb="FF111111"/></mruColors></colors></s>';
+  const {fragments} = elementSubtrees(xml, new Map([['mruColors', 'color']]));
+  assert.deepEqual(fragments.get('mruColors'), ['<color rgb="FF111111"/>']);
+});
+
+test('elementSubtrees reports a container element own attributes', () => {
+  const {attributes} = elementSubtrees(
+    '<s><tableStyles count="0" defaultTableStyle="TableStyleMedium2"/></s>',
+    new Map([['tableStyles', 'tableStyle']]),
+  );
+  assert.equal(attributes.get('tableStyles')?.defaultTableStyle, 'TableStyleMedium2');
+  assert.equal(
+    attributes.get('tableStyles')?.count,
+    '0',
+    'a self-closing container still reports what it declared',
+  );
+});
+
+test('elementSubtrees reads a container once, ignoring a second block of the same name', () => {
+  const {fragments} = elementSubtrees(
+    '<s><dxfs><dxf>a</dxf></dxfs><dxfs><dxf>b</dxf></dxfs></s>',
+    DXFS,
+  );
+  assert.deepEqual(fragments.get('dxfs'), ['<dxf>a</dxf>'], 'the first block, not the two merged');
+});
+
+test('elementSubtrees captures several containers in the one scan', () => {
+  const xml =
+    '<s><dxfs><dxf>d</dxf></dxfs><colors><indexedColors><rgbColor rgb="FF1"/></indexedColors>' +
+    '<mruColors><color rgb="FF2"/></mruColors></colors></s>';
+  const {fragments} = elementSubtrees(
+    xml,
+    new Map([
+      ['dxfs', 'dxf'],
+      ['indexedColors', 'rgbColor'],
+      ['mruColors', 'color'],
+    ]),
+  );
+  assert.deepEqual(fragments.get('dxfs'), ['<dxf>d</dxf>']);
+  assert.deepEqual(fragments.get('indexedColors'), ['<rgbColor rgb="FF1"/>']);
+  assert.deepEqual(fragments.get('mruColors'), ['<color rgb="FF2"/>']);
+});
+
+test('elementSubtrees throws on a subtree that never closes rather than slicing a partial one', () => {
+  // Re-emitting half a `<dxf>` verbatim hands broken markup on as though it were content.
+  assert.throws(
+    () => elementSubtrees('<s><dxfs><dxf><b/>', DXFS),
+    (error: unknown) => error instanceof XmlParseError,
+  );
+});
+
+test('elementSubtrees yields nothing for a container the document does not carry', () => {
+  const {fragments, attributes} = elementSubtrees('<s><fonts><font/></fonts></s>', DXFS);
+  assert.equal(fragments.get('dxfs'), undefined);
+  assert.equal(attributes.get('dxfs'), undefined);
 });

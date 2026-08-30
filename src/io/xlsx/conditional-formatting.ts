@@ -33,6 +33,7 @@ import {
   boolStrict,
   coerceNumericLiteral,
   type CollectingPass,
+  elementSubtrees,
   enumToken,
   localName,
   numFinite,
@@ -480,10 +481,8 @@ function emptyExt(): DataBarExt {
  * formatting's `dxfId` index pointing at the same style it did in the source file.
  */
 export function parseDxfs(stylesXml: string): string[] {
-  const block = /<dxfs\b[^>]*>([\s\S]*?)<\/dxfs>/.exec(stylesXml);
-  if (block === null) return [];
-  const inner = block[1] ?? '';
-  return [...inner.matchAll(/<dxf\b[^>]*>[\s\S]*?<\/dxf>|<dxf\b[^>]*\/>/g)].map((m) => m[0] ?? '');
+  const {fragments} = elementSubtrees(stylesXml, new Map([['dxfs', 'dxf']]));
+  return [...(fragments.get('dxfs') ?? [])];
 }
 
 function newDraft(attrs: Record<string, string>): RuleDraft {

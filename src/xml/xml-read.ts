@@ -216,6 +216,137 @@ export function* xmlEvents(source: string): Generator<XmlEvent> {
   }
 }
 
+/**
+ * What {@link elementSubtrees} is to capture: for each container element's local name, the local name
+ * of the children to take verbatim inside it (`'dxfs' -> 'dxf'`). Scoping the child to a container is
+ * what keeps a `<color>` in `<mruColors>` from being confused with the many other `<color>` elements
+ * a stylesheet carries.
+ */
+export type SubtreeSelection = ReadonlyMap<string, string>;
+
+/** What {@link elementSubtrees} captured: the verbatim source of each selected child, keyed by its
+ * container's local name, and each container's own attributes as written. */
+export interface SubtreeCapture {
+  readonly fragments: ReadonlyMap<string, readonly string[]>;
+  readonly attributes: ReadonlyMap<string, XmlAttributes>;
+}
+
+/**
+ * Capture the verbatim source text of selected elements, in one scan.
+ *
+ * Some content is re-emitted byte for byte rather than modelled: a differential style, a custom
+ * indexed palette, an author's recent-colour swatches, a table-style definition. Preserving the raw
+ * text is what keeps a foreign `<dxf>`'s number format a real format code across a re-write instead
+ * of a coerced `"[object Object]"`, so the reader needs a subtree's *source*, which an event stream
+ * by definition cannot hand back.
+ *
+ * That gap is why four callers each grew a `<container>([\s\S]*?)</container>` scanner of their own,
+ * which is a regular expression parsing XML, over untrusted input, in the same directory as the
+ * reader written specifically to avoid that (ADR-0004). This is the same capability done properly:
+ * one linear scan with comments, CDATA, processing instructions and declarations skipped as markup
+ * rather than matched as text, and the nesting depth counted so a same-named descendant does not end
+ * a capture early.
+ *
+ * Only a container's *first* occurrence is read, matching the single block these documents declare;
+ * a second is ignored rather than merged. A captured element that never closes throws
+ * {@link XmlParseError}, like the reader's other truncation cases: a partial subtree re-emitted
+ * verbatim is broken markup handed on as though it were content.
+ */
+export function elementSubtrees(source: string, selection: SubtreeSelection): SubtreeCapture {
+  const fragments = new Map<string, string[]>();
+  const attributes = new Map<string, XmlAttributes>();
+  // A container is read once: closed containers are recorded so a later one of the same name is
+  // skipped rather than appended to.
+  const finished = new Set<string>();
+  // The container currently open, the child name to capture inside it, and how deep the same
+  // container name is nested within itself.
+  let container: {local: string; child: string; depth: number} | undefined;
+  // The child element being captured: where its `<` sits, and how deep its own name is nested inside
+  // it, so `</name>` for a descendant does not end the capture.
+  let capture: {local: string; start: number; depth: number} | undefined;
+
+  const length = source.length;
+  let i = 0;
+  while (i < length) {
+    const lt = source.indexOf('<', i);
+    if (lt === -1) break;
+    if (source.startsWith('<!--', lt)) {
+      const end = source.indexOf('-->', lt + 4);
+      if (end === -1) throw new XmlParseError('unterminated comment');
+      i = end + 3;
+      continue;
+    }
+    if (source.startsWith('<![CDATA[', lt)) {
+      const end = source.indexOf(']]>', lt + 9);
+      if (end === -1) throw new XmlParseError('unterminated CDATA section');
+      i = end + 3;
+      continue;
+    }
+    if (source.startsWith('<?', lt)) {
+      const end = source.indexOf('?>', lt + 2);
+      if (end === -1) throw new XmlParseError('unterminated processing instruction');
+      i = end + 2;
+      continue;
+    }
+    if (source.startsWith('<!', lt)) {
+      i = skipDeclaration(source, lt);
+      continue;
+    }
+
+    const gt = findTagEnd(source, lt);
+    const raw = source.slice(lt + 1, gt);
+    if (raw.charCodeAt(0) === 0x2f /* / */) {
+      const local = localName(raw.slice(1).trim());
+      if (capture !== undefined && local === capture.local) {
+        if (capture.depth > 0) capture.depth -= 1;
+        else {
+          fragments.get(container?.local ?? '')?.push(source.slice(capture.start, gt + 1));
+          capture = undefined;
+        }
+      } else if (capture === undefined && container !== undefined && local === container.local) {
+        if (container.depth > 0) container.depth -= 1;
+        else {
+          finished.add(container.local);
+          container = undefined;
+        }
+      }
+      i = gt + 1;
+      continue;
+    }
+
+    const selfClosing = raw.charCodeAt(raw.length - 1) === 0x2f;
+    const body = selfClosing ? raw.slice(0, -1) : raw;
+    const nameEnd = firstWhitespace(body);
+    const name = nameEnd === -1 ? body : body.slice(0, nameEnd);
+    const local = localName(name);
+    if (capture !== undefined) {
+      if (!selfClosing && local === capture.local) capture.depth += 1;
+    } else if (container !== undefined) {
+      if (!selfClosing && local === container.local) container.depth += 1;
+      else if (local === container.child) {
+        if (selfClosing) fragments.get(container.local)?.push(source.slice(lt, gt + 1));
+        else capture = {local, start: lt, depth: 0};
+      }
+    } else {
+      const child = selection.get(local);
+      if (child !== undefined && !finished.has(local)) {
+        attributes.set(local, nameEnd === -1 ? {} : parseAttributes(body.slice(nameEnd)));
+        if (selfClosing) finished.add(local);
+        else {
+          fragments.set(local, fragments.get(local) ?? []);
+          container = {local, child, depth: 0};
+        }
+      }
+    }
+    i = gt + 1;
+  }
+
+  if (capture !== undefined) {
+    throw new XmlParseError(`unterminated <${capture.local}> element`);
+  }
+  return {fragments, attributes};
+}
+
 /** An element start surfaced by {@link openElements}: its qualified `name`, the namespace-stripped
  * `local` name the filter matched on, and its already-decoded `attrs`. */
 export interface OpenElement {

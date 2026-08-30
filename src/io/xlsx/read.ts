@@ -58,7 +58,7 @@ import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-option
 import {inflateSpreadsheetPackage} from '../opc/sniff-format.ts';
 import {readXlsbPackage, XLSB_WORKBOOK_PART} from '../xlsb/read.ts';
 import {applyNotes, type ParsedComment, parseComments} from './comments.ts';
-import {conditionalFormattingPass, parseDxfs} from './conditional-formatting.ts';
+import {conditionalFormattingPass} from './conditional-formatting.ts';
 import {
   applyDataValidations,
   dataValidationPass,
@@ -68,12 +68,7 @@ import {applyHyperlinks, sheetHyperlinkPass} from './hyperlinks.ts';
 import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
 import {parsePivotTable} from './read-pivot.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
-import {
-  parseIndexedColors,
-  parseMruColors,
-  parseStyleTable,
-  parseTableStyles,
-} from './read-styles.ts';
+import {parseStyleTable} from './read-styles.ts';
 import {worksheetPass} from './read-worksheet.ts';
 import {parseTable} from './tables.ts';
 import {parseThemeColorScheme, parseThemeFontScheme} from './theme-xml.ts';
@@ -130,21 +125,24 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // format); a package without one (a hand-rolled foreign file) yields an empty table and
   // every index reads as unstyled.
   const stylesXml = partText('xl/styles.xml') ?? '';
-  const {cellXfs: xfStyles, namedStyles, defaultFont} = parseStyleTable(stylesXml);
+  const {cellXfs: xfStyles, namedStyles, defaultFont, preserved} = parseStyleTable(stylesXml);
 
   const workbook = new Workbook();
-  // Preserve the differential-style table verbatim so conditional formatting's dxfId references stay
-  // valid, and a foreign dxf's number format stays a real format code, across a re-write.
-  workbook[INTERNAL].restoreDifferentialStyles(parseDxfs(stylesXml));
-  // Preserve a custom indexed-color palette verbatim so an `indexed="…"` colour reference keeps its
-  // intended RGB across a re-write instead of resolving to a different default-palette entry.
-  workbook[INTERNAL].restoreIndexedColors(parseIndexedColors(stylesXml));
+  // The four sub-tables the stylesheet carries verbatim, all captured by the same read of the part
+  // that resolved the xfs above rather than by four more scans of it.
+  //
+  // Preserve the differential-style table so conditional formatting's dxfId references stay valid,
+  // and a foreign dxf's number format stays a real format code, across a re-write.
+  workbook[INTERNAL].restoreDifferentialStyles([...preserved.dxfs]);
+  // Preserve a custom indexed-color palette so an `indexed="…"` colour reference keeps its intended
+  // RGB across a re-write instead of resolving to a different default-palette entry.
+  workbook[INTERNAL].restoreIndexedColors([...preserved.indexedColors]);
   // Preserve the author's "Recent Colors" swatches, which the model never reads but re-writing would
   // otherwise discard.
-  workbook[INTERNAL].restoreMruColors(parseMruColors(stylesXml));
+  workbook[INTERNAL].restoreMruColors([...preserved.mruColors]);
   // Preserve the custom table-style definitions so a table referencing one by name still resolves to
   // a real definition after a re-write instead of rendering unstyled.
-  workbook[INTERNAL].restoreTableStyles(parseTableStyles(stylesXml));
+  workbook[INTERNAL].restoreTableStyles(preserved.tableStyles);
   // Preserve the theme part so a branded colour/font scheme is not overwritten by the default theme
   // the writer emits for a workbook that has none.
   readWorkbookTheme(workbookRelsXml, pkg, contentTypeOf, workbook);

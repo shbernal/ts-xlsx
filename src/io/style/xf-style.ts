@@ -15,6 +15,7 @@ import {
   type Fill,
   type Font,
   type NamedCellStyle,
+  type TableStyleTable,
   assignStyleFacets,
 } from '../../core/style.ts';
 
@@ -52,7 +53,40 @@ export interface StyleTable {
    * file declares no font table.
    */
   readonly defaultFont?: Font;
+
+  /**
+   * The stylesheet's preserved sub-tables, captured verbatim in the same scan that read the xfs: the
+   * differential styles a conditional format's `dxfId` indexes, a custom indexed palette, the
+   * author's recent-colour swatches, and the custom table-style definitions.
+   *
+   * They ride here rather than being extracted separately because they come out of the same part,
+   * and the reader that wanted them four more times over that part is what this replaced. Each is
+   * raw source text: re-parsing and re-serialising is exactly what would cost a foreign `<dxf>` its
+   * number format on a round trip.
+   */
+  readonly preserved: PreservedStyleTables;
 }
+
+/** The stylesheet content the model does not interpret and re-emits byte for byte. */
+export interface PreservedStyleTables {
+  readonly dxfs: readonly string[];
+  readonly indexedColors: readonly string[];
+  readonly mruColors: readonly string[];
+  readonly tableStyles: TableStyleTable;
+}
+
+/** The preserved sub-tables of a stylesheet that carries none: a package with no `styles.xml`, and
+ * the BIFF12 stylesheet, whose binary records hold no verbatim XML there would be anything to keep. */
+export const NO_PRESERVED_STYLE_TABLES: PreservedStyleTables = {
+  dxfs: [],
+  indexedColors: [],
+  mruColors: [],
+  tableStyles: {styles: []},
+};
+
+/** The xf layer of a stylesheet: what {@link resolveStyleTable} assembles out of the format tables,
+ * before the verbatim sub-tables that ride alongside it in a {@link StyleTable}. */
+export type ResolvedXfTables = Omit<StyleTable, 'preserved'>;
 
 // ECMA-376 reserves numFmt ids below 164 for formats every consumer knows implicitly, so a
 // foreign file may name one with no <numFmt> entry. This maps the standard ids to their
@@ -171,7 +205,7 @@ export function resolveStyleTable(tables: {
   readonly namedXfs: ReadonlyArray<XfStyle>;
   readonly labels: ReadonlyArray<StyleLabel>;
   readonly fonts: ReadonlyArray<Font | undefined>;
-}): StyleTable {
+}): ResolvedXfTables {
   const {directXfs, namedXfs, labels, fonts} = tables;
 
   // A draft xf only holds keys for facets it actually set, so the spread merge takes the named base

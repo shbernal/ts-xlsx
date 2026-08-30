@@ -33,16 +33,20 @@ import {
   boolStrict,
   boolTristate,
   closeEmptyElements,
+  elementSubtrees,
   localName,
   numFinite,
   numInteger,
   openElements,
+  type SubtreeSelection,
   type XmlAttributes,
   type XmlEvent,
   xmlEvents,
 } from '../../xml/xml-read.ts';
 import {
+  NO_PRESERVED_STYLE_TABLES,
   numFmtCodeFor,
+  type PreservedStyleTables,
   resolveStyleTable,
   type StyleLabel,
   type StyleTable,
@@ -99,7 +103,7 @@ const STYLE_EMPTY_CLOSES: ReadonlySet<string> = new Set([
 // so a cell/row/column style index maps straight to its facets. The schema orders <numFmts>
 // and <fills> before <cellXfs>, so both lookups are complete before an xf references them.
 export function parseStyleTable(xml: string): StyleTable {
-  if (xml === '') return {cellXfs: [], namedStyles: []};
+  if (xml === '') return {cellXfs: [], namedStyles: [], preserved: NO_PRESERVED_STYLE_TABLES};
   let fills: ReadonlyArray<Fill | undefined> = [];
   let fonts: ReadonlyArray<Font | undefined> = [];
   let borders: ReadonlyArray<Border | undefined> = [];
@@ -150,7 +154,23 @@ export function parseStyleTable(xml: string): StyleTable {
     next = events.next();
   }
 
-  return resolveStyleTable({directXfs: xfStyles, namedXfs, labels: cellStyleNames, fonts});
+  // The four preserved sub-tables come out of one scan of the same part, which is what four callers
+  // used to take four regular expressions and four scans of their own to get.
+  const {fragments, attributes} = elementSubtrees(xml, PRESERVED_SUBTREES);
+  const preserved: PreservedStyleTables = {
+    dxfs: fragments.get('dxfs') ?? [],
+    indexedColors: fragments.get('indexedColors') ?? [],
+    mruColors: fragments.get('mruColors') ?? [],
+    tableStyles: buildTableStyleTable(
+      xml,
+      fragments.get('tableStyles') ?? [],
+      attributes.get('tableStyles'),
+    ),
+  };
+  return {
+    ...resolveStyleTable({directXfs: xfStyles, namedXfs, labels: cellStyleNames, fonts}),
+    preserved,
+  };
 }
 
 // Pull events off the shared stream up to, and consuming, the close of `container`, yielding only
@@ -590,7 +610,7 @@ function parseProtection(attrs: XmlAttributes): Protection | undefined {
  * source file declared survive a round-trip and every `indexed="…"` reference keeps its RGB.
  */
 export function parseIndexedColors(stylesXml: string): string[] {
-  return elementFragments(stylesXml, 'indexedColors', 'rgbColor');
+  return capturedFragments(stylesXml, 'indexedColors');
 }
 
 /**
@@ -600,7 +620,7 @@ export function parseIndexedColors(stylesXml: string): string[] {
  * use for its contents, only for not losing them.
  */
 export function parseMruColors(stylesXml: string): string[] {
-  return elementFragments(stylesXml, 'mruColors', 'color');
+  return capturedFragments(stylesXml, 'mruColors');
 }
 
 /**
@@ -613,19 +633,39 @@ export function parseMruColors(stylesXml: string): string[] {
  * carry.
  */
 export function parseTableStyles(stylesXml: string): TableStyleTable {
-  const styles = elementFragments(stylesXml, 'tableStyles', 'tableStyle');
+  const {fragments, attributes} = elementSubtrees(
+    stylesXml,
+    new Map([['tableStyles', 'tableStyle']]),
+  );
+  return buildTableStyleTable(
+    stylesXml,
+    fragments.get('tableStyles') ?? [],
+    attributes.get('tableStyles'),
+  );
+}
+
+// Assemble the table from what a capture of `<tableStyles>` yielded: the definitions verbatim, the
+// container's two nominated default names, and the namespace declarations the definitions depend on.
+// Separate from the capture so the whole-stylesheet pass and the standalone extractor build it the
+// same way from the same three inputs.
+function buildTableStyleTable(
+  stylesXml: string,
+  styles: readonly string[],
+  containerAttrs: XmlAttributes | undefined,
+): TableStyleTable {
   const table: {
     styles: string[];
     defaultTableStyle?: string;
     defaultPivotStyle?: string;
     namespaces?: TableStyleNamespace[];
-  } = {styles};
-  for (const {attrs} of openElements(stylesXml, 'tableStyles')) {
-    if (attrs.defaultTableStyle !== undefined) table.defaultTableStyle = attrs.defaultTableStyle;
-    if (attrs.defaultPivotStyle !== undefined) table.defaultPivotStyle = attrs.defaultPivotStyle;
-    break;
+  } = {styles: [...styles]};
+  if (containerAttrs?.defaultTableStyle !== undefined) {
+    table.defaultTableStyle = containerAttrs.defaultTableStyle;
   }
-  const namespaces = fragmentNamespaces(stylesXml, styles);
+  if (containerAttrs?.defaultPivotStyle !== undefined) {
+    table.defaultPivotStyle = containerAttrs.defaultPivotStyle;
+  }
+  const namespaces = fragmentNamespaces(stylesXml, table.styles);
   if (namespaces.length > 0) table.namespaces = namespaces;
   return table;
 }
@@ -671,14 +711,20 @@ function fragmentNamespaces(
     }));
 }
 
-// The verbatim child fragments of a container element: the shape every preserved styles sub-table
-// takes. Scanning the container's inner text rather than the whole part is what keeps a `<color>` in
-// `<mruColors>` from being confused with the many other `<color>` elements a stylesheet carries, and
-// the `\b` after the child's name is what keeps `<tableStyles>` from matching as a `<tableStyle>`.
-function elementFragments(xml: string, container: string, child: string): string[] {
-  const block = new RegExp(`<${container}\\b[^>]*>([\\s\\S]*?)</${container}>`).exec(xml);
-  if (block === null) return [];
-  const inner = block[1] ?? '';
-  const pattern = new RegExp(`<${child}\\b[^>]*/>|<${child}\\b[^>]*>[\\s\\S]*?</${child}>`, 'g');
-  return [...inner.matchAll(pattern)].map((m) => m[0] ?? '');
+// Every preserved styles sub-table is the verbatim children of one container, so the four of them
+// are named once here and captured in a single scan. {@link parseStyleTable} takes all four that way;
+// the four exported extractors below capture only their own, for a caller reading one in isolation.
+const PRESERVED_SUBTREES: SubtreeSelection = new Map([
+  ['dxfs', 'dxf'],
+  ['indexedColors', 'rgbColor'],
+  ['mruColors', 'color'],
+  ['tableStyles', 'tableStyle'],
+]);
+
+// One container's verbatim children, over a scan of its own.
+function capturedFragments(xml: string, container: string): string[] {
+  const child = PRESERVED_SUBTREES.get(container);
+  if (child === undefined) return [];
+  const {fragments} = elementSubtrees(xml, new Map([[container, child]]));
+  return [...(fragments.get(container) ?? [])];
 }
