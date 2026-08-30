@@ -45,7 +45,7 @@ export function decompressContainer(
     );
   }
 
-  const out: number[] = [];
+  const out = new DecompressedBytes(maxOutput);
   let pos = start + 1;
 
   while (pos + 2 <= buf.length) {
@@ -66,7 +66,6 @@ export function decompressContainer(
     if (!compressed) {
       // A raw chunk carries its bytes verbatim (Excel emits one only when compression would expand).
       for (let i = pos; i < chunkEnd; i++) out.push(buf[i] as number);
-      guardOutput(out.length, maxOutput);
       pos = chunkEnd;
       continue;
     }
@@ -78,7 +77,6 @@ export function decompressContainer(
         const isCopy = (flagByte >> bit) & 1;
         if (!isCopy) {
           out.push(buf[pos++] as number);
-          guardOutput(out.length, maxOutput);
           continue;
         }
         if (pos + 2 > chunkEnd) {
@@ -95,14 +93,64 @@ export function decompressContainer(
           throw new VbaParseError('copy token references before the start of its chunk');
         }
         // Byte-by-byte so overlapping runs (run-length expansion) grow correctly.
-        for (let i = 0; i < length; i++) out.push(out[src + i] as number);
-        guardOutput(out.length, maxOutput);
+        for (let i = 0; i < length; i++) out.push(out.at(src + i));
       }
     }
     pos = chunkEnd;
   }
 
-  return Uint8Array.from(out);
+  return out.bytes();
+}
+
+/**
+ * The decompressor's output, accumulated as a growable `Uint8Array` behind a length cursor rather
+ * than a `number[]`: the ceiling admits 64 MiB, and that many boxed slots cost several times their
+ * byte count in real memory before the conversion to bytes ever happens. The cursor is what makes
+ * the representation work for a run-length decoder: a back-reference reads a byte this same sink
+ * already wrote, and {@link at} stays valid across a grow because the buffer is copied whole.
+ *
+ * The ceiling is enforced on every write rather than after each token, so a hostile container can
+ * never provoke an allocation past it: growth is capped at the ceiling too.
+ */
+class DecompressedBytes {
+  #buf: Uint8Array;
+  #length = 0;
+  readonly #limit: number;
+
+  constructor(limit: number) {
+    this.#limit = limit;
+    // One chunk's worth to start, but never more than the whole container is allowed to produce.
+    this.#buf = new Uint8Array(Math.min(MAX_CHUNK_DECOMPRESSED, limit));
+  }
+
+  get length(): number {
+    return this.#length;
+  }
+
+  at(index: number): number {
+    return this.#buf[index] as number;
+  }
+
+  push(byte: number): void {
+    if (this.#length >= this.#limit) {
+      throw new VbaParseError(
+        `decompressed output exceeds the ${this.#limit}-byte ceiling (possible bomb)`,
+      );
+    }
+    if (this.#length === this.#buf.length) {
+      const grown = new Uint8Array(
+        Math.min(Math.max(this.#buf.length * 2, MAX_CHUNK_DECOMPRESSED), this.#limit),
+      );
+      grown.set(this.#buf);
+      this.#buf = grown;
+    }
+    this.#buf[this.#length++] = byte;
+  }
+
+  /** The bytes written so far, as an exactly-sized array that does not alias the growth buffer. */
+  bytes(): Uint8Array {
+    return this.#buf.slice(0, this.#length);
+  }
 }
 
 /**
@@ -177,14 +225,6 @@ function compressChunk(chunk: Uint8Array): number[] {
     tokens[flagIndex] = flags;
   }
   return tokens;
-}
-
-function guardOutput(size: number, maxOutput: number): void {
-  if (size > maxOutput) {
-    throw new VbaParseError(
-      `decompressed output exceeds the ${maxOutput}-byte ceiling (possible bomb)`,
-    );
-  }
 }
 
 /**

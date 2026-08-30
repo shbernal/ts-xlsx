@@ -12,6 +12,16 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Fixed
+
+- **The VBA decompressor accumulates into a growable `Uint8Array` rather than a `number[]`, and
+  enforces its ceiling on every write.** The bomb guard admits 64 MiB, and that many boxed array
+  slots cost several times their byte count in real memory before the conversion to bytes, so a
+  hostile `.xlsm` could amplify a small container into a much larger allocation than the bound
+  suggests. The bound itself was always correct; the representation was not the one for it. Growth
+  is now capped at the ceiling too, so the limit bounds the allocation rather than being checked
+  after it.
+
 ## [2.1.0] — 2026-08-28
 
 The package root bundles for a browser now, and that is the change the rest of this release

@@ -259,6 +259,14 @@ test('decompressContainer caps output to guard a decompression bomb', () => {
   assert.throws(() => decompressContainer(storeCompress(data), 0, 1024), VbaParseError);
 });
 
+test('decompressContainer admits exactly the ceiling and refuses the byte after it', () => {
+  // The ceiling bounds the buffer the decompressor grows, so its boundary is a real allocation
+  // limit, not a post-hoc check: a container producing exactly `maxOutput` bytes must still expand.
+  const data = new Uint8Array(5000).map((_, i) => (i * 17 + 3) & 0xff);
+  assert.deepEqual(decompressContainer(storeCompress(data), 0, 5000), data);
+  assert.throws(() => decompressContainer(storeCompress(data), 0, 4999), VbaParseError);
+});
+
 // ── Compressor (§2.3b): compressContainer ────────────────────────────────────────────────────────────
 
 test('compressContainer round-trips arbitrary data across the chunk boundary', () => {
