@@ -134,6 +134,11 @@
     // types as `T | undefined`.
     "unicorn/no-new-array": "off",
 
+    // On, at zero findings, because the tree had already converged on `Number.parseInt` /
+    // `Number.NaN` everywhere except six sites nobody had noticed. A convention held by habit is a
+    // convention that drifts; this is the mechanical version of the one that was already the rule.
+    "unicorn/prefer-number-properties": "error",
+
     // ── Considered and declined. Each of these was measured against this tree and read at the
     // site before being turned down, and each is listed here so the next sweep finds the
     // decision instead of re-deriving it. An unrecorded decline is worse than no decision.

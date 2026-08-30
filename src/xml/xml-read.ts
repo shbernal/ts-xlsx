@@ -68,8 +68,8 @@ export function decodeEntities(value: string): string {
     if (body.charCodeAt(0) === 0x23 /* # */) {
       const codePoint =
         body.charCodeAt(1) === 0x78 /* x */
-          ? parseInt(body.slice(2), 16)
-          : parseInt(body.slice(1), 10);
+          ? Number.parseInt(body.slice(2), 16)
+          : Number.parseInt(body.slice(1), 10);
       if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff) return match;
       try {
         return String.fromCodePoint(codePoint);
@@ -103,7 +103,7 @@ export function decodeEntities(value: string): string {
 export function decodeSpreadsheetText(value: string): string {
   if (!value.includes('_')) return value;
   return value.replace(/_x([0-9A-Fa-f]{4})_/g, (_match, hex: string) =>
-    String.fromCharCode(parseInt(hex, 16)),
+    String.fromCharCode(Number.parseInt(hex, 16)),
   );
 }
 

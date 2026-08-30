@@ -214,7 +214,7 @@ export const styles = {
     const cell = sheet.getCell('A1');
     if (kind === 'string') cell.value = 'not a date';
     else if (kind === 'null') cell.value = null;
-    else if (kind === 'invalidDate') cell.value = new Date(NaN);
+    else if (kind === 'invalidDate') cell.value = new Date(Number.NaN);
     cell.numFmt = 'yyyy-mm-dd';
     let ok = true;
     let sheetXml = '';

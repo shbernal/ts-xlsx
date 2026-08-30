@@ -26,7 +26,7 @@ test('detectValueType classifies each primitive', () => {
 });
 
 test('an invalid Date is still a Date-typed value', () => {
-  assert.equal(detectValueType(new Date(NaN)), ValueType.Date);
+  assert.equal(detectValueType(new Date(Number.NaN)), ValueType.Date);
 });
 
 test('NaN and Infinity remain Number-typed: the model does not judge finiteness', () => {

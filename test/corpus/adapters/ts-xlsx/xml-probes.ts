@@ -9,7 +9,7 @@ import {decodeRange, encodeAddress, readXlsx, writeCompoundFile, writeXlsx} from
 import {buildFrom} from './spec-model.ts';
 
 export const hexBytes = (hex: string) =>
-  Uint8Array.from((hex.match(/../g) ?? []).map((h) => parseInt(h, 16)));
+  Uint8Array.from((hex.match(/../g) ?? []).map((h) => Number.parseInt(h, 16)));
 
 // Parse the integer children of an <xdr:from>/<xdr:to> block, mirroring the oracle so a drawing anchor
 // reports the same plain-number geometry from either adapter.

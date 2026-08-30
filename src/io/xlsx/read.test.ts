@@ -1161,7 +1161,7 @@ test('a serial under a non-date format reads back as a plain number, not a date'
 test('an Invalid Date does not throw on write and does not drop sibling cells', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
-  sheet.getCell('A1').value = new Date(NaN);
+  sheet.getCell('A1').value = new Date(Number.NaN);
   sheet.getCell('B1').value = 'still here';
   sheet.getCell('C1').value = 42;
 

@@ -175,7 +175,7 @@ export const printAreaRefersTo = (sheetName: string, area: string) =>
     .join(',');
 
 export const toDate = (v: Untyped) =>
-  v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v);
+  v && typeof v === 'object' && v.invalidDate ? new Date(Number.NaN) : new Date(v);
 export const isoOrNull = (d: Untyped) =>
   d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString() : null;
 
@@ -393,7 +393,7 @@ export function buildFrom(spec: Untyped = {}) {
         if (v !== null && typeof v === 'object') {
           // A structured date value materializes a Date; every other object shape is a value
           // kind the writer does not model yet, so skip the behavior rather than mis-serialize.
-          if (v.invalidDate) cell.value = new Date(NaN);
+          if (v.invalidDate) cell.value = new Date(Number.NaN);
           else if (v.date) cell.value = toDate(v.date);
           else if (Array.isArray(v.richText)) cell.value = {richText: v.richText};
           else throw unsupportedSpec(`cell value shape ${JSON.stringify(v)} not supported yet`);
