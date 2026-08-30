@@ -113,7 +113,14 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
 
   // Sub-cutoff stream bytes accumulate into the mini stream (chained in the mini-FAT); larger streams
   // are laid out later directly in the regular FAT. Depth-first walk fixes a deterministic layout.
-  const miniBytes: number[] = [];
+  //
+  // Kept as its own chunks and copied into the buffer one by one, rather than accumulated in a
+  // `number[]`. Every sub-cutoff stream a project has goes through here (`dir`, `PROJECT`,
+  // `PROJECTwm`, and each module's compressed source), so a JS array would box hundreds of thousands
+  // of bytes the caller already handed over as bytes. Each chunk is padded to a whole number of mini
+  // sectors, so the running length is both the next chunk's start offset and the stream's final size.
+  const miniChunks: Uint8Array[] = [];
+  let miniLength = 0;
   const miniFat: number[] = [];
   const bigStreams: BigStream[] = [];
 
@@ -129,14 +136,14 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
       } else if (node.data.length >= MINI_CUTOFF) {
         bigStreams.push({entry, data: node.data, sectors: Math.ceil(node.data.length / SECTOR)});
       } else {
-        const startMini = miniBytes.length / MINI_SECTOR;
+        const startMini = miniLength / MINI_SECTOR;
         const numMini = Math.ceil(node.data.length / MINI_SECTOR);
         for (let k = 0; k < numMini; k++)
           miniFat.push(k < numMini - 1 ? startMini + k + 1 : ENDOFCHAIN);
-        miniBytes.push(
-          ...node.data,
-          ...new Array<number>(numMini * MINI_SECTOR - node.data.length).fill(0),
-        );
+        const padded = new Uint8Array(numMini * MINI_SECTOR);
+        padded.set(node.data);
+        miniChunks.push(padded);
+        miniLength += padded.length;
         entry.startSector = startMini;
       }
     } else {
@@ -160,7 +167,7 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
   const dirSectors = Math.ceil(entries.length / ENTRIES_PER_DIR_SECTOR);
   const miniFatSectors =
     miniFat.length > 0 ? Math.ceil((miniFat.length * 4) / FAT_ENTRIES_PER_SECTOR) : 0;
-  const miniStreamSectors = Math.ceil(miniBytes.length / SECTOR);
+  const miniStreamSectors = Math.ceil(miniLength / SECTOR);
   const baseSectors =
     dirSectors +
     miniFatSectors +
@@ -205,7 +212,7 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
   const totalSectors = cursor;
 
   rootEntry.startSector = miniStreamStart;
-  rootEntry.size = miniBytes.length;
+  rootEntry.size = miniLength;
 
   // ── FAT ─────────────────────────────────────────────────────────────────────────────────────────
   const fat = new Array<number>(fatSectors * FAT_ENTRIES_PER_SECTOR).fill(FREESECT);
@@ -241,7 +248,13 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
   }
   // Guarded rather than looped-and-skipped: with no mini stream, miniStreamStart is ENDOFCHAIN and
   // `at()` of it is far outside the buffer, which a zero-length `set` would still reject.
-  if (miniBytes.length > 0) buf.set(Uint8Array.from(miniBytes), at(miniStreamStart));
+  if (miniLength > 0) {
+    let offset = at(miniStreamStart);
+    for (const chunk of miniChunks) {
+      buf.set(chunk, offset);
+      offset += chunk.length;
+    }
+  }
   for (const big of bigStreams) buf.set(big.data, at(big.entry.startSector));
   for (const [i, sector] of fat.entries()) dv.setUint32(at(fatStart) + i * 4, sector, true);
 
