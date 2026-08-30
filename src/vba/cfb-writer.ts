@@ -20,6 +20,18 @@
 // through the public entry point instead (`cfb-writer.test.ts` sweeps the sector-boundary crossings),
 // which is the coverage the split would have bought, without the seam.
 
+import {
+  DIFSECT,
+  DIR_ENTRY_SIZE,
+  ENDOFCHAIN,
+  FATSECT,
+  FREESECT,
+  MAX_NAME_CHARS,
+  NOSTREAM,
+  TYPE_ROOT,
+  TYPE_STORAGE,
+  TYPE_STREAM,
+} from './cfb-format.ts';
 import {VbaAuthorError} from './errors.ts';
 
 export interface CfbStream {
@@ -35,32 +47,25 @@ export interface CfbStorage {
 
 export type CfbNode = CfbStream | CfbStorage;
 
+// The v3 layout this writer chooses to emit. Not shared with the reader, which takes every one of
+// these off the header it was handed because a file may legally say otherwise.
 const SECTOR = 512;
 const MINI_SECTOR = 64;
 const MINI_CUTOFF = 4096;
-const DIR_ENTRY_SIZE = 128;
 const ENTRIES_PER_DIR_SECTOR = SECTOR / DIR_ENTRY_SIZE; // 4
 const FAT_ENTRIES_PER_SECTOR = SECTOR / 4; // 128
 const DIFAT_HEADER_SLOTS = 109; // FAT-sector pointers that fit in the header before DIFAT sectors
-const MAX_NAME_CHARS = 31; // 32 UTF-16 code units incl. the NUL terminator
 
-// Sector chain markers ([MS-CFB] 2.2).
-const FREESECT = 0xffffffff;
-const ENDOFCHAIN = 0xfffffffe;
-const FATSECT = 0xfffffffd;
-const DIFSECT = 0xfffffffc;
-const NOSTREAM = 0xffffffff;
-
-// Object types ([MS-CFB] 2.6.1).
-const TYPE_STORAGE = 1;
-const TYPE_STREAM = 2;
-const TYPE_ROOT = 5;
+// The red-black colour byte ([MS-CFB] 2.6.1). Every entry this writer emits is black, which is
+// legal for any tree; the reader ignores the byte entirely, so it is not a shared constant.
 const COLOR_BLACK = 1;
 
 function isStream(node: CfbNode): node is CfbStream {
   return 'data' in node;
 }
 
+// Mutable, and carrying an `index` the reader's has no use for: this tree is under construction and
+// its sibling links are these indices. `cfb.ts` declares its own, fully readonly, for that reason.
 interface DirEntry {
   /**
    * Position in the directory stream. Sibling and child links are stored as these indices, so an

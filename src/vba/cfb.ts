@@ -11,9 +11,20 @@
 // VbaParseError instead of reading out of bounds, looping forever, or over-allocating.
 
 import {concat, decodeUtf16le, readU16, readU32} from './bytes.ts';
+import {
+  DIR_ENTRY_SIZE,
+  MAX_REGULAR_SECTOR,
+  NOSTREAM,
+  TYPE_EMPTY,
+  TYPE_ROOT,
+  TYPE_STORAGE,
+  TYPE_STREAM,
+} from './cfb-format.ts';
 import type {CfbNode} from './cfb-writer.ts';
 import {VbaParseError} from './errors.ts';
 
+// Fully readonly, and without the writer's `index`: this is a view of a file we were handed, not a
+// tree under construction. `cfb-writer.ts` declares its own for that reason.
 interface DirEntry {
   readonly name: string;
   readonly type: number; // 0=empty 1=storage 2=stream 5=root
@@ -26,18 +37,8 @@ interface DirEntry {
   readonly child: number;
 }
 
-// Sector values 0xFFFFFFFA..0xFFFFFFFF are reserved markers (DIFSECT/FATSECT/ENDOFCHAIN/FREESECT), not
-// data-sector indices; any value at or above this is chain-terminal. Directory-tree links reuse the same
-// convention: NOSTREAM (0xFFFFFFFF) and any value at or above the ceiling mean "no such sibling/child".
-const MAX_REGULAR_SECTOR = 0xfffffffa;
-const NOSTREAM = 0xffffffff;
-const TYPE_EMPTY = 0;
-const TYPE_STORAGE = 1;
-const TYPE_STREAM = 2;
-const TYPE_ROOT = 5;
 const CFB_SIGNATURE_LO = 0xe011cfd0;
 const CFB_SIGNATURE_HI = 0xe11ab1a1;
-const DIR_ENTRY_SIZE = 128;
 
 export class CompoundFile {
   readonly #buf: Uint8Array;
