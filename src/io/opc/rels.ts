@@ -38,7 +38,11 @@ export function relationshipsPart(relationships: readonly string[]): string {
   return `${XML_DECLARATION}<Relationships xmlns="${PKG_RELS_NS}">${relationships.join('')}</Relationships>`;
 }
 
-export function preservedRelsXml(
+// A whole `.rels` part from relationship records: the common case, where the caller has the three
+// values rather than pre-rendered elements. `external` is optional and defaults to a package-internal
+// target, which is what a generated part chain (pivot table → cache definition → cache records) wants
+// and what a preserved foreign relationship carries explicitly.
+export function relsPartXml(
   rels: readonly {id: string; type: string; target: string; external?: boolean}[],
 ): string {
   return relationshipsPart(
@@ -46,9 +50,4 @@ export function preservedRelsXml(
       relationship(rel.id, rel.type, rel.target, rel.external ? {external: true} : {}),
     ),
   );
-}
-
-// A `.rels` part for a generated part chain (pivot table → cache definition → cache records).
-export function relsPartXml(rels: readonly {id: string; type: string; target: string}[]): string {
-  return relationshipsPart(rels.map((rel) => relationship(rel.id, rel.type, rel.target)));
 }

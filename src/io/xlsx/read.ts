@@ -48,11 +48,8 @@ import {
   type PartRelationships,
   packageAccessors,
   parseRelationshipRecords,
-  parseRelationships,
   readPartRelationships,
-  relationshipTargetByType,
   resolveRelativePart,
-  resolveWorkbookPart,
 } from '../opc/read-opc.ts';
 import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-options.ts';
 import {inflateSpreadsheetPackage} from '../opc/sniff-format.ts';
@@ -120,8 +117,10 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // OPC does: an explicit `<Override>` for the exact part, else the `<Default>` for its extension.
   const contentTypeOf = contentTypeResolver(partText('[Content_Types].xml') ?? '');
 
-  const workbookRelsXml = partText('xl/_rels/workbook.xml.rels') ?? '';
-  const rels = parseRelationships(workbookRelsXml);
+  // One parse of the workbook's rels, queried by the sheet loop and by the two workbook-level part
+  // readers below. It used to be held as a raw string and handed to three separate scanners, which
+  // also left two different idioms for "reach a related part" side by side in one function.
+  const workbookRels = readPartRelationships('xl/workbook.xml', partText);
   const sharedStrings = parseSharedStrings(partText('xl/sharedStrings.xml') ?? '');
   // The style table resolves a cell/row/column style index to its facets (fill, number
   // format); a package without one (a hand-rolled foreign file) yields an empty table and
@@ -147,7 +146,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   workbook[INTERNAL].restoreTableStyles(preserved.tableStyles);
   // Preserve the theme part so a branded colour/font scheme is not overwritten by the default theme
   // the writer emits for a workbook that has none.
-  readWorkbookTheme(workbookRelsXml, pkg, contentTypeOf, workbook);
+  readWorkbookTheme(workbookRels, pkg, contentTypeOf, workbook);
   // Preserve the named cell-style layer only when a file declares one beyond the Normal default, so an
   // ordinary workbook keeps an empty named-style table and emits just the default on write.
   if (namedStyles.length > 1) workbook[INTERNAL].restoreNamedStyles(namedStyles);
@@ -164,7 +163,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // The threaded-comment author registry is workbook-level, and every conversation on every sheet
   // resolves its authors and @mentions through it, so it is restored before the sheet loop that reads
   // those conversations, not alongside the other workbook-level parts below.
-  readWorkbookPersons(workbookRelsXml, pkg, workbook);
+  readWorkbookPersons(workbookRels, pkg, workbook);
 
   // A picture used on more than one sheet is one media part; caching by media path keeps it a single
   // workbook image so a re-write does not duplicate the bytes.
@@ -180,13 +179,13 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   };
   const sheetOrder: string[] = [];
   for (const {name, relId, state} of parseWorkbookSheets(workbookXml)) {
-    const target = rels.get(relId);
+    const target = workbookRels.byId(relId)?.target;
     const sheet = workbook.addWorksheet(name, state === undefined ? undefined : {state});
     sheetOrder.push(name);
-    readSheet(sheet, target === undefined ? undefined : resolveWorkbookPart(target), context);
+    readSheet(sheet, target === undefined ? undefined : workbookRels.pathOf(target), context);
   }
 
-  readWorkbookPreservedReferences(workbookXml, pkg, contentTypeOf, workbook);
+  readWorkbookPreservedReferences(workbookXml, workbookRels, pkg, contentTypeOf, workbook);
   readRootPreservedReferences(pkg, contentTypeOf, workbook);
 
   // Defined names follow the sheets: a scoped name's `localSheetId` indexes the sheet order, which
@@ -299,12 +298,12 @@ function readSheetComments(
 // `mentionpersonId` resolve through. A workbook with no threaded comments declares no such
 // relationship and keeps an empty registry.
 function readWorkbookPersons(
-  workbookRelsXml: string,
+  workbookRels: PartRelationships,
   pkg: PackageAccessors,
   workbook: Workbook,
 ): void {
-  const target = relationshipTargetByType(workbookRelsXml, 'person');
-  const xml = target === undefined ? undefined : pkg.partText(resolveWorkbookPart(target));
+  const path = workbookRels.targetPath('person');
+  const xml = path === undefined ? undefined : pkg.partText(path);
   if (xml !== undefined) workbook[INTERNAL].restorePersons(parsePersons(xml));
 }
 
@@ -319,14 +318,13 @@ function readWorkbookPersons(
 // reports as a package needing repair. A package that declares no theme leaves the workbook on the
 // library's default, which is also what a dangling relationship target degrades to.
 function readWorkbookTheme(
-  workbookRelsXml: string,
+  workbookRels: PartRelationships,
   pkg: PackageAccessors,
   contentTypeOf: (path: string) => string,
   workbook: Workbook,
 ): void {
-  const target = relationshipTargetByType(workbookRelsXml, 'theme');
-  if (target === undefined) return;
-  const entryPath = resolveWorkbookPart(target);
+  const entryPath = workbookRels.targetPath('theme');
+  if (entryPath === undefined) return;
   const parts = capturePartClosure(entryPath, pkg.partText, pkg.partBytes, contentTypeOf);
   if (parts === undefined) return;
   // The schemes are decoded here rather than on demand from the model: the part rides through the
@@ -516,18 +514,17 @@ function isPreservedSheetRelType(type: string): boolean {
 // alongside so the wiring a pivot table or a formula resolves through survives too.
 function readWorkbookPreservedReferences(
   workbookXml: string,
+  workbookRels: PartRelationships,
   pkg: PackageAccessors,
   contentTypeOf: (path: string) => string,
   workbook: Workbook,
 ): void {
   const {partText, partBytes} = pkg;
-  const relsXml = partText('xl/_rels/workbook.xml.rels');
-  if (relsXml === undefined) return;
   const cacheIdByRelId = parsePivotCacheRegistrations(workbookXml);
   const externalIndexByRelId = parseExternalReferenceRegistrations(workbookXml);
-  for (const record of parseRelationshipRecords(relsXml)) {
+  for (const record of workbookRels.records) {
     if (record.external || !isPreservedWorkbookRelType(record.type)) continue;
-    const entryPath = resolveWorkbookPart(record.target);
+    const entryPath = workbookRels.pathOf(record.target);
     const parts = capturePartClosure(entryPath, partText, partBytes, contentTypeOf);
     if (parts === undefined) continue;
     const cacheId = cacheIdByRelId.get(record.id);

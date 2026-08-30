@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {AuthoringError} from '../../errors.ts';
-import {preservedRelsXml, relationship, relationshipsPart, relsPartXml} from './rels.ts';
+import {relationship, relationshipsPart, relsPartXml} from './rels.ts';
 
 // `xml.ts` states that escaping is audited in one place rather than sprinkled through the part
 // emitters. `.rels` was the exception: the obligation lived in a comment telling the caller to escape
@@ -56,16 +56,16 @@ test('relationshipsPart wraps its elements in the OPC envelope', () => {
   assert.match(xml, /<Relationships xmlns="[^"]+"><Relationship [^>]+\/><\/Relationships>$/);
 });
 
-test('a preserved relationship carrying a foreign target is escaped by the part builder', () => {
+test('a rels part escapes a foreign target once and marks it external', () => {
   // The caller that used to escape by hand. Its output must be unchanged, and unchanged means
   // escaped once.
-  const xml = preservedRelsXml([
+  const xml = relsPartXml([
     {id: 'rId1', type: 'http://x/hyperlink', target: 'https://e.com/?a=1&b=2', external: true},
   ]);
   assert.match(xml, /Target="https:\/\/e\.com\/\?a=1&amp;b=2" TargetMode="External"/);
 });
 
-test('a generated part chain emits the same bytes it always did', () => {
+test('a rels part omits TargetMode for a package-internal target', () => {
   assert.equal(
     relsPartXml([{id: 'rId1', type: 'http://x/pivotCacheDefinition', target: 'pivotCache/x.xml'}]),
     relationshipsPart([

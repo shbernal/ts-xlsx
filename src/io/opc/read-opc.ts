@@ -6,7 +6,7 @@
 import {strFromU8} from 'fflate';
 
 import type {PreservedPart, PreservedRelationship} from '../../core/preserved.ts';
-import {openElements, type XmlAttributes} from '../../xml/xml-read.ts';
+import {openElements} from '../../xml/xml-read.ts';
 import {extensionOf, relsPathFor} from './part-paths.ts';
 
 // The two ways a reader reaches into an inflated package: a part's UTF-8-decoded text, or its raw
@@ -38,33 +38,20 @@ export function packageAccessors(files: Record<string, Uint8Array>): PackageAcce
   };
 }
 
-// Whether a <Relationship> carries a resolvable Target and its Type ends with `/<suffix>` (a
-// local-name match, so a namespaced or oddly-cased type still resolves). The type guard lets a
-// matching relationship's Target be read without a further presence check.
-function matchesType(
-  attrs: XmlAttributes,
-  suffix: string,
-): attrs is {Type: string; Target: string} {
-  return (
-    attrs.Type !== undefined && attrs.Target !== undefined && attrs.Type.endsWith(`/${suffix}`)
-  );
-}
-
 // The Target of the first relationship whose Type ends with `/<suffix>`, or undefined when none is
 // declared. For a single expected reference, where the plural form below would over-gather.
 export function relationshipTargetByType(xml: string, suffix: string): string | undefined {
   return relationshipTargetsByType(xml, suffix)[0];
 }
 
-// Every Target whose Type ends with `/<suffix>`, in declaration order. For a part class a sheet may
-// reference more than once (a sheet can own several tables), where the singular helper's first-match
-// would miss all but one.
+// Every Target whose Type ends with `/<suffix>`, in declaration order. The type is matched on its
+// final segment (a local-name match, so a namespaced or oddly-cased type still resolves). For a part
+// class a sheet may reference more than once (a sheet can own several tables), where the singular
+// helper's first-match would miss all but one.
 export function relationshipTargetsByType(xml: string, suffix: string): string[] {
-  const targets: string[] = [];
-  for (const {attrs} of openElements(xml, 'Relationship')) {
-    if (matchesType(attrs, suffix)) targets.push(attrs.Target);
-  }
-  return targets;
+  return parseRelationshipRecords(xml)
+    .filter((record) => record.type.endsWith(`/${suffix}`))
+    .map((record) => record.target);
 }
 
 // Resolve a relationship target (relative to the referencing part's directory, or absolute from the
@@ -88,20 +75,10 @@ export function resolveWorkbookPart(target: string): string {
   return `xl/${target.replace(/^\.\//, '')}`;
 }
 
-export function parseRelationships(xml: string): Map<string, string> {
-  const rels = new Map<string, string>();
-  for (const {attrs} of openElements(xml, 'Relationship')) {
-    if (attrs.Id !== undefined && attrs.Target !== undefined) {
-      rels.set(attrs.Id, attrs.Target);
-    }
-  }
-  return rels;
-}
-
 // A relationship as declared, with the fields a preserved-part closure needs: its id, Type URI,
-// Target, and whether the target lies outside the package (`TargetMode="External"`). A fuller record
-// than {@link parseRelationships}'s id→target map, which the closure walk uses to skip external
-// targets and carry each relationship's type through a re-write.
+// Target, and whether the target lies outside the package (`TargetMode="External"`). This is the one
+// shape a `.rels` part is read into; the narrower views above and below are projections of it, so the
+// element is scanned once and there is one answer to what counts as a relationship.
 export interface RelationshipRecord {
   readonly id: string;
   readonly type: string;
@@ -109,6 +86,8 @@ export interface RelationshipRecord {
   readonly external: boolean;
 }
 
+// OPC makes Id, Type and Target all mandatory, so an element missing any of the three is not a
+// relationship and is skipped rather than half-read.
 export function parseRelationshipRecords(xml: string): RelationshipRecord[] {
   const records: RelationshipRecord[] = [];
   for (const {attrs} of openElements(xml, 'Relationship')) {
@@ -122,6 +101,11 @@ export function parseRelationshipRecords(xml: string): RelationshipRecord[] {
     }
   }
   return records;
+}
+
+// The id → target view, for a caller that resolves by id and does not care about type or target mode.
+export function parseRelationships(xml: string): Map<string, string> {
+  return new Map(parseRelationshipRecords(xml).map((record) => [record.id, record.target]));
 }
 
 // One part's `.rels`, parsed once and then queried many times, with the owning part's path bound in so

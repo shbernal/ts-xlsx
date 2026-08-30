@@ -10,7 +10,7 @@ import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {AuthoringError} from '../../errors.ts';
 import {extensionOf, relativePartPath, relsPathFor, THEME_PART_PATH} from '../opc/part-paths.ts';
-import {preservedRelsXml} from '../opc/rels.ts';
+import {relsPartXml} from '../opc/rels.ts';
 import type {CommentCell} from './comments.ts';
 import type {DrawingImage} from './images.ts';
 import {applyThemeOverrides} from './theme-xml.ts';
@@ -338,7 +338,7 @@ export function planPreservedParts(
               ),
         contentType: part.contentType,
         relsPath: rels.length === 0 ? null : relsPathFor(newPath),
-        relsXml: rels.length === 0 ? null : preservedRelsXml(rels),
+        relsXml: rels.length === 0 ? null : relsPartXml(rels),
       });
     }
   }

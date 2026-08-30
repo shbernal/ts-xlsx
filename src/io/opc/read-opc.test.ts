@@ -64,6 +64,36 @@ test('resolveWorkbookPart strips a leading `./` before rooting under `xl/`', () 
   );
 });
 
+test('resolving a workbook target against `xl/workbook.xml` agrees with rooting it under `xl/`', () => {
+  // The workbook's own relationships are read through `readPartRelationships('xl/workbook.xml', ...)`,
+  // which resolves relative to the part rather than through `resolveWorkbookPart`. For every target a
+  // real package carries, the two agree, and that agreement is what makes the workbook's rels readable
+  // with the same machinery as a sheet's.
+  for (const target of [
+    'worksheets/sheet1.xml',
+    '/xl/styles.xml',
+    './styles.xml',
+    'theme/theme1.xml',
+  ]) {
+    assert.strictEqual(
+      resolveRelativePart('xl/workbook.xml', target),
+      resolveWorkbookPart(target),
+      `the two resolvers agree on ${target}`,
+    );
+  }
+});
+
+test('a workbook target escaping `xl/` resolves to a real part path rather than an unwalkable one', () => {
+  // The one shape the two do not agree on, and the direction of the disagreement is the point:
+  // `resolveWorkbookPart` only prefixes, so it yields a path with a `..` still in it that can never
+  // match a package part, while resolving against the part collapses the segment as OPC says to.
+  assert.strictEqual(
+    resolveRelativePart('xl/workbook.xml', '../docProps/custom.xml'),
+    'docProps/custom.xml',
+  );
+  assert.strictEqual(resolveWorkbookPart('../docProps/custom.xml'), 'xl/../docProps/custom.xml');
+});
+
 // An externalLink part points at its source workbook through a `TargetMode="External"` relationship.
 // The closure must keep that wiring verbatim, since dropping it (as it once did) orphans the link and
 // dangles every `[n]` external reference a formula resolves through, while never trying to walk into
