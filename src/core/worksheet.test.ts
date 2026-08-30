@@ -489,6 +489,40 @@ test('duplicateRow makes a faithful copy that carries no merge of its own', () =
   assert.doesNotThrow(() => sheet.mergeCells('A2:C2'));
 });
 
+test('duplicateRow with insert:false replaces the destination row rather than overlaying it', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'a';
+  sheet.getCell('B1').value = 'b';
+  sheet.getCell('C2').value = 'survivor?';
+  sheet.duplicateRow(1, {count: 1, insert: false});
+  assert.equal(sheet.getCell('A2').value, 'a');
+  assert.equal(sheet.getCell('B2').value, 'b');
+  // C is a column the source leaves empty: the destination is re-made, not merged into, so what
+  // stood there is gone, the same outcome a shifting insert gives.
+  assert.equal(sheet.getCell('C2').value, null);
+});
+
+test('duplicateRow carries the source row height and outline level on both paths', () => {
+  for (const insert of [true, false]) {
+    const sheet = new Worksheet('S', 1);
+    sheet.getCell('A1').value = 'a';
+    sheet.getRow(1).height = 42;
+    sheet.getRow(1).outlineLevel = 2;
+    sheet.getRow(2).height = 11; // a destination property the copy must replace, not keep
+    sheet.duplicateRow(1, {count: 1, insert});
+    assert.equal(sheet.getRow(2).height, 42, `height did not travel with insert:${insert}`);
+    assert.equal(sheet.getRow(2).outlineLevel, 2, `outline did not travel with insert:${insert}`);
+  }
+});
+
+test('duplicateRow onto a formatted row clears properties the source does not have', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'a';
+  sheet.getRow(2).height = 33;
+  sheet.duplicateRow(1, {count: 1, insert: false});
+  assert.equal(sheet.getRow(2).height, undefined);
+});
+
 test('duplicating rows above a merged range shifts the merge down by the number inserted', () => {
   const sheet = new Worksheet('S', 1);
   sheet.getCell('A1').value = 'a';

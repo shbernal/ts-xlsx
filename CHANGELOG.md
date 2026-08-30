@@ -12,6 +12,18 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: `duplicateRow` carries the source row's height, hidden flag, outline level and row
+  fill onto every copy, and states that `{insert: false}` replaces the destination rather than
+  overlaying it.** Both were undecided rather than decided: the doc promised "a faithful duplicate
+  of the source's values and per-cell styles", which is narrower than what a caller duplicating a
+  tall grouped row expects, and neither path copied the row's own properties, so a duplicated header
+  came back at the default height. The overwrite path also wrote straight into the grid, which meant
+  a destination cell in a column the source leaves empty survived in one copy mode and not the
+  other. A copy is now the whole row in both modes: values, per-cell styles, and row properties,
+  with a source that declares no properties clearing the destination's.
+
 ### Fixed
 
 - **The VBA decompressor accumulates into a growable `Uint8Array` rather than a `number[]`, and

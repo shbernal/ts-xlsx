@@ -931,9 +931,13 @@ export class Worksheet {
   /**
    * Copy the row at the 1-based `start`, `options.count` times (default 1). With `options.insert`
    * (the default) the copies are inserted directly after the source, shifting the rows below, and
-   * any merged range there, down by `count`; otherwise the copies overwrite the rows immediately
-   * below without shifting. Each copy is a faithful duplicate of the source's values and per-cell
-   * styles, and carries no merge of its own, so a range can be merged onto a duplicated row afterwards.
+   * any merged range there, down by `count`; otherwise the copies *replace* the rows immediately
+   * below without shifting. A destination row is not overlaid but wholly re-made, so a cell it held
+   * in a column the source leaves empty is dropped, exactly as it would be with a shifting insert.
+   *
+   * Each copy is a faithful duplicate of the source: its cell values, its per-cell styles, and its
+   * row properties (height, hidden, outline level, row fill). It carries no merge of its own, so a
+   * range can be merged onto a duplicated row afterwards.
    *
    * @throws {RangeError} if `start` is not a positive integer or `count` is negative.
    */
@@ -941,6 +945,7 @@ export class Worksheet {
     const {count = 1, insert = true} = options;
     assertStartAndCount('duplicate', 'row', start, count);
     const source = this.#rows.get(start);
+    const sourceProperties = this.#rowProperties.get(start);
     const snapshot = (destRow: number): Map<number, Cell> => {
       const row = new Map<number, Cell>();
       if (source) {
@@ -952,15 +957,24 @@ export class Worksheet {
       }
       return row;
     };
+    // A row's height and outline level live beside the grid, so neither the splice nor a plain
+    // `#rows.set` carries them; they are copied onto each destination explicitly. A source with no
+    // properties of its own clears the destination's, keeping "replace" true of the whole row.
+    const copyProperties = (destRow: number): void => {
+      if (sourceProperties === undefined) this.#rowProperties.delete(destRow);
+      // A shallow copy suffices: every field of `RowProperties` is a primitive or a deeply-readonly
+      // `Fill`, so the copies share no mutable state with the source.
+      else this.#rowProperties.set(destRow, {...sourceProperties});
+    };
     if (insert) {
       const copies = Array.from({length: count}, () => snapshot(start));
       this.#edits.spliceRows(start + 1, 0, copies);
       this.#mergeIndex.invalidate();
-      this.#extent.invalidate();
     } else {
       for (let i = 1; i <= count; i++) this.#rows.set(start + i, snapshot(start + i));
-      this.#extent.invalidate();
     }
+    for (let i = 1; i <= count; i++) copyProperties(start + i);
+    this.#extent.invalidate();
   }
 
   /**

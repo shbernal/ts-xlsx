@@ -889,9 +889,13 @@ duplicateRow(start: number, options: {count?: number; insert?: boolean} = {}): v
 
 Copy the row at the 1-based `start`, `options.count` times (default 1). With `options.insert`
 (the default) the copies are inserted directly after the source, shifting the rows below, and
-any merged range there, down by `count`; otherwise the copies overwrite the rows immediately
-below without shifting. Each copy is a faithful duplicate of the source's values and per-cell
-styles, and carries no merge of its own, so a range can be merged onto a duplicated row afterwards.
+any merged range there, down by `count`; otherwise the copies *replace* the rows immediately
+below without shifting. A destination row is not overlaid but wholly re-made, so a cell it held
+in a column the source leaves empty is dropped, exactly as it would be with a shifting insert.
+
+Each copy is a faithful duplicate of the source: its cell values, its per-cell styles, and its
+row properties (height, hidden, outline level, row fill). It carries no merge of its own, so a
+range can be merged onto a duplicated row afterwards.
 
 **Throws:** `RangeError` if `start` is not a positive integer or `count` is negative.
 
