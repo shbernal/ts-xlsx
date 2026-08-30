@@ -5,12 +5,9 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {ERROR_CODES, isErrorValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
-
-function sheetXmlOf(data: Uint8Array): string {
-  return strFromU8(unzipSync(data)['xl/worksheets/sheet1.xml'] as Uint8Array);
-}
 
 function reReadA1(wb: Workbook): unknown {
   return readXlsx(writeXlsx(wb)).getWorksheet('S')?.getCell('A1').value;
@@ -37,15 +34,15 @@ test('an error cell serialises under t="e" with the code as its value', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {error: '#DIV/0!'};
 
-  assert.match(sheetXmlOf(writeXlsx(wb)), /<c r="A1" t="e"><v>#DIV\/0!<\/v><\/c>/);
+  assert.match(sheetXml(writeXlsx(wb)), /<c r="A1" t="e"><v>#DIV\/0!<\/v><\/c>/);
 });
 
 test('a formula whose cached result is an error round-trips with both', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {formula: 'A2/A3', result: {error: '#DIV/0!'}};
 
-  const sheetXml = sheetXmlOf(writeXlsx(wb));
-  assert.match(sheetXml, /<c r="A1" t="e"><f>A2\/A3<\/f><v>#DIV\/0!<\/v><\/c>/);
+  const xml = sheetXml(writeXlsx(wb));
+  assert.match(xml, /<c r="A1" t="e"><f>A2\/A3<\/f><v>#DIV\/0!<\/v><\/c>/);
 
   const back = reReadA1(wb) as {formula: string; result: unknown};
   assert.equal(back.formula, 'A2/A3', 'the formula survives');

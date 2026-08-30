@@ -1,17 +1,12 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, unzipSync} from 'fflate';
-
 import type {Fill} from '../../core/style.ts';
 import {isSharedFormulaValue, type SharedFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
-
-function sheetXmlOf(data: Uint8Array): string {
-  return strFromU8(unzipSync(data)['xl/worksheets/sheet1.xml'] as Uint8Array);
-}
 
 // A master formula filled down a column: B1 is the master, B2/B3 are clones referencing it.
 function filledColumn(): Workbook {
@@ -50,10 +45,10 @@ test('a shared-formula clone reads back its master formula translated to its own
 });
 
 test('the master seeds the group with t="shared" ref/si and clones reference it by si', () => {
-  const sheetXml = sheetXmlOf(writeXlsx(filledColumn()));
-  assert.match(sheetXml, /<c r="B1"><f t="shared" ref="B1:B3" si="0">A1\*2<\/f><v>2<\/v><\/c>/);
-  assert.match(sheetXml, /<c r="B2"><f t="shared" si="0"\/><v>4<\/v><\/c>/);
-  assert.match(sheetXml, /<c r="B3"><f t="shared" si="0"\/><v>6<\/v><\/c>/);
+  const xml = sheetXml(writeXlsx(filledColumn()));
+  assert.match(xml, /<c r="B1"><f t="shared" ref="B1:B3" si="0">A1\*2<\/f><v>2<\/v><\/c>/);
+  assert.match(xml, /<c r="B2"><f t="shared" si="0"\/><v>4<\/v><\/c>/);
+  assert.match(xml, /<c r="B3"><f t="shared" si="0"\/><v>6<\/v><\/c>/);
 });
 
 test('a shared formula filled across a row translates the column, not the row', () => {
@@ -90,7 +85,7 @@ test('a shared formula survives a read → write → read round-trip', () => {
   assert.equal(b2.sharedFormula, 'B1');
   assert.equal(b2.result, 4);
   // The re-write reconstructed the shared grouping rather than expanding to concrete formulas.
-  assert.match(sheetXmlOf(writeXlsx(once)), /<f t="shared" si="0"\/>/);
+  assert.match(sheetXml(writeXlsx(once)), /<f t="shared" si="0"\/>/);
 });
 
 test('a clone whose master has no formula is refused, naming the offending cell', () => {
@@ -131,7 +126,7 @@ test('inserting a column into a shared-formula sheet re-anchors the master so th
   const back = readXlsx(writeXlsx(wb));
   const c2 = sharedOf(back, 'C2');
   assert.equal(c2.sharedFormula, 'C1');
-  assert.match(sheetXmlOf(writeXlsx(wb)), /<f t="shared" ref="C1:C3" si="0">/);
+  assert.match(sheetXml(writeXlsx(wb)), /<f t="shared" ref="C1:C3" si="0">/);
 });
 
 test('a styled shared-formula clone keeps its fill and font on read, not just its value', () => {

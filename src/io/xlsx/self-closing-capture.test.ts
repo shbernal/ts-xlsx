@@ -10,30 +10,20 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+import {strFromU8, strToU8} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
 import {parseDrawing} from './images.ts';
+import {readPatched, SHEET1} from './package.test-support.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
-import {readXlsx} from './read.ts';
 import {parseTable} from './tables.ts';
 import {parseThreadedComments} from './threaded-comments.ts';
-import {writeXlsx} from './write.ts';
 
 // Every parser below is reached the way a file reaches it: through a package with one part
 // rewritten, read by `readXlsx`. That matters beyond convenience for the worksheet parsers, which
 // production runs as five passes sharing one event stream; a capture that leaks in that arrangement
 // but not in a parse of its own is exactly the bug these tests exist to catch.
-function readWithPart(part: string, xml: string): Workbook {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').getCell('A1').value = 1;
-  const unzipped = unzipSync(writeXlsx(workbook));
-  const files: Record<string, Uint8Array> = {};
-  for (const [name, bytes] of Object.entries(unzipped)) {
-    files[name] = name === part ? strToU8(xml) : bytes;
-  }
-  return readXlsx(zipSync(files));
-}
+const readWithPart = (part: string, xml: string): Workbook => readPatched({[part]: xml});
 
 // The worksheet part around whatever fragment a test is pinning, with the cell `readWithPart`'s
 // guard reads back.
@@ -43,8 +33,6 @@ const worksheetWith = (body: string): string =>
   body +
   '</worksheet>';
 
-const SHEET_PART = 'xl/worksheets/sheet1.xml';
-
 test('the shared-string pool keeps an empty <t/> empty and the next entry its own', () => {
   const pool = parseSharedStrings('<sst><si><t/></si><si><t>after</t></si></sst>');
   assert.deepEqual(pool, ['', 'after']);
@@ -52,7 +40,7 @@ test('the shared-string pool keeps an empty <t/> empty and the next entry its ow
 
 test('an extended data validation keeps an empty <xm:f/> and <xm:sqref/> from eating the next', () => {
   const back = readWithPart(
-    SHEET_PART,
+    SHEET1,
     worksheetWith(
       '<extLst><ext><x14:dataValidations>' +
         '<x14:dataValidation type="list"><x14:formula1><xm:f/></x14:formula1>' +
@@ -112,7 +100,7 @@ test('a table keeps an empty <totalsRowFormula/> off the column that follows it'
 
 test('a conditional formatting keeps an empty <formula/> from taking the next operand', () => {
   const back = readWithPart(
-    SHEET_PART,
+    SHEET1,
     worksheetWith(
       '<conditionalFormatting sqref="A1:A5">' +
         '<cfRule type="cellIs" operator="between" priority="1">' +
@@ -129,7 +117,7 @@ test('a conditional formatting keeps an empty <formula/> from taking the next op
 
 test('a data-bar extension link keeps an empty <x14:id/> from taking the next rule', () => {
   const back = readWithPart(
-    SHEET_PART,
+    SHEET1,
     worksheetWith(
       '<conditionalFormatting sqref="A1:A5">' +
         '<cfRule type="dataBar" priority="1"><dataBar><cfvo type="min"/><cfvo type="max"/>' +

@@ -6,6 +6,7 @@ import {strFromU8, unzipSync} from 'fflate';
 import {isOneCellAnchor} from '../../core/image.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {imageContentType} from './images.ts';
+import {partText} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -180,7 +181,7 @@ test('a picture rotation survives the write/read round-trip on a rot-only transf
   const ws = wb.addWorksheet('S');
   const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
   ws.addImageAnchor(id, {from: {col: 1, row: 1}, to: {col: 3, row: 3}, rotation: 2700000});
-  const drawing = strFromU8(unzipSync(writeXlsx(wb))['xl/drawings/drawing1.xml'] as Uint8Array);
+  const drawing = partText(writeXlsx(wb), 'xl/drawings/drawing1.xml');
   assert.match(drawing, /<a:xfrm rot="2700000"\/>/);
   assert.doesNotMatch(drawing, /<a:off|<a:ext/, 'the rot rides alone, no zeroed offset/extent');
   assert.strictEqual(

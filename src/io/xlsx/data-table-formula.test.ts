@@ -1,16 +1,13 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+import {strToU8, zipSync} from 'fflate';
 
 import {isDataTableFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
-
-function sheetXmlOf(data: Uint8Array): string {
-  return strFromU8(unzipSync(data)['xl/worksheets/sheet1.xml'] as Uint8Array);
-}
 
 test('a data-table formula writes its t="dataTable" declaration with input cells', () => {
   const wb = new Workbook();
@@ -23,7 +20,7 @@ test('a data-table formula writes its t="dataTable" declaration with input cells
     result: 99,
   };
 
-  const cell = sheetXmlOf(writeXlsx(wb)).match(/<c r="B2"[\s\S]*?<\/c>/)?.[0] ?? '';
+  const cell = sheetXml(writeXlsx(wb)).match(/<c r="B2"[\s\S]*?<\/c>/)?.[0] ?? '';
   assert.match(cell, /<f t="dataTable"/, 'the formula is emitted as the data-table kind');
   assert.match(cell, /ref="B2:B5"/, 'the data-table range is emitted');
   assert.match(cell, /dtr="1"/, 'the row-input flag is emitted');
@@ -131,7 +128,7 @@ test('a re-written data-table formula still declares t="dataTable" after a read-
   assert.ok(sheet2, 'the sheet reloads');
   sheet2.getCell('A1').value = 'edited elsewhere';
   assert.match(
-    sheetXmlOf(writeXlsx(reloaded)),
+    sheetXml(writeXlsx(reloaded)),
     /t="dataTable"/,
     'the kind survives an unrelated edit',
   );

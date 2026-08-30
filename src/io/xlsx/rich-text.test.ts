@@ -1,16 +1,11 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, unzipSync} from 'fflate';
-
 import {isRichTextValue, type RichTextValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
-
-function sheetXmlOf(data: Uint8Array): string {
-  return strFromU8(unzipSync(data)['xl/worksheets/sheet1.xml'] as Uint8Array);
-}
 
 function richTextOf(workbook: Workbook, sheet: string, ref: string): RichTextValue {
   const value = workbook.getWorksheet(sheet)?.getCell(ref).value;
@@ -41,12 +36,8 @@ test('the run face name (rFont) round-trips', () => {
     richText: [{text: 'x', font: {name: 'Arial', size: 14}}],
   };
 
-  const sheetXml = sheetXmlOf(writeXlsx(wb));
-  assert.match(
-    sheetXml,
-    /<rPr>.*<rFont val="Arial"\/>.*<\/rPr>/,
-    'the run face is <rFont>, not <name>',
-  );
+  const xml = sheetXml(writeXlsx(wb));
+  assert.match(xml, /<rPr>.*<rFont val="Arial"\/>.*<\/rPr>/, 'the run face is <rFont>, not <name>');
 
   const run = richTextOf(readXlsx(writeXlsx(wb)), 'S', 'A1').richText[0];
   assert.equal(run?.font?.name, 'Arial');
@@ -59,9 +50,9 @@ test('a rich-text cell serialises as an inline string of runs', () => {
     richText: [{text: 'a', font: {italic: true}}, {text: 'b'}],
   };
 
-  const sheetXml = sheetXmlOf(writeXlsx(wb));
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(
-    sheetXml,
+    xml,
     /<c r="A1" t="inlineStr"><is><r><rPr><i\/><\/rPr><t>a<\/t><\/r><r><t>b<\/t><\/r><\/is><\/c>/,
   );
 });
@@ -73,8 +64,8 @@ test('an empty-text run is dropped, never emitted as an empty <t> element', () =
   };
 
   const data = writeXlsx(wb);
-  const sheetXml = sheetXmlOf(data);
-  assert.doesNotMatch(sheetXml, /<t\/>|<t><\/t>/, 'no zero-length <t> element');
+  const xml = sheetXml(data);
+  assert.doesNotMatch(xml, /<t\/>|<t><\/t>/, 'no zero-length <t> element');
 
   const back = richTextOf(readXlsx(data), 'S', 'A1');
   assert.deepEqual(

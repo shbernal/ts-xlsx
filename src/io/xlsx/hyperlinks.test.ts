@@ -1,19 +1,13 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+import {strToU8, zipSync} from 'fflate';
 
 import {isHyperlinkValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {partsOf} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
-
-function partsOf(data: Uint8Array): Record<string, string> {
-  const unzipped = unzipSync(data);
-  const out: Record<string, string> = {};
-  for (const name of Object.keys(unzipped)) out[name] = strFromU8(unzipped[name] as Uint8Array);
-  return out;
-}
 
 function hyperlinkOf(workbook: Workbook, sheet: string, ref: string) {
   const value = workbook.getWorksheet(sheet)?.getCell(ref).value;

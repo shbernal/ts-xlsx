@@ -14,12 +14,7 @@ import {test} from 'node:test';
 
 import type {Fill} from '../../core/style.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {readXlsx} from './read.ts';
-import {writeXlsx} from './write.ts';
-
-function roundtrip(workbook: Workbook): Workbook {
-  return readXlsx(writeXlsx(workbook));
-}
+import {roundtrip} from './package.test-support.ts';
 
 const fgOf = (fill: Fill | undefined): string | undefined =>
   fill?.type === 'pattern' ? fill.fgColor?.argb : undefined;

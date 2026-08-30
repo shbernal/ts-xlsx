@@ -1,18 +1,10 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, unzipSync} from 'fflate';
-
 import {Workbook} from '../../core/workbook.ts';
+import {partsOf} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
-
-function partsOf(data: Uint8Array): Record<string, string> {
-  const unzipped = unzipSync(data);
-  const out: Record<string, string> = {};
-  for (const name of Object.keys(unzipped)) out[name] = strFromU8(unzipped[name] as Uint8Array);
-  return out;
-}
 
 // A source sheet whose data carries every XML-special character plus a missing value in an axis
 // column: the shape that corrupts a naive pivot writer that fails to entity-escape shared items.

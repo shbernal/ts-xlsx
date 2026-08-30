@@ -9,10 +9,11 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, unzipSync, zipSync} from 'fflate';
+import {zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
 import {AuthoringError} from '../../errors.ts';
+import {partsOf as packageParts, sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -31,11 +32,9 @@ function refuses(mutate: (workbook: Workbook) => void): void {
   assert.throws(() => writeXlsx(workbook), AuthoringError);
 }
 
+// Shorthand for the shared accessor: every case here starts from a workbook, not from bytes.
 function partsOf(workbook: Workbook): Record<string, string> {
-  const unzipped = unzipSync(writeXlsx(workbook));
-  const out: Record<string, string> = {};
-  for (const [name, bytes] of Object.entries(unzipped)) out[name] = strFromU8(bytes);
-  return out;
+  return packageParts(writeXlsx(workbook));
 }
 
 test('<pageSetup> refuses a foreign orientation or page order', () => {
@@ -148,6 +147,6 @@ test('a foreign token in a file is dropped on read rather than carried into a wr
   // Why dropped and not preserved: what the reader accepts, the writer must be able to write. The
   // block it leaves behind carries no rule, and `CT_ConditionalFormatting` requires one, so the
   // writer omits the element rather than emitting it empty.
-  const rewritten = strFromU8(unzipSync(writeXlsx(back))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  const rewritten = sheetXml(writeXlsx(back));
   assert.ok(!rewritten.includes('<conditionalFormatting'));
 });

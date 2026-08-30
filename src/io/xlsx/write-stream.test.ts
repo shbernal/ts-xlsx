@@ -5,19 +5,10 @@ import {join} from 'node:path';
 import {Duplex, PassThrough, type Readable} from 'node:stream';
 import {test} from 'node:test';
 
-import {strFromU8, unzipSync} from 'fflate';
-
 import {isOneCellAnchor} from '../../core/image.ts';
+import {partsOf, partText} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {WorkbookStreamWriter} from './write-stream.ts';
-
-// Decode one package part back to its XML text. The streamed archive is a real zip, so read it the
-// same way a consumer would.
-function partText(pkg: Uint8Array, name: string): string {
-  const bytes = unzipSync(pkg)[name];
-  assert.ok(bytes, `expected part ${name}`);
-  return strFromU8(bytes);
-}
 
 // A 1×1 transparent PNG: enough bytes to prove the streamed media round-trips verbatim.
 const ONE_PX_PNG = Uint8Array.from(
@@ -420,9 +411,9 @@ test('a streamed image emits the drawing, media, and <drawing> reference like a 
   sheet.commit();
 
   const bytes = await writer.commit();
-  const files = unzipSync(bytes);
-  assert.ok(files['xl/drawings/drawing1.xml'], 'a drawing part is streamed');
-  assert.ok(files['xl/media/image1.png'], 'the media bytes are streamed');
+  const names = Object.keys(partsOf(bytes));
+  assert.ok(names.includes('xl/drawings/drawing1.xml'), 'a drawing part is streamed');
+  assert.ok(names.includes('xl/media/image1.png'), 'the media bytes are streamed');
   assert.match(partText(bytes, 'xl/worksheets/sheet1.xml'), /<drawing r:id="[^"]+"\/>/);
   const contentTypes = partText(bytes, '[Content_Types].xml');
   assert.match(contentTypes, /Extension="png" ContentType="image\/png"/);
@@ -435,7 +426,7 @@ test('one streamed image anchored on two sheets is stored as a single media part
   writer.addWorksheet('A').addImage(id, {tl: {col: 0, row: 0}, br: {col: 1, row: 1}});
   writer.addWorksheet('B').addImage(id, {tl: {col: 3, row: 3}, br: {col: 4, row: 4}});
 
-  const files = unzipSync(await writer.commit());
+  const files = partsOf(await writer.commit());
   const mediaParts = Object.keys(files).filter((n) => n.startsWith('xl/media/'));
   assert.strictEqual(mediaParts.length, 1, 'the shared image is streamed once');
 });

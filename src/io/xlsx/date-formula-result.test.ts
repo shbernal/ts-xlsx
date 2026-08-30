@@ -1,17 +1,12 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, unzipSync} from 'fflate';
-
 import {dateToSerial} from '../../core/date.ts';
 import {type FormulaValue, isFormulaValue, isSharedFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
-
-function sheetXmlOf(data: Uint8Array): string {
-  return strFromU8(unzipSync(data)['xl/worksheets/sheet1.xml'] as Uint8Array);
-}
 
 function formulaOf(wb: Workbook, ref: string): FormulaValue {
   const value = wb.getWorksheet('S')?.getCell(ref).value;
@@ -34,12 +29,12 @@ test('the result caches the serial and the cell carries a date format so it read
   const wb = new Workbook();
   const when = new Date(2020, 0, 1);
   wb.addWorksheet('S').getCell('A1').value = {formula: 'TODAY()', result: when};
-  const sheetXml = sheetXmlOf(writeXlsx(wb));
+  const xml = sheetXml(writeXlsx(wb));
 
   // The serial rides in <v> exactly as a bare date cell stores its value, and the cell references a
   // (non-default) style: the date number format that makes the serial read back as a Date.
   assert.match(
-    sheetXml,
+    xml,
     new RegExp(`<c r="A1" s="\\d+"><f>TODAY\\(\\)</f><v>${dateToSerial(when)}</v></c>`),
   );
 });
@@ -68,9 +63,9 @@ test('a formula with an Invalid Date result writes no cached value and reads bac
   sheet.getCell('A1').value = {formula: 'TODAY()', result: new Date(Number.NaN)};
   sheet.getCell('A2').value = 'sibling'; // one bad result must not take down the rest of the sheet
 
-  const sheetXml = sheetXmlOf(writeXlsx(wb));
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(
-    sheetXml,
+    xml,
     /<c r="A1"><f>TODAY\(\)<\/f><\/c>/,
     'no <v> is cached for an unrepresentable date',
   );

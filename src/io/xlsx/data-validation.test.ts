@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
-
 import type {
   DataValidation,
   DataValidationErrorStyle,
@@ -10,12 +8,11 @@ import type {
   DataValidationType,
 } from '../../core/data-validation.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {readPatched, sheetXml, SHEET1} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
-function sheetXml(pkg: Uint8Array): string {
-  return strFromU8(unzipSync(pkg)['xl/worksheets/sheet1.xml'] ?? new Uint8Array());
-}
+const readSheetPartXml = (xml: string): Workbook => readPatched({[SHEET1]: xml});
 
 test('a list validation over a whole column writes exactly one dataValidation with the range as sqref', () => {
   const workbook = new Workbook();
@@ -126,21 +123,6 @@ function sheetWithExtendedValidation(sqref: string, source: string): string {
   );
 }
 
-// Read an xlsx built from a hand-authored sheet1 part, so a case can feed the reader an x14 form the
-// writer itself only produces on round-trip.
-function readSheetPart(sheet1Xml: string): Workbook {
-  const template = writeXlsx(withSheet(), {});
-  const files = unzipSync(template);
-  files['xl/worksheets/sheet1.xml'] = strToU8(sheet1Xml);
-  return readXlsx(zipSync(files));
-}
-
-function withSheet(): Workbook {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S');
-  return workbook;
-}
-
 test('a standard validation with xsd:boolean-spelled flags ("true") reads them on, not just "1"', () => {
   const part =
     '<?xml version="1.0"?>' +
@@ -150,7 +132,7 @@ test('a standard validation with xsd:boolean-spelled flags ("true") reads them o
     '<dataValidation type="list" allowBlank="true" showInputMessage="true" ' +
     'showErrorMessage="true" sqref="A1"><formula1>"a,b,c"</formula1></dataValidation>' +
     '</dataValidations></worksheet>';
-  const dv = readSheetPart(part).getWorksheet('S')?.dataValidationAt('A1');
+  const dv = readSheetPartXml(part).getWorksheet('S')?.dataValidationAt('A1');
   assert.ok(dv, 'the rule is read onto its cell');
   assert.equal(dv.allowBlank, true, '"true" is honoured, not only "1"');
   assert.equal(dv.showInputMessage, true);
@@ -168,7 +150,7 @@ test('a numeric-typed operand spelled non-canonically keeps its verbatim text an
     '<dataValidation type="whole" operator="greaterThan" sqref="A1">' +
     '<formula1>1E5</formula1></dataValidation>' +
     '</dataValidations></worksheet>';
-  const workbook = readSheetPart(part);
+  const workbook = readSheetPartXml(part);
   const dv = workbook.getWorksheet('S')?.dataValidationAt('A1');
   assert.deepEqual(
     dv?.formulae,
@@ -179,7 +161,7 @@ test('a numeric-typed operand spelled non-canonically keeps its verbatim text an
 });
 
 test('an extended (x14) list validation is read onto its cell with the cross-sheet source intact', () => {
-  const workbook = readSheetPart(sheetWithExtendedValidation('A1:A1048576', 'Sheet2!$A:$A'));
+  const workbook = readSheetPartXml(sheetWithExtendedValidation('A1:A1048576', 'Sheet2!$A:$A'));
   const dv = workbook.getWorksheet('S')?.dataValidationAt('A5');
   assert.ok(dv, 'a cell inside the extended range carries the validation');
   assert.equal(dv.type, 'list');
@@ -187,7 +169,7 @@ test('an extended (x14) list validation is read onto its cell with the cross-she
 });
 
 test('an extended validation is re-serialised back into the x14 extLst block, not the standard element', () => {
-  const workbook = readSheetPart(sheetWithExtendedValidation('B2:B16', 'Dropdown!$D$4:$D$8'));
+  const workbook = readSheetPartXml(sheetWithExtendedValidation('B2:B16', 'Dropdown!$D$4:$D$8'));
   const xml = sheetXml(writeXlsx(workbook));
 
   assert.match(xml, /<x14:dataValidation type="list"/, 'the rule writes back to the extended form');
@@ -210,7 +192,7 @@ test('a sheet mixing a standard and an extended validation round-trips both to t
     '<x14:dataValidation type="list" allowBlank="1"><x14:formula1><xm:f>Sheet2!$D$3:$D$5</xm:f>' +
     '</x14:formula1><xm:sqref>A1</xm:sqref></x14:dataValidation></x14:dataValidations></ext></extLst>' +
     '</worksheet>';
-  const xml = sheetXml(writeXlsx(readSheetPart(part)));
+  const xml = sheetXml(writeXlsx(readSheetPartXml(part)));
 
   assert.match(
     xml,
@@ -249,7 +231,7 @@ test('a validation whose type is not a schema token is dropped, and its neighbou
     '<dataValidation type="nonsense" sqref="A2"><formula1>1</formula1></dataValidation>' +
     '<dataValidation type="whole" operator="equal" sqref="A3"><formula1>7</formula1></dataValidation>' +
     '</dataValidations></worksheet>';
-  const sheet = readSheetPart(part).getWorksheet('S');
+  const sheet = readSheetPartXml(part).getWorksheet('S');
 
   assert.equal(sheet?.dataValidationAt('A2'), undefined, 'the unknown type carries no rule');
   assert.equal(sheet?.dataValidationAt('A1')?.type, 'list');
@@ -264,7 +246,7 @@ test('a validation with an unknown operator keeps its type and loses only the op
     '<dataValidations count="1">' +
     '<dataValidation type="whole" operator="nonsense" sqref="A1">' +
     '<formula1>1</formula1></dataValidation></dataValidations></worksheet>';
-  const dv = readSheetPart(part).getWorksheet('S')?.dataValidationAt('A1');
+  const dv = readSheetPartXml(part).getWorksheet('S')?.dataValidationAt('A1');
 
   assert.equal(dv?.type, 'whole', 'the rule survives its bad facet');
   assert.equal(dv?.operator, undefined, 'and does not claim an operator nothing checked');
@@ -279,7 +261,7 @@ test('a validation with an unknown errorStyle keeps its type and loses only the 
     '<dataValidations count="1">' +
     '<dataValidation type="list" errorStyle="nonsense" error="no" sqref="A1">' +
     '<formula1>"a,b"</formula1></dataValidation></dataValidations></worksheet>';
-  const dv = readSheetPart(part).getWorksheet('S')?.dataValidationAt('A1');
+  const dv = readSheetPartXml(part).getWorksheet('S')?.dataValidationAt('A1');
 
   assert.equal(dv?.type, 'list');
   assert.equal(dv?.errorStyle, undefined);
@@ -298,7 +280,7 @@ test('an extended validation inherits the same narrowing as a standard one', () 
     '</x14:formula1><xm:sqref>A1</xm:sqref></x14:dataValidation></x14:dataValidations></ext>' +
     '</extLst></worksheet>';
 
-  assert.equal(readSheetPart(part).getWorksheet('S')?.dataValidationAt('A1'), undefined);
+  assert.equal(readSheetPartXml(part).getWorksheet('S')?.dataValidationAt('A1'), undefined);
 });
 
 test('every schema token of every validation union round-trips unchanged', () => {

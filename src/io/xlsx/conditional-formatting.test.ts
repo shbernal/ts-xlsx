@@ -1,32 +1,13 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
-
 import type {CfValueObjectType} from '../../core/conditional-formatting.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {partText, readPatched, sheetXml, SHEET1} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
-function sheetXml(pkg: Uint8Array): string {
-  return strFromU8(unzipSync(pkg)['xl/worksheets/sheet1.xml'] ?? new Uint8Array());
-}
-
-function stylesXml(pkg: Uint8Array): string {
-  return strFromU8(unzipSync(pkg)['xl/styles.xml'] ?? new Uint8Array());
-}
-
-// Read an xlsx built from a hand-authored sheet1 (and optionally styles) part, so a case can feed the
-// reader markup the writer itself only produces on round-trip: an Excel-authored x14 extLst block, a
-// foreign dxf table.
-function readParts(parts: {sheet1?: string; styles?: string}): Workbook {
-  const base = new Workbook();
-  base.addWorksheet('S');
-  const files = unzipSync(writeXlsx(base));
-  if (parts.sheet1 !== undefined) files['xl/worksheets/sheet1.xml'] = strToU8(parts.sheet1);
-  if (parts.styles !== undefined) files['xl/styles.xml'] = strToU8(parts.styles);
-  return readXlsx(zipSync(files));
-}
+const stylesXml = (pkg: Uint8Array): string => partText(pkg, 'xl/styles.xml');
 
 test('a dataBar rule emits a well-formed block with two cfvo anchors and a bar colour', () => {
   const workbook = new Workbook();
@@ -166,7 +147,7 @@ test('a self-closing rule read from a file (a duplicateValues) round-trips its t
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/>' +
     '<conditionalFormatting sqref="A1:A1048576">' +
     '<cfRule type="duplicateValues" dxfId="0" priority="1"/></conditionalFormatting></worksheet>';
-  const xml = sheetXml(writeXlsx(readParts({sheet1: part})));
+  const xml = sheetXml(writeXlsx(readPatched({[SHEET1]: part})));
 
   assert.match(
     xml,
@@ -194,7 +175,7 @@ test('a foreign differential style with a custom number format round-trips verba
     '<conditionalFormatting sqref="A1:A5">' +
     '<cfRule type="expression" dxfId="0" priority="1"><formula>A1&gt;2</formula></cfRule>' +
     '</conditionalFormatting></worksheet>';
-  const out = stylesXml(writeXlsx(readParts({sheet1, styles})));
+  const out = stylesXml(writeXlsx(readPatched({[SHEET1]: sheet1, 'xl/styles.xml': styles})));
 
   assert.doesNotMatch(
     out,
@@ -214,7 +195,7 @@ test('an x14 extLst conditional formatting is left untouched and writing the she
     'xmlns:xm="http://schemas.microsoft.com/office/excel/2006/main">' +
     '<x14:cfRule type="expression" priority="1" id="{GUID}"><xm:f>A1&gt;2</xm:f></x14:cfRule>' +
     '<xm:sqref>A1:A5</xm:sqref></x14:conditionalFormatting></x14:conditionalFormattings></ext></extLst></worksheet>';
-  const workbook = readParts({sheet1});
+  const workbook = readPatched({[SHEET1]: sheet1});
 
   // The x14 rule is namespace-prefixed and is not read into the classic model, so it is neither
   // half-parsed into a broken rule nor does it make the writer throw.
@@ -237,7 +218,7 @@ test('a colorScale colour with a malformed theme attribute drops it rather than 
     '<cfvo type="min"/><cfvo type="max"/>' +
     '<color theme="oops"/><color rgb="FF00FF00"/>' +
     '</colorScale></cfRule></conditionalFormatting></worksheet>';
-  const out = sheetXml(writeXlsx(readParts({sheet1})));
+  const out = sheetXml(writeXlsx(readPatched({[SHEET1]: sheet1})));
 
   // The shared validated parseColor drops the non-integer theme instead of coercing it to NaN, so the
   // writer never emits `theme="NaN"`, which Excel would reject.
@@ -253,7 +234,7 @@ test('a malformed priority is dropped on read rather than poisoning every later 
     '<cfRule type="duplicateValues" priority="oops"/>' +
     '<cfRule type="duplicateValues" priority="2"/>' +
     '</conditionalFormatting></worksheet>';
-  const xml = sheetXml(writeXlsx(readParts({sheet1})));
+  const xml = sheetXml(writeXlsx(readPatched({[SHEET1]: sheet1})));
 
   assert.doesNotMatch(xml, /priority="NaN"/, 'no rule re-writes with a NaN priority');
   assert.equal(
@@ -270,7 +251,7 @@ test('a malformed dxfId is dropped on read rather than round-tripping as NaN', (
     '<conditionalFormatting sqref="A1:A3">' +
     '<cfRule type="duplicateValues" dxfId="oops" priority="1"/>' +
     '</conditionalFormatting></worksheet>';
-  const xml = sheetXml(writeXlsx(readParts({sheet1})));
+  const xml = sheetXml(writeXlsx(readPatched({[SHEET1]: sheet1})));
 
   assert.doesNotMatch(xml, /dxfId="NaN"/, 'the malformed dxfId is not written as NaN');
   assert.doesNotMatch(
@@ -288,7 +269,7 @@ test('a malformed rank and stdDev are dropped on read rather than round-tripping
     '<cfRule type="top10" rank="oops" priority="1"/>' +
     '<cfRule type="aboveAverage" stdDev="oops" priority="2"/>' +
     '</conditionalFormatting></worksheet>';
-  const xml = sheetXml(writeXlsx(readParts({sheet1})));
+  const xml = sheetXml(writeXlsx(readPatched({[SHEET1]: sheet1})));
 
   assert.doesNotMatch(xml, /rank="NaN"/, 'the malformed rank is not written as NaN');
   assert.doesNotMatch(xml, /stdDev="NaN"/, 'the malformed stdDev is not written as NaN');
@@ -473,7 +454,8 @@ test('x14 gradient="false" turns the bar flat exactly as gradient="0" does', () 
   const written = sheetXml(writeXlsx(dataBarBook({gradient: true})));
   for (const spelling of ['0', 'false']) {
     const sheet1 = written.replace('gradient="1"', `gradient="${spelling}"`);
-    const rule = readParts({sheet1}).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
+    const rule = readPatched({[SHEET1]: sheet1}).getWorksheet('S')?.conditionalFormattings[0]
+      ?.rules[0];
     assert.equal(rule?.gradient, false, `gradient="${spelling}" reads as flat`);
   }
 });
@@ -484,7 +466,8 @@ test('aboveAverage="false" reads as below-average; garbage stays above, absence 
       '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/>' +
       `<conditionalFormatting sqref="A1:A3"><cfRule type="aboveAverage" priority="1"${attr}/>` +
       '</conditionalFormatting></worksheet>';
-    return readParts({sheet1}).getWorksheet('S')?.conditionalFormattings[0]?.rules[0]?.aboveAverage;
+    return readPatched({[SHEET1]: sheet1}).getWorksheet('S')?.conditionalFormattings[0]?.rules[0]
+      ?.aboveAverage;
   };
   assert.equal(read(' aboveAverage="0"'), false);
   assert.equal(read(' aboveAverage="false"'), false, 'the long spelling turns it off too');
@@ -502,7 +485,7 @@ test('a cfvo whose type is not a schema token reads back as num, the schema defa
     '<cfvo type="nonsense" val="0"/><cfvo type="max"/>' +
     '<color rgb="FFFFFFFF"/><color rgb="FF638EC6"/>' +
     '</colorScale></cfRule></conditionalFormatting></worksheet>';
-  const rule = readParts({sheet1: part}).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
+  const rule = readPatched({[SHEET1]: part}).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
 
   assert.deepEqual(
     rule?.cfvo?.map((v) => v.type),

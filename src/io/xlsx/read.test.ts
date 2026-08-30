@@ -12,14 +12,10 @@ import {UnsupportedFormatError} from '../opc/errors.ts';
 import {conditionalFormattingPass} from './conditional-formatting.ts';
 import {dataValidationPass, extendedDataValidationPass} from './data-validation.ts';
 import {sheetHyperlinkPass} from './hyperlinks.ts';
+import {partText, roundtrip, sheetXml} from './package.test-support.ts';
 import {worksheetPass} from './read-worksheet.ts';
 import {applyWorkbookView, readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
-
-/** Write a workbook and read it straight back: the round-trip under test. */
-function roundtrip(workbook: Workbook): Workbook {
-  return readXlsx(writeXlsx(workbook));
-}
 
 /** The foreground ARGB of a pattern fill, narrowing the Fill union (a gradient has no fgColor). */
 function fillFgArgb(fill: Fill | undefined): string | undefined {
@@ -119,7 +115,7 @@ test('a formula with no cached result round-trips without inventing one', () => 
 test('a modern function is stored with _xlfn. on disk but round-trips as its plain name', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {formula: 'FILTER(B1:D1,B2:D2=1)', result: 0};
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(xml, /<f>_xlfn\.FILTER\(B1:D1,B2:D2=1\)<\/f>/);
 
   const value = roundtrip(wb).getWorksheet('S')?.getCell('A1').value;
@@ -130,7 +126,7 @@ test('a modern function is stored with _xlfn. on disk but round-trips as its pla
 test('a LET formula stores its parameters with _xlpm. on disk but round-trips as plain names', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {formula: 'LET(x,B1,x+1)', result: 0};
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(xml, /<f>_xlfn\.LET\(_xlpm\.x,B1,_xlpm\.x\+1\)<\/f>/);
 
   const value = roundtrip(wb).getWorksheet('S')?.getCell('A1').value;
@@ -141,7 +137,7 @@ test('a LET formula stores its parameters with _xlpm. on disk but round-trips as
 test('a formula that already carries _xlfn. is not double-prefixed on write', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {formula: '_xlfn.XLOOKUP(1,B:B,C:C)', result: 0};
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(xml, /_xlfn\.XLOOKUP/);
   assert.doesNotMatch(xml, /_xlfn\._xlfn/);
 });
@@ -149,7 +145,7 @@ test('a formula that already carries _xlfn. is not double-prefixed on write', ()
 test('a dotted statistical function is stored whole with _xlfn. and round-trips as its plain name', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {formula: 'NORM.DIST(A2,0,1,TRUE)', result: 0.5};
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(xml, /<f>_xlfn\.NORM\.DIST\(A2,0,1,TRUE\)<\/f>/);
   assert.doesNotMatch(xml, /_xlfn\.DIST/);
 
@@ -523,7 +519,7 @@ test('a custom indexed-color palette survives a read → write round-trip verbat
     '<rgbColor rgb="ffaaaaaa"/>',
   ]);
   // The re-written styles part carries the same palette, entry for entry.
-  const rewritten = strFromU8(unzipSync(writeXlsx(loaded))['xl/styles.xml'] as Uint8Array);
+  const rewritten = partText(writeXlsx(loaded), 'xl/styles.xml');
   assert.match(
     rewritten,
     /<colors><indexedColors><rgbColor rgb="ff000000"\/>.*<rgbColor rgb="ffaaaaaa"\/><\/indexedColors><\/colors>/,
@@ -734,7 +730,7 @@ test('a cell carrying exactly the default font interns back to font id 0: no red
     scheme: 'minor',
   };
 
-  const styles = strFromU8(unzipSync(writeXlsx(wb))['xl/styles.xml'] ?? new Uint8Array());
+  const styles = partText(writeXlsx(wb), 'xl/styles.xml');
   const fontsBlock = styles.match(/<fonts\b[^>]*>[\s\S]*?<\/fonts>/)?.[0] ?? '';
   assert.equal(
     (fontsBlock.match(/<font\b/g) ?? []).length,
@@ -1098,8 +1094,8 @@ test('a re-written loaded protection preserves the credential byte-for-byte', ()
   ws.getCell('A1').value = 'x';
   ws.protect('pw', {formatCells: true});
 
-  const firstXml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
-  const secondXml = strFromU8(unzipSync(writeXlsx(roundtrip(wb)))['xl/worksheets/sheet1.xml']!);
+  const firstXml = sheetXml(writeXlsx(wb));
+  const secondXml = sheetXml(writeXlsx(roundtrip(wb)));
   const prot = (xml: string): string => (xml.match(/<sheetProtection\b[^>]*\/>/) ?? [''])[0];
 
   assert.ok(prot(firstXml), 'the first write emits a sheetProtection element');
@@ -1124,7 +1120,7 @@ test('a bare Date is written under a date number format so it reads back as a da
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = new Date('2020-03-04T00:00:00.000Z');
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  const xml = sheetXml(writeXlsx(wb));
   assert.ok(
     !/t="/.test(xml.match(/<c r="A1"[^>]*>/)?.[0] ?? ''),
     'a date serial is a plain number cell, no t=',
@@ -1180,7 +1176,7 @@ test('the written package carries the tab colour under <sheetPr>', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').tabColor = {argb: 'FF00FF00'};
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(xml, /<sheetPr><tabColor rgb="FF00FF00"\/><\/sheetPr>/);
   // <sheetPr> must lead the worksheet, before <dimension>.
   assert.ok(xml.indexOf('<sheetPr>') < xml.indexOf('<dimension'), 'sheetPr precedes dimension');
@@ -1190,7 +1186,7 @@ test('a sheet with no tab colour acquires none and emits no <sheetPr>', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'y';
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(writeXlsx(wb));
   assert.doesNotMatch(xml, /<sheetPr>/);
   assert.equal(roundtrip(wb).getWorksheet('S')?.tabColor, undefined);
 });
@@ -1230,7 +1226,7 @@ test('the written package carries the outline flags under <sheetPr>', () => {
   sheet.outline.summaryBelow = false;
   sheet.outline.summaryRight = false;
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(xml, /<sheetPr><outlinePr summaryBelow="0" summaryRight="0"\/><\/sheetPr>/);
 });
 
@@ -1240,7 +1236,7 @@ test('the tab colour and outline flags share one <sheetPr> in CT_SheetPr order',
   sheet.tabColor = {argb: 'FFFF0000'};
   sheet.outline.summaryBelow = false;
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(
     xml,
     /<sheetPr><tabColor rgb="FFFF0000"\/><outlinePr summaryBelow="0"\/><\/sheetPr>/,
@@ -1251,7 +1247,7 @@ test('only the set outline flag serializes; the untouched one stays absent', () 
   const wb = new Workbook();
   wb.addWorksheet('S').outline.summaryRight = false;
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(xml, /<outlinePr summaryRight="0"\/>/);
   assert.doesNotMatch(xml, /summaryBelow/);
 });
@@ -1260,7 +1256,7 @@ test('a sheet with default outline positions emits no <outlinePr>', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'y';
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(writeXlsx(wb));
   assert.doesNotMatch(xml, /<outlinePr/);
   const back = roundtrip(wb).getWorksheet('S');
   assert.equal(back?.outline.summaryBelow, undefined);
@@ -1298,7 +1294,7 @@ test('the fit-to-page flag rides <pageSetUpPr> under <sheetPr>, the counts ride 
   sheet.pageSetup.fitToPage = true;
   sheet.pageSetup.fitToWidth = 1;
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(xml, /<sheetPr><pageSetUpPr fitToPage="1"\/><\/sheetPr>/);
   assert.match(xml, /<pageSetup fitToWidth="1"\/>/);
 });
@@ -1309,7 +1305,7 @@ test('<pageSetUpPr> follows <outlinePr> under <sheetPr> in CT_SheetPr order', ()
   sheet.outline.summaryBelow = false;
   sheet.pageSetup.fitToPage = true;
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(
     xml,
     /<sheetPr><outlinePr summaryBelow="0"\/><pageSetUpPr fitToPage="1"\/><\/sheetPr>/,
@@ -1323,7 +1319,7 @@ test('<pageSetup> sits between <pageMargins> and <headerFooter>', () => {
   sheet.pageSetup.scale = 90;
   sheet.headerFooter.oddHeader = 'H';
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(writeXlsx(wb));
   assert.ok(
     xml.indexOf('<pageMargins') < xml.indexOf('<pageSetup'),
     'pageSetup follows pageMargins',
@@ -1340,7 +1336,7 @@ test('orientation and pageOrder round-trip and emit only when set', () => {
   sheet.pageSetup.orientation = 'landscape';
   sheet.pageSetup.pageOrder = 'overThenDown';
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(xml, /<pageSetup pageOrder="overThenDown" orientation="landscape"\/>/);
   assert.doesNotMatch(xml, /scale=|fitToWidth=|fitToHeight=/);
 
@@ -1355,7 +1351,7 @@ test('paperSize round-trips and leads the <pageSetup> attributes', () => {
   sheet.pageSetup.paperSize = 9;
   sheet.pageSetup.scale = 96;
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(writeXlsx(wb));
   assert.match(xml, /<pageSetup paperSize="9" scale="96"\/>/);
 
   const back = roundtrip(wb).getWorksheet('S');
@@ -1437,7 +1433,7 @@ test('a sheet with no page setup emits neither <pageSetUpPr> nor <pageSetup>', (
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'y';
 
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(writeXlsx(wb));
   assert.doesNotMatch(xml, /<pageSetUpPr/);
   assert.doesNotMatch(xml, /<pageSetup/);
   const back = roundtrip(wb).getWorksheet('S');
@@ -1514,7 +1510,7 @@ test('workbook structure protection survives a read→write round-trip', () => {
 test('a workbook with no protection emits no <workbookProtection> and reads back undefined', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'x';
-  const wbXml = strFromU8(unzipSync(writeXlsx(wb))['xl/workbook.xml']!);
+  const wbXml = partText(writeXlsx(wb), 'xl/workbook.xml');
   assert.doesNotMatch(wbXml, /workbookProtection/);
   assert.equal(readXlsx(writeXlsx(wb)).protection, undefined);
 });
@@ -1538,7 +1534,7 @@ test('a workbook protection password/hash credential is preserved verbatim acros
   assert.equal(back.protection?.credentials?.workbookAlgorithmName, 'SHA-512');
   assert.equal(back.protection?.credentials?.workbookSpinCount, '100000');
 
-  const wbXml = strFromU8(unzipSync(writeXlsx(back))['xl/workbook.xml']!);
+  const wbXml = partText(writeXlsx(back), 'xl/workbook.xml');
   assert.match(wbXml, /workbookAlgorithmName="SHA-512"/);
   assert.match(wbXml, /workbookHashValue="aGFzaA=="/);
   assert.match(wbXml, /workbookSpinCount="100000"/);
@@ -1557,7 +1553,7 @@ test('an unknown attribute on <workbookProtection> is dropped, not echoed back o
     ),
     'xl/worksheets/sheet1.xml': strToU8('<?xml version="1.0"?><worksheet><sheetData/></worksheet>'),
   };
-  const wbXml = strFromU8(unzipSync(writeXlsx(readXlsx(zipSync(files))))['xl/workbook.xml']!);
+  const wbXml = partText(writeXlsx(readXlsx(zipSync(files))), 'xl/workbook.xml');
   assert.match(wbXml, /lockStructure="1"/);
   assert.doesNotMatch(wbXml, /bogusAttr/);
 });
@@ -1566,7 +1562,7 @@ test('an unknown attribute on <workbookProtection> is dropped, not echoed back o
 
 // The `<fonts>` table of a written package, as one string.
 function fontsBlockOf(workbook: Workbook): string {
-  const styles = strFromU8(unzipSync(writeXlsx(workbook))['xl/styles.xml'] ?? new Uint8Array());
+  const styles = partText(writeXlsx(workbook), 'xl/styles.xml');
   return styles.match(/<fonts\b[^>]*>[\s\S]*?<\/fonts>/)?.[0] ?? '';
 }
 
@@ -1658,7 +1654,7 @@ test('the worksheet part is read in one pass, not once per reader', () => {
   const workbook = new Workbook();
   const sheet = workbook.addWorksheet('S');
   for (let row = 1; row <= 3000; row++) sheet.addRow([`a${row}`, row, row * 2, 'text', row / 3]);
-  const xml = strFromU8(unzipSync(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  const xml = sheetXml(writeXlsx(workbook));
 
   const separate = fastestRun(3, () => {
     parseXmlPasses(xml, [worksheetPass(new Worksheet('S', 1), [], [])]);

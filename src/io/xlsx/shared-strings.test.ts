@@ -4,16 +4,10 @@ import {test} from 'node:test';
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
+import {optionalPartText as partText} from './package.test-support.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
-
-// Decode one package part back to its XML text; absent parts return undefined so a test can assert
-// a part was NOT written.
-function partText(pkg: Uint8Array, name: string): string | undefined {
-  const bytes = unzipSync(pkg)[name];
-  return bytes === undefined ? undefined : strFromU8(bytes);
-}
 
 function bookWithStrings(...values: string[]): Workbook {
   const workbook = new Workbook();

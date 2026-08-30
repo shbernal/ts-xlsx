@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, unzipSync} from 'fflate';
-
 import type {CommentThread} from '../../core/comment-thread.ts';
 import {INTERNAL} from '../../core/internal.ts';
 import {Workbook} from '../../core/workbook.ts';
@@ -14,12 +12,8 @@ import {
   parseComments,
   vmlDrawingXml,
 } from './comments.ts';
-import {readXlsx} from './read.ts';
+import {partsOf, partText, roundtrip, sheetXml} from './package.test-support.ts';
 import {writeXlsx} from './write.ts';
-
-function roundtrip(workbook: Workbook): Workbook {
-  return readXlsx(writeXlsx(workbook));
-}
 
 test('a cell note survives the write/read round-trip', () => {
   const wb = new Workbook();
@@ -75,12 +69,11 @@ test('a noted workbook emits a comments part, a VML drawing, and a legacyDrawing
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');
   ws.getCell('A1').note = 'x';
-  const files = unzipSync(writeXlsx(wb));
-  assert.ok(files['xl/comments1.xml'], 'a comments part is written');
-  assert.ok(files['xl/drawings/vmlDrawing1.vml'], 'a VML drawing companion is written');
-  const sheetXml = strFromU8(files['xl/worksheets/sheet1.xml'] as Uint8Array);
-  assert.match(sheetXml, /<legacyDrawing r:id="[^"]+"\/>/);
-  const contentTypes = strFromU8(files['[Content_Types].xml'] as Uint8Array);
+  const pkg = writeXlsx(wb);
+  assert.ok(partText(pkg, 'xl/comments1.xml'), 'a comments part is written');
+  assert.ok(partText(pkg, 'xl/drawings/vmlDrawing1.vml'), 'a VML drawing companion is written');
+  assert.match(sheetXml(pkg), /<legacyDrawing r:id="[^"]+"\/>/);
+  const contentTypes = partText(pkg, '[Content_Types].xml');
   assert.match(contentTypes, /Extension="vml"/);
   assert.match(contentTypes, /PartName="\/xl\/comments1\.xml"/);
 });
@@ -89,8 +82,7 @@ test('a note textbox auto-fits its text so a multi-line note is not clipped', ()
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');
   ws.getCell('B2').note = 'line one\nline two\nline three';
-  const files = unzipSync(writeXlsx(wb));
-  const vml = strFromU8(files['xl/drawings/vmlDrawing1.vml'] as Uint8Array);
+  const vml = partText(writeXlsx(wb), 'xl/drawings/vmlDrawing1.vml');
   const style = (vml.match(/<v:textbox\b[^>]*\bstyle="([^"]*)"/) ?? [])[1] ?? '';
   assert.match(style, /mso-fit-shape-to-text:t/, 'the textbox grows to fit its content');
 });
@@ -99,11 +91,11 @@ test('a note-free workbook writes no comment or VML parts', () => {
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');
   ws.getCell('A1').value = 'plain';
-  const files = unzipSync(writeXlsx(wb));
-  const names = Object.keys(files);
+  const pkg = writeXlsx(wb);
+  const names = Object.keys(partsOf(pkg));
   assert.ok(!names.some((n) => /comments\d+\.xml$/.test(n)));
   assert.ok(!names.some((n) => n.endsWith('.vml')));
-  assert.ok(!strFromU8(files['[Content_Types].xml'] as Uint8Array).includes('Extension="vml"'));
+  assert.ok(!partText(pkg, '[Content_Types].xml').includes('Extension="vml"'));
 });
 
 // The legacy fallback Excel writes beside every modern threaded comment. Excel binds a cell to its
@@ -186,7 +178,7 @@ test('a conversation is never written half-emitted: the fallback and its thread 
   const ws = wb.addWorksheet('S');
   ws.getCell('B1').value = 12;
   ws.addCommentThread(threadOn('B1', ['Is this gross or net of tax?']));
-  const names = Object.keys(unzipSync(writeXlsx(wb)));
+  const names = Object.keys(partsOf(writeXlsx(wb)));
   assert.ok(names.includes('xl/threadedComments/threadedComment1.xml'), 'the conversation itself');
   assert.ok(names.includes('xl/comments1.xml'), 'the fallback a pre-2018 reader renders');
   assert.ok(names.includes('xl/drawings/vmlDrawing1.vml'), 'and a box for it to render into');
@@ -204,7 +196,7 @@ test('each sheet numbers its own thread part, leaving a gap where a sheet has no
   const both = wb.addWorksheet('Both');
   both.getCell('A1').note = 'note here';
   both.addCommentThread(threadOn('B2', ['third sheet'], OTHER_HEAD));
-  const names = Object.keys(unzipSync(writeXlsx(wb)));
+  const names = Object.keys(partsOf(writeXlsx(wb)));
   assert.deepStrictEqual(names.filter((n) => n.startsWith('xl/threadedComments/')).sort(), [
     'xl/threadedComments/threadedComment2.xml',
     'xl/threadedComments/threadedComment3.xml',
@@ -242,7 +234,7 @@ test('a note-only sheet keeps the minimal comments root, declaring no namespace 
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');
   ws.getCell('A1').note = 'plain';
-  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/comments1.xml'] as Uint8Array);
+  const xml = partText(writeXlsx(wb), 'xl/comments1.xml');
   assert.ok(!xml.includes('xmlns:xr'), 'no thread means no xr:uid, so no xr declaration');
   assert.ok(!xml.includes('tc='), 'and no synthetic thread author');
 });

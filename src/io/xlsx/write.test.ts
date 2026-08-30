@@ -5,14 +5,13 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {INTERNAL, NAMED_STYLE_ID} from '../../core/internal.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {partsOf as packageParts} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx, writeXlsxAsync} from './write.ts';
 
+// Shorthand for the shared accessor: every case here starts from a workbook, not from bytes.
 function partsOf(workbook: Workbook): Record<string, string> {
-  const unzipped = unzipSync(writeXlsx(workbook));
-  const out: Record<string, string> = {};
-  for (const [name, bytes] of Object.entries(unzipped)) out[name] = strFromU8(bytes);
-  return out;
+  return packageParts(writeXlsx(workbook));
 }
 
 test('a one-sheet workbook writes the full set of OPC parts', () => {

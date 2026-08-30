@@ -4,11 +4,12 @@ import {test} from 'node:test';
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
+import {partText} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
 function workbookXmlOf(workbook: Workbook): string {
-  return strFromU8(unzipSync(writeXlsx(workbook))['xl/workbook.xml'] as Uint8Array);
+  return partText(writeXlsx(workbook), 'xl/workbook.xml');
 }
 
 test('a global defined name is written into <definedNames> after <sheets>', () => {

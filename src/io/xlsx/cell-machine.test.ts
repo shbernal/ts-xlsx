@@ -13,6 +13,7 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {isFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {sheetXml} from './package.test-support.ts';
 import {readSheetRows} from './read-rows.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
@@ -109,7 +110,7 @@ test('a malformed numeric cell survives a re-write as a cell, carrying no value'
   const patched = patchSheetBody(writeXlsx(wb), '<c r="A1" s="1"><v>abc</v></c>');
 
   const rewritten = writeXlsx(readXlsx(patched));
-  const xml = strFromU8(unzipSync(rewritten)['xl/worksheets/sheet1.xml']!);
+  const xml = sheetXml(rewritten);
   assert.match(xml, /<c r="A1" s="\d+"\/>/, 'the cell and its style are kept');
   assert.doesNotMatch(xml, /NaN/);
 });
