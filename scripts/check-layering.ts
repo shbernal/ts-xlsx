@@ -13,11 +13,16 @@
 //
 //   node scripts/check-layering.ts
 
-import {readdirSync, readFileSync, statSync} from 'node:fs';
-import {dirname, join, resolve} from 'node:path';
+import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import {importedPaths, sourceFiles, toPosix} from './module-graph.ts';
+
+const ROOT = toPosix(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
+
+// Every path this gate reports and every path a rule matches is repo-relative, so the graph walker's
+// absolute answers are brought back to that spelling here rather than at each of the two uses.
+const repoRelative = (path: string): string => toPosix(path).slice(ROOT.length + 1);
 
 interface Rule {
   /** Modules under this directory, or the single module at this exact path… */
@@ -88,42 +93,10 @@ const RULES: readonly Rule[] = [
 const ENTRIES = 'src/entries';
 const ENTRY_COMPOSER = 'src/index.ts';
 
-function sourceFiles(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const path = `${dir}/${name}`;
-    if (statSync(join(ROOT, path)).isDirectory()) return sourceFiles(path);
-    return path.endsWith('.ts') && !path.endsWith('.test.ts') ? [path] : [];
-  });
-}
-
-// Every relative specifier the module imports or re-exports from, resolved to a repo-relative path.
-// Only relative specifiers can cross a layer: a bare specifier is a dependency, not a layer.
-function importedPaths(file: string): string[] {
-  const source = readFileSync(join(ROOT, file), 'utf8');
-  // Both spellings: `… from '…'`, and the bare `import '…'` that has no `from` to anchor on. The
-  // bare form should never appear, since the package declares `"sideEffects": false` and an import
-  // kept only for its effect is a lie to every bundler. But a rule that cannot see it would say
-  // the graph is clean while a layer was being crossed by the one import form it was blind to.
-  const specifiers = [...source.matchAll(/\b(?:from|import)\s+'(\.[^']*)'/g)].map(
-    (match) => match[1] as string,
-  );
-  const dir = file.slice(0, file.lastIndexOf('/'));
-  return specifiers.map((specifier) => {
-    const segments = `${dir}/${specifier}`.split('/');
-    const out: string[] = [];
-    for (const segment of segments) {
-      if (segment === '' || segment === '.') continue;
-      if (segment === '..') out.pop();
-      else out.push(segment);
-    }
-    return out.join('/');
-  });
-}
-
 const violations: string[] = [];
-for (const file of sourceFiles('src')) {
+for (const file of sourceFiles(`${ROOT}/src`, '.ts').map(repoRelative)) {
   if (file !== ENTRY_COMPOSER && !file.startsWith(`${ENTRIES}/`)) {
-    for (const target of importedPaths(file)) {
+    for (const target of importedPaths(`${ROOT}/${file}`).map(repoRelative)) {
       if (target.startsWith(`${ENTRIES}/`)) {
         violations.push(
           `  ${file}\n    imports ${target}\n    only ${ENTRY_COMPOSER} may compose the entry barrels; import the module that declares the symbol`,
@@ -135,7 +108,7 @@ for (const file of sourceFiles('src')) {
     (candidate) => file === candidate.layer || file.startsWith(`${candidate.layer}/`),
   );
   if (rule === undefined) continue;
-  for (const target of importedPaths(file)) {
+  for (const target of importedPaths(`${ROOT}/${file}`).map(repoRelative)) {
     const crossed = rule.forbidden.find((layer) => target.startsWith(`${layer}/`));
     if (crossed !== undefined) {
       violations.push(

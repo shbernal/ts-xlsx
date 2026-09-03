@@ -23,9 +23,11 @@
 //
 //   node scripts/size-budget.ts
 
-import {readdirSync, readFileSync, statSync} from 'node:fs';
-import {dirname, join, normalize, resolve} from 'node:path';
+import {readFileSync, statSync} from 'node:fs';
+import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+
+import {closure, importedPaths, sourceFiles} from './module-graph.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -69,38 +71,11 @@ interface PackageJson {
   readonly exports: Readonly<Record<string, string | {readonly default?: string}>>;
 }
 
-function jsFiles(dir: string): string[] {
-  return readdirSync(dir, {withFileTypes: true}).flatMap((entry) => {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) return jsFiles(path);
-    return entry.name.endsWith('.js') ? [path] : [];
-  });
-}
-
-// Emitted JS, not source: the emitter picks its own quoting, double under TypeScript 6 and single
-// under 7, so both forms are matched rather than any one being assumed.
-const RELATIVE_SPECIFIER = /\bfrom\s+["'](\.[^"']*)["']/g;
-
-/** Every relative specifier the emitted module imports or re-exports from, resolved to a path. */
-function staticImports(file: string): string[] {
-  const source = readFileSync(file, 'utf8');
-  return [...source.matchAll(RELATIVE_SPECIFIER)].map((match) =>
-    normalize(join(dirname(file), match[1] as string)),
-  );
-}
-
-/** The modules that must be present for `entry` to evaluate, itself included. */
-function closure(entry: string): Set<string> {
-  const reached = new Set<string>();
-  const pending = [entry];
-  while (pending.length > 0) {
-    const file = pending.pop() as string;
-    if (reached.has(file)) continue;
-    reached.add(file);
-    pending.push(...staticImports(file));
-  }
-  return reached;
-}
+// Emitted JS, not source, and the emitter picks its own quoting: double under TypeScript 6 and single
+// under 7. Both forms are matched, by the shared walker, which is the reason it is shared: two of the
+// four gates matched one quote style only, so the same flip in the source formatter would have made
+// them report a clean graph.
+const staticImports = (file: string): string[] => importedPaths(file);
 
 function bytes(files: Iterable<string>): number {
   let total = 0;
@@ -113,7 +88,7 @@ const kb = (n: number) => `${(n / 1024).toFixed(1)} KB`;
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as PackageJson;
 const over: string[] = [];
 
-const all = jsFiles(DIST);
+const all = sourceFiles(DIST, '.js');
 const total = bytes(all);
 console.log(
   `total runtime JS: ${kb(total)} across ${all.length} file(s); budget ${kb(TOTAL_BUDGET_BYTES)}`,
@@ -132,7 +107,7 @@ for (const [subpath, target] of Object.entries(pkg.exports)) {
     over.push(`"${subpath}" is published with no budget in ENTRY_BUDGETS_KB`);
     continue;
   }
-  const reached = closure(resolve(ROOT, emitted));
+  const reached = closure(resolve(ROOT, emitted), staticImports);
   const size = bytes(reached);
   const budget = budgetKb * 1024;
   const verdict = size > budget ? `OVER by ${kb(size - budget)}` : 'ok';

@@ -17,8 +17,10 @@
 
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {dirname, join, normalize} from 'node:path';
+import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
+
+import {closure, importedPaths} from './module-graph.ts';
 
 const {decodeAddress, readXlsx, Workbook, writeXlsx} = await import('@shbernal/ts-xlsx');
 
@@ -61,28 +63,9 @@ for (const [subpath, binding] of Object.entries(SUBPATH_BINDINGS)) {
 // What each entry point actually costs, checked as a shape rather than a size: `scripts/
 // size-budget.ts` catches growth, this catches a boundary being crossed at all.
 const HERE = dirname(fileURLToPath(import.meta.url));
-const RELATIVE_SPECIFIER = /\bfrom\s+["'](\.[^"']*)["']/g;
-
-function closure(entry: string): Set<string> {
-  const reached = new Set<string>();
-  const pending = [entry];
-  while (pending.length > 0) {
-    const file = pending.pop() as string;
-    if (reached.has(file)) continue;
-    reached.add(file);
-    const source = readFileSync(file, 'utf8');
-    for (const match of source.matchAll(RELATIVE_SPECIFIER)) {
-      const specifier = match[1];
-      if (specifier === undefined) continue;
-      pending.push(normalize(join(dirname(file), specifier)));
-    }
-  }
-  return reached;
-}
-
 const entryFile = (subpath: string) => join(HERE, '..', 'dist', 'entries', `${subpath}.js`);
 
-const coreReach = closure(entryFile('core'));
+const coreReach = closure(entryFile('core'), importedPaths);
 for (const file of coreReach) {
   assert.ok(
     !file.includes(join('dist', 'io')),
@@ -90,7 +73,7 @@ for (const file of coreReach) {
   );
 }
 
-const errorsReach = closure(entryFile('errors'));
+const errorsReach = closure(entryFile('errors'), importedPaths);
 for (const file of errorsReach) {
   assert.ok(
     file.endsWith('errors.js'),
@@ -106,7 +89,7 @@ const NODE_SPECIFIER = /\b(?:from|import)\s+["']node:/;
 const browserEntries = Object.keys(SUBPATH_BINDINGS).filter((subpath) => subpath !== 'node');
 for (const subpath of [...browserEntries, 'index']) {
   const entry = subpath === 'index' ? join(HERE, '..', 'dist', 'index.js') : entryFile(subpath);
-  for (const file of closure(entry)) {
+  for (const file of closure(entry, importedPaths)) {
     assert.ok(
       !NODE_SPECIFIER.test(readFileSync(file, 'utf8')),
       `/${subpath} reaches ${file}, which imports a Node built-in: a browser cannot bundle it`,
@@ -115,7 +98,7 @@ for (const subpath of [...browserEntries, 'index']) {
 }
 // And from the other side: `/node` must still reach one, or the boundary has moved rather than
 // held and the browser assertions above are passing for the wrong reason.
-const nodeClosure = [...closure(entryFile('node'))];
+const nodeClosure = [...closure(entryFile('node'), importedPaths)];
 assert.ok(
   nodeClosure.some((file) => NODE_SPECIFIER.test(readFileSync(file, 'utf8'))),
   '/node reaches no Node built-in: the streaming writer it exists to carry is not behind it',

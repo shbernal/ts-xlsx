@@ -24,9 +24,17 @@
 //
 //   node scripts/check-browser-safe.ts
 
-import {readdirSync, readFileSync} from 'node:fs';
+import {readFileSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+
+import {
+  closure,
+  resolveSpecifier,
+  sourceFiles,
+  specifiers,
+  withoutComments,
+} from './module-graph.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -88,84 +96,24 @@ const NODE_GLOBALS: readonly RegExp[] = [
   /(?<![\w$.])global(?![\w$])/,
 ];
 
-const SPECIFIER = /\b(?:from|import)\s+'([^']*)'/g;
-
-/** Every specifier the module imports or re-exports from: relative ones resolved, the rest as written. */
+/**
+ * Every specifier the module imports or re-exports from: relative ones resolved, the rest as written.
+ * A bare specifier is what this gate is *for*, so both halves are wanted here where the other
+ * consumers of the shared walker only ever need the relative one.
+ */
 function imports(file: string): {relative: string[]; bare: string[]} {
-  const source = readFileSync(join(ROOT, file), 'utf8');
   const relative: string[] = [];
   const bare: string[] = [];
-  const dir = file.slice(0, file.lastIndexOf('/'));
-  for (const match of source.matchAll(SPECIFIER)) {
-    const specifier = match[1] as string;
-    if (!specifier.startsWith('.')) {
-      bare.push(specifier);
-      continue;
-    }
-    const out: string[] = [];
-    for (const segment of `${dir}/${specifier}`.split('/')) {
-      if (segment === '' || segment === '.') continue;
-      if (segment === '..') out.pop();
-      else out.push(segment);
-    }
-    relative.push(out.join('/'));
+  for (const specifier of specifiers(readFileSync(join(ROOT, file), 'utf8'))) {
+    if (specifier.startsWith('.')) relative.push(resolveSpecifier(file, specifier));
+    else bare.push(specifier);
   }
   return {relative, bare};
 }
 
 /** Every module that has to be present for `entry` to evaluate, itself included. */
-function closure(entry: string): string[] {
-  const reached = new Set<string>();
-  const pending = [entry];
-  while (pending.length > 0) {
-    const file = pending.pop() as string;
-    if (reached.has(file)) continue;
-    reached.add(file);
-    pending.push(...imports(file).relative);
-  }
-  return [...reached].sort();
-}
-
-/**
- * The module's code with its comments blanked out, newlines kept so a match still reports its own
- * line. Prose is where these identifiers legitimately appear (this file's own header names three
- * of them), so a scan that read comments would report nothing but itself. Strings are walked
- * rather than skipped so that a `//` inside one is not mistaken for the start of a comment.
- */
-function withoutComments(source: string): string {
-  let out = '';
-  for (let i = 0; i < source.length; i++) {
-    const two = source.slice(i, i + 2);
-    if (two === '//') {
-      const end = source.indexOf('\n', i);
-      const stop = end === -1 ? source.length : end;
-      out += ' '.repeat(stop - i);
-      i = stop - 1;
-      continue;
-    }
-    if (two === '/*') {
-      const end = source.indexOf('*/', i + 2);
-      const stop = end === -1 ? source.length : end + 2;
-      out += source.slice(i, stop).replace(/[^\n]/g, ' ');
-      i = stop - 1;
-      continue;
-    }
-    const char = source[i];
-    out += char;
-    if (char !== "'" && char !== '"' && char !== '`') continue;
-    // Inside a string literal: copy to its close, honouring backslash escapes.
-    for (i += 1; i < source.length; i++) {
-      const inner = source[i] as string;
-      out += inner;
-      if (inner === '\\') {
-        out += source[i + 1] ?? '';
-        i += 1;
-        continue;
-      }
-      if (inner === char) break;
-    }
-  }
-  return out;
+function reachableFrom(entry: string): string[] {
+  return [...closure(entry, (file) => imports(file).relative)].sort();
 }
 
 const problems: string[] = [];
@@ -174,7 +122,7 @@ const problems: string[] = [];
 const reachable = new Map<string, string>();
 
 for (const entry of BROWSER_ENTRIES) {
-  for (const file of closure(entry)) if (!reachable.has(file)) reachable.set(file, entry);
+  for (const file of reachableFrom(entry)) if (!reachable.has(file)) reachable.set(file, entry);
 }
 
 for (const [file, entry] of [...reachable].sort(([a], [b]) => a.localeCompare(b))) {
@@ -204,7 +152,7 @@ for (const file of [...reachable.keys()].sort()) {
 
 // The Node-only entry is checked from the other side: it exists to carry the imports the browser
 // entries may not, so an empty one would mean the boundary had quietly moved rather than held.
-const nodeOnly = closure(NODE_ENTRY).filter((file) => !reachable.has(file));
+const nodeOnly = reachableFrom(NODE_ENTRY).filter((file) => !reachable.has(file));
 const carried = nodeOnly.flatMap((file) => imports(file).bare.filter((s) => s.startsWith('node:')));
 if (carried.length === 0) {
   problems.push(
@@ -214,9 +162,8 @@ if (carried.length === 0) {
 }
 
 // A directory read, purely so the entry list above cannot silently fall behind the files on disk.
-const unclassified = readdirSync(join(ROOT, 'src/entries'))
-  .filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'))
-  .map((name) => `src/entries/${name}`)
+const unclassified = sourceFiles(`${ROOT}/src/entries`, '.ts')
+  .map((path) => `src/entries/${path.slice(path.lastIndexOf('/') + 1)}`)
   .filter(
     (file) =>
       !BROWSER_ENTRIES.includes(file) && file !== NODE_ENTRY && !file.endsWith('-unavailable.ts'),
