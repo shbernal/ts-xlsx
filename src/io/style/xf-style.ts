@@ -32,6 +32,11 @@ import type {NamedCellStyle, TableStyleTable} from '../../core/workbook-styles.t
  * readers already build theirs through an explicitly-mutable draft (`{-readonly [K in keyof
  * XfStyle]?: …}`), so the constraint costs nothing and stops a consumer editing a table entry that
  * other cells share.
+ *
+ * @unpublished Writer plumbing, reachable only through `WorksheetStreamWriter`'s constructor and its
+ * `flushedSheet()`, neither of which a consumer calls: a caller receives the writer from
+ * `WorkbookStreamWriter.sheet()`. Naming it would publish the streaming writer's internal wiring as
+ * API; the honest fix is for those two members not to be on the public surface at all.
  */
 export interface XfStyle extends Readonly<CellStyle> {
   readonly quotePrefix?: boolean;

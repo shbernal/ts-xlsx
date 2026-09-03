@@ -82,6 +82,18 @@ type ImageEditAs = 'oneCell' | 'twoCell' | 'absolute';
 
 ---
 
+### `isImageEditAs`
+
+<sub>const</sub>
+
+Narrow a raw `<xdr:twoCellAnchor editAs>` token to a known [`ImageEditAs`](./images.md#imageeditas).
+
+```ts
+const isImageEditAs: (value: string) => value is ImageEditAs
+```
+
+---
+
 ### `isOneCellAnchor`
 
 <sub>function</sub>

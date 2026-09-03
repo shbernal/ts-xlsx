@@ -54,10 +54,19 @@ export interface ReadSheetRowsOptions extends ReadPackageOptions {
  * The resolved style facets of a streamed cell: its own `<c s>` cell format, flattened exactly as
  * the buffered reader resolves it. Present only when the cell carries a format; a consumer can copy
  * these straight onto a writer cell to preserve its look through a streaming read→write.
+ *
+ * @unpublished A named commitment this surface is not ready to make. `entries/xlsx.ts` records the
+ * decision: the streaming reader's granular output shapes stay inferred structural types while the
+ * surface settles, so a consumer destructures them and never has to spell them.
  */
 export type StreamedCellStyle = XfStyle;
 
-/** One non-empty cell in a {@link StreamedRow}. */
+/** One non-empty cell in a {@link StreamedRow}.
+ *
+ * @unpublished A named commitment this surface is not ready to make. `entries/xlsx.ts` records the
+ * decision: the streaming reader's granular output shapes stay inferred structural types while the
+ * surface settles, so a consumer destructures them and never has to spell them.
+ */
 export interface StreamedCell {
   /** 1-based column index. */
   readonly col: number;
@@ -87,6 +96,10 @@ export interface StreamedRow {
  * its rows have not already been consumed, so their order relative to `rows()` never matters. (When
  * rows *are* consumed first, the streaming idiom, the accessors reuse that pass and re-scan
  * nothing.)
+ *
+ * @unpublished A named commitment this surface is not ready to make. `entries/xlsx.ts` records the
+ * decision: the streaming reader's granular output shapes stay inferred structural types while the
+ * surface settles, so a consumer destructures them and never has to spell them.
  */
 export interface StreamedSheet {
   /** The worksheet's declared name, joined from the workbook part. Never a positional placeholder. */

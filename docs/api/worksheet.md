@@ -7,7 +7,7 @@
 <sub>interface</sub>
 
 One materialised cell in a [`WorksheetModel`](./worksheet.md#worksheetmodel): its position, value, note, and every facet of its
-formatting. Extends `CellContent` rather than [`CellStyle`](./styles.md#cellstyle) so the quote-prefix flag and
+formatting. Extends [`CellContent`](./styles.md#cellcontent) rather than [`CellStyle`](./styles.md#cellstyle) so the quote-prefix flag and
 the named-style link travel with a model round-trip: they are written and read back like any other
 facet, and leaving them off the tuple is what made a `dst.model = src.model` drop them.
 
@@ -45,6 +45,18 @@ interface ColumnProperties extends CellStyle {
   /** Whether this column is the collapsed summary of an outline group. */
   collapsed?: boolean;
 }
+```
+
+---
+
+### `isVisibility`
+
+<sub>const</sub>
+
+Narrow a raw `<sheet state>` or `<workbookView visibility>` token to a known [`Visibility`](./worksheet.md#visibility).
+
+```ts
+const isVisibility: (value: string) => value is Visibility
 ```
 
 ---

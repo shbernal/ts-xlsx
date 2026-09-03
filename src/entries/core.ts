@@ -4,9 +4,21 @@
 // property shapes, and the value vocabulary. It pulls in no ZIP, no XML writer and no BIFF12
 // decoder. Errors are not here: the whole failure taxonomy lives behind `/errors`, so that a
 // caller who only needs to branch on a failure never loads a codec to get the class.
+//
+// **Every closed token union published here publishes its narrowing guard.** The unions are the
+// spellings OOXML allows for an attribute, and a caller holding a `string` (from a config file, a
+// CLI flag, another library's model) has to get from it to the union somehow; without the guard the
+// only route is a cast, which is the one thing the union exists to prevent. The guards are derived
+// from the same table the union is (`src/token-set.ts`), so they cannot narrow to the wrong one, and
+// they are already inside this entry's closure: publishing them costs no bytes.
+//
+// Two of them used to be published and eighteen were not, with nothing stating a rule that admitted
+// `isTableStyleElementType` and refused `isBorderStyle`. That was drift. The rule is the whole list
+// or none of it, and this is the whole list.
 
 export {
   type CellAddress,
+  type CellPosition,
   columnToNumber,
   decodeAddress,
   decodeRange,
@@ -17,14 +29,15 @@ export {
   numberToColumn,
   type RangeAddress,
 } from '../core/address.ts';
-export type {
-  AutoFilter,
-  CustomFilter,
-  CustomFilterOperator,
-  CustomFilterPredicate,
-  FilterColumn,
-  FilterCriteria,
-  ValuesFilter,
+export {
+  type AutoFilter,
+  type CustomFilter,
+  type CustomFilterOperator,
+  type CustomFilterPredicate,
+  type FilterColumn,
+  type FilterCriteria,
+  isCustomFilterOperator,
+  type ValuesFilter,
 } from '../core/autofilter.ts';
 export {Cell} from '../core/cell.ts';
 export {
@@ -34,24 +47,34 @@ export {
   resolveColor,
   SYSTEM_INDEXED_COLORS,
 } from '../core/color-resolution.ts';
+export {AxisHandle} from '../core/axis-handle.ts';
 export {Column} from '../core/column.ts';
+export type {DateEpoch} from '../core/date.ts';
 export type {Comment, CommentThread, Mention, MentionRef, Person} from '../core/comment-thread.ts';
-export type {
-  CfTimePeriod,
-  CfValueObject,
-  CfValueObjectType,
-  ConditionalFormatting,
-  ConditionalFormattingOperator,
-  ConditionalFormattingRule,
-  ConditionalFormattingType,
-  IconSetType,
+export {
+  type CfTimePeriod,
+  type CfValueObject,
+  type CfValueObjectType,
+  type ConditionalFormatting,
+  type ConditionalFormattingOperator,
+  type ConditionalFormattingRule,
+  type ConditionalFormattingType,
+  type IconSetType,
+  isCfTimePeriod,
+  isCfValueObjectType,
+  isConditionalFormattingOperator,
+  isConditionalFormattingType,
+  isIconSetType,
 } from '../core/conditional-formatting.ts';
-export type {
-  DataValidation,
-  DataValidationEntry,
-  DataValidationErrorStyle,
-  DataValidationOperator,
-  DataValidationType,
+export {
+  type DataValidation,
+  type DataValidationEntry,
+  type DataValidationErrorStyle,
+  type DataValidationOperator,
+  type DataValidationType,
+  isDataValidationErrorStyle,
+  isDataValidationOperator,
+  isDataValidationType,
 } from '../core/data-validation.ts';
 export {
   type AnchoredImage,
@@ -59,6 +82,7 @@ export {
   type Extent,
   type ImageAnchor,
   type ImageEditAs,
+  isImageEditAs,
   isOneCellAnchor,
   type OneCellAnchor,
   type PortableImage,
@@ -80,14 +104,16 @@ export {
   MAX_TABLE_NAME_LENGTH,
   TABLE_NAME_PATTERN,
 } from '../core/limits.ts';
-export type {
-  HeaderFooter,
-  PageBreak,
-  PageMargins,
-  PageOrder,
-  PageOrientation,
-  PageSetup,
-  PrintOptions,
+export {
+  type HeaderFooter,
+  isPageOrder,
+  isPageOrientation,
+  type PageBreak,
+  type PageMargins,
+  type PageOrder,
+  type PageOrientation,
+  type PageSetup,
+  type PrintOptions,
 } from '../core/page-setup.ts';
 export {
   type ParsedPivotField,
@@ -97,6 +123,7 @@ export {
   type PivotItem,
   type PivotMetric,
   type PivotNumericSummary,
+  isDeclarablePivotSourceKind,
   type PivotRecordCell,
   type PivotSourceKind,
   PivotTable,
@@ -116,33 +143,44 @@ export type {
 } from '../core/protection.ts';
 export {Range} from '../core/range.ts';
 export {Row} from '../core/row.ts';
-export type {
-  Alignment,
-  Border,
-  BorderEdge,
-  BorderStyle,
-  CellStyle,
-  Color,
-  Fill,
-  FillPatternType,
-  Font,
-  FontScheme,
-  FontVerticalAlignment,
-  GradientFill,
-  GradientStop,
-  HorizontalAlignment,
-  PatternFill,
-  Protection,
-  UnderlineStyle,
-  VerticalAlignment,
+export {
+  type Alignment,
+  type Border,
+  type BorderEdge,
+  type BorderStyle,
+  type CellContent,
+  type CellStyle,
+  type Color,
+  type Fill,
+  type FillPatternType,
+  type Font,
+  type FontScheme,
+  type FontVerticalAlignment,
+  type GradientFill,
+  type GradientStop,
+  type HorizontalAlignment,
+  isBorderStyle,
+  isFillPatternType,
+  isFontScheme,
+  isFontVerticalAlignment,
+  isHorizontalAlignment,
+  isNamedUnderlineStyle,
+  isVerticalAlignment,
+  type PatternFill,
+  type Protection,
+  type UnderlineStyle,
+  type VerticalAlignment,
 } from '../core/style.ts';
 export {
   Table,
   type TableColumn,
   type TableColumnStyle,
+  isTotalsRowFunction,
+  type TableGrid,
   type TableOptions,
   type TableRegion,
   type TableStyleInfo,
+  type TotalsRowFunction,
 } from '../core/table.ts';
 // The workbook style *tables*: shapes that compose `CellStyle` without being one, so they live beside
 // the slice that owns them rather than beside `Fill`. Only the declaration moved; the public surface
@@ -165,6 +203,7 @@ export {estimateWrappedLines} from '../core/text-metrics.ts';
 export {
   DEFAULT_THEME_COLOR_SCHEME,
   DEFAULT_THEME_FONTS,
+  isThemeColorSlot,
   THEME_COLOR_SLOTS,
   type ThemeColorScheme,
   type ThemeColorSlot,
@@ -201,6 +240,7 @@ export {
   type AddWorksheetOptions,
   DEFAULT_WORKBOOK_VIEW,
   type DefinedName,
+  type PreservedTheme,
   type PreservedWorkbookReference,
   Workbook,
   type WorkbookProperties,
@@ -217,6 +257,7 @@ export {
   type RowInput,
   type RowProperties,
   type SheetView,
+  isVisibility,
   type Visibility,
   Worksheet,
   type WorksheetModel,

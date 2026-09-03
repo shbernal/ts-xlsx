@@ -26,6 +26,18 @@ const DEFAULT_THEME_FONTS: ThemeFontScheme
 
 ---
 
+### `isThemeColorSlot`
+
+<sub>function</sub>
+
+Narrow a raw `<a:clrScheme>` child name to a known [`ThemeColorSlot`](./theme.md#themecolorslot).
+
+```ts
+function isThemeColorSlot(value: string): value is ThemeColorSlot;
+```
+
+---
+
 ### `THEME_COLOR_SLOTS`
 
 <sub>const</sub>

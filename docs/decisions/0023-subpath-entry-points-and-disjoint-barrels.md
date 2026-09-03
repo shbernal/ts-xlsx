@@ -92,6 +92,36 @@ cannot be a dynamic import.
    smoke test also asserts the two shape invariants the budgets state only as numbers: `/core`
    reaches nothing under `dist/io/`, and `/errors` reaches nothing but error modules.
 
+8. **Every type reachable from a published signature is published, and every closed token union
+   published here publishes its guard.** Disjointness (rule 3) is gated because `export *` drops an
+   ambiguous name silently. The dual is just as silent and was not gated: a type named in a
+   published signature that no entry exports. `TableColumn` was published and
+   `TotalsRowFunction`, the type of its `totalsRowFunction`, was not, so a consumer could hold the
+   value and had no way to write its type. Nothing reported it. The emitted `.d.ts` typechecks
+   either way, because declarations import each other by relative path regardless of what
+   `exports` publishes, and `docs:check` regenerates from the barrel, so it sees only what the
+   barrel already lists. `scripts/check-public-types.ts` walks the type graph out of every entry
+   and fails on what it reaches and cannot name; it found seventeen.
+
+   A declaration may decline, by carrying `@unpublished` with its reason in its doc comment, and
+   the run reports how many did. That is the same standing rule as a declined lint rule: a decline
+   on the record is a decision, an absence is an accident. Four decline today, and all four are the
+   streaming reader's granular output shapes, held as inferred structural types while that surface
+   settles. The streaming *writer*'s plumbing (`StyleRegistry`, `FlushedSheet` and the rest) also
+   declines, and its reason is a different one: those types are reachable only through
+   `WorksheetStreamWriter`'s constructor and its `flushedSheet()`, which a consumer never calls,
+   because a caller receives the writer from `WorkbookStreamWriter.sheet()`. The honest fix there
+   is for those two members not to be on the public surface at all, which is a change to that
+   class rather than to this rule.
+
+   The guards are the same completeness question one level down. The unions are the spellings OOXML
+   allows for an attribute; a caller holding a `string` has to get from it to the union somehow,
+   and without the guard the only route is a cast, which is the thing the union exists to prevent.
+   Two of the twenty were published and eighteen were not, with nothing stating a rule that admitted
+   `isTableStyleElementType` and refused `isBorderStyle`. That was drift, so the rule is now stated
+   in `entries/core.ts`'s own header and it is all of them. They are derived from the same table the
+   union is, and they were already inside the entry's closure, so publishing them costs no bytes.
+
 ## Consequences
 
 - **Additive; nothing breaks.** The root specifier exports the same 200 symbols it did before,

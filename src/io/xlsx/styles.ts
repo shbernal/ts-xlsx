@@ -58,7 +58,13 @@ const RESERVED_FONT_COUNT = 1;
 // Border id 0 is the always-present empty border (every edge absent); custom borders from 1.
 const RESERVED_BORDER_COUNT = 1;
 
-/** What a {@link StyleRegistry} needs from its workbook before any style is interned. */
+/** What a {@link StyleRegistry} needs from its workbook before any style is interned.
+ *
+ * @unpublished Writer plumbing, reachable only through `WorksheetStreamWriter`'s constructor and its
+ * `flushedSheet()`, neither of which a consumer calls: a caller receives the writer from
+ * `WorkbookStreamWriter.sheet()`. Naming it would publish the streaming writer's internal wiring as
+ * API; the honest fix is for those two members not to be on the public surface at all.
+ */
 export interface StyleRegistryOptions {
   /**
    * The font every cell naming none of its own renders in, emitted as id 0. Take it from
@@ -133,6 +139,12 @@ class InternTable {
   }
 }
 
+/**
+ * @unpublished Writer plumbing, reachable only through `WorksheetStreamWriter`'s constructor and its
+ * `flushedSheet()`, neither of which a consumer calls: a caller receives the writer from
+ * `WorkbookStreamWriter.sheet()`. Naming it would publish the streaming writer's internal wiring as
+ * API; the honest fix is for those two members not to be on the public surface at all.
+ */
 export class StyleRegistry {
   // The `<font>` body emitted as id 0.
   readonly #defaultFontBody: string;

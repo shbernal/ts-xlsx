@@ -91,6 +91,8 @@
     "constitution:check": "node scripts/check-constitution.ts",
     "layering:check": "node scripts/check-layering.ts",
     "entries:check": "node scripts/check-entries.ts",
+    "public-types:check": "node scripts/check-public-types.ts",
+    "facet-register:check": "node scripts/check-facet-register.ts",
     "browser:check": "node scripts/check-browser-safe.ts",
     "source-text:check": "node scripts/check-source-text.ts",
     "error-messages:check": "node scripts/check-error-messages.ts",

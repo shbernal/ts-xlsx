@@ -76,6 +76,31 @@ interface DefinedName {
 
 ---
 
+### `PreservedTheme`
+
+<sub>interface</sub>
+
+The workbook's theme part, captured verbatim from a source package: the `<clrScheme>`,
+`<fontScheme>`, and `<fmtScheme>` every `theme="n"` colour reference and every `scheme="major|minor"`
+font in the file resolves against.
+
+Held opaquely, like [`Workbook.restoreDifferentialStyles`](./workbook.md#workbook)'s `<dxf>` fragments: the model does
+not interpret the theme, it only refuses to destroy it. `entryPath` is where the source package held
+the part (reached through the workbook's `.../theme` relationship, so not necessarily
+`xl/theme/theme1.xml`), and `parts` is the transitive closure it reaches, the entry included. The
+closure matters because a theme can carry its own relationships: a picture used as a themed fill is
+wired by an `r:embed` into the theme's rels part, and re-emitting the theme without it would leave
+that reference dangling.
+
+```ts
+interface PreservedTheme {
+  readonly entryPath: string;
+  readonly parts: readonly PreservedPart[];
+}
+```
+
+---
+
 ### `PreservedWorkbookReference`
 
 <sub>interface</sub>

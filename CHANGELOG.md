@@ -37,6 +37,14 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   coordinate check in the model also states its bound the same way, so the three messages the API
   used to give for one mistake are now one message that names the axis, the value, and the limit.
 
+- **Seventeen types a consumer could reach and not name are now published, and the eighteen missing
+  token guards with them.** `TableColumn.totalsRowFunction` had the type `TotalsRowFunction`, which
+  no entry exported, so the value was reachable and the type was not; the same held for
+  `CellContent`, `DateEpoch`, `AxisHandle`, `CellPosition`, `TableGrid` and `PreservedTheme`. Every
+  closed token union `/core` publishes now publishes its narrowing guard too (`isBorderStyle`,
+  `isFillPatternType`, `isVisibility` and fifteen more): two were published and eighteen were not,
+  with no rule saying why. Both are additive, and both are now gated.
+
 ### Fixed
 
 - **A streamed collapsed outline group rendered expanded when a cell in its summary row held the

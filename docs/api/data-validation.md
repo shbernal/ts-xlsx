@@ -101,3 +101,39 @@ type DataValidationType =
   | 'textLength'
   | 'custom';
 ```
+
+---
+
+### `isDataValidationErrorStyle`
+
+<sub>const</sub>
+
+Narrow a raw `<dataValidation errorStyle>` token to a known [`DataValidationErrorStyle`](./data-validation.md#datavalidationerrorstyle).
+
+```ts
+const isDataValidationErrorStyle: (value: string) => value is DataValidationErrorStyle
+```
+
+---
+
+### `isDataValidationOperator`
+
+<sub>const</sub>
+
+Narrow a raw `<dataValidation operator>` token to a known [`DataValidationOperator`](./data-validation.md#datavalidationoperator).
+
+```ts
+const isDataValidationOperator: (value: string) => value is DataValidationOperator
+```
+
+---
+
+### `isDataValidationType`
+
+<sub>const</sub>
+
+Narrow a raw `<dataValidation type>` token to a known [`DataValidationType`](./data-validation.md#datavalidationtype).
+
+```ts
+const isDataValidationType: (value: string) => value is DataValidationType
+```

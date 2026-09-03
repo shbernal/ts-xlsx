@@ -89,6 +89,29 @@ type BorderStyle =
 
 ---
 
+### `CellContent`
+
+<sub>type</sub>
+
+Everything a cell's *formatting* is, which is the six [`CellStyle`](./styles.md#cellstyle) facets plus two that only a
+cell can carry: the quote-prefix flag and the link to a named cell style.
+
+The two extras are on the cell's `xf` record exactly as the six are, and are written and read back
+exactly as the six are, but they sat outside the tuple, so every copy path driven by the tuple
+dropped them: a splice, a `duplicateRow`, or a `dst.model = src.model` turned a leading-apostrophe
+text cell back into an unprefixed one. That is the merge-loss the tuple exists to make impossible,
+so they join it. Callers that mean "the six shared facets" (a column default, a named style, a
+`<dxf>`) still say [`CellStyle`](./styles.md#cellstyle); callers copying a *cell* say this.
+
+```ts
+type CellContent = CellStyle & {
+  quotePrefix?: boolean | undefined;
+  [NAMED_STYLE_ID]?: number | undefined;
+};
+```
+
+---
+
 ### `CellStyle`
 
 <sub>interface</sub>
@@ -300,6 +323,90 @@ type HorizontalAlignment =
   | 'justify'
   | 'centerContinuous'
   | 'distributed';
+```
+
+---
+
+### `isBorderStyle`
+
+<sub>const</sub>
+
+Narrow a raw border-edge `style` attribute to a known [`BorderStyle`](./styles.md#borderstyle).
+
+```ts
+const isBorderStyle: (value: string) => value is BorderStyle
+```
+
+---
+
+### `isFillPatternType`
+
+<sub>const</sub>
+
+Narrow a raw `<patternFill patternType>` token to a known [`FillPatternType`](./styles.md#fillpatterntype).
+
+```ts
+const isFillPatternType: (value: string) => value is FillPatternType
+```
+
+---
+
+### `isFontScheme`
+
+<sub>const</sub>
+
+Narrow a raw `<scheme val>` token to a known [`FontScheme`](./styles.md#fontscheme).
+
+```ts
+const isFontScheme: (value: string) => value is FontScheme
+```
+
+---
+
+### `isFontVerticalAlignment`
+
+<sub>const</sub>
+
+Narrow a raw `<vertAlign val>` token to a known [`FontVerticalAlignment`](./styles.md#fontverticalalignment).
+
+```ts
+const isFontVerticalAlignment: (value: string) => value is FontVerticalAlignment
+```
+
+---
+
+### `isHorizontalAlignment`
+
+<sub>const</sub>
+
+Narrow a raw `<alignment horizontal>` token to a known [`HorizontalAlignment`](./styles.md#horizontalalignment).
+
+```ts
+const isHorizontalAlignment: (value: string) => value is HorizontalAlignment
+```
+
+---
+
+### `isNamedUnderlineStyle`
+
+<sub>const</sub>
+
+Narrow a raw `<u val>` token to a named [`UnderlineStyle`](./styles.md#underlinestyle) (the non-boolean members).
+
+```ts
+const isNamedUnderlineStyle: (value: string) => value is "double" | "doubleAccounting" | "none" | "single" | "singleAccounting"
+```
+
+---
+
+### `isVerticalAlignment`
+
+<sub>const</sub>
+
+Narrow a raw `<alignment vertical>` token to a known [`VerticalAlignment`](./styles.md#verticalalignment).
+
+```ts
+const isVerticalAlignment: (value: string) => value is VerticalAlignment
 ```
 
 ---

@@ -222,3 +222,63 @@ type IconSetType =
   | '5Rating'
   | '5Quarters';
 ```
+
+---
+
+### `isCfTimePeriod`
+
+<sub>const</sub>
+
+Narrow a raw `<cfRule timePeriod>` token to a known [`CfTimePeriod`](./conditional-formatting.md#cftimeperiod).
+
+```ts
+const isCfTimePeriod: (value: string) => value is CfTimePeriod
+```
+
+---
+
+### `isCfValueObjectType`
+
+<sub>const</sub>
+
+Narrow a raw `<cfvo type>` token to a known [`CfValueObjectType`](./conditional-formatting.md#cfvalueobjecttype).
+
+```ts
+const isCfValueObjectType: (value: string) => value is CfValueObjectType
+```
+
+---
+
+### `isConditionalFormattingOperator`
+
+<sub>const</sub>
+
+Narrow a raw `<cfRule operator>` token to a known [`ConditionalFormattingOperator`](./conditional-formatting.md#conditionalformattingoperator).
+
+```ts
+const isConditionalFormattingOperator: (value: string) => value is ConditionalFormattingOperator
+```
+
+---
+
+### `isConditionalFormattingType`
+
+<sub>const</sub>
+
+Narrow a raw `<cfRule type>` token to a known [`ConditionalFormattingType`](./conditional-formatting.md#conditionalformattingtype).
+
+```ts
+const isConditionalFormattingType: (value: string) => value is ConditionalFormattingType
+```
+
+---
+
+### `isIconSetType`
+
+<sub>const</sub>
+
+Narrow a raw `<iconSet iconSet>` token to a known [`IconSetType`](./conditional-formatting.md#iconsettype).
+
+```ts
+const isIconSetType: (value: string) => value is IconSetType
+```

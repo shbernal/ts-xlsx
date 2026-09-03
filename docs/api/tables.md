@@ -2,6 +2,18 @@
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
+### `isTotalsRowFunction`
+
+<sub>const</sub>
+
+Narrow a raw `totalsRowFunction` attribute to a known [`TotalsRowFunction`](./tables.md#totalsrowfunction).
+
+```ts
+const isTotalsRowFunction: (value: string) => value is TotalsRowFunction
+```
+
+---
+
 ### `Table`
 
 <sub>class</sub>
@@ -170,6 +182,38 @@ type TableColumnStyle = Readonly<CellStyle>;
 
 ---
 
+### `TableGrid`
+
+<sub>interface</sub>
+
+The channel a registered table holds into its owning worksheet's grid. A worksheet supplies it
+when it registers the table; a table built standalone (a unit test, a bare model) has none, so it
+can be inspected but cannot materialise or append cells, and appending throws rather than
+silently dropping the values.
+
+All three coordinates are 1-based.
+
+```ts
+interface TableGrid {
+  /**
+   * Whether the cell at this position already holds a value. The materialiser's round-trip guard
+   * asks this and nothing else: it must not create the cell, because asking whether a table's frame
+   * is already filled would otherwise fill the grid with the empty cells it was asking about.
+   */
+  holdsValue(row: number, col: number): boolean;
+  /** Write a value, applying the column's style (if any) to the cell. */
+  writeCell(row: number, col: number, value: CellValue, style?: TableColumnStyle): void;
+  /**
+   * Insert one empty row at `row`, shifting that row and everything below it down by one: how a
+   * table with a totals row opens a slot for an appended data row above the totals. Relocating the
+   * totals row lives in the grid, which is why this is the grid's job and not the table's.
+   */
+  insertRow(row: number): void;
+}
+```
+
+---
+
 ### `TableOptions`
 
 <sub>interface</sub>
@@ -255,4 +299,28 @@ interface TableStyleInfo {
   /** Band the columns (alternating fill). */
   readonly showColumnStripes?: boolean;
 }
+```
+
+---
+
+### `TotalsRowFunction`
+
+<sub>type</sub>
+
+The values `ST_TotalsRowFunction` (ECMA-376 §18.18.86) can take: a closed OOXML enumeration Excel
+does not extend over time (unlike, say, a conditional-formatting rule type), so an author-side typo
+such as `"avg"` is a compile error here rather than a silently no-op attribute at write time.
+
+```ts
+type TotalsRowFunction =
+  | 'average'
+  | 'countNums'
+  | 'count'
+  | 'max'
+  | 'min'
+  | 'stdDev'
+  | 'sum'
+  | 'var'
+  | 'custom'
+  | 'none';
 ```

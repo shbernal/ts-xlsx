@@ -24,6 +24,30 @@ interface HeaderFooter {
 
 ---
 
+### `isPageOrder`
+
+<sub>const</sub>
+
+Narrow a raw `<pageSetup pageOrder>` token to a known [`PageOrder`](./page-setup.md#pageorder).
+
+```ts
+const isPageOrder: (value: string) => value is PageOrder
+```
+
+---
+
+### `isPageOrientation`
+
+<sub>const</sub>
+
+Narrow a raw `<pageSetup orientation>` token to a known [`PageOrientation`](./page-setup.md#pageorientation).
+
+```ts
+const isPageOrientation: (value: string) => value is PageOrientation
+```
+
+---
+
 ### `PageBreak`
 
 <sub>interface</sub>

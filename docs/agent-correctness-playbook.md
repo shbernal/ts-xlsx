@@ -364,6 +364,22 @@ it from the writer added five modules and 8 KB to `/node`, because the writer th
 and its bounded inflater to test a string suffix. A leaf importing nothing is the fix, and the count
 is what says the problem was structural rather than the code being big.
 
+**You added a type, or a field whose type is new, to something a consumer can reach.**
+`node scripts/check-public-types.ts` (in the `invariants` gate) walks out of every entry barrel and
+fails on a type it reaches that no entry exports: a consumer who can hold the value and cannot write
+its type. Publish it from the entry that owns its concern, or decline with `@unpublished` and the
+reason in its doc comment, which the run counts so the declines stay visible. Nothing else sees this:
+the emitted `.d.ts` typechecks either way, and `docs:check` regenerates from the barrel, so it sees
+only what the barrel already lists. If the type is a closed token union, publish its `tokenSet` guard
+too; that is the standing rule and `src/entries/core.ts`'s header states it.
+
+**You added an `AssertNever` exhaustiveness proof beside a table.**
+Assert it in `src/type-tests/facet-tables.type-test.ts` as well.
+`node scripts/check-facet-register.ts` requires it. The alias already fails at its own declaration,
+so the gate is not about proving the table: it is about the register's claim to be the one place you
+read to learn which tables carry a guarantee. It had drifted to six of eleven, and reading it told you
+`RowProperties` and `PageSetup` had no proof, which was false.
+
 **You are adding a reader for something a package part already carries.**
 Look for a pass before you write a scan. `parseXmlPasses` (`src/xml/xml-read.ts`) delivers one parse
 to several readers, and both the worksheet part and the workbook part are read that way: a reader

@@ -21,6 +21,24 @@ interface CellAddress {
 
 ---
 
+### `CellPosition`
+
+<sub>interface</sub>
+
+A reference that names one cell, both axes present. The narrowing of [`CellAddress`](./addresses-ranges.md#celladdress) that
+most callers actually want: `decodeAddress` is deliberately three-shaped because a bare row
+(`$1`) and a bare column (`$A`) are legitimate references, but a cell is where a value lives, and
+every caller that needs one was re-deriving that invariant by hand.
+
+```ts
+interface CellPosition {
+  readonly col: number;
+  readonly row: number;
+}
+```
+
+---
+
 ### `columnToNumber`
 
 <sub>function</sub>

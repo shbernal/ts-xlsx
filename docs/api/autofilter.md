@@ -96,6 +96,18 @@ type FilterCriteria = ValuesFilter | CustomFilter;
 
 ---
 
+### `isCustomFilterOperator`
+
+<sub>const</sub>
+
+Narrow a raw `operator` attribute to a known [`CustomFilterOperator`](./autofilter.md#customfilteroperator).
+
+```ts
+const isCustomFilterOperator: (value: string) => value is CustomFilterOperator
+```
+
+---
+
 ### `ValuesFilter`
 
 <sub>interface</sub>

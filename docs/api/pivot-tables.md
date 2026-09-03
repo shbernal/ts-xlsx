@@ -2,6 +2,18 @@
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
+### `isDeclarablePivotSourceKind`
+
+<sub>const</sub>
+
+Narrow a raw `<cacheSource type>` token to a [`PivotSourceKind`](./pivot-tables.md#pivotsourcekind) a file may declare.
+
+```ts
+const isDeclarablePivotSourceKind: (value: string) => value is "consolidation" | "external" | "scenario" | "worksheet"
+```
+
+---
+
 ### `ParsedPivotField`
 
 <sub>interface</sub>

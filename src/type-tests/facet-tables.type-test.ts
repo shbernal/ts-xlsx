@@ -5,6 +5,13 @@
 // to resolve the moment the type gains a field the table does not name. That alias is already a
 // compile error where it is declared; asserting it here is what states, in one place, which tables
 // carry the guarantee, so a table added without one is visible as an absence rather than assumed.
+//
+// Which is worth exactly as much as the list is complete, and the list had drifted to six of eleven:
+// `EveryColumnPropertyIsMirrored` was asserted and its literal twin `EveryRowPropertyIsMirrored` was
+// not, and all four `page-setup.ts` proofs were missing. Nothing was unproven, because the alias
+// fires where it is declared. What was wrong was the register's own claim: read it and you concluded
+// `RowProperties` and `PageSetup` carry no exhaustiveness proof. `scripts/check-facet-register.ts`
+// now holds the two in step, so the next proof added is either listed here or a failed gate.
 
 import type {EveryColumnPropertyIsMirrored} from '../core/column.ts';
 import type {
@@ -13,8 +20,16 @@ import type {
 } from '../core/conditional-formatting.ts';
 import type {EveryDataValidationFieldIsCloned} from '../core/data-validation.ts';
 import type {
+  EveryHeaderFooterElementIsDeclared,
+  EveryMarginSideIsDeclared,
+  EveryPageSetupFacetIsDeclared,
+  EveryPrintOptionFlagIsDeclared,
+} from '../core/page-setup.ts';
+import type {EveryRowPropertyIsMirrored} from '../core/row.ts';
+import type {
   EveryAlignmentFacetIsDeclared,
   EveryBorderEdgeFieldIsCloned,
+  EveryFillPatternIsOrdered,
   EveryBorderFieldIsCloned,
   EveryFontFieldIsCloned,
   EveryGradientFillFieldIsCloned,
@@ -28,10 +43,20 @@ import type {Equal, Expect} from './expect.ts';
 export type FacetTableExhaustiveness = [
   // `<alignment>`'s seven facets, read and written from one declaration.
   Expect<Equal<EveryAlignmentFacetIsDeclared, never>>,
-  // A column's properties, mirrored between the handle and the stored record.
+  // The two axis handles' properties, each mirrored between the handle and the stored record. Both,
+  // because `axis-handle.ts` names them as a pair and only one of them used to be asserted here.
   Expect<Equal<EveryColumnPropertyIsMirrored, never>>,
+  Expect<Equal<EveryRowPropertyIsMirrored, never>>,
   // Every worksheet model field, covered by a getter/setter facet.
   Expect<Equal<EveryWorksheetModelFieldHasAFacet, never>>,
+  // The print-layout tables, all four driven from `page-setup.ts` by both the reader and the writer.
+  Expect<Equal<EveryPageSetupFacetIsDeclared, never>>,
+  Expect<Equal<EveryPrintOptionFlagIsDeclared, never>>,
+  Expect<Equal<EveryMarginSideIsDeclared, never>>,
+  Expect<Equal<EveryHeaderFooterElementIsDeclared, never>>,
+  // A list, not a record, so it owes the other half of its proof explicitly: BIFF12 indexes the fill
+  // patterns, so the enumeration is needed in order and an ordered list can omit a member silently.
+  Expect<Equal<EveryFillPatternIsOrdered, never>>,
   // The defensive copies: a field added to one of these types without a copy strategy would
   // otherwise be carried by reference into the model, aliasing the caller's object silently.
   Expect<Equal<EveryRuleFieldIsCloned, never>>,

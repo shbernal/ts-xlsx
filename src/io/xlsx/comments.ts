@@ -29,7 +29,13 @@ import {localName} from '../../xml/xml-scan.ts';
 import {escapeText, textAttr, textElement, XML_DECLARATION} from '../../xml/xml.ts';
 import {MARKUP_COMPATIBILITY_NS, REVISION_NS, SPREADSHEETML_NS} from './namespaces.ts';
 
-/** A comment bound for `comments{n}.xml`, paired with the coordinates the VML anchor needs. */
+/** A comment bound for `comments{n}.xml`, paired with the coordinates the VML anchor needs.
+ *
+ * @unpublished Writer plumbing, reachable only through `WorksheetStreamWriter`'s constructor and its
+ * `flushedSheet()`, neither of which a consumer calls: a caller receives the writer from
+ * `WorkbookStreamWriter.sheet()`. Naming it would publish the streaming writer's internal wiring as
+ * API; the honest fix is for those two members not to be on the public surface at all.
+ */
 export interface CommentCell {
   readonly ref: string;
   /** 1-based row of the commented cell. */
