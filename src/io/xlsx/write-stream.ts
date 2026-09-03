@@ -59,6 +59,7 @@ import type {AutoFilter} from '../../core/autofilter.ts';
 import type {Cell} from '../../core/cell.ts';
 import type {ConditionalFormatting} from '../../core/conditional-formatting.ts';
 import type {DataValidation} from '../../core/data-validation.ts';
+import type {DateEpoch} from '../../core/date.ts';
 import type {AnchorPoint} from '../../core/image.ts';
 import {INTERNAL} from '../../core/internal.ts';
 import type {SheetProtectionOptions} from '../../core/protection.ts';
@@ -113,6 +114,13 @@ export type WorkbookStreamWriterOptions = SinkOptions & {
    * same {@link WriteOptions.useSharedStrings} the buffered writer exposes. Off by default.
    */
   readonly useSharedStrings?: boolean;
+  /**
+   * Which date system this workbook's serials count in ({@link Workbook.dateEpoch}). A construction
+   * option rather than a settable property, unlike on the buffered writer: an eager writer serialises
+   * each row as it is committed, so a system changed part-way through would leave the rows before the
+   * change counting from a different day than the rows after it.
+   */
+  readonly dateEpoch?: DateEpoch;
 };
 
 /**
@@ -174,10 +182,13 @@ export class WorksheetStreamWriter {
   readonly #hyperlinks: CollectedHyperlink[] = [];
   readonly #notes: CommentCell[] = [];
 
-  constructor(sheet: Worksheet, eager: boolean, styles: StyleRegistry) {
+  readonly #dateEpoch: DateEpoch;
+
+  constructor(sheet: Worksheet, eager: boolean, styles: StyleRegistry, dateEpoch: DateEpoch) {
     this.#sheet = sheet;
     this.#eager = eager;
     this.#styles = styles;
+    this.#dateEpoch = dateEpoch;
   }
 
   /** The sheet's name. */
@@ -270,6 +281,7 @@ export class WorksheetStreamWriter {
         sharedStrings: null,
         sharedRoles: new Map(),
         collapsedSummaries: new Set(),
+        dateEpoch: this.#dateEpoch,
       },
     );
     if (xml !== '') {
@@ -418,6 +430,7 @@ export class WorkbookStreamWriter {
   constructor(options: WorkbookStreamWriterOptions = {}) {
     this.#writeOptions = {useSharedStrings: options.useSharedStrings ?? false};
     this.#eager = !this.#writeOptions.useSharedStrings;
+    if (options.dateEpoch !== undefined) this.#workbook.dateEpoch = options.dateEpoch;
     this.#styles = createStyleRegistry(this.#workbook);
     if (options.stream && options.filename) {
       throw new AuthoringError(
@@ -461,6 +474,7 @@ export class WorkbookStreamWriter {
       this.#workbook.addWorksheet(name, options),
       this.#eager,
       this.#styles,
+      this.#workbook.dateEpoch,
     );
     this.#sheets.push(sheet);
     return sheet;

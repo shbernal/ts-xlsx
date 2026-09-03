@@ -74,6 +74,23 @@ export function parseWorkbookProtection(xml: string): WorkbookProtection | undef
   return result;
 }
 
+/**
+ * Apply `<workbookPr>`: the workbook's date system and its VBA code name.
+ *
+ * Both are read for the same reason and it is not that the model computes anything from them. The
+ * date system is what every serial in every sheet counts from, so a workbook read without it is read
+ * with every date four years and a day out; the code name is what the VBA project means by
+ * `ThisWorkbook`, so a `.xlsm` written back without it has had its macros unbound from its document.
+ * Neither has any signal in the file other than this element.
+ */
+export function applyWorkbookProperties(workbook: Workbook, xml: string): void {
+  for (const {attrs} of openElements(xml, 'workbookPr')) {
+    if (boolStrict(attrs.date1904)) workbook.dateEpoch = 1904;
+    if (attrs.codeName !== undefined) workbook.codeName = attrs.codeName;
+    return;
+  }
+}
+
 // Restore the workbook's saved window state from `<bookViews><workbookView/>` onto the model's view,
 // so a round-trip hands back the geometry and active tab the author left rather than stamping the
 // library's defaults over them. Only the first `<workbookView>` is read: the model carries one view,

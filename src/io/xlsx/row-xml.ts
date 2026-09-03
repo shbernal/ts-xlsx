@@ -8,7 +8,7 @@
 // the honest way to say so.
 
 import {type Cell, cellHasOwnStyle} from '../../core/cell.ts';
-import {DEFAULT_DATE_NUMFMT, dateToSerial} from '../../core/date.ts';
+import {type DateEpoch, DEFAULT_DATE_NUMFMT, dateToSerial} from '../../core/date.ts';
 import {mangleFormula} from '../../core/formula.ts';
 import {NAMED_STYLE_ID} from '../../core/internal.ts';
 import {CELL_STYLE_FACETS, type CellStyle, type Fill} from '../../core/style.ts';
@@ -136,6 +136,8 @@ export interface RowRenderContext {
   readonly sharedStrings: SharedStringTable | null;
   readonly sharedRoles: ReadonlyMap<string, SharedFormulaRole>;
   readonly collapsedSummaries: ReadonlySet<number>;
+  /** The workbook's date system, which is what a `Date` cell's serial counts from. */
+  readonly dateEpoch: DateEpoch;
 }
 
 /**
@@ -166,7 +168,13 @@ export function renderRow(
       const style = ctx.styles.styleId(
         composeCellStyle(cell, rowFill, ctx.columnDefaults.get(cell.col)),
       );
-      return cellXml(cell, style, ctx.sharedRoles.get(cell.address), ctx.sharedStrings);
+      return cellXml(
+        cell,
+        style,
+        ctx.sharedRoles.get(cell.address),
+        ctx.sharedStrings,
+        ctx.dateEpoch,
+      );
     })
     .join('');
   let minCol = Infinity;
@@ -261,19 +269,20 @@ function cellXml(
   style: number,
   shared: SharedFormulaRole | undefined,
   sharedStrings: SharedStringTable | null,
+  epoch: DateEpoch,
 ): string {
   const ref = cell.address;
   const value = cell.value;
   const s = style !== 0 ? ` s="${style}"` : '';
 
-  const formula = cellFormulaXml(ref, s, value, shared);
+  const formula = cellFormulaXml(ref, s, value, shared, epoch);
   if (formula !== undefined) return formula;
 
   if (value instanceof Date) {
     // An Invalid Date (new Date(NaN)) has no serial; keep the cell (and its style) but emit no
     // value rather than throwing, so one bad date never takes down the whole sheet's export.
     if (Number.isNaN(value.getTime())) return `<c r="${ref}"${s}/>`;
-    return `<c r="${ref}"${s}><v>${numberText(dateToSerial(value))}</v></c>`;
+    return `<c r="${ref}"${s}><v>${numberText(dateToSerial(value, epoch))}</v></c>`;
   }
   if (typeof value === 'number') {
     // A non-finite number (NaN, ±Infinity) has no OOXML representation; keep the cell and its style
@@ -334,6 +343,7 @@ function cellFormulaXml(
   s: string,
   value: Cell['value'],
   shared: SharedFormulaRole | undefined,
+  epoch: DateEpoch,
 ): string | undefined {
   // A shared-formula master seeds the group with its formula text under `t="shared" ref si`; a clone
   // carries no text of its own, only a back-reference to the master's `si`. Its cached result still
@@ -341,10 +351,10 @@ function cellFormulaXml(
   if (shared !== undefined) {
     if (shared.ref !== undefined && isFormulaValue(value)) {
       const f = `<f t="shared" ref="${shared.ref}" si="${shared.si}">${escapeText(mangleFormula(value.formula))}</f>`;
-      return formulaBodyXml(ref, s, f, value.result);
+      return formulaBodyXml(ref, s, f, value.result, epoch);
     }
     const result = isSharedFormulaValue(value) ? value.result : undefined;
-    return formulaBodyXml(ref, s, `<f t="shared" si="${shared.si}"/>`, result);
+    return formulaBodyXml(ref, s, `<f t="shared" si="${shared.si}"/>`, result, epoch);
   }
   if (isDataTableFormulaValue(value)) {
     // A data-table formula carries no expression text, only its declaration attributes, which we
@@ -356,7 +366,7 @@ function cellFormulaXml(
       ` dtr="${value.dataTableRow ? 1 : 0}"` +
       textAttr('r1', value.r1) +
       textAttr('r2', value.r2);
-    return formulaBodyXml(ref, s, `<f t="dataTable" ${attrs}/>`, value.result);
+    return formulaBodyXml(ref, s, `<f t="dataTable" ${attrs}/>`, value.result, epoch);
   }
   if (isFormulaValue(value)) {
     return formulaBodyXml(
@@ -364,6 +374,7 @@ function cellFormulaXml(
       s,
       `<f>${escapeText(mangleFormula(value.formula))}</f>`,
       value.result,
+      epoch,
     );
   }
   return undefined;
@@ -377,6 +388,7 @@ function formulaBodyXml(
   s: string,
   f: string,
   result: FormulaResult | undefined,
+  epoch: DateEpoch,
 ): string {
   // A non-finite cached result (a `1/0` that reached the model as Infinity/NaN) has no OOXML
   // representation; keep the formula but cache no value rather than emit a bare "NaN": the same
@@ -406,7 +418,7 @@ function formulaBodyXml(
     // cell's date number format (applied when its style is composed) is what makes both read back as
     // a Date. An Invalid Date has no serial, so cache no result rather than emit NaN.
     if (Number.isNaN(result.getTime())) return `<c r="${ref}"${s}>${f}</c>`;
-    return `<c r="${ref}"${s}>${f}<v>${numberText(dateToSerial(result))}</v></c>`;
+    return `<c r="${ref}"${s}>${f}<v>${numberText(dateToSerial(result, epoch))}</v></c>`;
   }
   // Every FormulaResult kind is handled above; this guards a value that reached here past the model.
   throw new InternalError(

@@ -152,6 +152,13 @@ type WorkbookStreamWriterOptions = SinkOptions & {
    * same {@link WriteOptions.useSharedStrings} the buffered writer exposes. Off by default.
    */
   readonly useSharedStrings?: boolean;
+  /**
+   * Which date system this workbook's serials count in ({@link Workbook.dateEpoch}). A construction
+   * option rather than a settable property, unlike on the buffered writer: an eager writer serialises
+   * each row as it is committed, so a system changed part-way through would leave the rows before the
+   * change counting from a different day than the rows after it.
+   */
+  readonly dateEpoch?: DateEpoch;
 };
 ```
 

@@ -10,6 +10,7 @@ import {
   type CellInstance,
   decodeAddress,
   decodeRange,
+  detectValueType,
   fixtureBytes,
   readFixture,
   readWorkbookStream,
@@ -341,6 +342,81 @@ export const core = {
       streaming,
       roundtrip: eagerOf(roundtrip(readFixture(rel))),
     };
+  },
+
+  // Read a fixture and report which date system it declares plus the requested cells three ways →
+  // { epoch, eager, streaming, roundtrip }, each a map of A1 reference → { type, value }. A workbook
+  // declaring the 1904 system counts its serials from 1904-01-01 rather than 1900-01-01, so all three
+  // readings must land on the same calendar date, and the round trip must still declare the system:
+  // dropping the flag leaves the serials where they were for a consumer to re-read four years out.
+  dateSystemReport(rel: string, refs: string[] = []) {
+    // Typed as the sibling cell reports are: a cell's normalised value is a union of every shape a
+    // cell can hold, so an inferred map would make every case narrow it before reading the one field
+    // the case is about.
+    const cellsOf = (workbook: WorkbookInstance): Record<string, Untyped> => {
+      const sheet = workbook.worksheets[0];
+      return Object.fromEntries(
+        refs.map((ref) => {
+          const cell = sheet === undefined ? null : sheet.getCell(ref);
+          return [
+            ref,
+            cell === null
+              ? null
+              : {type: detectValueType(cell.value), value: normalizeStreamValue(cell.value)},
+          ];
+        }),
+      );
+    };
+    // The row streamer is built on the XML worksheet parser and has no BIFF12 path, so a binary
+    // fixture reports no streamed reading rather than a failure: `null` is the honest answer to
+    // "what does the streaming reader make of this", and a case compares the two only where both run.
+    const streaming: Record<string, Untyped> = Object.fromEntries(refs.map((ref) => [ref, null]));
+    if (rel.endsWith('.xlsx')) {
+      for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
+        for (const row of sheet.rows()) {
+          for (const cell of row.cells) {
+            if (cell.address in streaming) {
+              streaming[cell.address] = {
+                type: detectValueType(cell.value),
+                value: normalizeStreamValue(cell.value),
+              };
+            }
+          }
+        }
+        break; // first worksheet only
+      }
+    }
+    const before = readFixture(rel);
+    const after = roundtrip(before);
+    return {
+      epoch: before.dateEpoch,
+      roundtripEpoch: after.dateEpoch,
+      eager: cellsOf(before),
+      streaming,
+      roundtrip: cellsOf(after),
+    };
+  },
+
+  // Read a fixture and report the VBA code names it carries, before and after a write/read round trip
+  // → { before, after }, each { workbook, sheets: {<sheet name>: {codeName, tabColor}} }. A code name
+  // is what a macro project means by `ThisWorkbook` or `Sheet1`, so dropping one on a round trip
+  // severs the binding between a `.xlsm`'s macros and the document they act on. The tab colour rides
+  // along because it is the other thing `<sheetPr>` carries: the attribute and the children are
+  // written by one function, so a case can hold it to emitting both rather than one or the other.
+  codeNamesReport(rel: string) {
+    const namesOf = (
+      workbook: WorkbookInstance,
+    ): {workbook: string | null; sheets: Record<string, Untyped>} => ({
+      workbook: workbook.codeName ?? null,
+      sheets: Object.fromEntries(
+        workbook.worksheets.map((sheet) => [
+          sheet.name,
+          {codeName: sheet.codeName ?? null, tabColor: sheet.tabColor ?? null},
+        ]),
+      ),
+    });
+    const before = readFixture(rel);
+    return {before: namesOf(before), after: namesOf(roundtrip(before))};
   },
 
   // Read a fixture, write it back, and parse the requested cells straight from the re-emitted sheet

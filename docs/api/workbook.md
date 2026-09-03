@@ -113,6 +113,8 @@ class Workbook {
   readonly properties: WorkbookProperties = {};
   readonly view: WorkbookView = {...DEFAULT_WORKBOOK_VIEW};
   fullCalcOnLoad = false;
+  dateEpoch: DateEpoch = 1900;
+  codeName?: string;
   protection: WorkbookProtection | undefined = undefined;
   get worksheets(): readonly Worksheet[];
   get activeTabIndex(): number;
@@ -181,6 +183,33 @@ Ask consuming spreadsheet apps to recalculate every formula when the file is ope
 trusting the cached results stored with each formula cell. Set this when the producer cannot
 compute formula results itself. This is the OOXML `fullCalcOnLoad` flag, off by default, so a
 workbook whose cached results are authoritative stays unmarked.
+
+#### `Workbook.dateEpoch`
+
+```ts
+dateEpoch: DateEpoch = 1900;
+```
+
+Which date system this workbook's serials count in: `1900` (the Windows default) or `1904` (the
+`date1904` flag of `<workbookPr>`, Excel for Macintosh's original). It governs every conversion
+between a `Date` and the number a cell actually stores, in both directions, so setting it after
+cells hold dates changes what those cells mean rather than converting them.
+
+Read from the file and written back, because dropping it is not a cosmetic loss: the serials stay
+as they were and the consumer re-reads them under the other system, so the workbook silently
+changes meaning by four years and a day.
+
+#### `Workbook.codeName`
+
+```ts
+codeName?: string;
+```
+
+The workbook's VBA identity (`<workbookPr codeName>`), the name a macro means by `ThisWorkbook`.
+Undefined for a workbook with no VBA project, which is what Excel writes for one.
+
+Preserved rather than modeled: nothing here reads it, but a `.xlsm` whose code name is dropped on
+a round trip has had the binding between its macros and its document cut.
 
 #### `Workbook.protection`
 

@@ -14,6 +14,7 @@
 // Not yet decoded (each its own slice of work, none silently wrong): rich-text runs, tables, pivots,
 // and conditional formatting.
 
+import type {DateEpoch} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import {INTERNAL} from '../../core/internal.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
@@ -101,6 +102,7 @@ export function readXlsbPackage(
   workbook[INTERNAL].restoreDefaultFont(defaultFont);
 
   const declaration = readWorkbookPart(workbookPart);
+  workbook.dateEpoch = declaration.dateEpoch;
   const scope: FormulaScope = {
     sheetNames: declaration.sheets.map((sheet) => sheet.name),
     externSheets: declaration.externSheets,
@@ -112,7 +114,8 @@ export function readXlsbPackage(
     const sheet = workbook.addWorksheet(declared.name, {state: declared.state});
     const target = declared.relId === undefined ? undefined : rels.byId(declared.relId)?.target;
     const part = target === undefined ? undefined : partBytes(rels.pathOf(target));
-    if (part !== undefined) parseWorksheet(part, sheet, sharedStrings, cellXfs, scope);
+    if (part !== undefined)
+      parseWorksheet(part, sheet, sharedStrings, cellXfs, scope, declaration.dateEpoch);
   }
   for (const defined of definedNames(declaration, scope)) workbook.defineName(defined);
   return workbook;
@@ -149,6 +152,8 @@ interface WorkbookDeclaration {
   readonly names: readonly NameDeclaration[];
   readonly externSheets: readonly ExternSheetRef[];
   readonly selfSupBook: number | undefined;
+  /** The binary spelling of `<workbookPr date1904>`: what every serial in the book counts from. */
+  readonly dateEpoch: DateEpoch;
 }
 
 // The Begin/End blocks the workbook part carries: the sheet bundle, and the externals block a 3-D
@@ -183,10 +188,12 @@ function readWorkbookPart(part: Uint8Array): WorkbookDeclaration {
   // name, anything else inside the externals block disqualifies the whole table.
   let supportingBooks = 0;
   let selfSupBook: number | undefined;
+  let dateEpoch: DateEpoch = 1900;
 
   for (const record of readRecords(part)) {
     if (blocks.boundary(record.type)) continue;
-    if (record.type === BRT.BundleSh && blocks.isOpen('bundle'))
+    if (record.type === BRT.WbProp) dateEpoch = readDateEpoch(record.data);
+    else if (record.type === BRT.BundleSh && blocks.isOpen('bundle'))
       sheets.push(readSheet(record.data));
     else if (record.type === BRT.ExternSheet) externSheets = readExternSheets(record.data);
     else if (record.type === BRT.SupSelf) selfSupBook = supportingBooks++;
@@ -200,7 +207,18 @@ function readWorkbookPart(part: Uint8Array): WorkbookDeclaration {
     names,
     externSheets,
     selfSupBook: supportingBooks === 1 ? selfSupBook : undefined,
+    dateEpoch,
   };
+}
+
+// `BrtWbProp` ([MS-XLSB] 2.4.823): a 4-byte bit field of workbook settings, of which this reader
+// wants one bit. Established against Excel Desktop rather than read off a table: the same workbook
+// saved as `.xlsb` with the 1904 date system on and off differs in this record's first byte alone,
+// 0x21 against 0x20, which puts `f1904` in bit 0. A record too short to hold the field is a damaged
+// one, and the Windows default is the reading that loses least.
+function readDateEpoch(data: Uint8Array): DateEpoch {
+  if (data.length < 4) return 1900;
+  return (new RecordReader(data).u32() & 1) === 0 ? 1900 : 1904;
 }
 
 // `BrtBundleSh` ([MS-XLSB] 2.4.303): the binary spelling of `<sheet name state r:id/>`.

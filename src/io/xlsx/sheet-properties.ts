@@ -66,16 +66,20 @@ export function sheetViewsXml(view: SheetView, active: boolean): string {
 }
 
 // `<sheetPr>` carries the sheet's appearance properties: the tab colour, the outline
-// summary-position flags, and the fit-to-page flag. It is the first child of `<worksheet>` in
-// CT_Worksheet order; its own children follow CT_SheetPr order: `<tabColor>`, `<outlinePr>`, then
-// `<pageSetUpPr>`. Omitted entirely when the sheet carries none, so an unadorned sheet stays
-// byte-clean.
+// summary-position flags, and the fit-to-page flag, plus the sheet's VBA identity as an attribute of
+// its own. It is the first child of `<worksheet>` in CT_Worksheet order; its own children follow
+// CT_SheetPr order: `<tabColor>`, `<outlinePr>`, then `<pageSetUpPr>`. Omitted entirely when the
+// sheet carries none of them, so an unadorned sheet stays byte-clean.
 export function sheetPrXml(sheet: Worksheet): string {
+  const attrs = sheet.codeName === undefined ? '' : ` codeName="${escapeAttr(sheet.codeName)}"`;
   const children =
     (sheet.tabColor !== undefined ? `<tabColor ${colorAttrs(sheet.tabColor)}/>` : '') +
     outlinePrXml(sheet.outline) +
     pageSetUpPrXml(sheet.pageSetup);
-  return children === '' ? '' : `<sheetPr>${children}</sheetPr>`;
+  if (attrs === '' && children === '') return '';
+  // A code name with nothing else to say is still an element, and a self-closing one: `<sheetPr/>`
+  // with no children is what Excel writes for a macro-enabled sheet that is otherwise plain.
+  return children === '' ? `<sheetPr${attrs}/>` : `<sheetPr${attrs}>${children}</sheetPr>`;
 }
 
 // `<pageSetUpPr>` holds the fit-to-page toggle, which lives on the sheet properties rather than on

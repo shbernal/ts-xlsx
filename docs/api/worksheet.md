@@ -163,6 +163,7 @@ class Worksheet {
   readonly id: number;
   state: WorksheetState['state'];
   tabColor: Color | undefined;
+  codeName?: string;
   readonly properties: WorksheetProperties = {};
   readonly outline: OutlineProperties = {};
   readonly view: SheetView = {};
@@ -266,6 +267,21 @@ tabColor: Color | undefined;
 Colour of the sheet's tab, as an ARGB/theme [`Color`](./styles.md#color). `undefined` leaves the tab its
 default colour; the writer emits no `<tabColor>` for an uncoloured sheet, so a round-trip
 never fabricates one.
+
+#### `Worksheet.codeName`
+
+```ts
+codeName?: string;
+```
+
+The sheet's VBA identity (`<sheetPr codeName>`), the name a macro means by `Sheet1`. Undefined
+for a sheet in a workbook with no VBA project, which is what Excel writes for one.
+
+Preserved rather than modeled: nothing here reads it, but a `.xlsm` whose sheet code names are
+dropped on a round trip has had the binding between its macros and its sheets cut. Deliberately
+absent from [`WorksheetModel`](./worksheet.md#worksheetmodel), which is the copy shape: a code name identifies *this* sheet
+to the workbook's VBA project, so copying it onto a second sheet would give the project two
+sheets answering to one name.
 
 #### `Worksheet.properties`
 

@@ -29,8 +29,10 @@ values depending on the intended timezone, and the library cannot infer intent f
     must not diverge, which is the "works on my laptop, wrong on CI" trap.
 - The **reverse direction** (serial to `Date`) must round-trip consistently with whatever write
   policy was chosen, or values drift on read-modify-write cycles.
-- Centralize the serial math (epoch base `1899-12-30`, the 1900 leap-year quirk, the optional 1904
-  date system) in the same layer so the projection and the epoch handling cannot disagree.
+- Centralize the serial math (epoch base `1899-12-30`, the 1900 leap-year quirk, the 1904 date
+  system) in the same layer so the projection and the epoch handling cannot disagree. The epoch half
+  is built: `core/date.ts` owns both systems and every reader and the writer pass the workbook's
+  through, so what remains open here is the timezone projection alone.
 
 ## Prior art / workarounds
 

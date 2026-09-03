@@ -19,7 +19,7 @@
 
 import {encodeAddress, MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
-import {coerceDateSerial} from '../../core/date.ts';
+import {coerceDateSerial, type DateEpoch} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import {assignStyleFacets} from '../../core/style.ts';
 import type {CellValue, FormulaResult} from '../../core/value.ts';
@@ -75,6 +75,7 @@ export function parseWorksheet(
   sharedStrings: readonly string[],
   xfStyles: ReadonlyArray<XfStyle>,
   scope: FormulaScope,
+  dateEpoch: DateEpoch,
 ): void {
   // The open row, one-based as the model counts them. -1 means none is open, which a cell record
   // arriving before any row header (a malformed sheet) is dropped against rather than guessed at.
@@ -124,6 +125,7 @@ export function parseWorksheet(
         sharedStrings,
         xfStyles,
         scope,
+        dateEpoch,
         row,
         rowStyle,
         columnStyle,
@@ -151,6 +153,8 @@ interface CellRecordContext {
   readonly sharedStrings: readonly string[];
   readonly xfStyles: ReadonlyArray<XfStyle>;
   readonly scope: FormulaScope;
+  /** The workbook's date system, from `BrtWbProp`: what a serial under a date format counts from. */
+  readonly dateEpoch: DateEpoch;
   /** The open row, one-based; -1 when none is, which is a malformed sheet. */
   readonly row: number;
   readonly rowStyle: number;
@@ -170,7 +174,7 @@ function readCellRecord(
   reader: RecordReader,
   context: CellRecordContext,
 ): DeferredFormula | undefined {
-  const {sheet, sharedStrings, xfStyles, scope, row, rowStyle, columnStyle} = context;
+  const {sheet, sharedStrings, xfStyles, scope, dateEpoch, row, rowStyle, columnStyle} = context;
   // A cell record arriving before any row header is dropped rather than guessed at.
   if (row <= 0) return undefined;
   const {column, styleIndex} = reader.cell();
@@ -185,11 +189,11 @@ function readCellRecord(
   applyXfToCell(cell, style);
 
   if (!FORMULA_RECORDS.has(type)) {
-    cell.value = decodeCell(type, reader, sharedStrings, style?.numFmt);
+    cell.value = decodeCell(type, reader, sharedStrings, style?.numFmt, dateEpoch);
     return undefined;
   }
 
-  const result = cachedResult(type, reader, style?.numFmt);
+  const result = cachedResult(type, reader, style?.numFmt, dateEpoch);
   reader.skip(2); // grbitFlags: per-cell recalculation hints the model does not carry.
   const rgce = reader.bytes(reader.u32());
   const rgcb = reader.bytes(reader.u32());
@@ -228,12 +232,13 @@ function cachedResult(
   type: number,
   reader: RecordReader,
   numFmt: string | undefined,
+  epoch: DateEpoch,
 ): FormulaResult | undefined {
   switch (type) {
     case BRT.FmlaNum:
       // A formula's cached numeric result honours the cell's date format exactly as a bare number
       // does, so a date-valued formula reads back as a Date rather than a serial.
-      return asNumberOrDate(reader.f64(), numFmt);
+      return asNumberOrDate(reader.f64(), numFmt, epoch);
     case BRT.FmlaBool:
       return reader.u8() !== 0;
     case BRT.FmlaError: {
@@ -268,12 +273,13 @@ function decodeCell(
   reader: RecordReader,
   sharedStrings: readonly string[],
   numFmt: string | undefined,
+  epoch: DateEpoch,
 ): CellValue {
   switch (type) {
     case BRT.CellRk:
-      return asNumberOrDate(reader.rk(), numFmt);
+      return asNumberOrDate(reader.rk(), numFmt, epoch);
     case BRT.CellReal:
-      return asNumberOrDate(reader.f64(), numFmt);
+      return asNumberOrDate(reader.f64(), numFmt, epoch);
     case BRT.CellBool:
       return reader.u8() !== 0;
     case BRT.CellError: {
@@ -298,8 +304,12 @@ function decodeCell(
 // A number stored under a date format is a date serial: surface it as a Date so a date read from an
 // `.xlsb` is the same value the `.xlsx` twin yields, not a bare number. The rule itself lives in
 // `core/date.ts`, shared with the two `.xlsx` decoders that ask it.
-function asNumberOrDate(value: number, numFmt: string | undefined): number | Date {
-  return coerceDateSerial(value, numFmt);
+function asNumberOrDate(
+  value: number,
+  numFmt: string | undefined,
+  epoch: DateEpoch,
+): number | Date {
+  return coerceDateSerial(value, numFmt, epoch);
 }
 
 // `BrtRowHdr` ([MS-XLSB] 2.4.770): the row index, its default format, its height, and a byte of

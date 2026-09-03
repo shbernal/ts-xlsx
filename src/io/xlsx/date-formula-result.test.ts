@@ -35,7 +35,7 @@ test('the result caches the serial and the cell carries a date format so it read
   // (non-default) style: the date number format that makes the serial read back as a Date.
   assert.match(
     xml,
-    new RegExp(`<c r="A1" s="\\d+"><f>TODAY\\(\\)</f><v>${dateToSerial(when)}</v></c>`),
+    new RegExp(`<c r="A1" s="\\d+"><f>TODAY\\(\\)</f><v>${dateToSerial(when, 1900)}</v></c>`),
   );
 });
 

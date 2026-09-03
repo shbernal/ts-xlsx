@@ -221,6 +221,18 @@ export class Worksheet {
    */
   tabColor: Color | undefined;
 
+  /**
+   * The sheet's VBA identity (`<sheetPr codeName>`), the name a macro means by `Sheet1`. Undefined
+   * for a sheet in a workbook with no VBA project, which is what Excel writes for one.
+   *
+   * Preserved rather than modeled: nothing here reads it, but a `.xlsm` whose sheet code names are
+   * dropped on a round trip has had the binding between its macros and its sheets cut. Deliberately
+   * absent from {@link WorksheetModel}, which is the copy shape: a code name identifies *this* sheet
+   * to the workbook's VBA project, so copying it onto a second sheet would give the project two
+   * sheets answering to one name.
+   */
+  codeName?: string;
+
   /** Sheet-level format defaults. Mutate in place: `sheet.properties.defaultRowHeight = 20`. */
   readonly properties: WorksheetProperties = {};
 

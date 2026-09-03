@@ -11,6 +11,7 @@
 // surface that writer imports, which `write.ts` used to re-export on its behalf.
 
 import {decodeRange, encodeAddress} from '../../core/address.ts';
+import type {DateEpoch} from '../../core/date.ts';
 import {pickStyleFacets} from '../../core/style.ts';
 import type {ColumnProperties, Worksheet, WorksheetProperties} from '../../core/worksheet.ts';
 import {AuthoringError, quoted} from '../../errors.ts';
@@ -83,6 +84,7 @@ export function worksheetXml(
   references: SheetReferences,
   hyperlinks: readonly HyperlinkPlan[],
   sharedStrings: SharedStringTable | null,
+  dateEpoch: DateEpoch,
   active: boolean,
   flushed?: FlushedSheet,
 ): string {
@@ -114,6 +116,7 @@ export function worksheetXml(
     sharedStrings,
     sharedRoles,
     collapsedSummaries,
+    dateEpoch,
   };
 
   const liveRows: {number: number; xml: string}[] = [];

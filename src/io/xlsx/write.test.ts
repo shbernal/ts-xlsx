@@ -1402,3 +1402,47 @@ test('two package parts claiming one path is refused rather than silently overwr
     message: /two package parts claim the path "xl\/styles\.xml"/,
   });
 });
+
+// `<workbookPr>` and `<sheetPr>` say two things the model preserves rather than derives, and both
+// have a default worth staying silent about. What these pin is the silence: a workbook that never
+// mentioned a date system must not come back carrying `date1904="0"`, since that is an attribute in
+// every package Excel writes without one.
+test('the default date system and absent code names write no element at all', () => {
+  const workbook = new Workbook();
+  workbook.addWorksheet('S').getCell('A1').value = 1;
+  const parts = partsOf(workbook);
+  assert.doesNotMatch(parts['xl/workbook.xml'] ?? '', /<workbookPr/);
+  assert.doesNotMatch(parts['xl/worksheets/sheet1.xml'] ?? '', /<sheetPr/);
+});
+
+test('the 1904 date system and the code names are written as the attributes that carry them', () => {
+  const workbook = new Workbook();
+  workbook.dateEpoch = 1904;
+  workbook.codeName = 'ThisWorkbook';
+  const sheet = workbook.addWorksheet('S');
+  sheet.codeName = 'Sheet1';
+  sheet.getCell('A1').value = new Date(Date.UTC(2023, 2, 15));
+  const parts = partsOf(workbook);
+
+  assert.match(
+    parts['xl/workbook.xml'] ?? '',
+    /<workbookPr date1904="1" codeName="ThisWorkbook"\/>/,
+  );
+  // A code name with nothing else to say still needs its element, and Excel writes that one
+  // self-closing; a sheet carrying children keeps them.
+  assert.match(parts['xl/worksheets/sheet1.xml'] ?? '', /<sheetPr codeName="Sheet1"\/>/);
+  // 43538 is Excel's own serial for 2023-03-15 under the 1904 system, 1462 below the 1900 one's.
+  assert.match(parts['xl/worksheets/sheet1.xml'] ?? '', /<v>43538<\/v>/);
+});
+
+test('a code name rides alongside what else <sheetPr> carries, rather than replacing it', () => {
+  const workbook = new Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.codeName = 'Sheet1';
+  sheet.tabColor = {argb: 'FFFF0000'};
+  sheet.getCell('A1').value = 1;
+  assert.match(
+    partsOf(workbook)['xl/worksheets/sheet1.xml'] ?? '',
+    /<sheetPr codeName="Sheet1"><tabColor rgb="FFFF0000"\/><\/sheetPr>/,
+  );
+});

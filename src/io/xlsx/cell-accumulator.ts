@@ -15,6 +15,7 @@
 // -- and falls through to this for the rest.
 
 import {encodeAddress, tryDecodeCellRef} from '../../core/address.ts';
+import type {DateEpoch} from '../../core/date.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {
   CellValue,
@@ -70,8 +71,13 @@ export class CellAccumulator {
   #capture = false;
   #text = '';
 
-  constructor(options: {readonly richRuns: boolean}) {
+  // The workbook's date system: not a fact about any cell, but an input to every cell's decode, so it
+  // is held for the sheet rather than passed through `finalize`/`decode`/`cachedResult` three times.
+  readonly #dateEpoch: DateEpoch;
+
+  constructor(options: {readonly richRuns: boolean; readonly dateEpoch: DateEpoch}) {
     this.#runs = new RunAccumulator({container: 'is', readRuns: options.richRuns});
+    this.#dateEpoch = options.dateEpoch;
   }
 
   /** This cell's `<c r>` address (`"B3"`), or '' when it carried none. */
@@ -280,7 +286,7 @@ export class CellAccumulator {
   // writer will emit for it either way.
   private cachedResult(style: XfStyle | undefined): {result?: FormulaResult} {
     if (!this.#hasValue) return {};
-    const result = decodeFormulaResult(this.#type, this.#valueText, style?.numFmt);
+    const result = decodeFormulaResult(this.#type, this.#valueText, style?.numFmt, this.#dateEpoch);
     return result === undefined ? {} : {result};
   }
 
@@ -298,6 +304,6 @@ export class CellAccumulator {
       inlineText: this.#runs.plainText,
       richTextRuns: this.#runs.runs,
     };
-    return decodeCellContent(raw, sharedStrings, style?.numFmt);
+    return decodeCellContent(raw, sharedStrings, style?.numFmt, this.#dateEpoch);
   }
 }

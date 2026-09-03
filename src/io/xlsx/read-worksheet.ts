@@ -10,6 +10,7 @@ import {
   type FilterCriteria,
   isCustomFilterOperator,
 } from '../../core/autofilter.ts';
+import type {DateEpoch} from '../../core/date.ts';
 import {INTERNAL} from '../../core/internal.ts';
 import {
   HEADER_FOOTER_ELEMENTS,
@@ -237,10 +238,11 @@ export function worksheetPass(
   sheet: Worksheet,
   sharedStrings: readonly SharedString[],
   xfStyles: ReadonlyArray<XfStyle>,
+  dateEpoch: DateEpoch,
 ): SaxPass {
   // The one `<c>` currently being read: its address/type/style, formula, value, inline text, rich
   // runs, and the sheet-spanning shared-formula master map. Each `<c>` resets it and commits it.
-  const cell = new CellAccumulator({richRuns: true});
+  const cell = new CellAccumulator({richRuns: true, dateEpoch});
   // A row with customFormat="1" supplies a default style for its cells that carry no `s`.
   const autoFilter = new AutoFilterAccumulator();
   const pageBreaks = new PageBreakAccumulator();
@@ -288,6 +290,7 @@ export function worksheetPass(
             }
           }
           break;
+        case 'sheetPr':
         case 'tabColor':
         case 'outlinePr':
         case 'sheetView':
@@ -381,6 +384,12 @@ export function worksheetPass(
 // child arrives as its own dispatch.
 function applySheetProperties(local: string, attrs: XmlAttributes, sheet: Worksheet): void {
   switch (local) {
+    case 'sheetPr':
+      // The element itself, for the one thing it carries as an attribute rather than a child: the
+      // sheet's VBA identity. Nothing here reads it, but writing a `.xlsm` back without it leaves the
+      // macros bound to a sheet name the project no longer finds.
+      if (attrs.codeName !== undefined) sheet.codeName = attrs.codeName;
+      break;
     case 'tabColor':
       // A `<sheetPr>` child.
       sheet.tabColor = parseColor(attrs);

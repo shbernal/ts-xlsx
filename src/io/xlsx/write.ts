@@ -496,6 +496,7 @@ function serialiseSheets(
       resolveSheetReferences(sheetPlan),
       sheetPlan.hyperlinks,
       sharedStrings,
+      workbook.dateEpoch,
       // Exactly one sheet is marked selected; the model resolves which, so no package can ship with
       // none selected (no view initialised on open) or with several (an accidental group selection,
       // where an edit to one sheet lands on all of them).

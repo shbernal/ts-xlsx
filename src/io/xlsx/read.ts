@@ -66,6 +66,7 @@ import {parseStyleTable} from './read-styles.ts';
 import {
   applyAppProperties,
   applyCoreProperties,
+  applyWorkbookProperties,
   applyWorkbookView,
   parseWorkbookDefinedNames,
   parseWorkbookProtection,
@@ -81,7 +82,12 @@ export type {StyleTable, XfStyle} from '../style/xf-style.ts';
 export {parseStyleTable} from './read-styles.ts';
 // Re-exported rather than moved out of reach: the row streamer and this module read the same workbook
 // part, and `read.ts` is the entry a caller already has in hand.
-export {applyWorkbookView, parseWorkbookSheets, type SheetEntry} from './read-workbook-xml.ts';
+export {
+  applyWorkbookProperties,
+  applyWorkbookView,
+  parseWorkbookSheets,
+  type SheetEntry,
+} from './read-workbook-xml.ts';
 
 /**
  * Read a spreadsheet package into a {@link Workbook}.
@@ -168,6 +174,10 @@ export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Wo
   const app = partText('docProps/app.xml');
   if (app !== undefined) applyAppProperties(workbook, app);
   workbook.protection = parseWorkbookProtection(workbookXml);
+  // Before the sheet loop, not beside the other workbook-level reads below: the date system it
+  // carries is an input to every cell decode in every sheet, so a sheet read ahead of it would read
+  // its dates under the wrong calendar.
+  applyWorkbookProperties(workbook, workbookXml);
   applyWorkbookView(workbook.view, workbookXml);
   // The threaded-comment author registry is workbook-level, and every conversation on every sheet
   // resolves its authors and @mentions through it, so it is restored before the sheet loop that reads
@@ -252,7 +262,7 @@ function readSheet(sheet: Worksheet, path: string | undefined, context: SheetRea
   const references = worksheetReferencePass();
   if (sheetXml !== undefined) {
     parseXmlPasses(sheetXml, [
-      worksheetPass(sheet, sharedStrings, xfStyles),
+      worksheetPass(sheet, sharedStrings, xfStyles, workbook.dateEpoch),
       hyperlinks,
       validations,
       extendedValidations,

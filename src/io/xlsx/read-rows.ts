@@ -19,7 +19,9 @@
 // same one that path will use.
 
 import {MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
+import type {DateEpoch} from '../../core/date.ts';
 import type {CellValue} from '../../core/value.ts';
+import {Workbook} from '../../core/workbook.ts';
 import {AuthoringError, quoted} from '../../errors.ts';
 import {closeEmptyElements} from '../../xml/xml-read.ts';
 import {boolStrict, localName, numInteger, xmlEvents} from '../../xml/xml-scan.ts';
@@ -32,6 +34,7 @@ import {ColumnRecordBudget} from './column-budget.ts';
 import {XlsxParseError} from './errors.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {
+  applyWorkbookProperties,
   parseStyleTable,
   parseWorkbookSheets,
   type ReadPackageOptions,
@@ -125,7 +128,7 @@ export function* readSheetRows(
   const sheetXml = pkg.sheetXml(chosen.relId);
   // The sheet is named but its part is missing (a truncated or foreign package), so it has no rows.
   if (sheetXml === undefined) return;
-  yield* scanSheet(sheetXml, pkg.sharedStrings, pkg.xfStyles, new Set(), []);
+  yield* scanSheet(sheetXml, pkg.sharedStrings, pkg.xfStyles, pkg.dateEpoch, new Set(), []);
 }
 
 /**
@@ -150,7 +153,7 @@ export function* readWorkbookStream(
     // A named sheet whose part is missing (truncated/foreign package) still surfaces, with no rows,
     // no hidden columns, and no merges, rather than vanishing from the workbook's sheet list.
     const xml = pkg.sheetXml(sheet.relId) ?? '';
-    yield new StreamedSheetReader(sheet.name, xml, pkg.sharedStrings, pkg.xfStyles);
+    yield new StreamedSheetReader(sheet.name, xml, pkg.sharedStrings, pkg.xfStyles, pkg.dateEpoch);
   }
 }
 
@@ -162,6 +165,9 @@ interface OpenPackage {
   readonly sheets: ReadonlyArray<{name: string; relId: string}>;
   readonly sharedStrings: readonly SharedString[];
   readonly xfStyles: ReadonlyArray<XfStyle>;
+  /** The workbook's declared date system, read from `<workbookPr date1904>` like the buffered
+   * reader's: a streamed cell whose serial counted from another day is a different date. */
+  readonly dateEpoch: DateEpoch;
   sheetXml(relId: string): string | undefined;
 }
 
@@ -192,10 +198,17 @@ function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined)
     rels.relatedText('styles') ?? text('xl/styles.xml') ?? '',
   );
 
+  // The model is never built here, so the flag is taken off a bare workbook rather than out of one:
+  // `applyWorkbookProperties` is the same reader the buffered path runs, which is what keeps the two
+  // from disagreeing about which calendar a sheet's serials are in.
+  const properties = new Workbook();
+  applyWorkbookProperties(properties, workbookXml);
+
   return {
     sheets,
     sharedStrings,
     xfStyles,
+    dateEpoch: properties.dateEpoch,
     sheetXml(relId: string): string | undefined {
       const target = rels.byId(relId)?.target;
       return target === undefined ? undefined : text(rels.pathOf(target));
@@ -229,6 +242,7 @@ class StreamedSheetReader implements StreamedSheet {
   readonly #xml: string;
   readonly #sharedStrings: readonly SharedString[];
   readonly #xfStyles: ReadonlyArray<XfStyle>;
+  readonly #dateEpoch: DateEpoch;
   #hiddenColumns = new Set<number>();
   #merges: string[] = [];
   #scanned = false;
@@ -238,11 +252,13 @@ class StreamedSheetReader implements StreamedSheet {
     xml: string,
     sharedStrings: readonly SharedString[],
     xfStyles: ReadonlyArray<XfStyle>,
+    dateEpoch: DateEpoch,
   ) {
     this.name = name;
     this.#xml = xml;
     this.#sharedStrings = sharedStrings;
     this.#xfStyles = xfStyles;
+    this.#dateEpoch = dateEpoch;
   }
 
   *rows(): Generator<StreamedRow, void, undefined> {
@@ -253,6 +269,7 @@ class StreamedSheetReader implements StreamedSheet {
       this.#xml,
       this.#sharedStrings,
       this.#xfStyles,
+      this.#dateEpoch,
       this.#hiddenColumns,
       this.#merges,
     );
@@ -302,6 +319,7 @@ function* scanSheet(
   xml: string,
   sharedStrings: readonly SharedString[],
   xfStyles: ReadonlyArray<XfStyle>,
+  dateEpoch: DateEpoch,
   hiddenColumns: Set<number>,
   merges: string[],
 ): Generator<StreamedRow, void, undefined> {
@@ -318,7 +336,7 @@ function* scanSheet(
   // resolution the buffered finalize adds, which a data read does not want. Rich `<r>` runs are
   // deliberately not read here, so a rich inline string flattens to its concatenated text as a
   // streamed value always has.
-  const cell = new CellAccumulator({richRuns: false});
+  const cell = new CellAccumulator({richRuns: false, dateEpoch});
 
   const finalizeCell = (): void => {
     if (cell.ref === '' || cell.col < 0 || !rowInGrid) return;

@@ -25,6 +25,7 @@ import {
   type VbaProjectSignature,
 } from '../vba/index.ts';
 import {commentThreadGuid, type Person} from './comment-thread.ts';
+import type {DateEpoch} from './date.ts';
 import {
   imageContentKey,
   normalizeImageExtension,
@@ -205,6 +206,27 @@ export class Workbook {
    * workbook whose cached results are authoritative stays unmarked.
    */
   fullCalcOnLoad = false;
+
+  /**
+   * Which date system this workbook's serials count in: `1900` (the Windows default) or `1904` (the
+   * `date1904` flag of `<workbookPr>`, Excel for Macintosh's original). It governs every conversion
+   * between a `Date` and the number a cell actually stores, in both directions, so setting it after
+   * cells hold dates changes what those cells mean rather than converting them.
+   *
+   * Read from the file and written back, because dropping it is not a cosmetic loss: the serials stay
+   * as they were and the consumer re-reads them under the other system, so the workbook silently
+   * changes meaning by four years and a day.
+   */
+  dateEpoch: DateEpoch = 1900;
+
+  /**
+   * The workbook's VBA identity (`<workbookPr codeName>`), the name a macro means by `ThisWorkbook`.
+   * Undefined for a workbook with no VBA project, which is what Excel writes for one.
+   *
+   * Preserved rather than modeled: nothing here reads it, but a `.xlsm` whose code name is dropped on
+   * a round trip has had the binding between its macros and its document cut.
+   */
+  codeName?: string;
 
   /**
    * Workbook-level structure/window protection: the OOXML `<workbookProtection>` element. Absent by

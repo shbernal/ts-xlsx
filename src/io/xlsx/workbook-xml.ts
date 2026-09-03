@@ -296,6 +296,7 @@ export function workbookXml(
   return (
     XML_DECLARATION +
     `<workbook xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
+    workbookPrXml(workbook) +
     workbookProtectionXml(workbook) +
     bookViewsXml(workbook) +
     `<sheets>${entries}</sheets>` +
@@ -306,6 +307,19 @@ export function workbookXml(
     workbookExtLstXml(preservedRels) +
     '</workbook>'
   );
+}
+
+// `<workbookPr>` opens CT_Workbook's optional content (it precedes `<workbookProtection>`), and
+// carries the two workbook-level declarations the model preserves rather than derives: which date
+// system its serials count in, and what its VBA project calls it. Omitted when the workbook declares
+// neither, so a file that never mentioned it stays byte-clean, and `date1904="0"` is never written:
+// that is the schema default, and emitting it would put an attribute into every package Excel writes
+// without one.
+function workbookPrXml(workbook: Workbook): string {
+  const attrs =
+    (workbook.dateEpoch === 1904 ? ' date1904="1"' : '') +
+    (workbook.codeName === undefined ? '' : ` codeName="${escapeAttr(workbook.codeName)}"`);
+  return attrs === '' ? '' : `<workbookPr${attrs}/>`;
 }
 
 // `<bookViews>` follows `<workbookProtection>` and precedes `<sheets>` in CT_Workbook order. Unlike

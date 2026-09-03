@@ -5,7 +5,7 @@
 // what guarantees a cell read one row at a time decodes identically to the same cell read as
 // part of a whole workbook. A divergence here would be a silent data bug in exactly one path.
 
-import {coerceDateSerial, parseDateText} from '../../core/date.ts';
+import {coerceDateSerial, type DateEpoch, parseDateText} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import {
   type CellValue,
@@ -41,16 +41,20 @@ export interface RawCell {
  * Decode a gathered cell into its model value. A formula cell becomes a `{formula, result?}`
  * object (the on-disk `_xlfn.`/`_xlpm.` mangling stripped back to the readable name); a plain
  * numeric cell under a date number format becomes a {@link Date}; everything else decodes by its
- * `t` type. `numFmt` is the cell's resolved number-format code, used only for date detection.
+ * `t` type. `numFmt` is the cell's resolved number-format code, used only for date detection, and
+ * `epoch` the workbook's date system, which is what a serial under such a format counts from.
  */
 export function decodeCellContent(
   raw: RawCell,
   sharedStrings: readonly SharedString[],
   numFmt: string | undefined,
+  epoch: DateEpoch,
 ): CellValue {
   if (raw.hasFormula) {
     const stored = unmangleFunctions(raw.formula);
-    const result = raw.hasValue ? decodeFormulaResult(raw.type, raw.valueText, numFmt) : undefined;
+    const result = raw.hasValue
+      ? decodeFormulaResult(raw.type, raw.valueText, numFmt, epoch)
+      : undefined;
     return result === undefined ? {formula: stored} : {formula: stored, result};
   }
   // An inline string built from `<r>` runs is rich text: surface its runs rather than flattening
@@ -61,7 +65,7 @@ export function decodeCellContent(
   const value = decodeValue(raw.type, raw.valueText, raw.inlineText, raw.hasValue, sharedStrings);
   // A number stored under a date format is a date serial: surface it as a Date so a written date
   // round-trips as a date, not a bare number.
-  return coerceDateSerial(value, numFmt);
+  return coerceDateSerial(value, numFmt, epoch);
 }
 
 function decodeValue(
@@ -117,9 +121,10 @@ function decodeValue(
 export function decodeFormulaResult(
   type: string,
   valueText: string,
-  numFmt?: string,
+  numFmt: string | undefined,
+  epoch: DateEpoch,
 ): FormulaResult | undefined {
-  return coerceDateSerial(decodeResult(type, valueText), numFmt);
+  return coerceDateSerial(decodeResult(type, valueText), numFmt, epoch);
 }
 
 // The formula-result subset of `decodeValue`: a cached result is only ever a string, boolean,

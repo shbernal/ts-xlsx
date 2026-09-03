@@ -56,6 +56,7 @@ export const BRT = {
   EndStyles: 620,
 
   // Workbook part.
+  WbProp: 153,
   BundleSh: 156,
   BeginBundleShs: 143,
   EndBundleShs: 144,
