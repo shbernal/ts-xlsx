@@ -11,6 +11,7 @@ import {AuthoringError} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
 import {type CellPosition, decodeCellRef, encodeAddress, type GridRect} from './address.ts';
 import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
+import {MAX_TABLE_NAME_LENGTH, TABLE_NAME_PATTERN} from './limits.ts';
 import type {CellStyle} from './style.ts';
 import type {CellValue} from './value.ts';
 
@@ -197,14 +198,6 @@ export interface TableOptions {
   style?: TableStyleInfo;
 }
 
-// Excel's table-name grammar: start with a letter, underscore, or backslash; every later
-// character a letter, digit, period, or underscore. Unicode letters/digits are allowed.
-// Excel additionally forbids a name that *is* a cell reference (`A1`, `R1C1`); we defer
-// that rule deliberately: the regression corpus treats cell-reference-shaped names like
-// `T1` as valid table names, so enforcing the collision rule here would reject a fixture
-// the contract accepts.
-const IDENTIFIER = /^[\p{L}\\_][\p{L}\p{N}._]*$/u;
-
 /**
  * Return copies of `columns` with every name made unique (case-insensitively): the first occurrence
  * keeps its name; a later clash gains the smallest numeric suffix that resolves it (`foo`, `foo2`,
@@ -228,10 +221,12 @@ function disambiguateColumnNames(columns: readonly TableColumn[]): TableColumn[]
 // that its columns span its range, that it does not name a column twice -- is elsewhere, and that
 // one stays an `AuthoringError`.
 function validateTableName(name: string): void {
-  if (name.length === 0 || name.length > 255) {
-    throw new RangeError(`table name ${JSON.stringify(name)} must be between 1 and 255 characters`);
+  if (name.length === 0 || name.length > MAX_TABLE_NAME_LENGTH) {
+    throw new RangeError(
+      `table name ${JSON.stringify(name)} must be between 1 and ${MAX_TABLE_NAME_LENGTH} characters`,
+    );
   }
-  if (!IDENTIFIER.test(name)) {
+  if (!TABLE_NAME_PATTERN.test(name)) {
     throw new SyntaxError(
       `table name ${JSON.stringify(name)} is not a valid Excel identifier: it must start with a letter, ` +
         'underscore, or backslash and contain only letters, digits, periods, and underscores',

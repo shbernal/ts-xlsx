@@ -9,7 +9,7 @@
 Read an `.xlsb` (binary BIFF12) package into a [`Workbook`](./workbook.md#workbook).
 
 ```ts
-function readXlsb(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook;
+function readXlsb(data: Uint8Array, options: ReadPackageOptions = {}): Workbook;
 ```
 
 **Throws:** [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror) if the input is not an `.xlsb` package: a legacy `.xls`

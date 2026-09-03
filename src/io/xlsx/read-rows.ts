@@ -34,12 +34,12 @@ import {parseSharedStrings} from './read-shared-strings.ts';
 import {
   parseStyleTable,
   parseWorkbookSheets,
-  type ReadXlsxOptions,
+  type ReadPackageOptions,
   type SheetEntry,
   type XfStyle,
 } from './read.ts';
 
-export interface ReadSheetRowsOptions extends ReadXlsxOptions {
+export interface ReadSheetRowsOptions extends ReadPackageOptions {
   /**
    * Which worksheet to stream: its name, or its 1-based position in the workbook. Defaults to the
    * first sheet.
@@ -135,7 +135,7 @@ export function* readSheetRows(
  * of walking `readXlsx(data).worksheets`.
  *
  * @param data The raw `.xlsx` bytes.
- * @param options The inflate bound (see {@link ReadXlsxOptions}).
+ * @param options The inflate bound (see {@link ReadPackageOptions}).
  * @throws {UnsupportedFormatError} if the input is not a readable `.xlsx` package (a legacy `.xls`, a
  *   binary `.xlsb`, or an unrecognised/non-ZIP blob; branch on `.format`).
  * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked: a corrupt or
@@ -143,7 +143,7 @@ export function* readSheetRows(
  */
 export function* readWorkbookStream(
   data: Uint8Array,
-  options: ReadXlsxOptions = {},
+  options: ReadPackageOptions = {},
 ): Generator<StreamedSheet, void, undefined> {
   const pkg = openPackage(data, options.maxUncompressedBytes);
   for (const sheet of pkg.sheets) {

@@ -53,16 +53,14 @@ import {
 import {escapeAttr, escapeSpreadsheetText, textAttr, XML_DECLARATION} from '../../xml/xml.ts';
 import {THREADED_COMMENTS_NS} from './namespaces.ts';
 
-/** A registered author of threaded comments: one `<person>` of `xl/persons/person.xml`. */
-export interface ParsedPerson {
-  /** Brace-wrapped GUID a message's `personId` points at. */
-  readonly id: string;
-  readonly displayName: string;
-  /** Identity-provider handle, `S::<email>::<tenant-guid>` for an AzureAD account. */
-  readonly userId?: string;
-  /** Identity provider, e.g. `AD`. */
-  readonly providerId?: string;
-}
+/**
+ * A registered author of threaded comments: one `<person>` of `xl/persons/person.xml`, which is the
+ * model's own {@link Person} with nothing added. Declared as an alias for the same reason
+ * {@link ParsedMention} is: this file's write half already emits `Person` directly, so re-declaring
+ * the four fields here made one feature module name one shape two ways, with nothing keeping the two
+ * in step.
+ */
+export type ParsedPerson = Person;
 
 /**
  * One `<mention>` of a message's `<mentions>` block: the model's own {@link MentionRef}, which is

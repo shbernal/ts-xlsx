@@ -1,9 +1,18 @@
-// Excel's limits on the grid's *geometry*: the other half of the bounds `address.ts` states.
+// The limits Excel enforces that a caller may want to check before authoring: what a row or column can
+// be sized to, and what a sheet or table may be named.
 //
-// `MAX_ROW`/`MAX_COLUMN` bound where a cell can be; these bound how big a line can be *set*. The
-// difference that matters is who enforces them: the addressing bounds are structural (a reference
-// past XFD is not a reference), so the model refuses them outright, while these are limits on
-// *assignment* in Excel's own UI and object model. They are not limits on what a package may
+// `MAX_ROW`/`MAX_COLUMN` stay in `address.ts`, where they belong: those are structural, in that a
+// reference past XFD is not a reference, so the addressing code that refuses them is the code that
+// defines them. Everything here is a limit on *content* the addressing layer has no view of.
+//
+// The name limits arrived here late, and the gap they left is worth naming: they were module-private
+// constants and bare literals inside the two validators, so the only way to ask the library what a
+// legal sheet or table name is was to author one and catch the throw. A caller that wants to offer a
+// user a rename box needs the answer before the throw, not from it.
+//
+// The two geometry ceilings bound how big a line can be *set*, and who enforces them is what makes
+// them different from the addressing bounds: those are refused outright by the model, while these are
+// limits on *assignment* in Excel's own UI and object model. They are not limits on what a package may
 // carry. The schema types `ht` and `width` as a bare `xsd:double` with no ceiling on either, and
 // Excel opens an over-limit file clean, with no repair prompt and no repair log, so a reader that threw
 // on one would refuse a file Excel accepts. Nothing here is enforced, therefore, on either the
@@ -47,3 +56,30 @@ export const MAX_ROW_HEIGHT = 409.5;
  * value for it is a bug rather than a shortcut.
  */
 export const MAX_COLUMN_WIDTH = 255;
+
+/**
+ * The longest sheet name Excel accepts, in UTF-16 code units. A longer one is refused outright rather
+ * than truncated: a truncated name silently collides with its neighbours.
+ */
+export const MAX_SHEET_NAME_LENGTH = 31;
+
+/**
+ * The characters Excel forbids anywhere in a sheet name. A name may also not begin or end with an
+ * apostrophe, which this pattern does not express because the position is what makes it illegal: a
+ * sheet-qualified reference quotes the name with apostrophes, so one at either edge cannot be told
+ * from the quoting.
+ */
+export const INVALID_SHEET_NAME_CHARS = /[*?:\\/[\]]/;
+
+/** The longest table name Excel accepts, in UTF-16 code units. */
+export const MAX_TABLE_NAME_LENGTH = 255;
+
+/**
+ * Excel's table-name grammar: start with a letter, underscore, or backslash; every later character a
+ * letter, digit, period, or underscore. Unicode letters and digits are allowed.
+ *
+ * Excel additionally forbids a name that *is* a cell reference (`A1`, `R1C1`), which this pattern
+ * deliberately does not: the regression corpus treats cell-reference-shaped names like `T1` as valid
+ * table names, so enforcing that rule would reject a fixture the contract accepts.
+ */
+export const TABLE_NAME_PATTERN = /^[\p{L}\\_][\p{L}\p{N}._]*$/u;

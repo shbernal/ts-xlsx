@@ -244,6 +244,26 @@ export function tryDecodeCellRef(reference: string): CellPosition | undefined {
 }
 
 /**
+ * Narrow a decoded range to a {@link GridRect}, or `undefined` when either axis is unbounded.
+ *
+ * A whole-column reference (`A:A`) and a whole-row one (`1:1`) are legal range references whose
+ * corners are partly absent, so every caller that needs a real rectangle has to test all four. Doing
+ * that in seven places is the other half of the convention `GridRect` already exists to state once:
+ * the shape is declared here, and so is the one narrowing that produces it.
+ *
+ * A caller wanting to say something *different* about each axis (a `Range` refuses `A:A` and `1:1`
+ * with two distinct messages) still tests them separately, and one that only cares about the axis it
+ * is splicing still tests only that one. Neither is this question.
+ */
+export function boundedRect(range: RangeAddress): GridRect | undefined {
+  const {top, left, bottom, right} = range;
+  if (top === undefined || left === undefined || bottom === undefined || right === undefined) {
+    return undefined;
+  }
+  return {top, left, bottom, right};
+}
+
+/**
  * {@link decodeRange} for a reference that came out of a file: `undefined` for anything that does
  * not name a region that can exist. The sibling of {@link tryDecodeCellRef} on the other arity: a
  * `ref` or one area of a `sqref` is as likely to be malformed as a cell's `r`, and the reader's

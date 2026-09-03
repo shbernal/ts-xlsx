@@ -297,3 +297,28 @@ export function themePrefixReport(prefix: string) {
     cellColor: back.getWorksheet('S')?.getCell('A1').font?.color ?? null,
   };
 }
+
+/**
+ * Patch a workbook part so its `<definedNames>` opens with a self-closing `<definedName name="Empty"/>`
+ * before a real one, read → `{names}`. A defined name with no `refersTo` is legal markup that fires no
+ * close event, and the hand-rolled text capture that read these committed only on the close: the name
+ * was dropped entirely, and the capture stayed latched on whatever text came next.
+ */
+export function selfClosingDefinedNameReport() {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 1;
+  wb.defineName({name: 'Later', refersTo: 'S!$A$1'});
+  const files = unzipSync(writeXlsx(wb));
+  files['xl/workbook.xml'] = strToU8(
+    strFromU8(files['xl/workbook.xml']!).replace(
+      '<definedNames>',
+      '<definedNames><definedName name="Empty"/>',
+    ),
+  );
+  return {
+    names: readXlsx(zipSync(files)).definedNames.map((name) => ({
+      name: name.name,
+      refersTo: name.refersTo,
+    })),
+  };
+}

@@ -32,6 +32,7 @@ import {
   type WorksheetImages,
 } from './image.ts';
 import {INTERNAL} from './internal.ts';
+import {INVALID_SHEET_NAME_CHARS, MAX_SHEET_NAME_LENGTH} from './limits.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
 import type {Color, Font, NamedCellStyle, TableStyleTable} from './style.ts';
 import {checkTableStyle, type TableStyle} from './table-style.ts';
@@ -185,10 +186,6 @@ export interface AddImageOptions {
    * tolerated and stripped; omit it entirely to infer the kind from the bytes' magic number. */
   readonly extension?: string;
 }
-
-const MAX_SHEET_NAME_LENGTH = 31;
-// Excel rejects these in a sheet name, plus a leading/trailing apostrophe.
-const INVALID_SHEET_NAME_CHARS = /[*?:\\/[\]]/;
 
 export class Workbook {
   readonly properties: WorkbookProperties = {};

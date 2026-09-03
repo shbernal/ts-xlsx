@@ -2,6 +2,21 @@
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
+### `INVALID_SHEET_NAME_CHARS`
+
+<sub>const</sub>
+
+The characters Excel forbids anywhere in a sheet name. A name may also not begin or end with an
+apostrophe, which this pattern does not express because the position is what makes it illegal: a
+sheet-qualified reference quotes the name with apostrophes, so one at either edge cannot be told
+from the quoting.
+
+```ts
+const INVALID_SHEET_NAME_CHARS: RegExp
+```
+
+---
+
 ### `MAX_COLUMN_WIDTH`
 
 <sub>const</sub>
@@ -44,4 +59,46 @@ quietly becoming a different one.
 
 ```ts
 const MAX_ROW_HEIGHT: 409.5
+```
+
+---
+
+### `MAX_SHEET_NAME_LENGTH`
+
+<sub>const</sub>
+
+The longest sheet name Excel accepts, in UTF-16 code units. A longer one is refused outright rather
+than truncated: a truncated name silently collides with its neighbours.
+
+```ts
+const MAX_SHEET_NAME_LENGTH: 31
+```
+
+---
+
+### `MAX_TABLE_NAME_LENGTH`
+
+<sub>const</sub>
+
+The longest table name Excel accepts, in UTF-16 code units.
+
+```ts
+const MAX_TABLE_NAME_LENGTH: 255
+```
+
+---
+
+### `TABLE_NAME_PATTERN`
+
+<sub>const</sub>
+
+Excel's table-name grammar: start with a letter, underscore, or backslash; every later character a
+letter, digit, period, or underscore. Unicode letters and digits are allowed.
+
+Excel additionally forbids a name that *is* a cell reference (`A1`, `R1C1`), which this pattern
+deliberately does not: the regression corpus treats cell-reference-shaped names like `T1` as valid
+table names, so enforcing that rule would reject a fixture the contract accepts.
+
+```ts
+const TABLE_NAME_PATTERN: RegExp
 ```

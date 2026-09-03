@@ -24,7 +24,7 @@ import {
 } from '../../vba/project-editor.ts';
 import {relsPathFor, resolveRelativePart} from '../opc/part-paths.ts';
 import {parseRelationshipRecords, relationshipTargetByType} from '../opc/read-opc.ts';
-import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-options.ts';
+import {DEFAULT_MAX_UNCOMPRESSED, type ReadPackageOptions} from '../opc/read-options.ts';
 import {inflateSpreadsheetPackage} from '../opc/sniff-format.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 
@@ -44,12 +44,12 @@ const VBA_SIGNATURE_REL_INFIX = 'vbaProjectSignature';
  *   a `document`/`designer` module.
  * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
  * @throws {PackageReadError} if the input is not a readable ZIP, or exceeds the inflate bound
- *   ({@link ReadXlsxOptions.maxUncompressedBytes}, defaulting as `readXlsx` does).
+ *   ({@link ReadPackageOptions.maxUncompressedBytes}, defaulting as `readXlsx` does).
  */
 export function editXlsxVbaRemoveModule(
   xlsx: Uint8Array,
   name: string,
-  options: ReadXlsxOptions = {},
+  options: ReadPackageOptions = {},
 ): Uint8Array {
   return applyToVbaProjectPart(xlsx, options, (bin) => removeVbaModule(bin, name));
 }
@@ -64,12 +64,12 @@ export function editXlsxVbaRemoveModule(
  *   {@link VbaLibraryReference}).
  * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
  * @throws {PackageReadError} if the input is not a readable ZIP, or exceeds the inflate bound
- *   ({@link ReadXlsxOptions.maxUncompressedBytes}, defaulting as `readXlsx` does).
+ *   ({@link ReadPackageOptions.maxUncompressedBytes}, defaulting as `readXlsx` does).
  */
 export function editXlsxVbaAddReference(
   xlsx: Uint8Array,
   ref: VbaLibraryReference,
-  options: ReadXlsxOptions = {},
+  options: ReadPackageOptions = {},
 ): Uint8Array {
   return applyToVbaProjectPart(xlsx, options, (bin) => addVbaReference(bin, ref));
 }
@@ -80,7 +80,7 @@ export function editXlsxVbaAddReference(
 // touched.
 function applyToVbaProjectPart(
   xlsx: Uint8Array,
-  options: ReadXlsxOptions,
+  options: ReadPackageOptions,
   apply: (bin: Uint8Array) => Uint8Array,
 ): Uint8Array {
   // Through the shared inflater, not `unzipSync`. These two functions take raw caller-supplied bytes

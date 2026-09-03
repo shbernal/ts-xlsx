@@ -102,7 +102,21 @@ export function parseVbaProject(
   bin: Uint8Array,
   maxOutput = DEFAULT_MAX_PROJECT_OUTPUT,
 ): VbaProject {
-  const cfb = new CompoundFile(bin);
+  return parseVbaProjectIn(new CompoundFile(bin), maxOutput);
+}
+
+/**
+ * As {@link parseVbaProject}, over a container the caller has already opened.
+ *
+ * Both project editors parse fail-closed first and then need the container itself, and each was
+ * building a second `CompoundFile` over the same bytes: a second walk of the DIFAT, FAT, mini-FAT,
+ * directory and mini-stream, which is roughly double the cost and double the peak allocation of every
+ * edit. Opening it once and handing it in is the whole of the fix.
+ */
+export function parseVbaProjectIn(
+  cfb: CompoundFile,
+  maxOutput = DEFAULT_MAX_PROJECT_OUTPUT,
+): VbaProject {
   const budget = new DecompressionBudget(maxOutput);
 
   const dirCompressed = cfb.readStream('dir');

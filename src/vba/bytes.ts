@@ -55,3 +55,26 @@ export function decodeUtf16le(bytes: Uint8Array): string {
   }
   return s;
 }
+
+/**
+ * Replace `src[start..end)` with `insert`, returning a new array.
+ *
+ * The three record edits the project editor makes are all this shape: splice a MODULE record block in,
+ * cut one out, cut a PROJECTwm entry out. Each was an allocate-and-copy-around written out longhand,
+ * and each had to get the same three offsets right; saying it once means the arithmetic is checked
+ * once. Passing no `insert` is a pure deletion, and `start === end` a pure insertion.
+ */
+export function spliceBytes(
+  src: Uint8Array,
+  start: number,
+  end: number,
+  insert: Uint8Array = EMPTY,
+): Uint8Array {
+  const out = new Uint8Array(src.length - (end - start) + insert.length);
+  out.set(src.subarray(0, start), 0);
+  out.set(insert, start);
+  out.set(src.subarray(end), start + insert.length);
+  return out;
+}
+
+const EMPTY = new Uint8Array(0);

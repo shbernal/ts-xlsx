@@ -15,7 +15,7 @@ dropped because it cannot validate the new bytes.
 function editXlsxVbaAddReference(
   xlsx: Uint8Array,
   ref: VbaLibraryReference,
-  options: ReadXlsxOptions = {},
+  options: ReadPackageOptions = {},
 ): Uint8Array;
 ```
 
@@ -23,7 +23,7 @@ function editXlsxVbaAddReference(
 [`VbaLibraryReference`](./vba-project-editor.md#vbalibraryreference)).
 **Throws:** [`VbaParseError`](./vba-errors.md#vbaparseerror) if the attached `vbaProject.bin` is malformed.
 **Throws:** [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is not a readable ZIP, or exceeds the inflate bound
-([`ReadXlsxOptions.maxUncompressedBytes`](./opc-read-options.md#readxlsxoptions), defaulting as `readXlsx` does).
+([`ReadPackageOptions.maxUncompressedBytes`](./opc-read-options.md#readpackageoptions), defaulting as `readXlsx` does).
 
 ---
 
@@ -40,7 +40,7 @@ validate the new bytes.
 function editXlsxVbaRemoveModule(
   xlsx: Uint8Array,
   name: string,
-  options: ReadXlsxOptions = {},
+  options: ReadPackageOptions = {},
 ): Uint8Array;
 ```
 
@@ -48,4 +48,4 @@ function editXlsxVbaRemoveModule(
 a `document`/`designer` module.
 **Throws:** [`VbaParseError`](./vba-errors.md#vbaparseerror) if the attached `vbaProject.bin` is malformed.
 **Throws:** [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is not a readable ZIP, or exceeds the inflate bound
-([`ReadXlsxOptions.maxUncompressedBytes`](./opc-read-options.md#readxlsxoptions), defaulting as `readXlsx` does).
+([`ReadPackageOptions.maxUncompressedBytes`](./opc-read-options.md#readpackageoptions), defaulting as `readXlsx` does).

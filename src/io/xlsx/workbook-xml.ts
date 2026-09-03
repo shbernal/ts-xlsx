@@ -143,7 +143,7 @@ function buildExtensionDefaults(
   for (const ext of mediaExtensions) add(ext, imageContentType(ext));
   for (const part of preservedParts) {
     const ext = extensionOf(part.path);
-    if (ext.toLowerCase() === 'xml') continue;
+    if (ext === 'xml') continue;
     add(ext, part.contentType);
   }
   return defaults;
@@ -197,9 +197,7 @@ function contentTypeOverrides(
     // type whatever the source package happened to declare.
     .filter((part) => part.path !== THEME_PART_PATH)
     .filter(
-      (part) =>
-        extensionDefaults.get(extensionOf(part.path).toLowerCase())?.contentType !==
-        part.contentType,
+      (part) => extensionDefaults.get(extensionOf(part.path))?.contentType !== part.contentType,
     )
     .map((part) => override(part.path, part.contentType));
   return [

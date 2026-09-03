@@ -2,12 +2,12 @@
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
-### `ReadXlsxOptions`
+### `ReadPackageOptions`
 
 <sub>interface</sub>
 
 ```ts
-interface ReadXlsxOptions {
+interface ReadPackageOptions {
   /**
    * Maximum total uncompressed output, in bytes, produced while inflating the package.
    * The bound is enforced by a running counter as bytes are decompressed, never read from

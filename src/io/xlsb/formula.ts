@@ -22,7 +22,7 @@
 // its caller keeps what it can still trust: the cached result Excel stored beside the formula. The
 // gaps that reach that path are listed in `docs/knowledge/specs/xlsb-binary-format-output.md`.
 
-import {MAX_COLUMN, numberToColumn} from '../../core/address.ts';
+import {MAX_COLUMN, MAX_ROW, numberToColumn} from '../../core/address.ts';
 import {quoteSheetName} from '../../core/formula.ts';
 import {errorCodeFor, RecordReader} from './primitives.ts';
 import {FTAB_USER_DEFINED, fixedArityFor, functionNameFor} from './ptg-functions.ts';
@@ -466,7 +466,9 @@ const FUNCVAR_INDEX_MASK = 0x7fff;
 const COLUMN_MASK = 0x3fff;
 const COLUMN_RELATIVE = 0x4000;
 const ROW_RELATIVE = 0x8000;
-const MAX_ROW_INDEX = 1048575;
+// Zero-based, from the one-based limit `core/address.ts` owns. Typed out here and in
+// `read-worksheet.ts`, it was the same fact stated twice with nothing keeping the two in step.
+const MAX_ROW_INDEX = MAX_ROW - 1;
 
 // `SerAr` element tags.
 const SER_NUM = 0x00;

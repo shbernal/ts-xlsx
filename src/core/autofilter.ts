@@ -1,6 +1,6 @@
 import {AuthoringError} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
-import {decodeRange, encodeAddress} from './address.ts';
+import {boundedRect, decodeRange, encodeAddress} from './address.ts';
 import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 
 /**
@@ -80,14 +80,15 @@ export const isCustomFilterOperator = tokenSet<CustomFilterOperator>({
  */
 export function canonicalizeAutoFilter(input: string | AutoFilter): AutoFilter {
   const ref = typeof input === 'string' ? input : input.ref;
-  const {top, left, bottom, right, dimensions} = decodeRange(ref);
-  if (top === undefined || left === undefined || bottom === undefined || right === undefined) {
+  const decoded = decodeRange(ref);
+  const rect = boundedRect(decoded);
+  if (rect === undefined) {
     throw new AuthoringError(`autofilter range "${ref}" must be a bounded rectangle`);
   }
-  if (typeof input === 'string') return {ref: dimensions, columns: []};
-  const width = right - left + 1;
+  if (typeof input === 'string') return {ref: decoded.dimensions, columns: []};
+  const width = rect.right - rect.left + 1;
   return {
-    ref: dimensions,
+    ref: decoded.dimensions,
     columns: input.columns.map((column) => canonicalizeColumn(column, width)),
   };
 }
@@ -132,11 +133,10 @@ export function shiftAutoFilter(
   count: number,
   delta: number,
 ): AutoFilter | undefined {
-  const {top, left, bottom, right} = decodeRange(filter.ref);
   // Unreachable for a stored filter: canonicalizeAutoFilter refuses anything but a bounded rectangle.
-  if (top === undefined || left === undefined || bottom === undefined || right === undefined) {
-    return filter;
-  }
+  const rect = boundedRect(decodeRange(filter.ref));
+  if (rect === undefined) return filter;
+  const {top, left, bottom, right} = rect;
   const [lo, hi] = axis === 'row' ? [top, bottom] : [left, right];
   if (isDeletedSpan(lo, hi, start, count)) return undefined;
   const movedLo = shiftIndex(lo, start, count, delta, axis);

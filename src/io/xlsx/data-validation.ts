@@ -124,15 +124,21 @@ function extendedDataValidationXml(sqref: string, rule: DataValidation): string 
   return `<x14:dataValidation${ruleAttrs(rule)}>${body}</x14:dataValidation>`;
 }
 
+// The two operand elements a validation carries, either of which may be absent.
+const FORMULA_ELEMENTS: ReadonlySet<string> = new Set(['formula1', 'formula2']);
+
 /** A pass gathering the standard `<dataValidation>` elements of a worksheet part, for a caller
  * reading the part alongside its other readers in one parse. */
 export function dataValidationPass(): CollectingPass<DataValidationEntry[]> {
   const entries: DataValidationEntry[] = [];
   let current: {attrs: Record<string, string>; formulae: string[]} | undefined;
-  let slot: number | undefined;
+  // Through the shared machine, like its extended sibling thirty lines below already was. The
+  // hand-rolled latch stayed set on a self-closing `<formula1/>`, so the text of whatever element came
+  // next was appended to the formula it should have ended.
+  const formula = new TextCapture(FORMULA_ELEMENTS);
 
   const handlers: SaxHandlers = {
-    onOpen(name, attrs, _selfClosing, scope) {
+    onOpen(name, attrs, selfClosing, scope) {
       const ln = localName(name);
       // Only the one in the MAIN namespace: an `x14:dataValidation` is left for the extended path.
       // Tested by namespace, not by whether the name has a prefix: a worksheet that binds the main
@@ -140,23 +146,18 @@ export function dataValidationPass(): CollectingPass<DataValidationEntry[]> {
       // element name, so the prefix test discarded every standard validation in such a file.
       if (ln === 'dataValidation' && isMainNamespaceElement(scope, name)) {
         current = {attrs, formulae: []};
-      } else if (current !== undefined && ln === 'formula1') {
-        slot = 0;
-        current.formulae[0] = '';
-      } else if (current !== undefined && ln === 'formula2') {
-        slot = 1;
-        current.formulae[1] = '';
+      } else if (current !== undefined) {
+        formula.open(ln, selfClosing);
       }
     },
     onText(text) {
-      if (current !== undefined && slot !== undefined) {
-        current.formulae[slot] = (current.formulae[slot] ?? '') + text;
-      }
+      formula.text(text);
     },
     onClose(name) {
       const ln = localName(name);
-      if (ln === 'formula1' || ln === 'formula2') {
-        slot = undefined;
+      const text = formula.close(ln);
+      if (text !== undefined) {
+        if (current !== undefined) current.formulae[ln === 'formula1' ? 0 : 1] = text;
         return;
       }
       if (ln === 'dataValidation' && current !== undefined) {

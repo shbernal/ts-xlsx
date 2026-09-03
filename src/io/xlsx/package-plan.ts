@@ -424,9 +424,9 @@ function resolveRemapped(remap: ReadonlyMap<string, string>, path: string): stri
 // intact and letting overlapping closures agree on a single path for a shared part.
 function preservedPartPath(originalPath: string, numbering: PreservedNumbering): string {
   const ext = extensionOf(originalPath);
-  if (ext.toLowerCase() === 'vml') return vmlDrawingPart(++numbering.vml);
+  if (ext === 'vml') return vmlDrawingPart(++numbering.vml);
   if (originalPath.startsWith('xl/media/')) return mediaPart(++numbering.media, ext);
-  if (originalPath.startsWith('xl/drawings/') && ext.toLowerCase() === 'xml') {
+  if (originalPath.startsWith('xl/drawings/') && ext === 'xml') {
     return drawingPart(++numbering.drawing);
   }
   // Matched on the generated part's own name rather than on its directory: `xl/pivotCache/` also holds

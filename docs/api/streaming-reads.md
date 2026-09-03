@@ -35,7 +35,7 @@ that no worksheet has.
 <sub>interface</sub>
 
 ```ts
-interface ReadSheetRowsOptions extends ReadXlsxOptions {
+interface ReadSheetRowsOptions extends ReadPackageOptions {
   /**
    * Which worksheet to stream: its name, or its 1-based position in the workbook. Defaults to the
    * first sheet.
@@ -58,12 +58,12 @@ of walking `readXlsx(data).worksheets`.
 ```ts
 function* readWorkbookStream(
   data: Uint8Array,
-  options: ReadXlsxOptions = {},
+  options: ReadPackageOptions = {},
 ): Generator<StreamedSheet, void, undefined>;
 ```
 
 - `data`: The raw `.xlsx` bytes.
-- `options`: The inflate bound (see [`ReadXlsxOptions`](./opc-read-options.md#readxlsxoptions)).
+- `options`: The inflate bound (see [`ReadPackageOptions`](./opc-read-options.md#readpackageoptions)).
 **Throws:** [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror) if the input is not a readable `.xlsx` package (a legacy `.xls`, a
 binary `.xlsb`, or an unrecognised/non-ZIP blob; branch on `.format`).
 **Throws:** [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is a ZIP that cannot be unpacked: a corrupt or

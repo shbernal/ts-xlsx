@@ -34,21 +34,13 @@ import {
   type XfStyle,
 } from '../style/xf-style.ts';
 import {RecordReader} from './primitives.ts';
-import {readRecords} from './record-stream.ts';
+import {blockTracker, readRecords} from './record-stream.ts';
 import {BRT} from './record-types.ts';
 
-// Which Begin/End-delimited collection the pass is currently inside. `undefined` outside all of them,
-// which is also what an unrecognised nested block collapses to, so a record we do not model can
-// never be mistaken for an entry of the collection that happened to precede it.
-type Collection =
-  | 'fmts'
-  | 'fonts'
-  | 'fills'
-  | 'borders'
-  | 'cellStyleXfs'
-  | 'cellXfs'
-  | 'styles'
-  | undefined;
+// The Begin/End-delimited collections this pass reads. A record outside all of them belongs to none,
+// so one we do not model can never be mistaken for an entry of the collection that happened to
+// precede it.
+type Collection = 'fmts' | 'fonts' | 'fills' | 'borders' | 'cellStyleXfs' | 'cellXfs' | 'styles';
 
 const COLLECTION_STARTS: ReadonlyMap<number, Collection> = new Map<number, Collection>([
   [BRT.BeginFmts, 'fmts'],
@@ -60,14 +52,15 @@ const COLLECTION_STARTS: ReadonlyMap<number, Collection> = new Map<number, Colle
   [BRT.BeginStyles, 'styles'],
 ]);
 
-const COLLECTION_ENDS: ReadonlySet<number> = new Set([
-  BRT.EndFmts,
-  BRT.EndFonts,
-  BRT.EndFills,
-  BRT.EndBorders,
-  BRT.EndCellStyleXFs,
-  BRT.EndCellXFs,
-  BRT.EndStyles,
+// Each end names the collection it closes, so a stray `EndFonts` cannot silently close `<fills>`.
+const COLLECTION_ENDS: ReadonlyMap<number, Collection> = new Map<number, Collection>([
+  [BRT.EndFmts, 'fmts'],
+  [BRT.EndFonts, 'fonts'],
+  [BRT.EndFills, 'fills'],
+  [BRT.EndBorders, 'borders'],
+  [BRT.EndCellStyleXFs, 'cellStyleXfs'],
+  [BRT.EndCellXFs, 'cellXfs'],
+  [BRT.EndStyles, 'styles'],
 ]);
 
 /** Parse `xl/styles.bin` into the flat cell-format table a worksheet's style indices resolve against. */
@@ -82,42 +75,34 @@ export function parseStyleTable(part: Uint8Array | undefined): StyleTable {
   const namedXfs: XfStyle[] = [];
   const directXfs: XfStyle[] = [];
   const labels: StyleLabel[] = [];
-  let collection: Collection;
+  const blocks = blockTracker(COLLECTION_STARTS, COLLECTION_ENDS);
 
   for (const record of readRecords(part)) {
-    if (COLLECTION_ENDS.has(record.type)) {
-      collection = undefined;
-      continue;
-    }
-    const started = COLLECTION_STARTS.get(record.type);
-    if (started !== undefined) {
-      collection = started;
-      continue;
-    }
+    if (blocks.boundary(record.type)) continue;
     const reader = new RecordReader(record.data);
     switch (record.type) {
       case BRT.Fmt:
-        if (collection === 'fmts') numFmtCodes.set(reader.u16(), reader.wideString());
+        if (blocks.isOpen('fmts')) numFmtCodes.set(reader.u16(), reader.wideString());
         break;
       case BRT.Font:
-        if (collection === 'fonts') fonts.push(readFont(reader));
+        if (blocks.isOpen('fonts')) fonts.push(readFont(reader));
         break;
       case BRT.Fill:
-        if (collection === 'fills') fills.push(readFill(reader));
+        if (blocks.isOpen('fills')) fills.push(readFill(reader));
         break;
       case BRT.Border:
-        if (collection === 'borders') borders.push(readBorder(reader));
+        if (blocks.isOpen('borders')) borders.push(readBorder(reader));
         break;
       case BRT.XF:
-        if (collection === 'cellXfs' || collection === 'cellStyleXfs') {
+        if (blocks.isOpen('cellXfs') || blocks.isOpen('cellStyleXfs')) {
           const deps = {fonts, fills, borders, numFmtCodes};
-          (collection === 'cellXfs' ? directXfs : namedXfs).push(
-            readXf(reader, deps, collection === 'cellXfs'),
+          (blocks.isOpen('cellXfs') ? directXfs : namedXfs).push(
+            readXf(reader, deps, blocks.isOpen('cellXfs')),
           );
         }
         break;
       case BRT.Style:
-        if (collection === 'styles') labels.push(readStyleLabel(reader));
+        if (blocks.isOpen('styles')) labels.push(readStyleLabel(reader));
         break;
       default:
         break;

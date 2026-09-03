@@ -67,7 +67,19 @@ export {
   type WorkbookImage,
   type WorksheetImages,
 } from '../core/image.ts';
-export {MAX_COLUMN_WIDTH, MAX_ROW_HEIGHT} from '../core/limits.ts';
+// The OPC container's inflate bound, shared by every reader (`readXlsx`, `readXlsb`, the row
+// streamer). It is here rather than on a codec subpath so a `/xlsb` or `/csv` consumer can name it
+// without importing the XML codec, and because a container bound is a fact about the package rather
+// than about either serialisation inside it.
+export type {ReadPackageOptions} from '../io/opc/read-options.ts';
+export {
+  INVALID_SHEET_NAME_CHARS,
+  MAX_COLUMN_WIDTH,
+  MAX_ROW_HEIGHT,
+  MAX_SHEET_NAME_LENGTH,
+  MAX_TABLE_NAME_LENGTH,
+  TABLE_NAME_PATTERN,
+} from '../core/limits.ts';
 export type {
   HeaderFooter,
   PageBreak,

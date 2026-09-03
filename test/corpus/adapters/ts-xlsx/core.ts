@@ -35,6 +35,7 @@ import {
   reloadPatched,
   reloadWithMarkupSubstituted,
   themePrefixReport,
+  selfClosingDefinedNameReport,
 } from './xml-probes.ts';
 
 export const core = {
@@ -953,4 +954,5 @@ export const core = {
   relationshipPrefixReport,
   mainNamespacePrefixReport,
   themePrefixReport,
+  selfClosingDefinedNameReport,
 };

@@ -10,7 +10,7 @@
 // pure-TS path (ADR 0019). These splices are safe precisely because they leave every module's p-code
 // exactly as its own compiler wrote it.
 
-import {readU16} from './bytes.ts';
+import {readU16, spliceBytes} from './bytes.ts';
 import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
 import {CompoundFile} from './cfb.ts';
 import {type Decoder, decoderForCodePage, type Encoder, encoderForCodePage} from './codepage.ts';
@@ -26,7 +26,7 @@ import {
 } from './dir-records.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 import {compressContainer, decompressContainer} from './ms-ovba.ts';
-import {parseVbaProject} from './project.ts';
+import {parseVbaProjectIn} from './project.ts';
 import {push, u16, u32, utf16le, validateVbaName} from './vba-encoding.ts';
 
 const DIR_STREAM = 'dir';
@@ -51,8 +51,10 @@ const VBA_STORAGE = 'VBA';
  */
 export function removeVbaModule(bin: Uint8Array, name: string): Uint8Array {
   // Parse fail-closed first: validates the container and resolves the module's kind/stream name, so
-  // nothing is mutated on a bad input or an unsupported module kind.
-  const project = parseVbaProject(bin);
+  // nothing is mutated on a bad input or an unsupported module kind. The container is opened once and
+  // shared with the parse, rather than built again below over the same bytes.
+  const cfb = new CompoundFile(bin);
+  const project = parseVbaProjectIn(cfb);
   const nameKey = name.toUpperCase(); // VBA names are case-insensitive
   const module = project.modules.find((m) => m.name.toUpperCase() === nameKey);
   if (!module) throw new VbaAuthorError(`module '${name}' is not in the VBA project`);
@@ -62,8 +64,6 @@ export function removeVbaModule(bin: Uint8Array, name: string): Uint8Array {
         'primitive cannot verify',
     );
   }
-
-  const cfb = new CompoundFile(bin);
 
   const dirCompressed = cfb.readStream(DIR_STREAM);
   if (!dirCompressed) throw new VbaParseError("VBA project has no 'dir' stream");
@@ -223,10 +223,10 @@ function normalizeReference(ref: VbaLibraryReference): NormalizedReference {
 export function addVbaReference(bin: Uint8Array, ref: VbaLibraryReference): Uint8Array {
   const normalized = normalizeReference(ref);
 
-  // Parse fail-closed first: validates the container before any mutation.
-  const project = parseVbaProject(bin);
-  const encode = encoderForCodePage(project.codePage);
+  // Parse fail-closed first: validates the container before any mutation, over the one container this
+  // function opens rather than a second built over the same bytes.
   const cfb = new CompoundFile(bin);
+  const encode = encoderForCodePage(parseVbaProjectIn(cfb).codePage);
 
   const dirCompressed = cfb.readStream(DIR_STREAM);
   if (!dirCompressed) throw new VbaParseError("VBA project has no 'dir' stream");
@@ -277,12 +277,7 @@ function insertReferenceDirRecords(dir: Uint8Array, records: readonly number[]):
   }
   if (insertAt < 0) throw new VbaParseError('dir stream is missing MODULES_COUNT');
 
-  const rec = Uint8Array.from(records);
-  const out = new Uint8Array(dir.length + rec.length);
-  out.set(dir.subarray(0, insertAt), 0);
-  out.set(rec, insertAt);
-  out.set(dir.subarray(insertAt), insertAt + rec.length);
-  return out;
+  return spliceBytes(dir, insertAt, insertAt, Uint8Array.from(records));
 }
 
 // Remove one module's MODULE record block from a decompressed `dir` stream, and decrement MODULES_COUNT.
@@ -323,9 +318,7 @@ function removeModuleDirRecord(dir: Uint8Array, streamName: string, codePage: nu
   }
 
   // MODULES_COUNT always precedes every module block, so countAt is unaffected by removing bytes after it.
-  const out = new Uint8Array(dir.length - (removeEnd - removeStart));
-  out.set(dir.subarray(0, removeStart), 0);
-  out.set(dir.subarray(removeEnd), removeStart);
+  const out = spliceBytes(dir, removeStart, removeEnd);
   const newCount = readU16(out, countAt) - 1;
   out[countAt] = newCount & 0xff;
   out[countAt + 1] = (newCount >> 8) & 0xff;
@@ -395,10 +388,7 @@ function removeProjectwmRecord(
     throw new VbaParseError(`module '${name}' not found in the PROJECTwm stream`);
   }
 
-  const out = new Uint8Array(wm.length - (removeEnd - removeStart));
-  out.set(wm.subarray(0, removeStart), 0);
-  out.set(wm.subarray(removeEnd), removeStart);
-  return out;
+  return spliceBytes(wm, removeStart, removeEnd);
 }
 
 // Remove the first direct child stream named `streamName` from the first storage named `storageName`

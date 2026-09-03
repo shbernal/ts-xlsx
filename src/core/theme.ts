@@ -7,6 +7,8 @@
 // lives with the codec that carries it (`io/xlsx/theme-xml.ts`). The part itself rides through the
 // model opaquely (see `Workbook.restoreThemePart`); nothing here parses it.
 
+import {parseArgb} from './style.ts';
+
 /**
  * The twelve colour-scheme slots **in the order a `theme="n"` attribute indexes them**.
  *
@@ -114,12 +116,18 @@ export interface ThemeOverrides {
  * for, and it is the same kind of failure a malformed comment GUID raises.
  */
 export function normalizeThemeColor(value: string): string {
-  const hex = value.startsWith('#') ? value.slice(1) : value;
-  const rgb = hex.length === 8 ? hex.slice(2) : hex;
-  if (!/^[0-9a-fA-F]{6}$/.test(rgb)) {
+  // Through `parseArgb`, so the two functions accept the same spellings. They differ on purpose in
+  // what they do with a value they cannot read (this one throws for an authoring path, that one
+  // returns undefined for a read path) and in the alpha channel a theme slot has no room for; they
+  // were also each stating the hex grammar, which is the part that can drift. A form added to one and
+  // not the other would be accepted and rejected on paths that feed the same element.
+  const argb = parseArgb(value);
+  if (argb === undefined) {
     throw new SyntaxError(
       `Invalid theme colour ${JSON.stringify(value)}: expected 6 hexadecimal digits (RRGGBB)`,
     );
   }
-  return rgb.toUpperCase();
+  // DrawingML's `<a:srgbClr val>` has no alpha channel, so the two leading digits `parseArgb` adds
+  // (or the file supplied) are dropped here rather than emitted into a slot that cannot hold them.
+  return argb.slice(2).toUpperCase();
 }

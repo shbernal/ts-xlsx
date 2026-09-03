@@ -77,3 +77,21 @@ export function isDateFormat(code: string): boolean {
     .replace(/\\./g, '');
   return /[ymdhs]/i.test(stripped);
 }
+
+/**
+ * Surface a number stored under a date format as a `Date`, and leave everything else alone.
+ *
+ * OOXML has no date type: a date is a number plus a number format that renders it as one, so this
+ * one test is what separates `45000` from `2023-03-15` across every reader. Only a plain number
+ * qualifies; a string, a boolean or a formula result of another kind under a date format keeps its
+ * own kind.
+ *
+ * One function rather than three copies of the test, because the corpus asserts the rule is identical
+ * across serialisations: the `.xlsb` reader, the `.xlsx` cell decoder and the cached formula-result
+ * decoder must all answer the same, and three spellings of one rule are three chances to disagree.
+ */
+export function coerceDateSerial<T>(value: T, numFmt: string | undefined): T | Date {
+  return typeof value === 'number' && numFmt !== undefined && isDateFormat(numFmt)
+    ? serialToDate(value)
+    : value;
+}

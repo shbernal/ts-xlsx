@@ -30,7 +30,13 @@ import {
 } from '../../core/workbook-protection.ts';
 import {type DefinedName, Workbook, type WorkbookView} from '../../core/workbook.ts';
 import {isVisibility, type Worksheet, type WorksheetState} from '../../core/worksheet.ts';
-import {capturedText, openElements, parseXml, parseXmlPasses} from '../../xml/xml-read.ts';
+import {
+  capturedText,
+  openElements,
+  parseXml,
+  parseXmlPasses,
+  TextCapture,
+} from '../../xml/xml-read.ts';
 import {boolStrict, enumToken, localName, numInteger} from '../../xml/xml-scan.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
 import {relAttr} from '../opc/namespaces.ts';
@@ -44,7 +50,7 @@ import {
   parseRelationshipRecords,
   readPartRelationships,
 } from '../opc/read-opc.ts';
-import type {ReadXlsxOptions} from '../opc/read-options.ts';
+import type {ReadPackageOptions} from '../opc/read-options.ts';
 import type {XfStyle} from '../style/xf-style.ts';
 import {readXlsbPackage, XLSB_WORKBOOK_PART} from '../xlsb/read.ts';
 import type {SharedString} from './cell-value.ts';
@@ -68,7 +74,7 @@ import {buildCommentThreads, parsePersons, parseThreadedComments} from './thread
 // The read option bag is shared with the `.xlsb` reader and the row streamer, so it is declared apart
 // from all three; it stays reachable here because this is the entry point callers reach for. The
 // bound's default is not re-exported: `openSpreadsheetPackage` applies it, and no caller names it.
-export type {ReadXlsxOptions} from '../opc/read-options.ts';
+export type {ReadPackageOptions} from '../opc/read-options.ts';
 export type {StyleTable, XfStyle} from '../style/xf-style.ts';
 export {parseStyleTable} from './read-styles.ts';
 
@@ -87,7 +93,7 @@ export {parseStyleTable} from './read-styles.ts';
  * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked: a corrupt or
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
-export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook {
+export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Workbook {
   const {files, pkg, workbookXml} = openSpreadsheetPackage(data, options.maxUncompressedBytes);
   const {partText} = pkg;
 
@@ -149,7 +155,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // The threaded-comment author registry is workbook-level, and every conversation on every sheet
   // resolves its authors and @mentions through it, so it is restored before the sheet loop that reads
   // those conversations, not alongside the other workbook-level parts below.
-  readWorkbookPersons(workbookRels, pkg, workbook);
+  readWorkbookPersons(workbookRels, workbook);
 
   const context: SheetReadContext = {
     pkg,
@@ -239,16 +245,16 @@ function readSheet(sheet: Worksheet, path: string | undefined, context: SheetRea
 
   // The sheet's rels are the index to nearly every part hanging off it, so they are parsed once here
   // and threaded through the readers below rather than re-read by each.
-  const sheetRels = readPartRelationships(path, partText);
+  const sheetRels = readPartRelationships(path, partText, pkg.partBytes);
   if (sheetXml !== undefined) {
     applyHyperlinks(sheet, hyperlinks.result(), (id) => sheetRels.byId(id)?.target);
     applyDataValidations(sheet, [...validations.result(), ...extendedValidations.result()]);
     for (const cf of formattings.result()) sheet.addConditionalFormatting(cf);
   }
 
-  const threads = readSheetCommentThreads(sheetRels, pkg, workbook);
+  const threads = readSheetCommentThreads(sheetRels, workbook);
   if (threads.length > 0) sheet[INTERNAL].restoreCommentThreads(threads);
-  const comments = readSheetComments(sheetRels, pkg);
+  const comments = readSheetComments(sheetRels);
   if (comments !== undefined) applyNotes(sheet, comments);
 
   readSheetImages(sheetRels, pkg, workbook, sheet, imageIdByMediaPath);
@@ -259,35 +265,24 @@ function readSheet(sheet: Worksheet, path: string | undefined, context: SheetRea
 
   readSheetTables(sheetRels, pkg, sheet);
   readSheetPivotTables(sheetRels, pkg, sheet);
-  const printerSettings = readSheetPrinterSettings(sheetRels, pkg);
+  const printerSettings = readSheetPrinterSettings(sheetRels);
   if (printerSettings !== undefined) sheet.pageSetup.printerSettings = printerSettings;
 }
 
 // A sheet's comments live in a comments part reached through the sheet's own relationships: the sheet
 // declares a relationship of type `.../comments` whose target resolves (relative to the sheet's
 // directory) to the comments part. A sheet declaring no such relationship simply has none.
-function readSheetComments(
-  sheetRels: PartRelationships,
-  pkg: PackageAccessors,
-): Map<string, ParsedComment> | undefined {
-  const commentsPath = sheetRels.targetPath('comments');
-  if (commentsPath === undefined) return undefined;
-  const commentsXml = pkg.partText(commentsPath);
-  if (commentsXml === undefined) return undefined;
-  return parseComments(commentsXml);
+function readSheetComments(sheetRels: PartRelationships): Map<string, ParsedComment> | undefined {
+  const commentsXml = sheetRels.relatedText('comments');
+  return commentsXml === undefined ? undefined : parseComments(commentsXml);
 }
 
 // The workbook's threaded-comment identity registry: a relationship of type `.../person` names
 // `xl/persons/person.xml`, whose entries every message's `personId` and every mention's
 // `mentionpersonId` resolve through. A workbook with no threaded comments declares no such
 // relationship and keeps an empty registry.
-function readWorkbookPersons(
-  workbookRels: PartRelationships,
-  pkg: PackageAccessors,
-  workbook: Workbook,
-): void {
-  const path = workbookRels.targetPath('person');
-  const xml = path === undefined ? undefined : pkg.partText(path);
+function readWorkbookPersons(workbookRels: PartRelationships, workbook: Workbook): void {
+  const xml = workbookRels.relatedText('person');
   if (xml !== undefined) workbook[INTERNAL].restorePersons(parsePersons(xml));
 }
 
@@ -332,11 +327,9 @@ function readWorkbookTheme(
 // still kept wherever it can be, and why the anchor is canonicalised here rather than trusted downstream.
 function readSheetCommentThreads(
   sheetRels: PartRelationships,
-  pkg: PackageAccessors,
   workbook: Workbook,
 ): CommentThread[] {
-  const path = sheetRels.targetPath('threadedComment');
-  const xml = path === undefined ? undefined : pkg.partText(path);
+  const xml = sheetRels.relatedText('threadedComment');
   if (xml === undefined) return [];
   return buildCommentThreads(parseThreadedComments(xml), (id) => workbook.getPerson(id));
 }
@@ -346,12 +339,8 @@ function readSheetCommentThreads(
 // keep the raw bytes verbatim: the DEVMODE inside is platform-specific and the model never
 // interprets it, only round-trips it so re-writing the file preserves the user's print configuration.
 // A sheet declaring no such relationship simply has none.
-function readSheetPrinterSettings(
-  sheetRels: PartRelationships,
-  pkg: PackageAccessors,
-): Uint8Array | undefined {
-  const path = sheetRels.targetPath('printerSettings');
-  return path === undefined ? undefined : pkg.partBytes(path);
+function readSheetPrinterSettings(sheetRels: PartRelationships): Uint8Array | undefined {
+  return sheetRels.relatedBytes('printerSettings');
 }
 
 // One workbook image per media part, however many places in the package point at that part. A sheet's
@@ -648,8 +637,8 @@ function readSheetPivotTables(
   for (const tablePath of sheetRels.targetPaths('pivotTable')) {
     const tableXml = partText(tablePath);
     if (tableXml === undefined) continue;
-    const cachePath = readPartRelationships(tablePath, partText).targetPath('pivotCacheDefinition');
-    const cacheXml = cachePath === undefined ? '' : (partText(cachePath) ?? '');
+    const cacheXml =
+      readPartRelationships(tablePath, partText).relatedText('pivotCacheDefinition') ?? '';
     sheet[INTERNAL].addLoadedPivotTable(parsePivotTable(tableXml, cacheXml));
   }
 }
@@ -768,37 +757,42 @@ export function applyWorkbookView(view: WorkbookView, xml: string): void {
 // range (a foreign file referencing a sheet we did not load) is left global rather than dropped.
 function parseWorkbookDefinedNames(xml: string, sheetOrder: readonly string[]): DefinedName[] {
   const names: DefinedName[] = [];
-  let capture = false;
-  let refersTo = '';
+  const refersTo = new TextCapture('definedName');
   let pending: {name: string; scope?: string; comment?: string; hidden?: boolean} | undefined;
-  parseXml(xml, {
-    onOpen(name, attrs) {
-      if (localName(name) !== 'definedName' || attrs.name === undefined) return;
-      // `_xlnm._FilterDatabase` is the built-in Excel derives from a sheet's autofilter, not a
-      // user-defined name: it is reconstructed from the sheet's `<autoFilter>` element, so skip it
-      // here to keep it off `Workbook.definedNames` and out of a duplicating round-trip.
-      if (attrs.name === '_xlnm._FilterDatabase') return;
-      capture = true;
-      refersTo = '';
-      const scopeIndex = numInteger(attrs.localSheetId, 0) ?? -1;
-      const scope = sheetOrder[scopeIndex];
-      pending = {name: attrs.name};
-      if (scope !== undefined) pending.scope = scope;
-      if (attrs.comment !== undefined) pending.comment = attrs.comment;
-      if (boolStrict(attrs.hidden)) pending.hidden = true;
+  parseXml(
+    xml,
+    {
+      onOpen(name, attrs, selfClosing) {
+        if (localName(name) !== 'definedName' || attrs.name === undefined) return;
+        // `_xlnm._FilterDatabase` is the built-in Excel derives from a sheet's autofilter, not a
+        // user-defined name: it is reconstructed from the sheet's `<autoFilter>` element, so skip it
+        // here to keep it off `Workbook.definedNames` and out of a duplicating round-trip.
+        if (attrs.name === '_xlnm._FilterDatabase') return;
+        refersTo.open(localName(name), selfClosing);
+        const scopeIndex = numInteger(attrs.localSheetId, 0) ?? -1;
+        const scope = sheetOrder[scopeIndex];
+        pending = {name: attrs.name};
+        if (scope !== undefined) pending.scope = scope;
+        if (attrs.comment !== undefined) pending.comment = attrs.comment;
+        if (boolStrict(attrs.hidden)) pending.hidden = true;
+      },
+      onText(chunk) {
+        refersTo.text(chunk);
+      },
+      onClose(name) {
+        const text = refersTo.close(localName(name));
+        if (text === undefined || pending === undefined) return;
+        // Strip the `_xlfn.`/`_xlpm.` prefixes back to the readable name, the same normalisation the
+        // reader applies to a cell formula, so the model never holds the on-disk mangling.
+        names.push({...pending, refersTo: unmangleFunctions(text)});
+        pending = undefined;
+      },
     },
-    onText(chunk) {
-      if (capture) refersTo += chunk;
-    },
-    onClose(name) {
-      if (localName(name) !== 'definedName' || pending === undefined) return;
-      // Strip the `_xlfn.`/`_xlpm.` prefixes back to the readable name, the same normalisation the
-      // reader applies to a cell formula, so the model never holds the on-disk mangling.
-      names.push({...pending, refersTo: unmangleFunctions(refersTo)});
-      capture = false;
-      pending = undefined;
-    },
-  });
+    // A `<definedName name="X"/>` with no formula is legal, fires no close, and used to be dropped
+    // entirely while leaving the hand-rolled capture latched on whatever text came next. Expanded
+    // into an open plus a close, it commits through the same path every other name does.
+    {closeEmptyElements: new Set(['definedName'])},
+  );
   return names;
 }
 

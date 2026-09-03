@@ -13,7 +13,7 @@
 // over there; a styled row hands back `Cell`, which belongs to `/core`.
 
 export {editXlsxVbaAddReference, editXlsxVbaRemoveModule} from '../io/xlsx/edit-vba.ts';
-export {type ReadXlsxOptions, readXlsx} from '../io/xlsx/read.ts';
+export {readXlsx} from '../io/xlsx/read.ts';
 export {
   type ReadSheetRowsOptions,
   readSheetRows,

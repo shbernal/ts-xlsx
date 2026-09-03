@@ -138,6 +138,20 @@ export interface PartRelationships {
   /** Every package part reached through a relationship of this type, in declaration order. For a part
    * class one sheet may reference more than once (tables, pivot tables). */
   targetPaths(suffix: string): string[];
+  /**
+   * The text of the single part reached through a relationship of this type, or `undefined` when the
+   * part declares no such relationship *or* names one the package does not contain.
+   *
+   * Those two are deliberately one answer. A relationship pointing at an absent part is a damaged
+   * package, and every reader here answers a damaged package the same way Excel does: the feature is
+   * simply not there, rather than the load failing over it. Collapsing `targetPath` then `partText`
+   * into one call is what lets that contract be stated once instead of at each of the seven places
+   * that used to spell it out.
+   */
+  relatedText(suffix: string): string | undefined;
+  /** As {@link relatedText}, for a part whose content is opaque bytes (a printer-settings blob, an
+   * image) rather than XML. */
+  relatedBytes(suffix: string): Uint8Array | undefined;
 }
 
 // Read and parse a part's `.rels`. A part with no rels part yields an empty set rather than undefined,
@@ -146,18 +160,31 @@ export interface PartRelationships {
 export function readPartRelationships(
   partPath: string,
   partText: (path: string) => string | undefined,
+  partBytes?: (path: string) => Uint8Array | undefined,
 ): PartRelationships {
   const records = parseRelationshipRecords(partText(relsPathFor(partPath)) ?? '');
   const byId = new Map(records.map((record) => [record.id, record]));
   const pathOf = (target: string): string => resolveRelativePart(partPath, target);
   const targetsOf = (suffix: string): string[] =>
     records.filter((record) => record.type.endsWith(`/${suffix}`)).map((record) => record.target);
+  const targetPath = (suffix: string): string | undefined => targetsOf(suffix).map(pathOf)[0];
   return {
     records,
     byId: (id) => byId.get(id),
     pathOf,
-    targetPath: (suffix) => targetsOf(suffix).map(pathOf)[0],
+    targetPath,
     targetPaths: (suffix) => targetsOf(suffix).map(pathOf),
+    relatedText: (suffix) => {
+      const path = targetPath(suffix);
+      return path === undefined ? undefined : partText(path);
+    },
+    // `partBytes` is optional because the two readers that only ever ask for XML (the streaming row
+    // reader, the xlsb workbook part) have no bytes accessor to hand over; asking one of them for a
+    // binary part is a bug in that reader rather than a package that lacks it.
+    relatedBytes: (suffix) => {
+      const path = targetPath(suffix);
+      return path === undefined ? undefined : partBytes?.(path);
+    },
   };
 }
 
@@ -179,9 +206,7 @@ export function contentTypeResolver(contentTypesXml: string): (path: string) => 
     }
   }
   return (path: string): string =>
-    overrides.get(`/${path}`) ??
-    defaults.get(extensionOf(path).toLowerCase()) ??
-    'application/octet-stream';
+    overrides.get(`/${path}`) ?? defaults.get(extensionOf(path)) ?? 'application/octet-stream';
 }
 
 // Gather the transitive closure of package parts reachable from an entry part: the part itself, then

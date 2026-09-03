@@ -17,9 +17,9 @@
 // comes *after* those cells in the stream. Those cells are therefore parked and resolved once the
 // whole part has been read.
 
-import {encodeAddress, MAX_COLUMN} from '../../core/address.ts';
+import {encodeAddress, MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
-import {isDateFormat, serialToDate} from '../../core/date.ts';
+import {coerceDateSerial} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import {assignStyleFacets} from '../../core/style.ts';
 import type {CellValue, FormulaResult} from '../../core/value.ts';
@@ -208,7 +208,10 @@ function cachedResult(
 // through here before it reaches the model, so an out-of-grid record is dropped rather than turned
 // into an unrepresentable address (which the address encoder would reject) or, worse, a column loop
 // four billion iterations long.
-const MAX_ROW_INDEX = 1048575;
+// Derived from the one-based limits `core/address.ts` owns rather than typed out: the sibling below
+// was already derived, and a hand-typed 1048575 beside it is a second statement of the same fact that
+// nothing keeps in step.
+const MAX_ROW_INDEX = MAX_ROW - 1;
 const MAX_COLUMN_INDEX = MAX_COLUMN - 1;
 
 function inGrid(column: number, row: number): boolean {
@@ -250,9 +253,10 @@ function decodeCell(
 }
 
 // A number stored under a date format is a date serial: surface it as a Date so a date read from an
-// `.xlsb` is the same value the `.xlsx` twin yields, not a bare number.
+// `.xlsb` is the same value the `.xlsx` twin yields, not a bare number. The rule itself lives in
+// `core/date.ts`, shared with the two `.xlsx` decoders that ask it.
 function asNumberOrDate(value: number, numFmt: string | undefined): number | Date {
-  return numFmt !== undefined && isDateFormat(numFmt) ? serialToDate(value) : value;
+  return coerceDateSerial(value, numFmt);
 }
 
 // `BrtRowHdr` ([MS-XLSB] 2.4.770): the row index, its default format, its height, and a byte of

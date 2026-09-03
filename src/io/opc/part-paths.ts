@@ -7,11 +7,19 @@
 // package that called its part something else is re-emitted here rather than at its original name.
 export const THEME_PART_PATH = 'xl/theme/theme1.xml';
 
-// The extension of a part path (`xl/media/image1.jpeg` → `jpeg`), or '' when it carries none.
+/**
+ * The extension of a part path (`xl/media/image1.JPEG` → `jpeg`), or `''` when it carries none.
+ *
+ * Lower-cased here rather than by each caller. OPC extensions are case-insensitive, so an extension is
+ * only ever used as a key or compared against a literal, and every caller but one folded the case
+ * itself; the one that did not handed a raw `JPEG` to `addImage`, which folds later, so the same media
+ * type could reach `[Content_Types].xml` as two `<Default Extension>` entries. Folding once at the
+ * source is what makes the missed fold unrepresentable rather than merely unlikely.
+ */
 export function extensionOf(partPath: string): string {
   const dot = partPath.lastIndexOf('.');
   const slash = partPath.lastIndexOf('/');
-  return dot > slash ? partPath.slice(dot + 1) : '';
+  return dot > slash ? partPath.slice(dot + 1).toLowerCase() : '';
 }
 
 // The relationships part path for `dir/name.ext` → `dir/_rels/name.ext.rels`.

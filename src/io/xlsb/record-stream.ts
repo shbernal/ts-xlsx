@@ -64,3 +64,49 @@ function byteAt(part: Uint8Array, index: number): number {
   if (value === undefined) throw new XlsbParseError('truncated BIFF12 record header');
   return value;
 }
+
+/**
+ * Track which `Begin…`/`End…` blocks a BIFF12 record stream is currently inside.
+ *
+ * BIFF12 is flat: a collection is a `BeginFonts` record, its members, then `EndFonts`, and a reader
+ * has to carry that state itself. Two readers here did, and only one did it legibly. The style reader
+ * kept an explicit collection with start and end tables; the workbook reader re-solved it with loose
+ * booleans in an if-else chain whose *ordering was load-bearing and unstated*: move the `EndExternals`
+ * arm below the catch-all that counts records inside the externals block and the count silently goes
+ * wrong. Answering "is this record a block boundary" separately from "what does this record mean"
+ * removes that constraint rather than documenting it.
+ *
+ * Each end names the block it closes, so an `EndFonts` cannot close `<fills>` the way a bare set of
+ * end markers allowed. Blocks are tracked independently, so two that a damaged file interleaves stay
+ * separate rather than one clearing the other.
+ */
+export function blockTracker<T>(
+  starts: ReadonlyMap<number, T>,
+  ends: ReadonlyMap<number, T>,
+): BlockTracker<T> {
+  const open = new Set<T>();
+  return {
+    isOpen: (block) => open.has(block),
+    boundary(type) {
+      const ended = ends.get(type);
+      if (ended !== undefined) {
+        open.delete(ended);
+        return true;
+      }
+      const started = starts.get(type);
+      if (started === undefined) return false;
+      open.add(started);
+      return true;
+    },
+  };
+}
+
+export interface BlockTracker<T> {
+  /** Whether the stream is currently inside `block`. */
+  isOpen(block: T): boolean;
+  /**
+   * Take a record's type as a possible block boundary, returning whether it was one. A boundary
+   * carries no content of its own, so a caller that gets `true` skips the record entirely.
+   */
+  boundary(type: number): boolean;
+}

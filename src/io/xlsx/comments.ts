@@ -23,7 +23,7 @@ import {tryDecodeCellRef} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
 import type {CommentThread} from '../../core/comment-thread.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {parseXml} from '../../xml/xml-read.ts';
+import {parseXml, TextCapture} from '../../xml/xml-read.ts';
 import {decodeSpreadsheetText, localName, numInteger} from '../../xml/xml-scan.ts';
 import {escapeText, textAttr, textElement, XML_DECLARATION} from '../../xml/xml.ts';
 import {MARKUP_COMPATIBILITY_NS, REVISION_NS, SPREADSHEETML_NS} from './namespaces.ts';
@@ -224,8 +224,9 @@ export interface ParsedComment {
 // A comment names its author by index into `<authors>`, so an empty entry must still occupy its slot.
 // Presenting the self-closing `<author/>` an author-less file writes as an empty element gives it the
 // close that pushes it. Without this every later index would shift by one and a note could inherit a
-// thread's `tc=` author.
-const COMMENT_EMPTY_CLOSES: ReadonlySet<string> = new Set(['author']);
+// thread's `tc=` author. `<text/>` is here for the same reason on the other axis: an empty note is a
+// note, and a self-closing one used to latch a capture nothing would close.
+const COMMENT_EMPTY_CLOSES: ReadonlySet<string> = new Set(['author', 'text']);
 
 // The author string marking a comment as a thread's legacy fallback: `tc={headThreadId}`.
 const THREAD_AUTHOR_PREFIX = 'tc=';
@@ -240,43 +241,40 @@ export function parseComments(xml: string): Map<string, ParsedComment> {
   const authors: string[] = [];
   let currentRef: string | undefined;
   let currentAuthorId: string | undefined;
-  let capture: 'author' | 'text' | undefined;
-  let buffer = '';
+  // Through the shared machine rather than a latch and a buffer of its own: a self-closing `<text/>`
+  // fires no close, so the hand-rolled version stayed latched on it and was saved only by the next
+  // open happening to clear the buffer, which is an accident rather than a property.
+  const capture = new TextCapture(['author', 'text']);
+  let body = '';
   parseXml(
     xml,
     {
-      onOpen(name, attrs) {
+      onOpen(name, attrs, selfClosing) {
         const local = localName(name);
         if (local === 'comment') {
           currentRef = attrs.ref;
           currentAuthorId = attrs.authorId;
-          buffer = '';
-        } else if (local === 'author') {
-          capture = 'author';
-          buffer = '';
-        } else if (local === 'text') {
-          capture = 'text';
+          body = '';
         }
+        capture.open(local, selfClosing);
       },
       onText(text) {
-        if (capture !== undefined) buffer += text;
+        capture.text(text);
       },
       onClose(name) {
         const local = localName(name);
+        const text = capture.close(local);
         if (local === 'author') {
-          authors.push(buffer);
-          capture = undefined;
-          buffer = '';
+          authors.push(text ?? '');
         } else if (local === 'text') {
           // A note's body is a `CT_Rst`, so it carries the `_xHHHH_` escape a cell's `<t>` does.
-          // Decoding at the close of `<text>` rather than per `<t>` is deliberate: `buffer` is by
+          // Decoding at the close of `<text>` rather than per `<t>` is deliberate: the capture is by
           // then the whole note, so no escape can straddle the boundary the decode runs on.
-          buffer = decodeSpreadsheetText(buffer);
-          capture = undefined;
+          body = decodeSpreadsheetText(text ?? '');
         } else if (local === 'comment' && currentRef !== undefined) {
           const threadId = threadIdOf(authors[numInteger(currentAuthorId, 0) ?? -1]);
           comments.set(currentRef, {
-            text: buffer,
+            text: body,
             ...(threadId !== undefined ? {threadId} : {}),
           });
           currentRef = undefined;

@@ -15,7 +15,7 @@ the model produced is the same either way. See `../xlsb/read.ts` for what the bi
 yet decode.
 
 ```ts
-function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook;
+function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Workbook;
 ```
 
 **Throws:** [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror) if the input is neither: a legacy `.xls` (`.format === 'xls'`) or

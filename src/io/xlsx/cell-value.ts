@@ -5,7 +5,7 @@
 // what guarantees a cell read one row at a time decodes identically to the same cell read as
 // part of a whole workbook. A divergence here would be a silent data bug in exactly one path.
 
-import {isDateFormat, parseDateText, serialToDate} from '../../core/date.ts';
+import {coerceDateSerial, parseDateText} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import {
   type CellValue,
@@ -59,12 +59,9 @@ export function decodeCellContent(
     return {richText: raw.richTextRuns};
   }
   const value = decodeValue(raw.type, raw.valueText, raw.inlineText, raw.hasValue, sharedStrings);
-  // A number stored under a date format is a date serial: surface it as a Date so a written
-  // date round-trips as a date, not a bare number. Only plain numeric cells qualify; a string,
-  // boolean, or formula result under a date format keeps its own kind.
-  return typeof value === 'number' && numFmt !== undefined && isDateFormat(numFmt)
-    ? serialToDate(value)
-    : value;
+  // A number stored under a date format is a date serial: surface it as a Date so a written date
+  // round-trips as a date, not a bare number.
+  return coerceDateSerial(value, numFmt);
 }
 
 function decodeValue(
@@ -122,10 +119,7 @@ export function decodeFormulaResult(
   valueText: string,
   numFmt?: string,
 ): FormulaResult | undefined {
-  const result = decodeResult(type, valueText);
-  return typeof result === 'number' && numFmt !== undefined && isDateFormat(numFmt)
-    ? serialToDate(result)
-    : result;
+  return coerceDateSerial(decodeResult(type, valueText), numFmt);
 }
 
 // The formula-result subset of `decodeValue`: a cached result is only ever a string, boolean,

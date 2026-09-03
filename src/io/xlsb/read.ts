@@ -20,13 +20,13 @@ import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {WorksheetState} from '../../core/worksheet.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
 import {openSpreadsheetPackage, packageAccessors, readPartRelationships} from '../opc/read-opc.ts';
-import type {ReadXlsxOptions} from '../opc/read-options.ts';
+import type {ReadPackageOptions} from '../opc/read-options.ts';
 import {decodeFormula, type ExternSheetRef, type FormulaScope} from './formula.ts';
 import {RecordReader} from './primitives.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {parseStyleTable} from './read-styles.ts';
 import {parseWorksheet} from './read-worksheet.ts';
-import {readRecords} from './record-stream.ts';
+import {blockTracker, readRecords} from './record-stream.ts';
 import {BRT} from './record-types.ts';
 
 /** The office-document part every `.xlsb` package is entered through. */
@@ -41,7 +41,7 @@ export const XLSB_WORKBOOK_PART = 'xl/workbook.bin';
  * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked: a corrupt or
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
-export function readXlsb(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook {
+export function readXlsb(data: Uint8Array, options: ReadPackageOptions = {}): Workbook {
   return readXlsbPackage(openSpreadsheetPackage(data, options.maxUncompressedBytes).files);
 }
 
@@ -116,14 +116,33 @@ interface WorkbookDeclaration {
   readonly selfSupBook: number | undefined;
 }
 
+// The Begin/End blocks the workbook part carries: the sheet bundle, and the externals block a 3-D
+// reference resolves through. Siblings rather than nested, and tracked independently, so a damaged
+// file that leaves one open cannot close the other.
+type WorkbookBlock = 'bundle' | 'externals';
+
+const WORKBOOK_BLOCK_STARTS: ReadonlyMap<number, WorkbookBlock> = new Map<number, WorkbookBlock>([
+  [BRT.BeginBundleShs, 'bundle'],
+  [BRT.BeginExternals, 'externals'],
+]);
+
+const WORKBOOK_BLOCK_ENDS: ReadonlyMap<number, WorkbookBlock> = new Map<number, WorkbookBlock>([
+  [BRT.EndBundleShs, 'bundle'],
+  [BRT.EndExternals, 'externals'],
+]);
+
 // One pass over `xl/workbook.bin`, gathering everything the rest of the read depends on: the sheet
 // bundle, the externals block a 3-D reference resolves through, and the defined names.
 function readWorkbookPart(part: Uint8Array): WorkbookDeclaration {
   const sheets: SheetDeclaration[] = [];
   const names: NameDeclaration[] = [];
   let externSheets: readonly ExternSheetRef[] = [];
-  let inBundle = false;
-  let inExternals = false;
+  // The two Begin/End blocks this pass reads, tracked by the same helper the style reader uses. It
+  // used to be four booleans woven into the chain below, where the *order* of the arms was
+  // load-bearing and unstated: moving `EndExternals` under the catch-all that counts records inside
+  // the externals block would have silently miscounted the supporting books. Asking "is this a block
+  // boundary" before asking what the record means removes that constraint instead of documenting it.
+  const blocks = blockTracker(WORKBOOK_BLOCK_STARTS, WORKBOOK_BLOCK_ENDS);
   // A workbook with no external links declares exactly one supporting book: itself. Rather than
   // enumerate every record type that could open another, and risk miscounting into a *wrong* sheet
   // name, anything else inside the externals block disqualifies the whole table.
@@ -131,14 +150,14 @@ function readWorkbookPart(part: Uint8Array): WorkbookDeclaration {
   let selfSupBook: number | undefined;
 
   for (const record of readRecords(part)) {
-    if (record.type === BRT.BeginBundleShs) inBundle = true;
-    else if (record.type === BRT.EndBundleShs) inBundle = false;
-    else if (record.type === BRT.BundleSh && inBundle) sheets.push(readSheet(record.data));
-    else if (record.type === BRT.BeginExternals) inExternals = true;
-    else if (record.type === BRT.EndExternals) inExternals = false;
+    if (blocks.boundary(record.type)) continue;
+    if (record.type === BRT.BundleSh && blocks.isOpen('bundle'))
+      sheets.push(readSheet(record.data));
     else if (record.type === BRT.ExternSheet) externSheets = readExternSheets(record.data);
     else if (record.type === BRT.SupSelf) selfSupBook = supportingBooks++;
-    else if (inExternals) supportingBooks++;
+    // Still ordered on purpose, and now only where the semantics require it: the two arms above name
+    // records the externals block itself carries, and everything else inside it is a supporting book.
+    else if (blocks.isOpen('externals')) supportingBooks++;
     else if (record.type === BRT.Name) names.push(readName(record.data));
   }
   return {

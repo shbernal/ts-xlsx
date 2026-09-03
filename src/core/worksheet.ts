@@ -8,7 +8,13 @@
 
 import {AuthoringError} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
-import {decodeCellRef, decodeRange, encodeAddress, tryDecodeCellRef} from './address.ts';
+import {
+  boundedRect,
+  decodeCellRef,
+  decodeRange,
+  encodeAddress,
+  tryDecodeCellRef,
+} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, copyCellContent} from './cell.ts';
 import {Column} from './column.ts';
@@ -727,9 +733,10 @@ export class Worksheet {
    * survive (a border spanning the merge is legal), so only the conflicting value is cleared.
    */
   mergeCells(range: string): void {
-    const {top, left, bottom, right} = decodeRange(range);
-    if (top !== undefined && left !== undefined && bottom !== undefined && right !== undefined) {
-      const rect: MergeRect = {top, left, bottom, right};
+    // `MergeRect` and the narrowed rectangle are the same four inclusive bounds, so the decode is
+    // already the record this needs.
+    const rect: MergeRect | undefined = boundedRect(decodeRange(range));
+    if (rect !== undefined) {
       if (this.#mergeIndex.overlapping(rect) !== undefined) {
         throw new AuthoringError(`merged range "${range}" overlaps an existing merged region`);
       }
@@ -775,8 +782,9 @@ export class Worksheet {
     const index = this.#merges.indexOf(range);
     if (index === -1) return false;
     this.#merges.splice(index, 1);
-    const {top, left, bottom, right} = decodeRange(range);
-    if (top !== undefined && left !== undefined && bottom !== undefined && right !== undefined) {
+    const rect = boundedRect(decodeRange(range));
+    if (rect !== undefined) {
+      const {top, left, bottom, right} = rect;
       const rectIndex = this.#mergeRects.findIndex(
         (r) => r.top === top && r.left === left && r.bottom === bottom && r.right === right,
       );
