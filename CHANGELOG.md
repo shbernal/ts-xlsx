@@ -12,6 +12,66 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: `CsvWriteOptions.dateFormat` is an Excel number-format code, not a moment.js token
+  set.** It is the same vocabulary `Cell.numFmt` holds, so `writeCsv(wb, {dateFormat: cell.numFmt})`
+  now renders what the cell shows. It did not: the CSV writer had its own case-sensitive token table
+  in which the month is `MM` and lowercase `mm` is minutes, so passing this library's own format
+  codes emitted `2024-45-dd` for every date cell, with no throw and no warning. The break is in the
+  *meaning* of the option rather than its type, so a consumer passing `"MM/DD/YYYY"` gets a different
+  string instead of a compile error -- but the common formats are unaffected, because the tokens
+  differ from the codes only in case and a format code is case-insensitive. The formats that change
+  are those containing a time, where `mm` moves from minutes to months. See
+  [ADR-0041](docs/decisions/0041-one-date-format-vocabulary.md).
+
+- **BREAKING: `WorkbookStreamWriter.commit()` resolves with `undefined` when the writer was given a
+  sink and `stream` was never touched.** The package went to the sink; retaining every chunk to
+  concatenate them at the end cost a second full-size copy of the archive, which is the memory a
+  caller passes `{filename}` or `{stream}` to avoid. A caller who supplies no sink, or who touches
+  `writer.stream`, gets the bytes exactly as before.
+
+### Fixed
+
+- **A streamed collapsed outline group rendered expanded when a cell in its summary row held the
+  text ` collapsed="1"`.** The attribute is decided after the row is serialised, and the patcher was
+  reading the rendered markup -- which also holds cell text -- to ask whether it was already there.
+
+- **A theme override could be dropped, mis-spliced, or silently discard the `panose` metric beside
+  the typeface it replaced.** The three edits were regular expressions over XML; they now splice at
+  offsets a scanner found, so a theme with nothing overridden comes back byte for byte.
+
+- **A number format carrying a tab, line feed or carriage return was written raw into an XML
+  attribute**, where a conforming parser normalises all three to a space, so Excel read back a
+  format code the author did not write.
+
+- **A `.xlsb` whose `PtgNum` bytes decode to an infinity produced the formula text `INFINITY`**,
+  which the writer then emitted as a package Excel reports as damaged; and a formula whose last
+  token ran past the end of its own `rgce` aborted the entire workbook read rather than costing that
+  one formula and keeping its cached result.
+
+- **A corrupt package could raise `AuthoringError`, `SyntaxError` or `RangeError` out of
+  `readXlsx`.** A sheet named twice, named nothing, named `a/b` or named at 32 characters is now
+  repaired the way Excel repairs it; a table or defined name the model refuses is dropped along with
+  its feature. The two native errors were the worse half: `catch (e) { if (e instanceof XlsxError) }`
+  could not see them.
+
+- **A character reference naming a code point XML 1.0 cannot carry (`&#1;`, `&#xD800;`) was decoded
+  into the model and refused on the next write**, so a load-and-resave of a hostile file failed and
+  blamed the caller.
+
+- **`workbook.properties.created` set to an Invalid Date threw a bare `RangeError: Invalid time
+  value`**, naming neither the property nor the document; a year outside 0000-9999 did not throw at
+  all and wrote a timestamp no `dcterms:W3CDTF` admits.
+
+- **The CSV writer accepted a delimiter the CSV reader refuses.** `{delimiter: '||'}` produced text
+  this codec could not read back, and `{delimiter: ''}` quoted every field and emitted a file with
+  no separators in it.
+
+- **`TableStyleElement.size` set to `NaN` was written into an `xsd:unsignedInt`** as the four
+  letters.
+
+
 ## [3.0.0] — 2026-08-30
 
 Appending rows and reading a sheet are the two things every caller does, and both were

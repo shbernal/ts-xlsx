@@ -62,6 +62,7 @@ after it would have broken far more cross-references than the collision did.
 | [0038](./0038-the-corpus-keeps-its-untyped-boundary.md) | The corpus keeps its untyped boundary, and it costs six rules rather than sixteen | Accepted 2026-08-26 · answers the question [0036](./0036-oxlint-and-oxfmt-replace-biome.md) deferred |
 | [0039](./0039-the-website-is-generated-from-the-docs-tree.md) | The website is generated from the docs tree, and drift is a build error | Accepted 2026-08-27 |
 | [0040](./0040-the-browser-boundary-is-an-entry-point.md) | The browser boundary is an entry point, and a gate walks the graph to prove it | Accepted 2026-08-28 · narrows the entry-point set of [0023](./0023-subpath-entry-points-and-disjoint-barrels.md) |
+| [0041](./0041-one-date-format-vocabulary.md) | One date-format vocabulary, and it is the spreadsheet's | Accepted 2026-09-03 · changes the meaning of `CsvWriteOptions.dateFormat` without changing its type |
 
 ## Writing one
 

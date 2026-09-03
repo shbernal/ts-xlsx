@@ -69,7 +69,11 @@ const ENTRY_BUDGETS_KB: Readonly<Record<string, number>> = {
   // every entry carries, and this was the one entry whose headroom the ~3 KB exhausted. Restores it
   // against that measurement rather than granting the growth a permanent home in the margin.
   './xlsb': 293,
-  './csv': 210,
+  // Raised from 210 when the CSV writer's private moment.js-style date table was replaced by a real
+  // Excel number-format renderer (ADR 0041). It is the one entry that pays for it: the renderer sits
+  // in `core/date-format.ts` apart from `core/date.ts` precisely so the four entries that never
+  // render a date do not carry four kilobytes of month names and grammar.
+  './csv': 216,
   // The streaming writer and the write half it rides on, and nothing of the reader: a jump here is
   // the read path arriving, which would mean the entry had stopped being about one thing.
   //

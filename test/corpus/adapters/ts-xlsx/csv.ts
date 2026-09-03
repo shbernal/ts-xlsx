@@ -31,6 +31,47 @@ export const csv = {
     }
   },
 
+  // Both halves of the codec against the same delimiter -> one row per candidate
+  // { delimiter, wroteOk, writeError, text, readOk, readError, rows }. A codec whose two halves
+  // disagree about what a delimiter is cannot round-trip its own output, and the disagreement was
+  // silent in the worst direction: `field.includes('')` holds for every field, so an empty delimiter
+  // quoted every field and produced a file with no separators in it that parses as one column.
+  csvDelimiterAgreement() {
+    const candidates = [',', ';', '\t', '||', ''];
+    return candidates.map((delimiter) => {
+      const written = this.csvWrite({
+        spec: {
+          rows: [
+            ['a', 'b'],
+            ['c', 'd'],
+          ],
+        },
+        options: {formatterOptions: {delimiter}},
+      });
+      if (!written.ok) {
+        return {
+          delimiter,
+          wroteOk: false,
+          writeError: written.error,
+          text: null,
+          readOk: null,
+          readError: null,
+          rows: null,
+        };
+      }
+      const back = this.csvRead({csv: written.text, options: {parserOptions: {delimiter}}});
+      return {
+        delimiter,
+        wroteOk: true,
+        writeError: null,
+        text: written.text,
+        readOk: back.ok,
+        readError: back.error,
+        rows: back.rows,
+      };
+    });
+  },
+
   csvWrite({spec = {}, options}: Untyped = {}) {
     try {
       const wb = new Workbook();

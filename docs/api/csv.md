@@ -61,8 +61,15 @@ interface CsvWriteOptions {
   readonly delimiter?: string;
   /** Line separator between rows; defaults to `"\n"`. */
   readonly rowDelimiter?: string;
-  /** A token format (e.g. `"MM/DD/YYYY"`) for Date cells; without it a Date renders as a full
-   * ISO-8601 timestamp. */
+  /**
+   * An Excel number-format code (e.g. `"yyyy-mm-dd"`, `"d mmm yy hh:mm"`) for Date cells; without it
+   * a Date renders as a full ISO-8601 timestamp.
+   *
+   * The same vocabulary as {@link Cell.numFmt}, so `writeCsv(wb, {dateFormat: cell.numFmt})` renders
+   * what the cell would show. It used to be a moment.js-style token set, which is case-sensitive and
+   * spells the month `MM` and the minute `mm`: passing this library's own format codes to it produced
+   * `2024-45-dd` with no throw and no warning. See ADR 0041.
+   */
   readonly dateFormat?: string;
   /** Render Date cells in UTC rather than the runner's local time. */
   readonly dateUTC?: boolean;

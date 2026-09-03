@@ -17,6 +17,7 @@
 // `writeCsv`. See {@link assertEncodable}.
 
 import type {Cell} from '../../core/cell.ts';
+import {formatSerialDate} from '../../core/date-format.ts';
 import {
   type CellValue,
   cellValueToText,
@@ -27,6 +28,7 @@ import {
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {AuthoringError, unrepresentable} from '../../errors.ts';
+import {assertDelimiter} from './delimiter.ts';
 
 /**
  * A byte encoding {@link writeCsv} can produce, spelled the way Node's `Buffer` spells it and
@@ -55,8 +57,15 @@ export interface CsvWriteOptions {
   readonly delimiter?: string;
   /** Line separator between rows; defaults to `"\n"`. */
   readonly rowDelimiter?: string;
-  /** A token format (e.g. `"MM/DD/YYYY"`) for Date cells; without it a Date renders as a full
-   * ISO-8601 timestamp. */
+  /**
+   * An Excel number-format code (e.g. `"yyyy-mm-dd"`, `"d mmm yy hh:mm"`) for Date cells; without it
+   * a Date renders as a full ISO-8601 timestamp.
+   *
+   * The same vocabulary as {@link Cell.numFmt}, so `writeCsv(wb, {dateFormat: cell.numFmt})` renders
+   * what the cell would show. It used to be a moment.js-style token set, which is case-sensitive and
+   * spells the month `MM` and the minute `mm`: passing this library's own format codes to it produced
+   * `2024-45-dd` with no throw and no warning. See ADR 0041.
+   */
   readonly dateFormat?: string;
   /** Render Date cells in UTC rather than the runner's local time. */
   readonly dateUTC?: boolean;
@@ -76,6 +85,7 @@ const UTF8_BOM = Uint8Array.of(0xef, 0xbb, 0xbf);
 export function writeCsvText(workbook: Workbook, options: CsvWriteOptions = {}): string {
   const sheet = selectSheet(workbook, options.sheetName);
   const delimiter = options.delimiter ?? ',';
+  assertDelimiter(delimiter);
   const rowDelimiter = options.rowDelimiter ?? '\n';
 
   const lines: string[] = [];
@@ -185,42 +195,12 @@ function selectSheet(workbook: Workbook, name: string | undefined): Worksheet {
 // result too, which is why the recursion is here rather than delegated wholesale.
 function csvFieldText(value: CellValue, options: CsvWriteOptions): string {
   if (value instanceof Date && options.dateFormat !== undefined) {
-    return formatDate(value, options.dateFormat, options.dateUTC ?? false);
+    return formatSerialDate(value, options.dateFormat, options.dateUTC ?? false);
   }
   if (isFormulaValue(value) || isSharedFormulaValue(value) || isDataTableFormulaValue(value)) {
     return value.result === undefined ? '' : csvFieldText(value.result, options);
   }
   return cellValueToText(value);
-}
-
-const DATE_TOKENS = /YYYY|YY|MM|DD|HH|mm|ss|M|D|H|m|s/g;
-
-function formatDate(date: Date, format: string | undefined, utc: boolean): string {
-  if (Number.isNaN(date.getTime())) return '';
-  if (format === undefined) return date.toISOString();
-
-  const year = utc ? date.getUTCFullYear() : date.getFullYear();
-  const month = (utc ? date.getUTCMonth() : date.getMonth()) + 1;
-  const day = utc ? date.getUTCDate() : date.getDate();
-  const hour = utc ? date.getUTCHours() : date.getHours();
-  const minute = utc ? date.getUTCMinutes() : date.getMinutes();
-  const second = utc ? date.getUTCSeconds() : date.getSeconds();
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  const tokens: Record<string, string> = {
-    YYYY: String(year),
-    YY: pad(year % 100),
-    MM: pad(month),
-    M: String(month),
-    DD: pad(day),
-    D: String(day),
-    HH: pad(hour),
-    H: String(hour),
-    mm: pad(minute),
-    m: String(minute),
-    ss: pad(second),
-    s: String(second),
-  };
-  return format.replace(DATE_TOKENS, (token) => tokens[token] ?? token);
 }
 
 function quoteField(field: string, delimiter: string): string {

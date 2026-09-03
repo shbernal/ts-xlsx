@@ -172,3 +172,14 @@ test('every encoding produces exactly the bytes Buffer would have', () => {
     );
   }
 });
+
+test('a delimiter the reader cannot honour is refused by the writer too', () => {
+  // `readCsv(writeCsv(wb, {delimiter: "||"}))` used to throw on text this same codec produced, and
+  // `{delimiter: ""}` was worse: `field.includes("")` holds for every field, so every field was
+  // quoted and the output carried no separators at all.
+  const wb = new Workbook();
+  wb.addWorksheet('S').addRow(['a', 'b']);
+  assert.throws(() => writeCsvText(wb, {delimiter: '||'}), RangeError);
+  assert.throws(() => writeCsvText(wb, {delimiter: ''}), RangeError);
+  assert.equal(writeCsvText(wb, {delimiter: ';'}), 'a;b');
+});
