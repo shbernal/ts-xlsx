@@ -14,6 +14,7 @@ import {
   tryDecodeCellRef,
   tryDecodeRange,
 } from './address.ts';
+import {Workbook} from './workbook.ts';
 
 test('numberToColumn covers the Excel range boundaries', () => {
   assert.equal(numberToColumn(1), 'A');
@@ -169,4 +170,49 @@ test('encodeAddress round-trips with decodeAddress', () => {
   const decoded = decodeAddress(encodeAddress(30, 42));
   assert.equal(decoded.col, 30);
   assert.equal(decoded.row, 42);
+});
+
+test('one coordinate mistake gets one message, whichever door the caller came through', () => {
+  // Measured before the guards were shared, on a row 0 offered three ways:
+  //   getRange(0,1,1,1)  ->  "row 0 is out of bounds: rows start at 1"
+  //   getRow(0)          ->  "row 0 is out of bounds: Excel supports 1..1048576"
+  //   spliceRows(0, 1)   ->  "splice start 0 is out of bounds: rows start at 1"
+  // Three answers to one question, from a library whose addressing module states in a comment that
+  // these "refuse the same mistake with the same words".
+  const sheet = new Workbook().addWorksheet('S');
+  const expected = 'row 0 is out of bounds: Excel supports 1..1048576';
+  const message = (run: () => unknown): string => {
+    try {
+      run();
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return '<no throw>';
+  };
+  assert.equal(
+    message(() => sheet.getRange(0, 1, 1, 1)),
+    expected,
+  );
+  assert.equal(
+    message(() => sheet.getRow(0)),
+    expected,
+  );
+  assert.equal(
+    message(() => sheet.spliceRows(0, 1)),
+    expected,
+  );
+  assert.equal(
+    message(() => sheet.getRange(1, 0, 1, 1)),
+    'column 0 is out of bounds: Excel supports 1..16384',
+    'and the column axis says the same thing about itself',
+  );
+});
+
+test('a coordinate past the end of the grid is refused on both axes, not just the column', () => {
+  // `numberToColumn` has always bounded the column; the row half of `encodeAddress` checked only
+  // that it was at least 1, so one axis produced an address for a position Excel has no reference
+  // for while the other refused.
+  assert.throws(() => encodeAddress(1, MAX_ROW + 1), RangeError);
+  assert.throws(() => encodeAddress(MAX_COLUMN + 1, 1), RangeError);
+  assert.equal(encodeAddress(MAX_COLUMN, MAX_ROW), 'XFD1048576');
 });

@@ -296,6 +296,63 @@ function dateDefaultNumFmt(value: Cell['value']): string | undefined {
   return date !== undefined && !Number.isNaN(date.getTime()) ? DEFAULT_DATE_NUMFMT : undefined;
 }
 
+// The `<c>` element, assembled in one place. It was assembled in nineteen: every arm of the value
+// dispatch and every arm of the cached-result dispatch rebuilt it from scratch, so the attribute
+// order, the self-closing decision and the `<v>` wrapper were each re-derived per arm and each free
+// to drift per arm.
+//
+// An empty `body` is the self-closing form. A formatted-but-empty cell, a value with no OOXML
+// spelling, and a formula whose result was not cached all arrive here that way: they differ in why
+// there is nothing to say, not in what Excel reads back.
+function cellElement(ref: string, s: string, type: string, body: string): string {
+  const t = type === '' ? '' : ` t="${type}"`;
+  return body === '' ? `<c r="${ref}"${s}${t}/>` : `<c r="${ref}"${s}${t}>${body}</c>`;
+}
+
+// A cell's type token and its `<v>` text. `v` is null when there is no `<v>` at all, which is not the
+// same as an empty one: a formula whose cached result is the empty string caches `<v></v>`, and
+// collapsing that to a self-closing cell would lose the fact that it was calculated.
+interface CellBody {
+  readonly type: string;
+  readonly v: string | null;
+}
+
+// A value the format has no way to spell, kept as a styled but empty cell rather than emitted as a
+// bare `NaN`/`Infinity` token, so one bad value never corrupts the sheet or takes the export down.
+const UNWRITABLE: CellBody = {type: '', v: null};
+
+const vElement = (v: string | null): string => (v === null ? '' : `<v>${v}</v>`);
+
+/**
+ * The four value kinds a bare cell and a cached formula result spell identically.
+ *
+ * That they do was previously a claim in a comment ("typing the cell by the result's kind exactly as a
+ * bare value of that kind would be") restated by hand in seven arms on one side and five on the other.
+ * Sharing the function makes it structural: the two dispatches cannot disagree about how a boolean is
+ * typed, because there is only one answer to give.
+ *
+ * `undefined` is "not one of the four": a string, rich text, a hyperlink label. Those genuinely differ
+ * between the callers -- a bare string may be pooled into the shared table, a cached one is always
+ * `t="str"` -- so each caller spells its own.
+ */
+function valueBody(value: Cell['value'] | FormulaResult, epoch: DateEpoch): CellBody | undefined {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? {type: '', v: numberText(value)} : UNWRITABLE;
+  }
+  if (typeof value === 'boolean') return {type: 'b', v: value ? '1' : '0'};
+  if (value instanceof Date) {
+    // An Invalid Date (new Date(NaN)) has no serial. A valid one caches the serial the cell's date
+    // number format (applied when its style is composed) reads back as a Date.
+    return Number.isNaN(value.getTime())
+      ? UNWRITABLE
+      : {type: '', v: numberText(dateToSerial(value, epoch))};
+  }
+  // The error codes are a closed set of canonical spellings (see ERROR_CODES) with no XML-special
+  // characters, so the code goes into the `<v>` unescaped.
+  if (isErrorValue(value)) return {type: 'e', v: value.error};
+  return undefined;
+}
+
 function cellXml(
   cell: Cell,
   style: number,
@@ -310,37 +367,18 @@ function cellXml(
   const formula = cellFormulaXml(ref, s, value, shared, epoch);
   if (formula !== undefined) return formula;
 
-  if (value instanceof Date) {
-    // An Invalid Date (new Date(NaN)) has no serial; keep the cell (and its style) but emit no
-    // value rather than throwing, so one bad date never takes down the whole sheet's export.
-    if (Number.isNaN(value.getTime())) return `<c r="${ref}"${s}/>`;
-    return `<c r="${ref}"${s}><v>${numberText(dateToSerial(value, epoch))}</v></c>`;
-  }
-  if (typeof value === 'number') {
-    // A non-finite number (NaN, ±Infinity) has no OOXML representation; keep the cell and its style
-    // but emit no value rather than a bare "NaN"/"Infinity" token: the same graceful degradation an
-    // Invalid Date gets, so one bad value never corrupts the sheet or takes down the whole export.
-    if (!Number.isFinite(value)) return `<c r="${ref}"${s}/>`;
-    return `<c r="${ref}"${s}><v>${numberText(value)}</v></c>`;
-  }
-  if (typeof value === 'boolean') {
-    return `<c r="${ref}"${s} t="b"><v>${value ? 1 : 0}</v></c>`;
-  }
-  if (typeof value === 'string') {
-    // With shared strings on, the cell holds only the pool index (`t="s"`); otherwise the text
-    // lives inline in the cell. Both decode to the same string on read.
+  const body = valueBody(value, epoch);
+  if (body !== undefined) return cellElement(ref, s, body.type, vElement(body.v));
+
+  // A string and rich text are one arm, not two: with shared strings on, both are pooled as an `<si>`
+  // and the cell holds only the pool index (`t="s"`); with them off, both live inline in the cell.
+  // Either way the read decodes back to what was written.
+  if (typeof value === 'string' || isRichTextValue(value)) {
     if (sharedStrings !== null) {
-      return `<c r="${ref}"${s} t="s"><v>${sharedStrings.intern(value)}</v></c>`;
+      return cellElement(ref, s, 's', vElement(`${sharedStrings.intern(value)}`));
     }
-    return `<c r="${ref}"${s} t="inlineStr"><is>${textElement(value)}</is></c>`;
-  }
-  if (isRichTextValue(value)) {
-    // With shared strings on, rich text is pooled as a rich `<si>` (the cell holds only its index);
-    // otherwise the runs live inline. Both decode back to the same runs on read.
-    if (sharedStrings !== null) {
-      return `<c r="${ref}"${s} t="s"><v>${sharedStrings.intern(value)}</v></c>`;
-    }
-    return `<c r="${ref}"${s} t="inlineStr"><is>${richTextRunsXml(value.richText)}</is></c>`;
+    const inline = typeof value === 'string' ? textElement(value) : richTextRunsXml(value.richText);
+    return cellElement(ref, s, 'inlineStr', `<is>${inline}</is>`);
   }
   if (isHyperlinkValue(value)) {
     // The cell holds only the visible label; the link itself rides in the sheet's <hyperlinks>.
@@ -350,16 +388,11 @@ function cellXml(
       typeof value.text === 'string'
         ? textElement(value.text)
         : richTextRunsXml(value.text.richText);
-    return `<c r="${ref}"${s} t="inlineStr"><is>${label}</is></c>`;
-  }
-  if (isErrorValue(value)) {
-    // An error literal serialises under t="e" with its code as the value. The codes are a closed
-    // set of canonical spellings (see ERROR_CODES) with no XML-special characters, so no escaping.
-    return `<c r="${ref}"${s} t="e"><v>${value.error}</v></c>`;
+    return cellElement(ref, s, 'inlineStr', `<is>${label}</is>`);
   }
   // A null value only reaches here for a formatted-but-empty cell (the row loop keeps it for its
   // style); emit the styled cell with no <v>, exactly how Excel stores a formatted blank.
-  if (value === null) return `<c r="${ref}"${s}/>`;
+  if (value === null) return cellElement(ref, s, '', '');
   // Every ValueType kind is served by an arm above (a formula routes through its own writer), so
   // this is unreachable. It exists because the union is not exhaustively narrowed here.
   throw new InternalError(
@@ -413,8 +446,7 @@ function cellFormulaXml(
 }
 
 // Wrap a prepared `<f>` element (a plain formula, or a shared master/slave `<f>`) with the cell
-// element and its cached result, typing the cell by the result's kind exactly as a bare value of that
-// kind would be.
+// element and its cached result.
 function formulaBodyXml(
   ref: string,
   s: string,
@@ -422,35 +454,15 @@ function formulaBodyXml(
   result: FormulaResult | undefined,
   epoch: DateEpoch,
 ): string {
-  // A non-finite cached result (a `1/0` that reached the model as Infinity/NaN) has no OOXML
-  // representation; keep the formula but cache no value rather than emit a bare "NaN": the same
-  // graceful degradation a bare non-finite cell and an Invalid Date result get.
-  if (result === undefined || (typeof result === 'number' && !Number.isFinite(result))) {
-    return `<c r="${ref}"${s}>${f}</c>`;
-  }
-  if (typeof result === 'number') {
-    return `<c r="${ref}"${s}>${f}<v>${numberText(result)}</v></c>`;
-  }
-  if (typeof result === 'boolean') {
-    return `<c r="${ref}"${s} t="b">${f}<v>${result ? 1 : 0}</v></c>`;
-  }
+  // An uncalculated formula caches nothing, and the cell is the formula alone.
+  if (result === undefined) return cellElement(ref, s, '', f);
+  const body = valueBody(result, epoch);
+  if (body !== undefined) return cellElement(ref, s, body.type, f + vElement(body.v));
   if (typeof result === 'string') {
     // The cached result of a string formula is a cell value, not structure, so it carries the
     // `_xHHHH_` escape a `<t>` does, and Excel decodes it here too (verified over COM: a `<v>` of
     // `_x0041_` under t="str" reads back as "A" with calculation held manual).
-    return `<c r="${ref}"${s} t="str">${f}<v>${escapeSpreadsheetText(result)}</v></c>`;
-  }
-  if (isErrorValue(result)) {
-    // A formula that evaluated to an error caches its code under t="e", exactly as a bare error
-    // cell does: the reader's decodeResult mirrors decodeValue for this case.
-    return `<c r="${ref}"${s} t="e">${f}<v>${result.error}</v></c>`;
-  }
-  if (result instanceof Date) {
-    // A date-valued result caches its serial exactly as a bare date cell stores its value; the
-    // cell's date number format (applied when its style is composed) is what makes both read back as
-    // a Date. An Invalid Date has no serial, so cache no result rather than emit NaN.
-    if (Number.isNaN(result.getTime())) return `<c r="${ref}"${s}>${f}</c>`;
-    return `<c r="${ref}"${s}>${f}<v>${numberText(dateToSerial(result, epoch))}</v></c>`;
+    return cellElement(ref, s, 'str', f + vElement(escapeSpreadsheetText(result)));
   }
   // Every FormulaResult kind is handled above; this guards a value that reached here past the model.
   throw new InternalError(

@@ -11,7 +11,15 @@
 // materialise its cells eagerly without a cost cliff hiding behind an innocuous-looking call.
 
 import {quoted} from '../errors.ts';
-import {decodeRange, encodeAddress, type GridRect, MAX_COLUMN, MAX_ROW} from './address.ts';
+import {
+  assertAxisInBounds,
+  decodeRange,
+  encodeAddress,
+  encodeRect,
+  type GridRect,
+  MAX_COLUMN,
+  MAX_ROW,
+} from './address.ts';
 import {applyCellStyle, type Cell} from './cell.ts';
 import {INTERNAL} from './internal.ts';
 import {
@@ -56,10 +64,10 @@ export class Range implements GridRect {
    * @throws {RangeError} if a corner is not a positive integer or falls outside the sheet's bounds.
    */
   constructor(sheet: Worksheet, top: number, left: number, bottom: number, right: number) {
-    checkBound('row', top, MAX_ROW);
-    checkBound('row', bottom, MAX_ROW);
-    checkBound('column', left, MAX_COLUMN);
-    checkBound('column', right, MAX_COLUMN);
+    assertAxisInBounds('row', top);
+    assertAxisInBounds('row', bottom);
+    assertAxisInBounds('column', left);
+    assertAxisInBounds('column', right);
     this.#sheet = sheet;
     this.top = Math.min(top, bottom);
     this.bottom = Math.max(top, bottom);
@@ -74,7 +82,7 @@ export class Range implements GridRect {
 
   /** Canonical `tl:br` A1 form, `"B2:D5"`. A one-cell block still reads as `"B2:B2"`. */
   get address(): string {
-    return `${encodeAddress(this.left, this.top)}:${encodeAddress(this.right, this.bottom)}`;
+    return encodeRect(this);
   }
 
   /** Rows spanned, inclusive of both edges. */
@@ -273,10 +281,9 @@ export class Range implements GridRect {
   }
 }
 
-// Write one facet through a `Cell`'s own setter. Narrowed to a single key, rather than assigning
-// `cell[facet]` with `facet` still a union, for the same reason `style.ts`'s `copyFacet` is: the
-// compiler cannot correlate a union key with its value type across two object types, and a cast here
-// would be the one place a facet could be written to the wrong slot without anything noticing.
+// Write one facet through a `Cell`'s own setter, narrowed to a single key for the reason
+// `containers.ts`'s `copyKeyIfPresent` states. It writes unconditionally rather than skipping an
+// absent value, which is what clearing a facet across a range needs and is all the difference there is.
 function setFacet<K extends keyof CellStyle>(cell: Cell, facet: K, value: CellStyle[K]): void {
   const target: CellStyle = cell;
   target[facet] = value;
@@ -297,15 +304,6 @@ function facetKey(value: unknown): string {
       ? Object.fromEntries(Object.entries(inner).sort(([a], [b]) => (a < b ? -1 : 1)))
       : inner,
   );
-}
-
-function checkBound(axis: 'row' | 'column', value: number, max: number): void {
-  if (!Number.isInteger(value) || value < 1) {
-    throw new RangeError(`${axis} ${value} is out of bounds: ${axis}s start at 1`);
-  }
-  if (value > max) {
-    throw new RangeError(`${axis} ${value} is out of bounds: the sheet ends at ${max}`);
-  }
 }
 
 /**

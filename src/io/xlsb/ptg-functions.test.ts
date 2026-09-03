@@ -12,7 +12,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {FIXED_ARITY, FTAB, FTAB_USER_DEFINED, functionNameFor} from './ptg-functions.ts';
+import {FTAB, FTAB_USER_DEFINED, functionNameFor} from './ptg-functions.ts';
 
 test('the function table runs from COUNT to RTD, where the specification stops', () => {
   assert.equal(functionNameFor(0x0000), 'COUNT', 'index 0 is COUNT');
@@ -33,12 +33,17 @@ test('the table has exactly the seven undefined indices the specification leaves
   assert.deepEqual(holes, [0x00ca, 0x00cb, 0x00d9, 0x00da, 0x00f9, 0x00fa, 0x014d]);
 });
 
-test('every fixed-arity key names a function the table actually carries', () => {
-  // The arity table is keyed by *name*, so a name misspelled in either table silently makes the
-  // function variadic: `PtgFunc` then decodes with the wrong operand count and the formula is wrong.
-  const named = new Set(FTAB.filter((name) => name !== undefined));
-  const unknown = [...FIXED_ARITY.keys()].filter((name) => !named.has(name));
-  assert.deepEqual(unknown, [], 'an arity for a function no index names cannot ever be reached');
+test('every recorded arity is a count a call can actually pop', () => {
+  // An arity is spent as `stack.splice(stack.length - arity, arity)`. A negative or fractional one
+  // does not throw there: it silently takes a different run of operands, and the formula decodes to
+  // something the file never said. That an arity *exists* is now the type's problem; that it is a
+  // count is this one's.
+  const wrong = FTAB.flatMap((entry) =>
+    entry === undefined || entry[1] === 'variadic' || (Number.isInteger(entry[1]) && entry[1] >= 0)
+      ? []
+      : [`${entry[0]} takes ${entry[1]}`],
+  );
+  assert.deepEqual(wrong, []);
 });
 
 test('the user-defined index is a real slot, and the one the decoder reaches for', () => {
@@ -55,7 +60,7 @@ test('no function name is transcribed into two slots', () => {
   const seen = new Map<string, number>();
   const duplicates: string[] = [];
   for (let index = 0; index < FTAB.length; index++) {
-    const name = FTAB[index];
+    const name = FTAB[index]?.[0];
     if (name === undefined) continue;
     const first = seen.get(name);
     if (first === undefined) seen.set(name, index);

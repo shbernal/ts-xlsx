@@ -20,6 +20,7 @@ import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {AuthoringError, InternalError, quoted} from '../../errors.ts';
 import {relativePartPath, relsPathFor, THEME_PART_PATH} from '../opc/part-paths.ts';
+import {isRelType} from '../opc/rel-types.ts';
 import {relsPartXml} from '../opc/rels.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 import {collectComments, commentsXml, vmlDrawingXml} from './comments.ts';
@@ -343,7 +344,7 @@ function resolveSheetReferences(plan: SheetPlan): SheetReferences {
   const preservedDrawingRelId = refs.find((ref) => ref.element === 'drawing')?.relId ?? null;
   const legacyDrawingHFRelId = refs.find((ref) => ref.element === 'legacyDrawingHF')?.relId ?? null;
   const slicerRelIds = refs
-    .filter((ref) => ref.relType.endsWith('/slicer'))
+    .filter((ref) => isRelType(ref.relType, 'slicer'))
     .map((ref) => ref.relId);
   return {
     drawingRelId: plan.drawing?.relId ?? preservedDrawingRelId,
@@ -744,33 +745,25 @@ function emitPivotParts(files: PackageFiles, allPivots: readonly PivotPlan[]): v
     const tablePath = pivotTablePart(number);
     const definitionPath = pivotCacheDefinitionPart(number);
     files.add(tablePath, strToU8(pivotTableXml(table, `PivotTable${number}`, cacheId)));
-    files.add(
-      relsPathFor(tablePath),
-      strToU8(
-        relsPartXml([
-          {
-            id: 'rId1',
-            type: REL.pivotCacheDefinition,
-            target: relativePartPath(tablePath, definitionPath),
-          },
-        ]),
-      ),
-    );
+    addSingleRelPart(files, tablePath, REL.pivotCacheDefinition, definitionPath);
     files.add(definitionPath, strToU8(pivotCacheDefinitionXml(table)));
-    files.add(
-      relsPathFor(definitionPath),
-      strToU8(
-        relsPartXml([
-          {
-            id: 'rId1',
-            type: REL.pivotCacheRecords,
-            target: relativePartPath(definitionPath, pivotCacheRecordsPart(number)),
-          },
-        ]),
-      ),
-    );
+    addSingleRelPart(files, definitionPath, REL.pivotCacheRecords, pivotCacheRecordsPart(number));
     files.add(pivotCacheRecordsPart(number), strToU8(pivotCacheRecordsXml(table)));
   }
+}
+
+// Give `from` a `.rels` part declaring exactly one relationship, at `rId1`, to `to`.
+//
+// `rId1` is not a convention this picks: the referring XML names the id it resolves against, and for a
+// part whose whole rels file is one link that id is `rId1` on both sides. Written out, each of these
+// was eleven lines in which the only moving parts were the type and the two paths, and the target has
+// to be made relative to the *referrer* rather than to the package root, which is the half a
+// hand-written copy gets wrong.
+function addSingleRelPart(files: PackageFiles, from: string, type: string, to: string): void {
+  files.add(
+    relsPathFor(from),
+    strToU8(relsPartXml([{id: 'rId1', type, target: relativePartPath(from, to)}])),
+  );
 }
 
 // Emit the verbatim-preserved parts (and their rewired rels) last: their paths are collision-proof, so

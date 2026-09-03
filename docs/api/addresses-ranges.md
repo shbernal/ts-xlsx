@@ -71,6 +71,10 @@ function decodeRange(reference: string): RangeAddress;
 
 Encode a 1-based `col`/`row` pair into its canonical A1 address (`"B2"`).
 
+Both axes go through the shared guard. The column already did, through `numberToColumn`; the row
+checked only its lower bound in a message of its own, so `encodeAddress(1, 1048577)` produced an
+address naming a row Excel has no reference for while `encodeAddress(16385, 1)` refused.
+
 ```ts
 function encodeAddress(col: number, row: number): string;
 ```

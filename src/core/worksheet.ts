@@ -9,6 +9,7 @@
 import {AuthoringError, quoted} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
 import {
+  assertAxisInBounds,
   boundedRect,
   decodeCellRef,
   decodeRange,
@@ -1234,9 +1235,10 @@ function assertStartAndCount(
   start: number,
   count: number,
 ): void {
-  if (!Number.isInteger(start) || start < 1) {
-    throw new RangeError(`${verb} start ${start} is out of bounds: ${axis}s start at 1`);
-  }
+  // The start is a position on the axis, so it is refused in the same words `getRow` and `getRange`
+  // refuse one: `verb` used to prefix it, which named the call at the cost of making one mistake
+  // answer three ways depending on which door the caller came through.
+  assertAxisInBounds(axis, start);
   if (!Number.isInteger(count) || count < 0) {
     throw new RangeError(`${verb} count ${count} is invalid: it must be a non-negative integer`);
   }

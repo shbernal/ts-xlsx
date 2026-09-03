@@ -27,7 +27,7 @@ import {formulaNumberLiteral, quoteSheetName} from '../../core/formula.ts';
 import {REF_ERROR} from '../../core/value.ts';
 import {XlsbParseError} from './errors.ts';
 import {errorCodeFor, RecordReader} from './primitives.ts';
-import {FTAB_USER_DEFINED, fixedArityFor, functionNameFor} from './ptg-functions.ts';
+import {builtinFunctionAt, FTAB_USER_DEFINED, functionNameFor} from './ptg-functions.ts';
 
 /** One `Xti` ([MS-XLSB] 2.5.163): the span of sheets, in one supporting book, that an `ixti` names. */
 export interface ExternSheetRef {
@@ -202,9 +202,11 @@ function operand(
       tokens.skip(14); // A size hint the extra-data block restates; the block is the authority.
       return push(arrayConstant(extra));
     case PTG.Func: {
-      const name = functionNameFor(tokens.u16());
-      const arity = name === undefined ? undefined : fixedArityFor(name);
-      return name !== undefined && arity !== undefined && push(call(name, arity, stack));
+      // A fixed-arity call in one lookup: the index alone decides both the name and how many operands
+      // belong to it. A variadic function cannot be spelled with this token, so a stream that cites
+      // one here is not decodable rather than decodable with a guessed count.
+      const fn = builtinFunctionAt(tokens.u16());
+      return fn !== undefined && fn[1] !== 'variadic' && push(call(fn[0], fn[1], stack));
     }
     case PTG.FuncVar:
       return variadicCall(tokens, stack, push);

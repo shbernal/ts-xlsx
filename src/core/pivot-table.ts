@@ -12,7 +12,7 @@
 
 import {AuthoringError, InternalError, quoted} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
-import {encodeAddress} from './address.ts';
+import {encodeRect} from './address.ts';
 import {INTERNAL} from './internal.ts';
 import {
   type CellValue,
@@ -246,7 +246,12 @@ export class PivotTable {
       throw new AuthoringError('the pivot source header row is empty');
     }
     this.sourceSheetName = source.name;
-    this.sourceRef = `${encodeAddress(firstField.col, 1)}:${encodeAddress(lastField.col, lastRow)}`;
+    this.sourceRef = encodeRect({
+      top: 1,
+      left: firstField.col,
+      bottom: lastRow,
+      right: lastField.col,
+    });
 
     // Read the source body once, field by field, so the same scan feeds both the shared-items
     // catalogues and the records that reference them.

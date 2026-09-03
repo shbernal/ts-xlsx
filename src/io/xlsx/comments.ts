@@ -70,7 +70,7 @@ export function collectComments(
     // generator or a hand-edit makes one) is written back as the thread alone: two comments on one ref
     // is a shape Excel repairs by dropping both, which would lose the conversation as well as the note.
     if (cell.note === undefined || anchored.has(cell.address)) continue;
-    comments.push({ref: cell.address, row: cell.row, col: cell.col, text: cell.note});
+    comments.push(noteOn(cell, cell.note));
   }
   // A note gathered from a flushed row cannot know whether a thread was later anchored on the same
   // cell, so the thread's precedence is applied here over the whole merged list rather than only over
@@ -84,11 +84,15 @@ export function collectComments(
 export function collectNotes(cells: Iterable<Cell>): CommentCell[] {
   const notes: CommentCell[] = [];
   for (const cell of cells) {
-    if (cell.note !== undefined) {
-      notes.push({ref: cell.address, row: cell.row, col: cell.col, text: cell.note});
-    }
+    if (cell.note !== undefined) notes.push(noteOn(cell, cell.note));
   }
   return notes;
+}
+
+// A cell's own note as the entry both collectors gather. The text is passed in rather than read off
+// the cell again, so the narrowing the caller already did is what reaches here.
+function noteOn(cell: Cell, text: string): CommentCell {
+  return {ref: cell.address, row: cell.row, col: cell.col, text};
 }
 
 // One legacy fallback per conversation, keyed to the thread head whose id binds it. A thread with no
@@ -184,6 +188,11 @@ const VML_HEADER =
   'path="m,l,21600r21600,l21600,xe"><v:stroke joinstyle="miter"/>' +
   '<v:path gradientshapeok="t" o:connecttype="rect"/></v:shapetype>';
 
+// The first VML shape id, and Excel's own. Shape ids live in a per-sheet id block that
+// `<o:idmap data="1">` above selects, and block 1 starts at 1025 (1024 * block + 1): a shape numbered
+// below its block's base belongs to a block the drawing never claimed, and Excel discards it.
+const FIRST_SHAPE_ID = 1025;
+
 /** The `xl/drawings/vmlDrawing{n}.vml` companion: one hidden text-box shape per comment, in the same
  * order as the comments part. Anchor coordinates place the box a couple of cells down-and-right of its
  * owner; Excel refines them on open, so the values are a sensible starting geometry rather than a
@@ -196,7 +205,7 @@ export function vmlDrawingXml(comments: readonly CommentCell[]): string {
       const col0 = comment.col - 1;
       const anchor = `${col0 + 1}, 15, ${row0}, 2, ${col0 + 3}, 15, ${row0 + 4}, 4`;
       return (
-        `<v:shape id="_x0000_s${1025 + i}" type="#_x0000_t202" ` +
+        `<v:shape id="_x0000_s${FIRST_SHAPE_ID + i}" type="#_x0000_t202" ` +
         'style="position:absolute;margin-left:59.25pt;margin-top:1.5pt;width:108pt;height:59.25pt;' +
         `z-index:${i + 1};visibility:hidden" fillcolor="#ffffe1" o:insetmode="auto">` +
         '<v:fill color2="#ffffe1"/><v:shadow on="t" color="black" obscured="t"/>' +

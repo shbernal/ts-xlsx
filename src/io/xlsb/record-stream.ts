@@ -79,11 +79,17 @@ function byteAt(part: Uint8Array, index: number): number {
  * Each end names the block it closes, so an `EndFonts` cannot close `<fills>` the way a bare set of
  * end markers allowed. Blocks are tracked independently, so two that a damaged file interleaves stay
  * separate rather than one clearing the other.
+ *
+ * A block is declared as one `[start, end, block]` triple rather than as an entry in a start table
+ * and a matching entry in an end table. The two-table form let a caller pair `BeginFills` with
+ * `EndFonts` in a way that compiles and reads plausibly, which is the very mistake the paragraph
+ * above says this exists to prevent.
  */
 export function blockTracker<T>(
-  starts: ReadonlyMap<number, T>,
-  ends: ReadonlyMap<number, T>,
+  blocks: readonly (readonly [number, number, T])[],
 ): BlockTracker<T> {
+  const starts = new Map(blocks.map(([start, , block]) => [start, block]));
+  const ends = new Map(blocks.map(([, end, block]) => [end, block]));
   const open = new Set<T>();
   return {
     isOpen: (block) => open.has(block),

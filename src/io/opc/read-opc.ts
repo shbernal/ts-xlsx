@@ -10,6 +10,7 @@ import type {PreservedPart, PreservedRelationship} from '../../core/preserved.ts
 import {openElements} from '../../xml/xml-read.ts';
 import {extensionOf, relsPathFor, resolveRelativePart} from './part-paths.ts';
 import {DEFAULT_MAX_UNCOMPRESSED} from './read-options.ts';
+import {isRelType} from './rel-types.ts';
 import {inflateSpreadsheetPackage} from './sniff-format.ts';
 
 // The two ways a reader reaches into an inflated package: a part's UTF-8-decoded text, or its raw
@@ -120,22 +121,6 @@ export function packageAccessors(files: Record<string, Uint8Array>): PackageAcce
   };
 }
 
-// The Target of the first relationship whose Type ends with `/<suffix>`, or undefined when none is
-// declared. For a single expected reference, where the plural form below would over-gather.
-export function relationshipTargetByType(xml: string, suffix: string): string | undefined {
-  return relationshipTargetsByType(xml, suffix)[0];
-}
-
-// Every Target whose Type ends with `/<suffix>`, in declaration order. The type is matched on its
-// final segment (a local-name match, so a namespaced or oddly-cased type still resolves). For a part
-// class a sheet may reference more than once (a sheet can own several tables), where the singular
-// helper's first-match would miss all but one.
-export function relationshipTargetsByType(xml: string, suffix: string): string[] {
-  return parseRelationshipRecords(xml)
-    .filter((record) => record.type.endsWith(`/${suffix}`))
-    .map((record) => record.target);
-}
-
 // A relationship as declared, with the fields a preserved-part closure needs: its id, Type URI,
 // Target, and whether the target lies outside the package (`TargetMode="External"`). This is the one
 // shape a `.rels` part is read into; the narrower views above and below are projections of it, so the
@@ -179,13 +164,13 @@ export interface PartRelationships {
   byId(id: string): RelationshipRecord | undefined;
   /** Resolve one of this part's targets against the part's own directory. */
   pathOf(target: string): string;
-  /** The package part reached through the first relationship whose Type ends with `/<suffix>`, or
+  /** The package part reached through the first relationship of this class ({@link isRelType}), or
    * undefined when the part declares none: the single-part lookup (notes, printer settings, drawing,
    * background) in one call. */
-  targetPath(suffix: string): string | undefined;
-  /** Every package part reached through a relationship of this type, in declaration order. For a part
+  targetPath(name: string): string | undefined;
+  /** Every package part reached through a relationship of this class, in declaration order. For a part
    * class one sheet may reference more than once (tables, pivot tables). */
-  targetPaths(suffix: string): string[];
+  targetPaths(name: string): string[];
   /**
    * The text of the single part reached through a relationship of this type, or `undefined` when the
    * part declares no such relationship *or* names one the package does not contain.
@@ -196,10 +181,10 @@ export interface PartRelationships {
    * into one call is what lets that contract be stated once instead of at each of the seven places
    * that used to spell it out.
    */
-  relatedText(suffix: string): string | undefined;
+  relatedText(name: string): string | undefined;
   /** As {@link relatedText}, for a part whose content is opaque bytes (a printer-settings blob, an
    * image) rather than XML. */
-  relatedBytes(suffix: string): Uint8Array | undefined;
+  relatedBytes(name: string): Uint8Array | undefined;
 }
 
 // Read and parse a part's `.rels`. A part with no rels part yields an empty set rather than undefined,
@@ -213,24 +198,24 @@ export function readPartRelationships(
   const records = parseRelationshipRecords(partText(relsPathFor(partPath)) ?? '');
   const byId = new Map(records.map((record) => [record.id, record]));
   const pathOf = (target: string): string => resolveRelativePart(partPath, target);
-  const targetsOf = (suffix: string): string[] =>
-    records.filter((record) => record.type.endsWith(`/${suffix}`)).map((record) => record.target);
-  const targetPath = (suffix: string): string | undefined => targetsOf(suffix).map(pathOf)[0];
+  const targetsOf = (name: string): string[] =>
+    records.filter((record) => isRelType(record.type, name)).map((record) => record.target);
+  const targetPath = (name: string): string | undefined => targetsOf(name).map(pathOf)[0];
   return {
     records,
     byId: (id) => byId.get(id),
     pathOf,
     targetPath,
-    targetPaths: (suffix) => targetsOf(suffix).map(pathOf),
-    relatedText: (suffix) => {
-      const path = targetPath(suffix);
+    targetPaths: (name) => targetsOf(name).map(pathOf),
+    relatedText: (name) => {
+      const path = targetPath(name);
       return path === undefined ? undefined : partText(path);
     },
     // `partBytes` is optional because the two readers that only ever ask for XML (the streaming row
     // reader, the xlsb workbook part) have no bytes accessor to hand over; asking one of them for a
     // binary part is a bug in that reader rather than a package that lacks it.
-    relatedBytes: (suffix) => {
-      const path = targetPath(suffix);
+    relatedBytes: (name) => {
+      const path = targetPath(name);
       return path === undefined ? undefined : partBytes?.(path);
     },
   };

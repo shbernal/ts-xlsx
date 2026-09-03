@@ -12,12 +12,21 @@ import {cloneConditionalFormatting} from './conditional-formatting.ts';
 import {overwrite, replaceContents} from './containers.ts';
 import {cloneDataValidation} from './data-validation.ts';
 import {type AssertNever, INTERNAL} from './internal.ts';
+import type {PageBreak} from './page-setup.ts';
 import type {CellModel, Worksheet, WorksheetModel} from './worksheet.ts';
 
 /** One field of a {@link WorksheetModel}, with both directions of its round-trip declared together. */
 interface ModelFacet<K extends keyof WorksheetModel = keyof WorksheetModel> {
   readonly key: K;
-  /** Produce the field's value, copied deeply enough that mutating it cannot reach back into the sheet. */
+  /**
+   * Produce the field's value, in a form a caller cannot mutate the sheet through.
+   *
+   * Copying is one way to get there and the type is the other. `tabColor`, `autoFilter` and
+   * `protection` are handed back by reference precisely because their types are readonly all the way
+   * down, so there is nothing to defend against and a clone would only be one more shape to keep in
+   * step with its declaration. Every other field is a mutable record or array and is copied, which is
+   * where the spreads below come from.
+   */
   readonly read: (sheet: Worksheet) => WorksheetModel[K];
   /**
    * Apply the field to a sheet whose content has already been reset. Takes the whole model rather
@@ -42,6 +51,41 @@ function facet<K extends keyof WorksheetModel>(
 }
 
 /**
+ * A field that is a flat record of optional properties, held live on the sheet under the same name.
+ *
+ * Seven fields share this shape, and written out per field it was five lines each, of which the
+ * spread on the read side is the smallest part and the easiest to leave out. A field read without it
+ * hands back the sheet's own object, and `model.pageSetup.orientation = 'landscape'` then edits the
+ * sheet through what {@link ModelFacet.read} documents as a copy.
+ */
+function recordFacet<K extends RecordField>(key: K): ModelFacet<K> {
+  return {
+    key,
+    read: (sheet) => ({...sheet[key]}),
+    write: (sheet, model) => overwrite<WorksheetModel[K]>(sheet[key], model[key]),
+  };
+}
+
+type RecordField =
+  | 'properties'
+  | 'outline'
+  | 'view'
+  | 'pageSetup'
+  | 'printOptions'
+  | 'pageMargins'
+  | 'headerFooter';
+
+/** {@link recordFacet} for a field that is a *list* of flat records, replaced in place. */
+function recordsFacet<K extends 'rowBreaks' | 'columnBreaks'>(key: K): ModelFacet<K> {
+  const copy = (breaks: readonly PageBreak[]): PageBreak[] => breaks.map((brk) => ({...brk}));
+  return {
+    key,
+    read: (sheet) => copy(sheet[key]),
+    write: (sheet, model) => replaceContents(sheet[key], copy(model[key])),
+  };
+}
+
+/**
  * Every field of a {@link WorksheetModel}, in the order a model assignment applies them. Order is
  * load-bearing: cells are placed at their exact positions before any merge exists, so a covered
  * cell's value lands where the model says instead of being routed to a region master mid-load.
@@ -61,59 +105,15 @@ export const WORKSHEET_MODEL_FACETS = [
       sheet.tabColor = value;
     },
   ),
-  facet(
-    'properties',
-    (sheet) => ({...sheet.properties}),
-    (sheet, value) => overwrite(sheet.properties, value),
-  ),
-  facet(
-    'outline',
-    (sheet) => ({...sheet.outline}),
-    (sheet, value) => overwrite(sheet.outline, value),
-  ),
-  facet(
-    'view',
-    (sheet) => ({...sheet.view}),
-    (sheet, value) => overwrite(sheet.view, value),
-  ),
-  facet(
-    'pageSetup',
-    (sheet) => ({...sheet.pageSetup}),
-    (sheet, value) => overwrite(sheet.pageSetup, value),
-  ),
-  facet(
-    'printOptions',
-    (sheet) => ({...sheet.printOptions}),
-    (sheet, value) => overwrite(sheet.printOptions, value),
-  ),
-  facet(
-    'pageMargins',
-    (sheet) => ({...sheet.pageMargins}),
-    (sheet, value) => overwrite(sheet.pageMargins, value),
-  ),
-  facet(
-    'headerFooter',
-    (sheet) => ({...sheet.headerFooter}),
-    (sheet, value) => overwrite(sheet.headerFooter, value),
-  ),
-  facet(
-    'rowBreaks',
-    (sheet) => sheet.rowBreaks.map((brk) => ({...brk})),
-    (sheet, value) =>
-      replaceContents(
-        sheet.rowBreaks,
-        value.map((brk) => ({...brk})),
-      ),
-  ),
-  facet(
-    'columnBreaks',
-    (sheet) => sheet.columnBreaks.map((brk) => ({...brk})),
-    (sheet, value) =>
-      replaceContents(
-        sheet.columnBreaks,
-        value.map((brk) => ({...brk})),
-      ),
-  ),
+  recordFacet('properties'),
+  recordFacet('outline'),
+  recordFacet('view'),
+  recordFacet('pageSetup'),
+  recordFacet('printOptions'),
+  recordFacet('pageMargins'),
+  recordFacet('headerFooter'),
+  recordsFacet('rowBreaks'),
+  recordsFacet('columnBreaks'),
   facet(
     'columns',
     (sheet) =>

@@ -31,6 +31,12 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   caller passes `{filename}` or `{stream}` to avoid. A caller who supplies no sink, or who touches
   `writer.stream`, gets the bytes exactly as before.
 
+- **`encodeAddress` now refuses a row outside the sheet, as it already refused a column.** It bounded
+  one axis and let the other through, so `encodeAddress(1, 0)` returned `"A0"` and
+  `encodeAddress(1, 2 ** 31)` an address no reader can decode. Both now throw a `RangeError`. Every
+  coordinate check in the model also states its bound the same way, so the three messages the API
+  used to give for one mistake are now one message that names the axis, the value, and the limit.
+
 ### Fixed
 
 - **A streamed collapsed outline group rendered expanded when a cell in its summary row held the

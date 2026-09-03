@@ -6,6 +6,7 @@
 
 import {tokenSet, tokenSetOf} from '../token-set.ts';
 import {type ClonePlan, cloneWith} from './clone.ts';
+import {copyKeyIfPresent} from './containers.ts';
 import {type AssertNever, NAMED_STYLE_ID} from './internal.ts';
 
 /** Underline can be a plain flag or one of Excel's named underline styles. */
@@ -586,18 +587,7 @@ export const CELL_CONTENT_FACETS = [
  * what a copy of a *cell* uses, so no structural edit can drop one.
  */
 export function assignContentFacets(target: CellContent, source: Readonly<CellContent>): void {
-  for (const facet of CELL_CONTENT_FACETS) copyContentFacet(target, source, facet);
-}
-
-// One key at a time, for the reason copyFacet is: a correlated-key write the compiler cannot verify
-// when the key is the whole union.
-function copyContentFacet<K extends keyof CellContent>(
-  target: CellContent,
-  source: Readonly<CellContent>,
-  key: K,
-): void {
-  const value = source[key];
-  if (value !== undefined) target[key] = value;
+  for (const facet of CELL_CONTENT_FACETS) copyKeyIfPresent(target, source, facet);
 }
 
 /**
@@ -608,7 +598,7 @@ function copyContentFacet<K extends keyof CellContent>(
  * it joins, the same single-point-of-change the cell path gets.
  */
 export function assignStyleFacets(target: CellStyle, source: Readonly<CellStyle>): void {
-  for (const facet of CELL_STYLE_FACETS) copyFacet(target, source, facet);
+  for (const facet of CELL_STYLE_FACETS) copyKeyIfPresent(target, source, facet);
 }
 
 /**
@@ -621,16 +611,4 @@ export function pickStyleFacets(source: Readonly<CellStyle>): CellStyle {
   const facets: CellStyle = {};
   assignStyleFacets(facets, source);
   return facets;
-}
-
-// A single facet key at a time, so the write's key type is one member (not the whole union) and
-// `target[key] = source[key]` typechecks without a cast: the correlated-key access TS can't verify
-// when the key is a union.
-function copyFacet<K extends keyof CellStyle>(
-  target: CellStyle,
-  source: Readonly<CellStyle>,
-  key: K,
-): void {
-  const value = source[key];
-  if (value !== undefined) target[key] = value;
 }

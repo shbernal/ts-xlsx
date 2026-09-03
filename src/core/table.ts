@@ -13,6 +13,7 @@ import {
   type CellPosition,
   decodeCellRef,
   encodeAddress,
+  encodeRect,
   type GridRect,
   MAX_COLUMN,
   MAX_ROW,
@@ -547,7 +548,12 @@ export class Table {
    * anchor a table is constructed from; this is the anchor plus the columns/rows it has grown to
    * cover. */
   get range(): string {
-    return `${encodeAddress(this.#anchorCol, this.#anchorRow)}:${encodeAddress(this.#right, this.#bottom)}`;
+    return encodeRect({
+      top: this.#anchorRow,
+      left: this.#anchorCol,
+      bottom: this.#bottom,
+      right: this.#right,
+    });
   }
 
   /**
@@ -559,7 +565,7 @@ export class Table {
   get autoFilterRef(): string | undefined {
     if (!this.autoFilter) return undefined;
     const bottom = this.#anchorRow + this.#dataRowCount;
-    return `${encodeAddress(this.#anchorCol, this.#anchorRow)}:${encodeAddress(this.#right, bottom)}`;
+    return encodeRect({top: this.#anchorRow, left: this.#anchorCol, bottom, right: this.#right});
   }
 
   /** The occupied rectangle, for conflict checks such as overlapping merges. */

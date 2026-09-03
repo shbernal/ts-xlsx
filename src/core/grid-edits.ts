@@ -6,7 +6,7 @@
 // touches none of the public cell API. Worksheet builds the cells an insert introduces, then hands
 // the pre-built rows (or the raw column values) here for the shift.
 
-import {boundedRect, decodeRange, encodeAddress, tryDecodeCellRef} from './address.ts';
+import {boundedRect, decodeRange, encodeAddress, encodeRect, tryDecodeCellRef} from './address.ts';
 import {type AutoFilter, shiftAutoFilter} from './autofilter.ts';
 import {Cell, copyCellContent} from './cell.ts';
 import type {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
@@ -265,9 +265,7 @@ export class GridEdits {
           ? {top: shift(top), left, bottom: shift(bottom), right}
           : {top, left: shift(left), bottom, right: shift(right)};
       rects.push(rect);
-      merges.push(
-        `${encodeAddress(rect.left, rect.top)}:${encodeAddress(rect.right, rect.bottom)}`,
-      );
+      merges.push(encodeRect(rect));
     }
     replaceContents(this.#merges, merges);
     replaceContents(this.#mergeRects, rects);

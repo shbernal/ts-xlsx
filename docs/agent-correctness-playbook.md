@@ -358,6 +358,20 @@ if it does not, write the platform version (`crypto.getRandomValues`, `TextEncod
 closures are the only measurement that notices a codec joining an entry's graph, since the package
 total does not move when a boundary is crossed, only when something new is written.
 
+Read the **module count** beside the kilobytes. A one-line helper hoisted into the wrong module is
+how a whole path arrives: putting a relationship-type predicate in `io/opc/read-opc.ts` and calling
+it from the writer added five modules and 8 KB to `/node`, because the writer then loaded the reader
+and its bounded inflater to test a string suffix. A leaf importing nothing is the fix, and the count
+is what says the problem was structural rather than the code being big.
+
+**You are extending a shared enumeration, facet table, or record-type list.**
+The `AssertNever` proof beside the table covers omission from *the table*. It says nothing about a
+consumer that re-enumerates the same set beside it, and that is how these have actually drifted:
+`grep` the new member's siblings across `src/` before you trust the build. A table whose members a
+binary codec *indexes* is the sharp case, because the index list is a second enumeration by
+construction; see "A table is only a single source of truth if the other copy is derived from it"
+in `docs/architecture.md` for the three shapes this takes and what each one is owed.
+
 **You are about to finish a turn / open a PR.**
 The Stop hook covers every gate `verify --full` runs. For full CI parity add the one it
 cannot: `pnpm run test:ooxml`. CI runs all three workflows (`build`, `corpus`,

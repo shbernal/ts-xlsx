@@ -220,30 +220,7 @@ export function richTextToPlain(value: RichTextValue): string {
  *   carries no cached result: the formula source is not text the sheet ever displayed
  */
 export function cellValueToText(value: CellValue): string {
-  if (value === null) return '';
-  switch (typeof value) {
-    case 'number':
-      return String(value);
-    case 'string':
-      return value;
-    case 'boolean':
-      return value ? 'TRUE' : 'FALSE';
-    default:
-      break;
-  }
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? '' : value.toISOString();
-  // Same precedence as detectValueType, and for the same reason: the outer shape wins, so a
-  // hyperlink whose label is rich text renders as a hyperlink's label, not as rich text.
-  if (isHyperlinkValue(value)) {
-    return typeof value.text === 'string' ? value.text : richTextToPlain(value.text);
-  }
-  // Every formula kind carries a `result` of the same optional shape; one recursion renders it.
-  if (isFormulaValue(value) || isSharedFormulaValue(value) || isDataTableFormulaValue(value)) {
-    return value.result === undefined ? '' : cellValueToText(value.result);
-  }
-  if (isRichTextValue(value)) return richTextToPlain(value);
-  if (isErrorValue(value)) return value.error;
-  return unsupportedValue(value);
+  return classify(value, TO_TEXT);
 }
 
 /**
@@ -253,28 +230,81 @@ export function cellValueToText(value: CellValue): string {
  * not the model, decides what to do with it.
  */
 export function detectValueType(value: CellValue): ValueType {
-  if (value === null) return ValueType.Null;
+  return classify(value, TO_TYPE);
+}
+
+// What each {@link ValueType} is carried by. Keyed by the type rather than listed, so a tenth kind
+// added to `ValueType` is a compile error here and in every visitor below, naming the kind.
+interface ValuePayload {
+  null: null;
+  number: number;
+  string: string;
+  boolean: boolean;
+  date: Date;
+  error: ErrorValue;
+  formula: FormulaValue | SharedFormulaValue | DataTableFormulaValue;
+  richText: RichTextValue;
+  hyperlink: HyperlinkValue;
+}
+
+/** One answer per {@link ValueType}, given the narrowed value that kind is carried by. */
+type ValueVisitor<R> = {[K in ValueType]: (value: ValuePayload[K]) => R};
+
+/**
+ * The one ladder that decides which kind a cell value is.
+ *
+ * Its order is load-bearing and not obvious: the *outer* shape wins, so a hyperlink whose label is
+ * rich text is a hyperlink and not rich text, and a formula carrying a cached result is a formula and
+ * not whatever the result is. Deciding that twice -- which is what naming the kind and rendering it
+ * used to do, each with a comment pointing at the other -- is two chances to get it right and one
+ * ordering that nothing checks. Here the callers supply only the per-kind answer.
+ */
+function classify<R>(value: CellValue, visit: ValueVisitor<R>): R {
+  if (value === null) return visit.null(value);
   switch (typeof value) {
     case 'number':
-      return ValueType.Number;
+      return visit.number(value);
     case 'string':
-      return ValueType.String;
+      return visit.string(value);
     case 'boolean':
-      return ValueType.Boolean;
+      return visit.boolean(value);
     default:
       break;
   }
-  if (value instanceof Date) return ValueType.Date;
-  // Order matters: a hyperlink whose text is rich must classify as Hyperlink, and a
-  // formula carrying a result must classify as Formula. Check the outer shape first.
-  if (isHyperlinkValue(value)) return ValueType.Hyperlink;
+  if (value instanceof Date) return visit.date(value);
+  if (isHyperlinkValue(value)) return visit.hyperlink(value);
   if (isFormulaValue(value) || isSharedFormulaValue(value) || isDataTableFormulaValue(value)) {
-    return ValueType.Formula;
+    return visit.formula(value);
   }
-  if (isRichTextValue(value)) return ValueType.RichText;
-  if (isErrorValue(value)) return ValueType.Error;
+  if (isRichTextValue(value)) return visit.richText(value);
+  if (isErrorValue(value)) return visit.error(value);
   return unsupportedValue(value);
 }
+
+const TO_TYPE: ValueVisitor<ValueType> = {
+  null: () => ValueType.Null,
+  number: () => ValueType.Number,
+  string: () => ValueType.String,
+  boolean: () => ValueType.Boolean,
+  date: () => ValueType.Date,
+  error: () => ValueType.Error,
+  formula: () => ValueType.Formula,
+  richText: () => ValueType.RichText,
+  hyperlink: () => ValueType.Hyperlink,
+};
+
+const TO_TEXT: ValueVisitor<string> = {
+  null: () => '',
+  number: (value) => String(value),
+  string: (value) => value,
+  boolean: (value) => (value ? 'TRUE' : 'FALSE'),
+  date: (value) => (Number.isNaN(value.getTime()) ? '' : value.toISOString()),
+  error: (value) => value.error,
+  // Every formula kind carries a `result` of the same optional shape; one recursion renders it.
+  formula: (value) => (value.result === undefined ? '' : cellValueToText(value.result)),
+  richText: richTextToPlain,
+  hyperlink: (value) => (typeof value.text === 'string' ? value.text : richTextToPlain(value.text)),
+};
 
 /**
  * The verdict "this is not a cell value at all", raised from one place so that every function

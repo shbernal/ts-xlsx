@@ -17,6 +17,7 @@ import {
   XML_DECLARATION,
 } from '../../xml/xml.ts';
 import {extensionOf, THEME_PART_PATH} from '../opc/part-paths.ts';
+import {isRelType} from '../opc/rel-types.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {imageContentType} from './images.ts';
 import {SLICER_CACHES_EXT_URI} from './namespaces.ts';
@@ -199,7 +200,7 @@ function buildExtensionDefaults(
 // .xlsm from a plain .xlsx: `xl/workbook.xml` must declare the macro-enabled content type or Excel
 // flags the package as needing repair on open.
 function isMacroEnabled(preservedWorkbookRefs: readonly PreservedWorkbookReferencePlan[]): boolean {
-  return preservedWorkbookRefs.some((ref) => ref.relType.endsWith('/vbaProject'));
+  return preservedWorkbookRefs.some((ref) => isRelType(ref.relType, 'vbaProject'));
 }
 
 // The extension-level `<Default>` declarations, rendered from the shared extension-default map (see
@@ -393,7 +394,7 @@ function externalReferencesXml(preservedRels: readonly PreservedWorkbookRel[]): 
 // `<pivotCaches>`) live only in this extension block, so re-emitting it is what lets Excel rediscover
 // the slicers. `<extLst>` is the final child of CT_Workbook. '' when no slicer cache was preserved.
 function workbookExtLstXml(preservedRels: readonly PreservedWorkbookRel[]): string {
-  const caches = preservedRels.filter((ref) => ref.relType.endsWith('/slicerCache'));
+  const caches = preservedRels.filter((ref) => isRelType(ref.relType, 'slicerCache'));
   if (caches.length === 0) return '';
   const entries = caches.map((ref) => `<x14:slicerCache r:id="${ref.relId}"/>`).join('');
   return `<extLst>${x14Ext(SLICER_CACHES_EXT_URI, `<x14:slicerCaches>${entries}</x14:slicerCaches>`)}</extLst>`;
@@ -536,7 +537,7 @@ export function workbookRelsXml(plan: WorkbookRelPlan, pivots: readonly PivotPla
     ...plan.sheetRelIds.map((relId, i) =>
       relationship(relId, REL.worksheet, targetFromWorkbook(worksheetPart(i + 1))),
     ),
-    relationship(plan.stylesRelId, REL.styles, 'styles.xml'),
+    relationship(plan.stylesRelId, REL.styles, targetFromWorkbook(STYLES_PART)),
     relationship(plan.themeRelId, REL.theme, targetFromWorkbook(THEME_PART_PATH)),
     ...(plan.sharedStringsRelId === null
       ? []

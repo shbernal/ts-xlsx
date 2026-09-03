@@ -44,26 +44,17 @@ import {BRT} from './record-types.ts';
 // precede it.
 type Collection = 'fmts' | 'fonts' | 'fills' | 'borders' | 'cellStyleXfs' | 'cellXfs' | 'styles';
 
-const COLLECTION_STARTS: ReadonlyMap<number, Collection> = new Map<number, Collection>([
-  [BRT.BeginFmts, 'fmts'],
-  [BRT.BeginFonts, 'fonts'],
-  [BRT.BeginFills, 'fills'],
-  [BRT.BeginBorders, 'borders'],
-  [BRT.BeginCellStyleXFs, 'cellStyleXfs'],
-  [BRT.BeginCellXFs, 'cellXfs'],
-  [BRT.BeginStyles, 'styles'],
-]);
-
-// Each end names the collection it closes, so a stray `EndFonts` cannot silently close `<fills>`.
-const COLLECTION_ENDS: ReadonlyMap<number, Collection> = new Map<number, Collection>([
-  [BRT.EndFmts, 'fmts'],
-  [BRT.EndFonts, 'fonts'],
-  [BRT.EndFills, 'fills'],
-  [BRT.EndBorders, 'borders'],
-  [BRT.EndCellStyleXFs, 'cellStyleXfs'],
-  [BRT.EndCellXFs, 'cellXfs'],
-  [BRT.EndStyles, 'styles'],
-]);
+// Each end names the collection it closes on the same line as its start, so a stray `EndFonts` cannot
+// silently close `<fills>` and neither can a mis-typed table entry.
+const COLLECTIONS: readonly (readonly [number, number, Collection])[] = [
+  [BRT.BeginFmts, BRT.EndFmts, 'fmts'],
+  [BRT.BeginFonts, BRT.EndFonts, 'fonts'],
+  [BRT.BeginFills, BRT.EndFills, 'fills'],
+  [BRT.BeginBorders, BRT.EndBorders, 'borders'],
+  [BRT.BeginCellStyleXFs, BRT.EndCellStyleXFs, 'cellStyleXfs'],
+  [BRT.BeginCellXFs, BRT.EndCellXFs, 'cellXfs'],
+  [BRT.BeginStyles, BRT.EndStyles, 'styles'],
+];
 
 /** Parse `xl/styles.bin` into the flat cell-format table a worksheet's style indices resolve against. */
 export function parseStyleTable(part: Uint8Array | undefined): StyleTable {
@@ -77,7 +68,7 @@ export function parseStyleTable(part: Uint8Array | undefined): StyleTable {
   const namedXfs: XfStyle[] = [];
   const directXfs: XfStyle[] = [];
   const labels: StyleLabel[] = [];
-  const blocks = blockTracker(COLLECTION_STARTS, COLLECTION_ENDS);
+  const blocks = blockTracker(COLLECTIONS);
 
   for (const record of readRecords(part)) {
     if (blocks.boundary(record.type)) continue;

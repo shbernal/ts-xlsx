@@ -23,6 +23,7 @@ import {
   type PartRelationships,
   readPartRelationships,
 } from '../opc/read-opc.ts';
+import {isAnyRelType} from '../opc/rel-types.ts';
 import {type ParsedComment, parseComments} from './comments.ts';
 import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
 import {parsePivotTable} from './read-pivot.ts';
@@ -240,7 +241,7 @@ export function readSheetPreservedReferences(
 // image, the comment VML) is modeled and re-serialised from the model, so preserving it here would emit
 // the part twice.
 function isPreservedSheetRelType(type: string): boolean {
-  return type.endsWith('/pivotTable') || type.endsWith('/slicer');
+  return isAnyRelType(type, 'pivotTable', 'slicer');
 }
 
 // Capture the workbook-level references to package content the model does not interpret: pivot
@@ -302,11 +303,7 @@ export function readRootPreservedReferences(
 // document and the core/extended document properties. Every other root relationship is unmodeled and
 // is preserved verbatim by {@link readRootPreservedReferences} rather than dropped.
 function isRegeneratedRootRelType(type: string): boolean {
-  return (
-    type.endsWith('/officeDocument') ||
-    type.endsWith('/core-properties') ||
-    type.endsWith('/extended-properties')
-  );
+  return isAnyRelType(type, 'officeDocument', 'core-properties', 'extended-properties');
 }
 
 // A workbook relationship the model does not consume but must round-trip: a pivot cache, a slicer
@@ -319,12 +316,7 @@ function isRegeneratedRootRelType(type: string): boolean {
 // external reference from dangling: the link part and its `<externalReferences>` registration are both
 // re-emitted.
 function isPreservedWorkbookRelType(type: string): boolean {
-  return (
-    type.endsWith('/pivotCacheDefinition') ||
-    type.endsWith('/slicerCache') ||
-    type.endsWith('/vbaProject') ||
-    type.endsWith('/externalLink')
-  );
+  return isAnyRelType(type, 'pivotCacheDefinition', 'slicerCache', 'vbaProject', 'externalLink');
 }
 
 // Map each `<pivotCache>` registration in the workbook's `<pivotCaches>` to the relationship id that

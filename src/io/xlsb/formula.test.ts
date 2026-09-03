@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {decodeFormula, type FormulaScope, formulaAnchor} from './formula.ts';
-import {fixedArityFor, functionNameFor} from './ptg-functions.ts';
+import {builtinFunctionAt, functionNameFor} from './ptg-functions.ts';
 
 function bytes(...values: number[]): Uint8Array {
   return Uint8Array.from(values);
@@ -155,14 +155,15 @@ test('the function table matches the specification at every run boundary', () =>
 });
 
 test('a fixed-arity function knows how many operands belong to its call', () => {
-  assert.equal(fixedArityFor('PI'), 0);
-  assert.equal(fixedArityFor('ABS'), 1);
-  assert.equal(fixedArityFor('ROUND'), 2);
-  assert.equal(fixedArityFor('MID'), 3);
-  assert.equal(fixedArityFor('REPLACE'), 4);
+  const arityOf = (index: number): number | 'variadic' | undefined => builtinFunctionAt(index)?.[1];
+  assert.equal(arityOf(0x0013), 0, 'PI');
+  assert.equal(arityOf(0x0018), 1, 'ABS');
+  assert.equal(arityOf(0x001b), 2, 'ROUND');
+  assert.equal(arityOf(0x001f), 3, 'MID');
+  assert.equal(arityOf(0x0077), 4, 'REPLACE');
   // A variadic function has no fixed arity: its call token carries its own count instead.
-  assert.equal(fixedArityFor('SUM'), undefined);
-  assert.equal(fixedArityFor('IF'), undefined);
+  assert.equal(arityOf(0x0004), 'variadic', 'SUM');
+  assert.equal(arityOf(0x0001), 'variadic', 'IF');
 });
 
 test('a fixed-arity call with no arity to go on is not decoded', () => {

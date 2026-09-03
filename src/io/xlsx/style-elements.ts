@@ -72,27 +72,28 @@ export const DEFAULT_FORMAT: CellFormat = {
   xfId: 0,
 };
 
-// Whether a format is the do-nothing default: no facet, General number format, no quote prefix, and
-// linked to the Normal named style. Such a cellXfs entry adds nothing, so its owner needs no `s`.
-export function isDefaultFormat(format: CellFormat): boolean {
-  return (
-    format.fillId === 0 &&
-    format.numFmtId === 0 &&
-    format.fontId === 0 &&
-    format.borderId === 0 &&
-    format.alignment === '' &&
-    format.protection === '' &&
-    !format.quotePrefix &&
-    format.xfId === 0
-  );
-}
-
 // A stable, collision-free key for a composed format so identical formats intern to one cellXfs entry.
 export function formatSignature(format: CellFormat): string {
   return (
     `fill:${format.fillId}|numFmt:${format.numFmtId}|font:${format.fontId}|border:${format.borderId}|` +
     `align:${format.alignment}|protect:${format.protection}|quote:${format.quotePrefix}|xfId:${format.xfId}`
   );
+}
+
+const DEFAULT_FORMAT_SIGNATURE = formatSignature(DEFAULT_FORMAT);
+
+/**
+ * Whether a format is the do-nothing default: no facet, General number format, no quote prefix, and
+ * linked to the Normal named style. Such a cellXfs entry adds nothing, so its owner needs no `s`.
+ *
+ * Asked of the signature rather than field by field, because the two questions have to be answered
+ * from the same field set and both answer silently when they are not. A facet the signature forgets
+ * makes two distinct formats intern to one entry, and every cell carrying the facet quietly loses it;
+ * a facet *this* forgets forces a spurious entry and an `s` attribute onto every cell in the book.
+ * Neither is a type error, and neither is visible in the file until someone compares two of them.
+ */
+export function isDefaultFormat(format: CellFormat): boolean {
+  return formatSignature(format) === DEFAULT_FORMAT_SIGNATURE;
 }
 
 // Serialise one `<xf>`. A cellXfs entry passes its named-style link as `xfId`; a cellStyleXfs entry

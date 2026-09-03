@@ -161,15 +161,10 @@ interface WorkbookDeclaration {
 // file that leaves one open cannot close the other.
 type WorkbookBlock = 'bundle' | 'externals';
 
-const WORKBOOK_BLOCK_STARTS: ReadonlyMap<number, WorkbookBlock> = new Map<number, WorkbookBlock>([
-  [BRT.BeginBundleShs, 'bundle'],
-  [BRT.BeginExternals, 'externals'],
-]);
-
-const WORKBOOK_BLOCK_ENDS: ReadonlyMap<number, WorkbookBlock> = new Map<number, WorkbookBlock>([
-  [BRT.EndBundleShs, 'bundle'],
-  [BRT.EndExternals, 'externals'],
-]);
+const WORKBOOK_BLOCKS: readonly (readonly [number, number, WorkbookBlock])[] = [
+  [BRT.BeginBundleShs, BRT.EndBundleShs, 'bundle'],
+  [BRT.BeginExternals, BRT.EndExternals, 'externals'],
+];
 
 // One pass over `xl/workbook.bin`, gathering everything the rest of the read depends on: the sheet
 // bundle, the externals block a 3-D reference resolves through, and the defined names.
@@ -182,7 +177,7 @@ function readWorkbookPart(part: Uint8Array): WorkbookDeclaration {
   // load-bearing and unstated: moving `EndExternals` under the catch-all that counts records inside
   // the externals block would have silently miscounted the supporting books. Asking "is this a block
   // boundary" before asking what the record means removes that constraint instead of documenting it.
-  const blocks = blockTracker(WORKBOOK_BLOCK_STARTS, WORKBOOK_BLOCK_ENDS);
+  const blocks = blockTracker(WORKBOOK_BLOCKS);
   // A workbook with no external links declares exactly one supporting book: itself. Rather than
   // enumerate every record type that could open another, and risk miscounting into a *wrong* sheet
   // name, anything else inside the externals block disqualifies the whole table.

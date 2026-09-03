@@ -1,6 +1,6 @@
 import {AuthoringError, quoted} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
-import {boundedRect, decodeRange, encodeAddress} from './address.ts';
+import {boundedRect, decodeRange, encodeRect} from './address.ts';
 import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 
 /**
@@ -142,10 +142,10 @@ export function shiftAutoFilter(
   const movedLo = shiftIndex(lo, start, count, delta, axis);
   const movedHi = shiftIndex(hi, start, count, delta, axis);
   if (axis === 'row') {
-    const ref = `${encodeAddress(left, movedLo)}:${encodeAddress(right, movedHi)}`;
+    const ref = encodeRect({top: movedLo, left, bottom: movedHi, right});
     return {ref, columns: filter.columns};
   }
-  const ref = `${encodeAddress(movedLo, top)}:${encodeAddress(movedHi, bottom)}`;
+  const ref = encodeRect({top, left: movedLo, bottom, right: movedHi});
   const columns: FilterColumn[] = [];
   for (const column of filter.columns) {
     const absolute = left + column.colId;

@@ -292,6 +292,41 @@ value lands where the model says instead of being routed to a region master mid-
 is proved exhaustive over `keyof WorksheetModel` at compile time, so a field added without a facet
 is a build error that names the field.
 
+### A table is only a single source of truth if the other copy is derived from it
+
+An exhaustiveness proof covers omission from *the table*. It says nothing about a consumer that
+re-enumerates the same set beside it, and that is where these tables have actually drifted. Three
+rules follow from the cases fixed so far.
+
+**A format-specific reading of a shared list belongs to the format, but the list is still shared.**
+`ALIGNMENT_FACETS` proves that the XML reader and the XML writer agree on the seven `<alignment>`
+facets; the BIFF12 reader restated all seven and their default-omission rules by hand, so an eighth
+facet would have compiled, lit up in XML both ways, and silently vanished from every `.xlsb`. The
+codec now walks the shared list and supplies only its own bit layout, as a `Record` keyed by
+`Alignment` so the compiler asks for the eighth entry too. What stays in `core/` is the *set*;
+each format brings its own reading of it. Masks and shifts do not go in the model.
+
+**A closed enumeration a binary format indexes needs the ordered list, not a second table.**
+`ST_PatternType` was written out three times: the union, the guard's lookup table, and the BIFF12
+index array. Only the first two were checked against each other. `FILL_PATTERNS_IN_SCHEMA_ORDER` is
+now the list; the guard derives from it (`tokenSetOf`) and the codec indexes it. A list can name
+*fewer* members than its union where the `Record<T, true>` shape cannot, so it carries an
+`AssertNever` proof of the other direction explicitly. That is the price of needing an order.
+
+**Two things a file must agree on must be computed once, not twice identically.** The classic
+data-bar element and its x14 extension describe one bar and must show the same anchors or Excel
+repairs the sheet; both halves used to derive the defaults for themselves. Likewise a
+`Begin`/`End` record pair, declared as one triple rather than as an entry in a start table and a
+matching entry in an end table, because a mistyped pairing across two maps reinstates exactly the
+"an `EndFonts` cannot close `<fills>`" hazard the tracker exists to remove. And an arity recorded
+beside its function name rather than in a map keyed by name, so "no arity recorded" stops being
+representable at all. It used to read as "variadic", which made a `PtgFunc` pop the wrong operands.
+
+The same reasoning applies to a *predicate* two layers share. `isRelType` in `io/opc/rel-types.ts`
+is a leaf importing nothing, because the reader and the writer both ask whether a relationship Type
+names a part class, and putting the answer beside the reader pulled the whole read path (the bounded
+inflater included) into the writer's module closure. The per-entry size budget is what noticed.
+
 Not everything the codecs need to do to the model belongs in its public API. Pushing preserved bytes
 back into a `Workbook`, restoring a loaded sheet's hashed protection credential, placing a cell at an
 exact position without resolving merges, evicting a row the streaming writer has already serialised:

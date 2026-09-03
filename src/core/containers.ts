@@ -23,3 +23,23 @@ export function replaceContents<T>(array: T[], next: readonly T[]): void {
   array.length = 0;
   for (const item of next) array.push(item);
 }
+
+/**
+ * Copy one key from `source` onto `target`, leaving `target` untouched when `source` omits it.
+ *
+ * One key at a time is the whole point, and the reason is a limit of the checker rather than a
+ * preference: over a union key the compiler cannot correlate `source[key]`'s type with `target[key]`'s,
+ * so a version taking the union needs a cast, and that cast is the one place a facet could be written
+ * into the wrong slot with nothing to notice. Bound to a single member here, the assignment is checked.
+ *
+ * Generic over the object as well as the key because these two lines had been written out once for a
+ * cell's formatting and once for a cell's content, each under its own paragraph making this point.
+ */
+export function copyKeyIfPresent<T extends object, K extends keyof T>(
+  target: T,
+  source: Readonly<T>,
+  key: K,
+): void {
+  const value = source[key];
+  if (value !== undefined) target[key] = value;
+}

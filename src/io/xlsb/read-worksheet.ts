@@ -17,7 +17,7 @@
 // comes *after* those cells in the stream. Those cells are therefore parked and resolved once the
 // whole part has been read.
 
-import {encodeAddress, MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
+import {encodeAddress, encodeRect, MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
 import {coerceDateSerial, type DateEpoch} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
@@ -109,7 +109,12 @@ export function parseWorksheet(
       const {rowFirst, rowLast, colFirst, colLast} = reader.range();
       if (inGrid(colFirst, rowFirst) && inGrid(colLast, rowLast)) {
         sheet.mergeCells(
-          `${encodeAddress(colFirst + 1, rowFirst + 1)}:${encodeAddress(colLast + 1, rowLast + 1)}`,
+          encodeRect({
+            top: rowFirst + 1,
+            left: colFirst + 1,
+            bottom: rowLast + 1,
+            right: colLast + 1,
+          }),
         );
       }
     } else if (record.type === BRT.ArrFmla) {

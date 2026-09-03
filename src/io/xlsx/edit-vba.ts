@@ -23,7 +23,7 @@ import {
   type VbaLibraryReference,
 } from '../../vba/project-editor.ts';
 import {relsPathFor, resolveRelativePart} from '../opc/part-paths.ts';
-import {parseRelationshipRecords, relationshipTargetByType} from '../opc/read-opc.ts';
+import {parseRelationshipRecords, readPartRelationships} from '../opc/read-opc.ts';
 import {DEFAULT_MAX_UNCOMPRESSED, type ReadPackageOptions} from '../opc/read-options.ts';
 import {inflateSpreadsheetPackage} from '../opc/sniff-format.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
@@ -112,17 +112,10 @@ function applyToVbaProjectPart(
 // officeDocument (workbook) part → its `.rels` → the `vbaProject` relationship, each target resolved
 // relative to its referrer. undefined when the package declares no such relationship (a macro-free book).
 function locateVbaProjectPart(files: Record<string, Uint8Array>): string | undefined {
-  const rootRels = textPart(files, '_rels/.rels');
-  if (rootRels === undefined) return undefined;
-  const workbookTarget = relationshipTargetByType(rootRels, OFFICE_DOCUMENT_REL);
-  if (workbookTarget === undefined) return undefined;
-  const workbookPath = resolveRelativePart('', workbookTarget);
-
-  const workbookRels = textPart(files, relsPathFor(workbookPath));
-  if (workbookRels === undefined) return undefined;
-  const vbaTarget = relationshipTargetByType(workbookRels, VBA_PROJECT_REL);
-  if (vbaTarget === undefined) return undefined;
-  return resolveRelativePart(workbookPath, vbaTarget);
+  const partText = (path: string): string | undefined => textPart(files, path);
+  const workbookPath = readPartRelationships('', partText).targetPath(OFFICE_DOCUMENT_REL);
+  if (workbookPath === undefined) return undefined;
+  return readPartRelationships(workbookPath, partText).targetPath(VBA_PROJECT_REL);
 }
 
 // Editing the project invalidates any signature over it, so remove every signature part the project's

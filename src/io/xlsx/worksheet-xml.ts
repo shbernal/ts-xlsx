@@ -10,7 +10,7 @@
 // sheet. The two halves shared nothing but the style registry, and `row-xml.ts` is precisely the
 // surface that writer imports, which `write.ts` used to re-export on its behalf.
 
-import {decodeRange, encodeAddress} from '../../core/address.ts';
+import {decodeRange, encodeRect} from '../../core/address.ts';
 import type {DateEpoch} from '../../core/date.ts';
 import {pickStyleFacets} from '../../core/style.ts';
 import type {ColumnProperties, Worksheet, WorksheetProperties} from '../../core/worksheet.ts';
@@ -133,9 +133,7 @@ export function worksheetXml(
     extent.add(entry.number, minCol, maxCol);
   }
 
-  const dimensionRef = extent.isEmpty
-    ? 'A1'
-    : `${encodeAddress(extent.left, extent.top)}:${encodeAddress(extent.right, extent.bottom)}`;
+  const dimensionRef = extent.isEmpty ? 'A1' : encodeRect(extent);
   // Merge the streaming writer's pre-rendered rows with the live ones into ascending row order. A
   // flushed row can carry any number, and rows may be committed out of order. The buffered path has no
   // flushed rows, so it skips the merge and its sort entirely.

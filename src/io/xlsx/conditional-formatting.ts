@@ -154,8 +154,7 @@ export function conditionalFormattingsExtXml(
 // as `<x14:cfvo>` and adding the facets the classic element cannot carry (gradient, negative-fill and
 // axis colours), with the target range in an `<xm:sqref>` child: the shape Excel writes.
 function x14DataBarXml(ref: string, rule: ConditionalFormattingRule, guid: string): string {
-  const cfvo = rule.cfvo && rule.cfvo.length > 0 ? rule.cfvo : DEFAULT_DATABAR_CFVO;
-  const anchors = cfvo.map(x14CfvoXml).join('');
+  const anchors = dataBarAnchors(rule).map(x14Cfvo).join('');
   const gradient = boolAttr('gradient', rule.gradient);
   const negative =
     rule.negativeFillColor !== undefined
@@ -170,13 +169,47 @@ function x14DataBarXml(ref: string, rule: ConditionalFormattingRule, guid: strin
   );
 }
 
-// An x14 scale anchor. A `min`/`max` carries no value and self-closes; the rest wrap their value in an
-// `<xm:f>` (the extension form stores every anchor value as a formula).
-function x14CfvoXml(cfvo: CfValueObject): string {
-  const type = checkedToken(cfvo.type, isCfValueObjectType, 'conditional format value type');
-  if (cfvo.value === undefined) return `<x14:cfvo type="${type}"/>`;
-  return `<x14:cfvo type="${type}"><xm:f>${escapeText(String(cfvo.value))}</xm:f></x14:cfvo>`;
+/**
+ * A data bar's anchors, defaults included.
+ *
+ * The classic element and its x14 extension describe *one* bar, so they must show the same low and
+ * high anchors or Excel repairs the sheet. Both halves used to decide that for themselves, with the
+ * same expression written twice: the pairing held by coincidence, which is precisely the coupling
+ * ADR-0003 identifies one level up for the link id and fixes there with a shared map.
+ *
+ * The minimal call (no cfvo at all) gains Excel's own min/max pair rather than an invalid empty
+ * element, and it must gain the *same* pair on both sides.
+ */
+function dataBarAnchors(rule: ConditionalFormattingRule): readonly CfValueObject[] {
+  return rule.cfvo && rule.cfvo.length > 0 ? rule.cfvo : DEFAULT_DATABAR_CFVO;
 }
+
+/**
+ * Write one scale anchor in the classic form or the x14 one.
+ *
+ * A `min`/`max` anchor carries no value and self-closes; every other kind states its value, and the
+ * two forms state it in different places. The classic element uses a `val` attribute; the x14
+ * extension stores every anchor value as an `<xm:f>` formula child. So the escape has to follow the
+ * form -- an attribute value and element text are not escaped alike -- and two separate writers is
+ * where that stops being true.
+ *
+ * Curried rather than taking the form as a second parameter, because every caller is a `.map`, and
+ * `.map(cfvoXml)` would quietly hand the array index in as the form.
+ */
+function cfvoWriter(form: 'classic' | 'x14'): (cfvo: CfValueObject) => string {
+  return (cfvo) => {
+    const type = checkedToken(cfvo.type, isCfValueObjectType, 'conditional format value type');
+    const tag = form === 'classic' ? 'cfvo' : 'x14:cfvo';
+    if (cfvo.value === undefined) return `<${tag} type="${type}"/>`;
+    const value = String(cfvo.value);
+    return form === 'classic'
+      ? `<${tag} type="${type}"${textAttr('val', value)}/>`
+      : `<${tag} type="${type}"><xm:f>${escapeText(value)}</xm:f></${tag}>`;
+  };
+}
+
+const cfvoXml = cfvoWriter('classic');
+const x14Cfvo = cfvoWriter('x14');
 
 // The `<extLst>` a classic data-bar cfRule carries to name its x14 extension by shared id.
 function cfRuleExtLinkXml(guid: string): string {
@@ -272,9 +305,8 @@ function scaleXml(rule: ConditionalFormattingRule): string {
 // element; they ride in the x14 extension (see {@link conditionalFormattingsExtXml}), linked from the
 // cfRule that wraps this by a shared id.
 function dataBarXml(rule: ConditionalFormattingRule): string {
-  const cfvo = rule.cfvo && rule.cfvo.length > 0 ? rule.cfvo : DEFAULT_DATABAR_CFVO;
   const color = rule.color ?? DEFAULT_DATABAR_COLOR;
-  const anchors = cfvo.map(cfvoXml).join('');
+  const anchors = dataBarAnchors(rule).map(cfvoXml).join('');
   return `<dataBar>${anchors}<color ${colorAttrs(color)}/></dataBar>`;
 }
 
@@ -293,14 +325,6 @@ function iconSetXml(rule: ConditionalFormattingRule): string {
       : ` iconSet="${checkedToken(rule.iconSet, isIconSetType, 'icon set')}"`;
   const anchors = (rule.cfvo ?? []).map(cfvoXml).join('');
   return `<iconSet${name}>${anchors}</iconSet>`;
-}
-
-// One scale anchor. `min`/`max` carry no value; the rest state theirs in `val` (a formula anchor's
-// value is its formula text, escaped like any attribute).
-function cfvoXml(cfvo: CfValueObject): string {
-  const type = checkedToken(cfvo.type, isCfValueObjectType, 'conditional format value type');
-  const val = cfvo.value === undefined ? '' : textAttr('val', String(cfvo.value));
-  return `<cfvo type="${type}"${val}/>`;
 }
 
 // Which scale element a parsed `<color>` belongs to: a data bar names one bar colour, a colour scale

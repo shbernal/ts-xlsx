@@ -1,7 +1,7 @@
 // Shared-formula group planning: assigning each master/clone group a sheet-unique index and the
 // master's `ref` range before the row loop serialises a single cell.
 
-import {encodeAddress} from '../../core/address.ts';
+import {encodeRect} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
 import {isFormulaValue, isSharedFormulaValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
@@ -54,7 +54,7 @@ export function planSharedFormulas(sheet: Worksheet): Map<string, SharedFormulaR
     }
     roles.set(masterAddress, {
       si,
-      ref: `${encodeAddress(master.col, master.row)}:${encodeAddress(maxCol, maxRow)}`,
+      ref: encodeRect({top: master.row, left: master.col, bottom: maxRow, right: maxCol}),
     });
     for (const clone of clones) roles.set(clone.address, {si});
     si += 1;

@@ -29,19 +29,41 @@ export const MAX_ROW = 1048576;
 // letters; these bound the same position spelled as a number, so `getColumn(16385)` and
 // `getCell('XFE1')` refuse the same mistake with the same words. Native `RangeError` rather than
 // `AuthoringError`: a single scalar out of range is what `errors.ts` reserves for native errors.
+//
+// "The same words" is the whole point and it had stopped being true. `Range` re-implemented the pair
+// with a different message split into two throws, and `spliceRows` a third, so one mistake had three
+// answers depending on which door the caller came through:
+//
+//     getRange(0, 1, 1, 1)  ->  "row 0 is out of bounds: rows start at 1"
+//     getRow(0)             ->  "row 0 is out of bounds: Excel supports 1..1048576"
+//     spliceRows(0, 1)      ->  "splice start 0 is out of bounds: rows start at 1"
+//
+// So the guard is axis-parameterised and every caller reaches it, rather than each spelling the two
+// comparisons out with whatever bound it happened to have in hand.
+
+/** The upper bound of each axis, so the guard below can be written once for both. */
+const AXIS_BOUND = {row: MAX_ROW, column: MAX_COLUMN} as const;
+
+/**
+ * Refuse a coordinate that names no position on the grid.
+ *
+ * @throws {RangeError} unless `value` is an integer within the axis's bounds.
+ */
+export function assertAxisInBounds(axis: 'row' | 'column', value: number): void {
+  const bound = AXIS_BOUND[axis];
+  if (!Number.isInteger(value) || value < 1 || value > bound) {
+    throw new RangeError(`${axis} ${value} is out of bounds: Excel supports 1..${bound}`);
+  }
+}
 
 /** @throws {RangeError} unless `n` is an integer in `1..MAX_COLUMN`. */
 export function assertColumnInBounds(n: number): void {
-  if (!Number.isInteger(n) || n < 1 || n > MAX_COLUMN) {
-    throw new RangeError(`column ${n} is out of bounds: Excel supports 1..${MAX_COLUMN}`);
-  }
+  assertAxisInBounds('column', n);
 }
 
 /** @throws {RangeError} unless `n` is an integer in `1..MAX_ROW`. */
 export function assertRowInBounds(n: number): void {
-  if (!Number.isInteger(n) || n < 1 || n > MAX_ROW) {
-    throw new RangeError(`row ${n} is out of bounds: Excel supports 1..${MAX_ROW}`);
-  }
+  assertAxisInBounds('row', n);
 }
 
 /**
@@ -165,6 +187,20 @@ export function columnToNumber(letters: string): number {
  */
 export function encodeCornerRef(col: number | undefined, row: number | undefined): string {
   return `${col !== undefined ? numberToColumn(col) : ''}${row !== undefined ? row : ''}`;
+}
+
+/**
+ * A bounded rectangle as its canonical `tl:br` A1 range, `"B2:D5"`. A one-cell rectangle still reads
+ * as `"B2:B2"`, which is the form Excel writes and the form every consumer of these refs parses.
+ *
+ * The rendering half of {@link boundedRect}, and it belongs beside it for the same reason: ten sites
+ * spelled `` `${encodeAddress(left, top)}:${encodeAddress(right, bottom)}` `` by hand, and the risk in
+ * that expression is not its length but its argument order. `encodeAddress` takes column first and a
+ * rectangle names its rows first, so the two orders are transposed with respect to each other at every
+ * one of those sites.
+ */
+export function encodeRect(rect: GridRect): string {
+  return `${encodeAddress(rect.left, rect.top)}:${encodeAddress(rect.right, rect.bottom)}`;
 }
 
 /** Build a {@link CellAddress} corner straight from optional numeric axes: the address string is
@@ -340,10 +376,14 @@ export function decodeRange(reference: string): RangeAddress {
   };
 }
 
-/** Encode a 1-based `col`/`row` pair into its canonical A1 address (`"B2"`). */
+/**
+ * Encode a 1-based `col`/`row` pair into its canonical A1 address (`"B2"`).
+ *
+ * Both axes go through the shared guard. The column already did, through `numberToColumn`; the row
+ * checked only its lower bound in a message of its own, so `encodeAddress(1, 1048577)` produced an
+ * address naming a row Excel has no reference for while `encodeAddress(16385, 1)` refused.
+ */
 export function encodeAddress(col: number, row: number): string {
-  if (!Number.isInteger(row) || row < 1) {
-    throw new RangeError(`row ${row} is out of bounds: rows start at 1`);
-  }
+  assertRowInBounds(row);
   return `${numberToColumn(col)}${row}`;
 }
