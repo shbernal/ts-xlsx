@@ -26,6 +26,7 @@
 //   node scripts/install-hooks.ts
 
 import {spawnSync} from 'node:child_process';
+import {lstatSync, readdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {homedir} from 'node:os';
 import {dirname, isAbsolute, join, resolve} from 'node:path';
@@ -60,7 +61,70 @@ function samePath(a: string, b: string): boolean {
   return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
 }
 
-function install(...args: readonly string[]): void {
+/** Whether anything occupies the path, including a symlink whose target is gone. */
+function present(path: string): boolean {
+  try {
+    lstatSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Lefthook's generated wrapper tries a long list of ways to reach the binary and ends that list
+// with a bare `echo`. So a hook that cannot reach lefthook prints one line and exits 0, which git
+// cannot tell apart from every job having passed.
+//
+// That is not hypothetical here. The EDR on this machine quarantines a binary *in place*: the file
+// keeps its name, size and bytes, and only opening it is refused. Every `-h` probe in that list
+// failed on an access error rather than a missing file, the wrapper fell through to the echo, and
+// ten commits landed with pre-commit and commit-msg inert -- including `no-shell-quoting-leak`,
+// the rule CLAUDE.md names. Nothing in the output distinguished that from a clean run.
+//
+// A gate that cannot start must not read as a gate that passed, so the last branch is rewritten
+// to fail. Deleting the binary is the *recoverable* case; this is the quiet one.
+const FAIL_OPEN = '      echo "Can\'t find lefthook in PATH"\n';
+const FAIL_CLOSED =
+  '      echo "Can\'t find lefthook in PATH" >&2\n' +
+  '      echo "hooks: the gate could not start, so it did not pass. See scripts/install-hooks.ts." >&2\n' +
+  '      exit 1\n';
+
+/**
+ * Rewrite that fail-open branch in every hook lefthook just wrote.
+ *
+ * Idempotent: `FAIL_CLOSED` does not contain `FAIL_OPEN`, because its echo carries a `>&2` before
+ * the newline, so a second pass matches nothing and rewrites nothing.
+ *
+ * Not a one-time repair, either. Lefthook re-syncs these files itself when `lefthook.yml` changes,
+ * which would restore the fail-open. This runs from `prepare`, which pnpm runs on effectively
+ * every script invocation, so a re-synced hook gets re-hardened almost immediately.
+ */
+function failClosed(hooksDir: string): void {
+  let names: readonly string[];
+  try {
+    names = readdirSync(hooksDir);
+  } catch {
+    return;
+  }
+
+  const hardened: string[] = [];
+  for (const name of names) {
+    if (name.endsWith('.sample')) continue;
+    const file = join(hooksDir, name);
+    let text: string;
+    try {
+      text = readFileSync(file, 'utf8');
+    } catch {
+      continue;
+    }
+    if (!text.includes(FAIL_OPEN)) continue;
+    writeFileSync(file, text.replace(FAIL_OPEN, FAIL_CLOSED));
+    hardened.push(name);
+  }
+  if (hardened.length > 0) console.log(`hooks: fail-closed (${hardened.join(', ')})`);
+}
+
+function install(hooksDir: string, ...args: readonly string[]): void {
   // The package's own entry, not `node_modules/.bin/lefthook`. The shim is a `.CMD` on Windows,
   // which Node will not spawn without a shell, and a shell here would be one more dialect to get
   // wrong. This path is the same file the shim would have run.
@@ -68,9 +132,24 @@ function install(...args: readonly string[]): void {
   try {
     entry = createRequire(import.meta.url).resolve('lefthook/bin/index.js');
   } catch {
-    // No lefthook on disk. That is what a `--prod`/`--ignore-scripts` install looks like, and what
-    // a git-URL install of this package looks like from the outside: legitimate states in which
-    // there are no hooks to install and no reason to fail.
+    // Two states arrive here and only one of them is fine.
+    //
+    // Fine: lefthook was never installed. That is what `--prod` and `--ignore-scripts` look like,
+    // and what a git-URL install of this package looks like from the outside: legitimate states in
+    // which there are no hooks to install and no reason to fail.
+    //
+    // Not fine: `node_modules/lefthook` is there but its entrypoint is not. No ordinary install
+    // produces that; an EDR sweep that eats `.js` out of the tree does, and it did. Announcing
+    // "nothing to do" for a package that is supposed to be there is the same fail-open the
+    // generated hooks had, one level up -- so this exits non-zero and says which one it is.
+    if (present(join(ROOT, 'node_modules', 'lefthook'))) {
+      console.error('hooks: node_modules/lefthook exists but lefthook/bin/index.js does not.');
+      console.error('       The install is damaged rather than absent, so hooks are NOT installed');
+      console.error('       and this is not being reported as success. Repair the tree with');
+      console.error('       `pnpm install --force`, or set LEFTHOOK=0 to skip this script.');
+      process.exitCode = 1;
+      return;
+    }
     console.log('hooks: lefthook is not installed, nothing to do.');
     return;
   }
@@ -79,6 +158,7 @@ function install(...args: readonly string[]): void {
     cwd: ROOT,
     stdio: 'inherit',
   });
+  if (result.status === 0) failClosed(hooksDir);
   process.exitCode = result.status ?? 1;
 }
 
@@ -90,15 +170,16 @@ if (process.env.LEFTHOOK === '0') {
   if (gitDir === undefined || topLevel === undefined) {
     console.log('hooks: not a git checkout, skipping install.');
   } else {
+    const hooksDir = resolve(gitDir, 'hooks');
     const configured = configuredHooksPath(topLevel);
     if (configured === undefined) {
-      install();
-    } else if (samePath(configured, resolve(gitDir, 'hooks'))) {
+      install(hooksDir);
+    } else if (samePath(configured, hooksDir)) {
       // Lefthook objects to `core.hooksPath` being set at all, not to where it points, so it
       // refuses even this: a path naming the very directory it was going to write to. `--force`
       // is the documented way past that check, and the warning it carries ("installs into the
       // current hooks path") describes the intended destination here, not a shared one.
-      install('--force');
+      install(hooksDir, '--force');
     } else {
       console.log(`hooks: core.hooksPath is set to ${configured}, which lefthook does not own.`);
       console.log('       Skipped install. Hooks fire only if that directory delegates back to');
