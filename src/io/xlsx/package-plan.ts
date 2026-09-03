@@ -8,22 +8,32 @@ import type {PivotTable} from '../../core/pivot-table.ts';
 import type {Table} from '../../core/table.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {AuthoringError} from '../../errors.ts';
+import {AuthoringError, InternalError} from '../../errors.ts';
 import {extensionOf, relativePartPath, relsPathFor, THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relsPartXml} from '../opc/rels.ts';
 import type {CommentCell} from './comments.ts';
 import type {DrawingImage} from './images.ts';
-import {drawingPart, mediaPart, vmlDrawingPart} from './part-names.ts';
+import {
+  drawingPart,
+  mediaPart,
+  pivotCacheDefinitionPart,
+  pivotCacheRecordsPart,
+  pivotTablePart,
+  vmlDrawingPart,
+} from './part-names.ts';
 import {applyThemeOverrides} from './theme-xml.ts';
 
-// A sheet's relationship-id allocator: hands out `rId1`, `rId2`, … in the one canonical order the
-// package wires a sheet's parts (tables, drawing, comments, threaded comments, printer settings, external
-// hyperlinks, background, preserved references, pivot tables). Every sheet-local id is drawn from here in
-// sequence, so no plan step re-derives its starting offset by summing the counts of the steps before
-// it: the arithmetic that, open-coded once per step with subtly different prefixes, could silently
-// hand two parts the same id and corrupt the package. Monotonic by construction, so collisions cannot
-// arise however the steps grow. One fresh allocator per sheet; the ids it yields are sheet-local.
-export class SheetRelIds {
+// A relationship-id allocator: hands out `rId1`, `rId2`, … in the one canonical order the package
+// wires the parts of whatever owns them. A sheet draws its tables, drawing, comments, threaded
+// comments, printer settings, external hyperlinks, background, preserved references and pivot tables
+// from one; the workbook part draws its sheets, styles, theme, shared strings, person registry,
+// preserved references and pivot caches from another.
+//
+// Every id is drawn in sequence, so no step re-derives its starting offset by summing the counts of
+// the steps before it: the arithmetic that, open-coded once per step with subtly different prefixes,
+// could silently hand two parts the same id and corrupt the package. Monotonic by construction, so
+// collisions cannot arise however the steps grow. One fresh allocator per owner; ids are scoped to it.
+export class RelIdAllocator {
   #next = 1;
   /** The next relationship id (`rId1`, `rId2`, …), advancing the counter. */
   next(): string {
@@ -101,7 +111,7 @@ export interface PreservedPartPlan {
 // A preserved worksheet reference resolved for serialisation, short of its sheet-local relationship
 // id: the worksheet element that wires it (`undefined` for a pivot-table/slicer reference the sheet
 // carries by relationship alone), the relationship Type, and the new path of the entry part it
-// targets. The id is assigned by the caller from the sheet's {@link SheetRelIds} allocator, at the
+// targets. The id is assigned by the caller from the sheet's {@link RelIdAllocator} allocator, at the
 // reference's canonical position in the sheet-local id sequence (after tables/drawing/comments/
 // threaded-comments/printer-settings/external-hyperlinks/background) so a preserved reference never
 // renumbers an id already threaded into the sheet XML.
@@ -199,6 +209,9 @@ interface PreservedNumbering {
   drawing: number;
   vml: number;
   media: number;
+  pivotTable: number;
+  pivotCacheDefinition: number;
+  pivotCacheRecords: number;
 }
 
 // Where a sheet first referenced an image id, kept so a failure to resolve it can say which sheet
@@ -267,22 +280,30 @@ export function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): Med
 // preserved content never clobbers a generated drawing/VML/media part, with the closure's internal
 // relationships rewritten to the new sibling paths. Part numbering is the only cross-sheet concern
 // here; each reference's sheet-local relationship id is assigned by the caller from the sheet's
-// {@link SheetRelIds} allocator, so this function stays free of the sheet-local id arithmetic.
+// {@link RelIdAllocator} allocator, so this function stays free of the sheet-local id arithmetic.
 export function planPreservedParts(
   workbook: Workbook,
   generatedDrawingCount: number,
   generatedMediaCount: number,
+  generatedPivotCount: number,
 ): PreservedPlan {
   const sheets = workbook.worksheets;
-  // The writer generates drawings, VML, and media of its own, so a preserved part of one of those
-  // kinds is re-numbered past the generated ones (a preserved drawing never clobbers an anchored
-  // drawing, a preserved VML never clobbers a comment's VML). Comment VML is numbered by sheet index,
-  // so `sheets.length` bounds it. Every other kind (pivot tables, caches, slicers, charts) the writer
-  // never generates, so those keep their original path. See {@link preservedPartPath}.
+  // Every kind the writer generates of its own is re-numbered past the generated ones, so a preserved
+  // part never clobbers a generated one: a preserved drawing never lands on an anchored drawing's
+  // path, a preserved VML never on a comment's. Comment VML is numbered by sheet index, so
+  // `sheets.length` bounds it. Pivots are the kind this list forgot: the writer emits a pivot table
+  // part and both cache parts, numbered globally from 1, so a package that already carried a pivot
+  // and then had one authored onto it wrote both at `pivotTable1.xml`. The preserved bytes won, the
+  // new pivot's sheet relationship pointed at the old pivot's data, and the content types declared
+  // the same `PartName` twice, which is a package Excel repairs. Kinds the writer really never
+  // generates (a slicer, a chart) still keep their original path. See {@link preservedPartPath}.
   const numbering: PreservedNumbering = {
     drawing: generatedDrawingCount,
     vml: sheets.length,
     media: generatedMediaCount,
+    pivotTable: generatedPivotCount,
+    pivotCacheDefinition: generatedPivotCount,
+    pivotCacheRecords: generatedPivotCount,
   };
 
   // One package-wide remap and one emitted-parts map: a part reached through more than one reference
@@ -311,7 +332,7 @@ export function planPreservedParts(
   const emitted = new Map<string, PreservedPartPlan>();
   for (const reference of allReferences) {
     for (const part of reference.parts) {
-      const newPath = remap.get(part.path) as string;
+      const newPath = resolveRemapped(remap, part.path);
       if (emitted.has(newPath)) continue;
       const rels = part.rels.flatMap((rel) => {
         // An external relationship (a linked workbook) is emitted verbatim: its target is outside the
@@ -348,14 +369,14 @@ export function planPreservedParts(
     sheet.preservedReferences.map((reference) => ({
       element: reference.element,
       relType: reference.relType,
-      entryPath: remap.get(reference.entryPath) as string,
+      entryPath: resolveRemapped(remap, reference.entryPath),
     })),
   );
 
   const workbookRefs = workbook.preservedReferences.map(
     (reference): PreservedWorkbookReferencePlan => ({
       relType: reference.relType,
-      entryPath: remap.get(reference.entryPath) as string,
+      entryPath: resolveRemapped(remap, reference.entryPath),
       pivotCacheId: reference.pivotCacheId,
       externalReferenceIndex: reference.externalReferenceIndex,
     }),
@@ -364,7 +385,7 @@ export function planPreservedParts(
   const rootRefs = workbook.preservedRootReferences.map(
     (reference): PreservedRootReferencePlan => ({
       relType: reference.relType,
-      entryPath: remap.get(reference.entryPath) as string,
+      entryPath: resolveRemapped(remap, reference.entryPath),
     }),
   );
 
@@ -377,11 +398,30 @@ export function planPreservedParts(
   };
 }
 
-// The path a preserved part is emitted at. A kind the writer generates of its own (a drawing, a VML,
-// a media image) is re-numbered past the generated parts of that kind (see {@link planPreservedParts})
-// so it never clobbers one. Every other kind (a pivot table, a pivot/slicer cache, a slicer, a chart)
-// the writer never generates, so it keeps its original path, leaving the package's standard part
-// names intact and letting overlapping closures agree on a single path for a shared part.
+/**
+ * The path a preserved part was renumbered onto.
+ *
+ * The invariant is held a module away: `capturePartClosure` returns `undefined` when the entry part is
+ * absent, so a reference that reaches planning has every part of its closure in the remap. Asserting
+ * that with a cast made the one shape a violation could take an `undefined` path interpolated into a
+ * relationship target, where `escapeAttr` throws a bare `TypeError` from inside `relationship()` and
+ * says nothing about which part went missing.
+ *
+ * @throws {InternalError} naming the path, since a miss can only be a bug in this planner.
+ */
+function resolveRemapped(remap: ReadonlyMap<string, string>, path: string): string {
+  const resolved = remap.get(path);
+  if (resolved === undefined) {
+    throw new InternalError(`preserved part ${JSON.stringify(path)} was never assigned a new path`);
+  }
+  return resolved;
+}
+
+// The path a preserved part is emitted at. A kind the writer generates of its own (a drawing, a VML, a
+// media image, a pivot table and its two cache parts) is re-numbered past the generated parts of that
+// kind (see {@link planPreservedParts}) so it never clobbers one. A kind the writer never generates (a
+// slicer or slicer cache, a chart) keeps its original path, leaving the package's standard part names
+// intact and letting overlapping closures agree on a single path for a shared part.
 function preservedPartPath(originalPath: string, numbering: PreservedNumbering): string {
   const ext = extensionOf(originalPath);
   if (ext.toLowerCase() === 'vml') return vmlDrawingPart(++numbering.vml);
@@ -389,5 +429,32 @@ function preservedPartPath(originalPath: string, numbering: PreservedNumbering):
   if (originalPath.startsWith('xl/drawings/') && ext.toLowerCase() === 'xml') {
     return drawingPart(++numbering.drawing);
   }
+  // Matched on the generated part's own name rather than on its directory: `xl/pivotCache/` also holds
+  // slicer caches, which the writer does not generate and must not renumber, and the two are told
+  // apart by exactly this prefix.
+  if (isNumberedPart(originalPath, PIVOT_TABLE_PREFIX)) {
+    return pivotTablePart(++numbering.pivotTable);
+  }
+  if (isNumberedPart(originalPath, PIVOT_CACHE_DEFINITION_PREFIX)) {
+    return pivotCacheDefinitionPart(++numbering.pivotCacheDefinition);
+  }
+  if (isNumberedPart(originalPath, PIVOT_CACHE_RECORDS_PREFIX)) {
+    return pivotCacheRecordsPart(++numbering.pivotCacheRecords);
+  }
   return originalPath;
+}
+
+// Whether a path is one of the writer's own numbered parts of a kind, i.e. the kind's fixed prefix
+// followed by a run of digits and `.xml`. Built from the part-name builders themselves, so a rename
+// there cannot leave this matching the old spelling.
+const PIVOT_TABLE_PREFIX = numberedPartPrefix(pivotTablePart);
+const PIVOT_CACHE_DEFINITION_PREFIX = numberedPartPrefix(pivotCacheDefinitionPart);
+const PIVOT_CACHE_RECORDS_PREFIX = numberedPartPrefix(pivotCacheRecordsPart);
+
+function numberedPartPrefix(part: (n: number) => string): string {
+  return part(1).slice(0, -'1.xml'.length);
+}
+
+function isNumberedPart(path: string, prefix: string): boolean {
+  return path.startsWith(prefix) && /^\d+\.xml$/.test(path.slice(prefix.length));
 }

@@ -43,7 +43,12 @@ import type {XfStyle} from '../style/xf-style.ts';
 import type {CommentCell} from './comments.ts';
 import {conditionalFormattingsExtXml, conditionalFormattingsXml} from './conditional-formatting.ts';
 import {dataValidationsExtXml, dataValidationsXml} from './data-validation.ts';
-import {type CollectedHyperlink, type HyperlinkPlan, hyperlinksXml} from './hyperlinks.ts';
+import {
+  type CollectedHyperlink,
+  type HyperlinkPlan,
+  hyperlinksXml,
+  isExternalHyperlink,
+} from './hyperlinks.ts';
 import {SLICER_LIST_EXT_URI} from './namespaces.ts';
 import type {
   BackgroundPlan,
@@ -539,12 +544,8 @@ export function worksheetRelsXml(
     // An external hyperlink's target is a URL outside the package, so its relationship carries
     // TargetMode="External". Internal links have no relId and contribute nothing here.
     ...hyperlinks
-      .filter((link) => link.relId !== undefined && link.target !== undefined)
-      .map((link) =>
-        relationship(link.relId as string, REL.hyperlink, link.target as string, {
-          external: true,
-        }),
-      ),
+      .filter(isExternalHyperlink)
+      .map((link) => relationship(link.relId, REL.hyperlink, link.target, {external: true})),
   ];
   return relationshipsPart(rels);
 }

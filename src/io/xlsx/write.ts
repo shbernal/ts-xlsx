@@ -18,7 +18,7 @@ import {strToU8, zip, zipSync} from 'fflate';
 
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {AuthoringError} from '../../errors.ts';
+import {AuthoringError, InternalError} from '../../errors.ts';
 import {relativePartPath, relsPathFor, THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relsPartXml} from '../opc/rels.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
@@ -39,7 +39,7 @@ import {
   type PrinterSettingsPlan,
   planMedia,
   planPreservedParts,
-  SheetRelIds,
+  RelIdAllocator,
   type TablePlan,
   type ThreadedCommentPlan,
 } from './package-plan.ts';
@@ -73,7 +73,6 @@ import {
   appPropsXml,
   contentTypesXml,
   corePropsXml,
-  FIXED_WORKBOOK_REL_COUNT,
   rootRelsXml,
   workbookRelsXml,
   workbookXml,
@@ -256,7 +255,7 @@ function planSheet(context: {
   readonly flushed?: FlushedSheet | undefined;
 }): SheetPlan {
   const {sheet, index, media, preserved, numbering, flushed} = context;
-  const rels = new SheetRelIds();
+  const rels = new RelIdAllocator();
 
   const tables: TablePlan[] = sheet.tables.map((table) => ({
     table,
@@ -381,15 +380,35 @@ function resolveSheetReferences(plan: SheetPlan): SheetReferences {
   };
 }
 
+// The workbook part's relationship ids, drawn once by {@link assignWorkbookRelIds}. Every consumer
+// receives the ids rather than re-deriving them, which is what makes two consumers disagreeing
+// impossible rather than merely unlikely.
+interface WorkbookRelPlan {
+  readonly sheetRelIds: readonly string[];
+  readonly stylesRelId: string;
+  readonly themeRelId: string;
+  readonly sharedStringsRelId: string | null;
+  readonly personsRelId: string | null;
+  readonly preservedWorkbookRels: readonly (PreservedWorkbookReferencePlan & {relId: string})[];
+}
+
 /**
- * Lay the workbook-level relationship ids out in one place, and return the two the caller needs to
- * thread onward.
+ * Draw every workbook-level relationship id, once, in the one canonical order the workbook part wires
+ * them, and return the ids the two consumers need.
  *
- * The order is the whole of it, and it is the subtlest arithmetic in the writer. The modeled rels
- * come first (one per sheet, then the fixed styles/theme pair, then shared strings when emitted),
- * because they are the ones an existing package already numbered: anything laid after them can be
- * added without renumbering an id already in use. The threaded-comment person registry follows, then
- * the preserved workbook references, then the generated pivot caches.
+ * The order is the whole of it. The modeled rels come first (one per sheet, then the fixed
+ * styles/theme pair, then shared strings when emitted), because they are the ones an existing package
+ * already numbered: anything laid after them can be added without renumbering an id already in use.
+ * The threaded-comment person registry follows, then the preserved workbook references, then the
+ * generated pivot caches.
+ *
+ * This used to be two arithmetics in two files: here, a modeled count summed from the sheet count, a
+ * fixed constant and whether shared strings exist; and in `workbookRelsXml`, the styles, theme and
+ * shared-strings ids re-derived from the same inputs. Two files had to agree on one sequence with only
+ * the fixed part shared through a constant, which is the shape `RelIdAllocator` was introduced to remove
+ * at the sheet level: ids are drawn in sequence and never recomputed by arithmetic, so no step
+ * re-derives its offset by summing the ones before it and a drift cannot put two parts on one id.
+ * `workbookRelsXml` now *receives* this list rather than rebuilding half of it.
  *
  * A pivot's id is written back onto the shared {@link PivotPlan} rather than returned, because two
  * separate parts have to agree on it: the workbook body's `<pivotCaches>` registration and the rels
@@ -402,23 +421,24 @@ function assignWorkbookRelIds(context: {
   readonly hasPersons: boolean;
   readonly preservedWorkbook: readonly PreservedWorkbookReferencePlan[];
   readonly pivots: readonly PivotPlan[];
-}): {
-  readonly personsRelId: string | null;
-  readonly preservedWorkbookRels: readonly (PreservedWorkbookReferencePlan & {relId: string})[];
-} {
+}): WorkbookRelPlan {
   const {sheetCount, hasSharedStrings, hasPersons, preservedWorkbook, pivots} = context;
-  const modeledCount = sheetCount + FIXED_WORKBOOK_REL_COUNT + (hasSharedStrings ? 1 : 0);
-  const personsRelId = hasPersons ? `rId${modeledCount + 1}` : null;
-  const preservedBase = modeledCount + (personsRelId === null ? 0 : 1);
-  const preservedWorkbookRels = preservedWorkbook.map((ref, i) => ({
-    ...ref,
-    relId: `rId${preservedBase + 1 + i}`,
-  }));
-  const pivotBase = preservedBase + preservedWorkbook.length;
-  pivots.forEach((pivot, i) => {
-    pivot.workbookRelId = `rId${pivotBase + 1 + i}`;
-  });
-  return {personsRelId, preservedWorkbookRels};
+  const ids = new RelIdAllocator();
+  const sheetRelIds = Array.from({length: sheetCount}, () => ids.next());
+  const stylesRelId = ids.next();
+  const themeRelId = ids.next();
+  const sharedStringsRelId = hasSharedStrings ? ids.next() : null;
+  const personsRelId = hasPersons ? ids.next() : null;
+  const preservedWorkbookRels = preservedWorkbook.map((ref) => ({...ref, relId: ids.next()}));
+  for (const pivot of pivots) pivot.workbookRelId = ids.next();
+  return {
+    sheetRelIds,
+    stylesRelId,
+    themeRelId,
+    sharedStringsRelId,
+    personsRelId,
+    preservedWorkbookRels,
+  };
 }
 
 // Everything about a package that is resolved before any of its bytes exist: the media every sheet
@@ -450,7 +470,15 @@ function planPackage(
   // (drawings, VML, media), so resolving them needs only those generated counts; each sheet's
   // preserved references take their sheet-local rel ids in canonical position below.
   const generatedDrawingCount = sheets.filter((sheet) => sheet.images.length > 0).length;
-  const preserved = planPreservedParts(workbook, generatedDrawingCount, media.parts.length);
+  // Pivots are numbered globally across the workbook, so the count of authored ones is what a
+  // preserved pivot's parts must be renumbered past.
+  const generatedPivotCount = sheets.reduce((total, sheet) => total + sheet.pivotTables.length, 0);
+  const preserved = planPreservedParts(
+    workbook,
+    generatedDrawingCount,
+    media.parts.length,
+    generatedPivotCount,
+  );
 
   // The part numbers that are global across the workbook (tables, drawings, pivots) run through one
   // shared counter, which is why this is a `map` over a mutable object rather than a pure one: the
@@ -536,16 +564,19 @@ function emitPackageParts(context: {
   // to dead weight, and it is the messages, not the registry, that make an identity worth carrying.
   const persons = threadedCommentNumbers.length === 0 ? [] : workbook.persons;
 
-  const {personsRelId, preservedWorkbookRels} = assignWorkbookRelIds({
+  const workbookRels = assignWorkbookRelIds({
     sheetCount: sheets.length,
     hasSharedStrings,
     hasPersons: persons.length > 0,
     preservedWorkbook: preserved.workbook,
     pivots: allPivots,
   });
+  const {preservedWorkbookRels} = workbookRels;
 
-  const files: Record<string, Uint8Array> = {
-    '[Content_Types].xml': strToU8(
+  const files = new PackageFiles();
+  files.add(
+    '[Content_Types].xml',
+    strToU8(
       contentTypesXml(
         sheets.length,
         allTables,
@@ -561,49 +592,44 @@ function emitPackageParts(context: {
         persons.length > 0,
       ),
     ),
-    '_rels/.rels': strToU8(rootRelsXml(preserved.root)),
-    [CORE_PROPS_PART]: strToU8(corePropsXml(workbook.properties)),
-    [APP_PROPS_PART]: strToU8(appPropsXml(workbook.properties)),
-    [WORKBOOK_PART]: strToU8(workbookXml(workbook, preservedWorkbookRels, allPivots)),
-    [relsPathFor(WORKBOOK_PART)]: strToU8(
-      workbookRelsXml(
-        sheets.length,
-        hasSharedStrings,
-        personsRelId,
-        preservedWorkbookRels,
-        allPivots,
-      ),
-    ),
-    [STYLES_PART]: strToU8(styles.toXml()),
-  };
+  );
+  files.add('_rels/.rels', strToU8(rootRelsXml(preserved.root)));
+  files.add(CORE_PROPS_PART, strToU8(corePropsXml(workbook.properties)));
+  files.add(APP_PROPS_PART, strToU8(appPropsXml(workbook.properties)));
+  files.add(WORKBOOK_PART, strToU8(workbookXml(workbook, preservedWorkbookRels, allPivots)));
+  files.add(relsPathFor(WORKBOOK_PART), strToU8(workbookRelsXml(workbookRels, allPivots)));
+  files.add(STYLES_PART, strToU8(styles.toXml()));
   // A theme read from a source package is emitted through the preserved-part path, closure and all,
   // with any authored overrides already spliced into its entry part by the planner. A workbook without
   // one gets its authored theme, or the library's default, which the stylesheet's `theme="1"` default
   // font still needs something to resolve against.
   if (!preserved.themeEmitted) {
     const overrides = workbook.themeOverrides;
-    files[THEME_PART_PATH] = strToU8(
-      overrides === undefined
-        ? DEFAULT_THEME_XML
-        : applyThemeOverrides(DEFAULT_THEME_XML, overrides),
+    files.add(
+      THEME_PART_PATH,
+      strToU8(
+        overrides === undefined
+          ? DEFAULT_THEME_XML
+          : applyThemeOverrides(DEFAULT_THEME_XML, overrides),
+      ),
     );
   }
   if (hasSharedStrings) {
-    files[SHARED_STRINGS_PART] = strToU8(sharedStrings.toXml());
+    files.add(SHARED_STRINGS_PART, strToU8(sharedStrings.toXml()));
   }
   // Singular and unnumbered, unlike the per-sheet thread parts: one registry serves the whole workbook.
-  if (persons.length > 0) files[PERSONS_PART] = strToU8(personsXml(persons));
+  if (persons.length > 0) files.add(PERSONS_PART, strToU8(personsXml(persons)));
   for (const part of media.parts) {
-    files[mediaPart(part.number, part.extension)] = part.data;
+    files.add(mediaPart(part.number, part.extension), part.data);
   }
   emitSheetParts(files, perSheet, sheetXml);
   for (const {table, number} of allTables) {
-    files[tablePart(number)] = strToU8(tableXml(table, number));
+    files.add(tablePart(number), strToU8(tableXml(table, number)));
   }
   emitPivotParts(files, allPivots);
   emitPreservedParts(files, preserved.parts);
 
-  return files;
+  return files.toRecord();
 }
 
 /**
@@ -643,9 +669,48 @@ export function buildPackageParts(
   return emitPackageParts({workbook, sheets, plan, styles, sharedStrings, sheetXml});
 }
 
-// The map of OPC part paths to their serialised bytes, accumulated by {@link buildPackageParts} and
-// its per-phase `emit*` helpers.
-type PackageFiles = Record<string, Uint8Array>;
+/**
+ * The OPC part paths a package is being assembled from, accumulated by {@link buildPackageParts} and
+ * its per-phase `emit*` helpers.
+ *
+ * A class rather than the plain record it used to be, for two reasons that are both about making a
+ * silent failure loud.
+ *
+ * **A collision is refused.** Twenty sites write into this map, and the paths they choose come from
+ * several independent numberings: the generated parts number from 1 per kind, and a preserved part
+ * carries a path renumbered past them, or its own if the writer generates no part of that kind. When
+ * one of those numberings was wrong, the later write simply won and the earlier part was gone from
+ * the package with the content types still declaring both. Refusing here means the arithmetic is
+ * checked at every write site at once rather than trusted at each.
+ *
+ * **The map has no prototype.** A preserved part can keep its original zip entry name, which comes
+ * from an untrusted package, so a part path of `__proto__` is reachable. Assigned onto a plain object
+ * it silently drops the part and re-points the map's prototype at its bytes. `io/opc/inflate.ts` and
+ * `io/xlsx/edit-vba.ts` both defend against exactly this on the read side, and say why; this was the
+ * writer-side gap in the same rule.
+ */
+class PackageFiles {
+  readonly #files: Record<string, Uint8Array> = Object.create(null) as Record<string, Uint8Array>;
+
+  /**
+   * Add a part at `path`.
+   *
+   * @throws {InternalError} if a part is already emitted at that path. Two parts on one path is a
+   *   numbering bug in this writer, never something a caller can cause, and the package it would
+   *   produce carries one of them plus a duplicate `PartName` override that violates OPC M2.5.
+   */
+  add(path: string, bytes: Uint8Array): void {
+    if (path in this.#files) {
+      throw new InternalError(`two package parts claim the path ${JSON.stringify(path)}`);
+    }
+    this.#files[path] = bytes;
+  }
+
+  /** The assembled package, as the part-path → bytes map the zip layer takes. */
+  toRecord(): Record<string, Uint8Array> {
+    return this.#files;
+  }
+}
 
 // Emit each sheet's own parts: the sheet XML, its rels part (only when the sheet references something),
 // and the drawing/comment/printer-settings parts those relationships point at. `sheetXml[i]` is the
@@ -668,7 +733,7 @@ function emitSheetParts(
       pivots,
     } = plan;
     const hasExternalHyperlink = hyperlinks.some((link) => link.relId !== undefined);
-    files[worksheetPart(i + 1)] = strToU8(sheetXml[i] as string);
+    files.add(worksheetPart(i + 1), strToU8(sheetXml[i] as string));
     if (
       tables.length > 0 ||
       drawing !== null ||
@@ -680,38 +745,42 @@ function emitSheetParts(
       preservedRefs.length > 0 ||
       pivots.length > 0
     ) {
-      files[relsPathFor(worksheetPart(i + 1))] = strToU8(
-        worksheetRelsXml(
-          tables,
-          drawing,
-          comments,
-          threadedComments,
-          printerSettings,
-          background,
-          hyperlinks,
-          preservedRefs,
-          pivots,
+      files.add(
+        relsPathFor(worksheetPart(i + 1)),
+        strToU8(
+          worksheetRelsXml(
+            tables,
+            drawing,
+            comments,
+            threadedComments,
+            printerSettings,
+            background,
+            hyperlinks,
+            preservedRefs,
+            pivots,
+          ),
         ),
       );
     }
     if (printerSettings !== null) {
-      files[printerSettingsPart(printerSettings.number)] = printerSettings.data;
+      files.add(printerSettingsPart(printerSettings.number), printerSettings.data);
     }
     if (drawing !== null) {
       const drawingPath = drawingPart(drawing.number);
-      files[drawingPath] = strToU8(drawingXml(drawing.images));
+      files.add(drawingPath, strToU8(drawingXml(drawing.images)));
       const targets = drawing.images.map((image) =>
         relativePartPath(drawingPath, mediaPart(image.mediaNumber, image.extension)),
       );
-      files[relsPathFor(drawingPath)] = strToU8(drawingRelsXml(targets));
+      files.add(relsPathFor(drawingPath), strToU8(drawingRelsXml(targets)));
     }
     if (comments !== null) {
-      files[commentsPart(comments.number)] = strToU8(commentsXml(comments.comments));
-      files[vmlDrawingPart(comments.number)] = strToU8(vmlDrawingXml(comments.comments));
+      files.add(commentsPart(comments.number), strToU8(commentsXml(comments.comments)));
+      files.add(vmlDrawingPart(comments.number), strToU8(vmlDrawingXml(comments.comments)));
     }
     if (threadedComments !== null) {
-      files[threadedCommentsPart(threadedComments.number)] = strToU8(
-        threadedCommentsXml(threadedComments.threads),
+      files.add(
+        threadedCommentsPart(threadedComments.number),
+        strToU8(threadedCommentsXml(threadedComments.threads)),
       );
     }
   });
@@ -725,27 +794,33 @@ function emitPivotParts(files: PackageFiles, allPivots: readonly PivotPlan[]): v
     const {number, cacheId, table} = pivot;
     const tablePath = pivotTablePart(number);
     const definitionPath = pivotCacheDefinitionPart(number);
-    files[tablePath] = strToU8(pivotTableXml(table, `PivotTable${number}`, cacheId));
-    files[relsPathFor(tablePath)] = strToU8(
-      relsPartXml([
-        {
-          id: 'rId1',
-          type: REL.pivotCacheDefinition,
-          target: relativePartPath(tablePath, definitionPath),
-        },
-      ]),
+    files.add(tablePath, strToU8(pivotTableXml(table, `PivotTable${number}`, cacheId)));
+    files.add(
+      relsPathFor(tablePath),
+      strToU8(
+        relsPartXml([
+          {
+            id: 'rId1',
+            type: REL.pivotCacheDefinition,
+            target: relativePartPath(tablePath, definitionPath),
+          },
+        ]),
+      ),
     );
-    files[definitionPath] = strToU8(pivotCacheDefinitionXml(table));
-    files[relsPathFor(definitionPath)] = strToU8(
-      relsPartXml([
-        {
-          id: 'rId1',
-          type: REL.pivotCacheRecords,
-          target: relativePartPath(definitionPath, pivotCacheRecordsPart(number)),
-        },
-      ]),
+    files.add(definitionPath, strToU8(pivotCacheDefinitionXml(table)));
+    files.add(
+      relsPathFor(definitionPath),
+      strToU8(
+        relsPartXml([
+          {
+            id: 'rId1',
+            type: REL.pivotCacheRecords,
+            target: relativePartPath(definitionPath, pivotCacheRecordsPart(number)),
+          },
+        ]),
+      ),
     );
-    files[pivotCacheRecordsPart(number)] = strToU8(pivotCacheRecordsXml(table));
+    files.add(pivotCacheRecordsPart(number), strToU8(pivotCacheRecordsXml(table)));
   }
 }
 
@@ -753,9 +828,9 @@ function emitPivotParts(files: PackageFiles, allPivots: readonly PivotPlan[]): v
 // ordering against the generated parts does not matter.
 function emitPreservedParts(files: PackageFiles, parts: readonly PreservedPartPlan[]): void {
   for (const part of parts) {
-    files[part.path] = part.bytes;
+    files.add(part.path, part.bytes);
     if (part.relsPath !== null && part.relsXml !== null) {
-      files[part.relsPath] = strToU8(part.relsXml);
+      files.add(part.relsPath, strToU8(part.relsXml));
     }
   }
 }

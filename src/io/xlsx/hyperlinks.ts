@@ -17,7 +17,7 @@ import type {Worksheet} from '../../core/worksheet.ts';
 import {type CollectingPass} from '../../xml/xml-read.ts';
 import {localName} from '../../xml/xml-scan.ts';
 import {escapeAttr, textAttr} from '../../xml/xml.ts';
-import type {SheetRelIds} from './package-plan.ts';
+import type {RelIdAllocator} from './package-plan.ts';
 
 /** A hyperlink gathered from a sheet for serialisation: the cell it sits on, its target, and an
  * optional tooltip. The visible label is the cell's own value and is serialised as that value.
@@ -77,12 +77,31 @@ export function* liveCells(sheet: Worksheet): Generator<Cell, void, undefined> {
   for (const {cells} of sheet.rows()) yield* cells;
 }
 
+/** An external hyperlink: the two fields a `TargetMode="External"` relationship needs, both present. */
+export type ExternalHyperlinkPlan = HyperlinkPlan & {
+  readonly relId: string;
+  readonly target: string;
+};
+
+/**
+ * Whether a planned hyperlink is the external kind, narrowing it so the relationship writer reads
+ * `relId` and `target` as the strings they are.
+ *
+ * A predicate rather than a filter plus two casts: the filter already proved both fields present, and
+ * a cast repeating that proof one line later is a claim the compiler cannot check against the filter
+ * it is supposed to be echoing. `planHyperlinks` sets exactly one of `relId`/`location`, so testing
+ * either field is testing the kind.
+ */
+export function isExternalHyperlink(link: HyperlinkPlan): link is ExternalHyperlinkPlan {
+  return link.relId !== undefined && link.target !== undefined;
+}
+
 /** Split collected links into internal (location, no rel) and external (relationship) forms, drawing
  * each external link's relationship id from the sheet's allocator so external ids follow every other
  * sheet-local relationship in canonical order. An internal ('#'-prefixed) link consumes no id. */
 export function planHyperlinks(
   links: readonly CollectedHyperlink[],
-  rels: SheetRelIds,
+  rels: RelIdAllocator,
 ): HyperlinkPlan[] {
   return links.map((link) => {
     const tooltip = link.tooltip !== undefined ? {tooltip: link.tooltip} : {};

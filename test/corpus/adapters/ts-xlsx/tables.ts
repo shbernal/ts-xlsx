@@ -8,6 +8,7 @@ import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {type PartMap, partMapOf} from './package-facts.ts';
 import {
+  fixtureBytes,
   FIXTURES_ROOT,
   readFixture,
   readXlsx,
@@ -506,6 +507,55 @@ export const tables = {
       // Reported as data either way: reading `range` on an anchor pushed off the grid throws, and a
       // thrown range is exactly the failure the clamp exists to prevent.
       rightEdge: {range: readRange(edge)},
+    };
+  },
+  // Read a fixture that already carries preserved pivot parts, author a NEW pivot onto it, write, and
+  // report the package → { pivotTableParts, cacheDefinitionParts, cacheRecordsParts, duplicateOverrides,
+  // authoredPartChanged, reloadOk, reloadError }. The writer generates a pivot table part and both cache
+  // parts numbered globally from 1, while a preserved pivot kept its ORIGINAL path on the theory that
+  // the writer never generates one, so both landed on `pivotTable1.xml`. The preserved bytes were
+  // emitted last and won: the authored pivot's part was overwritten, its sheet relationship pointed at
+  // the old pivot's data, and the content types declared the same PartName twice, which violates OPC
+  // M2.5 and makes Excel repair the package.
+  pivotPreservedAndAuthoredCoexist(rel: string) {
+    const wb = readFixture(rel);
+    const source = wb.addWorksheet('PivotSrc');
+    source.getCell('A1').value = 'Region';
+    source.getCell('B1').value = 'Quarter';
+    source.getCell('C1').value = 'Amount';
+    source.getCell('A2').value = 'West';
+    source.getCell('B2').value = 'Q1';
+    source.getCell('C2').value = 10;
+    source.getCell('A3').value = 'East';
+    source.getCell('B3').value = 'Q2';
+    source.getCell('C3').value = 20;
+    wb.addWorksheet('NewPivot').addPivotTable({
+      source,
+      rows: ['Region'],
+      columns: ['Quarter'],
+      values: ['Amount'],
+    });
+
+    const sourceParts = partMapOf(fixtureBytes(rel));
+    const written = partMapOf(writeXlsx(wb));
+    const names = Object.keys(written);
+    const matching = (pattern: RegExp) => names.filter((name) => pattern.test(name)).sort();
+
+    const overrides = [
+      ...(written['[Content_Types].xml'] ?? '').matchAll(/<Override PartName="([^"]*)"/g),
+    ].map((match) => match[1] ?? '');
+
+    return {
+      pivotTableParts: matching(/^xl\/pivotTables\/pivotTable\d+\.xml$/),
+      cacheDefinitionParts: matching(/^xl\/pivotCache\/pivotCacheDefinition\d+\.xml$/),
+      cacheRecordsParts: matching(/^xl\/pivotCache\/pivotCacheRecords\d+\.xml$/),
+      duplicateOverrides: overrides.filter((name, i) => overrides.indexOf(name) !== i).sort(),
+      // The generated pivot takes number 1, so this part must NOT be the fixture's own bytes.
+      authoredPartChanged:
+        written['xl/pivotTables/pivotTable1.xml'] !== sourceParts['xl/pivotTables/pivotTable1.xml'],
+      sourcePivotTableParts: Object.keys(sourceParts)
+        .filter((name) => /^xl\/pivotTables\/pivotTable\d+\.xml$/.test(name))
+        .sort(),
     };
   },
 };

@@ -317,7 +317,7 @@ function bookViewsXml(workbook: Workbook): string {
 function externalReferencesXml(preservedRels: readonly PreservedWorkbookRel[]): string {
   const links = preservedRels
     .filter((ref) => ref.externalReferenceIndex !== undefined)
-    .sort((a, b) => (a.externalReferenceIndex as number) - (b.externalReferenceIndex as number));
+    .sort((a, b) => (a.externalReferenceIndex ?? 0) - (b.externalReferenceIndex ?? 0));
   if (links.length === 0) return '';
   const entries = links.map((ref) => `<externalReference r:id="${ref.relId}"/>`).join('');
   return `<externalReferences>${entries}</externalReferences>`;
@@ -343,12 +343,11 @@ function pivotCachesXml(
   preservedRels: readonly PreservedWorkbookRel[],
   pivots: readonly PivotPlan[],
 ): string {
-  const preserved = preservedRels
-    .filter((ref) => ref.pivotCacheId !== undefined)
-    .map(
-      (ref) =>
-        `<pivotCache cacheId="${escapeAttr(ref.pivotCacheId as string)}" r:id="${ref.relId}"/>`,
-    );
+  const preserved = preservedRels.flatMap((ref) =>
+    ref.pivotCacheId === undefined
+      ? []
+      : [`<pivotCache cacheId="${escapeAttr(ref.pivotCacheId)}" r:id="${ref.relId}"/>`],
+  );
   const generated = pivots.map(
     (pivot) => `<pivotCache cacheId="${escapeAttr(pivot.cacheId)}" r:id="${pivot.workbookRelId}"/>`,
   );
@@ -454,39 +453,43 @@ function filterDatabaseRefersTo(sheetName: string, range: string): string {
   return `${quoteSheetName(sheetName)}!${absolute}`;
 }
 
-// The relationships the workbook part always carries after its per-sheet rels: `styles.xml` and
-// `theme/theme1.xml`. Their count anchors every downstream rel id (`sharedStrings.xml` and the
-// threaded-comment person registry when present, then the preserved/pivot caches) so `write.ts`
-// derives its `workbookRelBase` from this same constant rather than repeating the literal and risking
-// drift.
-export const FIXED_WORKBOOK_REL_COUNT = 2;
-
+/**
+ * The workbook part's `.rels`, rendered from the ids the planner drew.
+ *
+ * Every id arrives in `plan`; none is computed here. It used to re-derive the styles, theme and
+ * shared-strings ids from the sheet count and a shared constant while `write.ts` independently summed
+ * the same inputs to place everything after them, so one sequence was spelled in two files and only
+ * its fixed part was shared. The relationship *order* is still stated here, because that is what this
+ * function is; the numbering is not, because two numberings of one sequence is how they drift apart.
+ */
 export function workbookRelsXml(
-  sheetCount: number,
-  hasSharedStrings: boolean,
-  personsRelId: string | null,
-  preservedRels: readonly PreservedWorkbookRel[],
+  plan: {
+    readonly sheetRelIds: readonly string[];
+    readonly stylesRelId: string;
+    readonly themeRelId: string;
+    readonly sharedStringsRelId: string | null;
+    readonly personsRelId: string | null;
+    readonly preservedWorkbookRels: readonly PreservedWorkbookRel[];
+  },
   pivots: readonly PivotPlan[],
 ): string {
+  const {personsRelId} = plan;
+  const preservedRels = plan.preservedWorkbookRels;
   return relationshipsPart([
-    ...Array.from({length: sheetCount}, (_, i) =>
-      relationship(`rId${i + 1}`, REL.worksheet, targetFromWorkbook(worksheetPart(i + 1))),
+    ...plan.sheetRelIds.map((relId, i) =>
+      relationship(relId, REL.worksheet, targetFromWorkbook(worksheetPart(i + 1))),
     ),
-    relationship(`rId${sheetCount + 1}`, REL.styles, 'styles.xml'),
-    relationship(
-      `rId${sheetCount + FIXED_WORKBOOK_REL_COUNT}`,
-      REL.theme,
-      targetFromWorkbook(THEME_PART_PATH),
-    ),
-    ...(hasSharedStrings
-      ? [
+    relationship(plan.stylesRelId, REL.styles, 'styles.xml'),
+    relationship(plan.themeRelId, REL.theme, targetFromWorkbook(THEME_PART_PATH)),
+    ...(plan.sharedStringsRelId === null
+      ? []
+      : [
           relationship(
-            `rId${sheetCount + FIXED_WORKBOOK_REL_COUNT + 1}`,
+            plan.sharedStringsRelId,
             REL.sharedStrings,
             targetFromWorkbook(SHARED_STRINGS_PART),
           ),
-        ]
-      : []),
+        ]),
     // The threaded-comment identity registry every conversation on every sheet resolves its authors and
     // @mentions through. Workbook-level and singular, so this one relationship serves all the sheets.
     ...(personsRelId === null

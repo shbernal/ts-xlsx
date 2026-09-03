@@ -6,8 +6,9 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 import {INTERNAL, NAMED_STYLE_ID} from '../../core/internal.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {partsOf as packageParts} from './package.test-support.ts';
+import {STYLES_PART} from './part-names.ts';
 import {readXlsx} from './read.ts';
-import {writeXlsx, writeXlsxAsync} from './write.ts';
+import {buildPackageParts, writeXlsx, writeXlsxAsync} from './write.ts';
 
 // Shorthand for the shared accessor: every case here starts from a workbook, not from bytes.
 function partsOf(workbook: Workbook): Record<string, string> {
@@ -1364,4 +1365,45 @@ test('the async writer rejects rather than throwing where the sync one throws', 
   const call = writeXlsxAsync(new Workbook());
   assert.ok(call instanceof Promise, 'part-building failures surface as a rejection, not a throw');
   await assert.rejects(call, /no worksheets/);
+});
+
+test('the package part map has no prototype, so a part named __proto__ is a part', () => {
+  // A preserved part can keep its original zip entry name, which comes from an untrusted package.
+  // Assigned onto a plain object, `__proto__` silently drops the part and re-points the map's
+  // prototype at its bytes; `inflate.ts` and `edit-vba.ts` both defend against this on the read side.
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const parts = buildPackageParts(wb);
+
+  assert.equal(Object.getPrototypeOf(parts), null, 'the map is null-prototype');
+  assert.ok(Object.keys(parts).length > 0);
+});
+
+test('two package parts claiming one path is refused rather than silently overwritten', () => {
+  // The paths twenty write sites choose come from several independent numberings, and when one was
+  // wrong the later write simply won: the earlier part vanished from the zip while the content types
+  // still declared both, which is a package Excel repairs. The refusal is what checks every one of
+  // those numberings at once instead of trusting each.
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'x';
+  // A preserved part planted on a path the writer generates for itself: the shape the pivot bug took.
+  wb[INTERNAL].addPreservedReference({
+    relType:
+      'http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotCacheDefinition',
+    entryPath: STYLES_PART,
+    parts: [
+      {
+        path: STYLES_PART,
+        contentType: 'application/xml',
+        bytes: strToU8('<styleSheet/>'),
+        rels: [],
+      },
+    ],
+  });
+
+  assert.throws(() => buildPackageParts(wb), {
+    name: 'InternalError',
+    message: /two package parts claim the path "xl\/styles\.xml"/,
+  });
 });
