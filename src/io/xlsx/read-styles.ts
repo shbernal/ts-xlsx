@@ -24,9 +24,8 @@ import {
   isFontVerticalAlignment,
   isNamedUnderlineStyle,
   type Protection,
-  type TableStyleNamespace,
-  type TableStyleTable,
 } from '../../core/style.ts';
+import type {TableStyleNamespace, TableStyleTable} from '../../core/workbook-styles.ts';
 import {
   closeEmptyElements,
   elementSubtrees,

@@ -14,10 +14,9 @@ import {
   type CellStyle,
   type Fill,
   type Font,
-  type NamedCellStyle,
-  type TableStyleTable,
   assignStyleFacets,
 } from '../../core/style.ts';
+import type {NamedCellStyle, TableStyleTable} from '../../core/workbook-styles.ts';
 
 /**
  * What an xf resolves to: the {@link CellStyle} facet tuple, plus the two flags an xf carries that

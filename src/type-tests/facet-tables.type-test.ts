@@ -7,7 +7,13 @@
 // carry the guarantee, so a table added without one is visible as an absence rather than assumed.
 
 import type {EveryColumnPropertyIsMirrored} from '../core/column.ts';
+import type {
+  EveryDifferentialStyleFieldIsCloned,
+  EveryRuleFieldIsCloned,
+} from '../core/conditional-formatting.ts';
+import type {EveryDataValidationFieldIsCloned} from '../core/data-validation.ts';
 import type {EveryAlignmentFacetIsDeclared} from '../core/style.ts';
+import type {EveryTableStyleInfoFieldIsCloned} from '../core/table.ts';
 import type {EveryWorksheetModelFieldHasAFacet} from '../core/worksheet-model.ts';
 import type {Equal, Expect} from './expect.ts';
 
@@ -18,4 +24,10 @@ export type FacetTableExhaustiveness = [
   Expect<Equal<EveryColumnPropertyIsMirrored, never>>,
   // Every worksheet model field, covered by a getter/setter facet.
   Expect<Equal<EveryWorksheetModelFieldHasAFacet, never>>,
+  // The four defensive copies: a field added to one of these types without a copy strategy would
+  // otherwise be carried by reference into the model, aliasing the caller's object silently.
+  Expect<Equal<EveryRuleFieldIsCloned, never>>,
+  Expect<Equal<EveryDifferentialStyleFieldIsCloned, never>>,
+  Expect<Equal<EveryDataValidationFieldIsCloned, never>>,
+  Expect<Equal<EveryTableStyleInfoFieldIsCloned, never>>,
 ];

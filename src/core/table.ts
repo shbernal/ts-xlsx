@@ -10,7 +10,9 @@
 import {AuthoringError} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
 import {type CellPosition, decodeCellRef, encodeAddress, type GridRect} from './address.ts';
+import {type ClonePlan, cloneWith} from './clone.ts';
 import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
+import type {AssertNever} from './internal.ts';
 import {MAX_TABLE_NAME_LENGTH, TABLE_NAME_PATTERN} from './limits.ts';
 import type {CellStyle} from './style.ts';
 import type {CellValue} from './value.ts';
@@ -81,13 +83,26 @@ export interface TableStyleInfo {
  * absent name: OOXML expresses "unstyled" as a `<tableStyleInfo>` with no `name` attribute, so a
  * literal `name="None"` would reference a style that does not exist and make the file suspect. The
  * banding flags set alongside it are untouched. */
+const STYLE_INFO_CLONE: ClonePlan<TableStyleInfo> = {
+  // The one field with a rule of its own, applied here rather than after the copy so the sentinel
+  // never lands in the clone at all.
+  name: (name) => (name === 'None' ? undefined : name) as string,
+  showFirstColumn: 'value',
+  showLastColumn: 'value',
+  showRowStripes: 'value',
+  showColumnStripes: 'value',
+};
+
+/** The proof that {@link STYLE_INFO_CLONE} names every field of the style. */
+export type EveryTableStyleInfoFieldIsCloned = AssertNever<
+  Exclude<keyof Required<TableStyleInfo>, keyof typeof STYLE_INFO_CLONE>
+>;
+
 function cloneStyleInfo(style: TableStyleInfo): TableStyleInfo {
-  const clone: {-readonly [K in keyof TableStyleInfo]: TableStyleInfo[K]} = {};
-  if (style.name !== undefined && style.name !== 'None') clone.name = style.name;
-  if (style.showFirstColumn !== undefined) clone.showFirstColumn = style.showFirstColumn;
-  if (style.showLastColumn !== undefined) clone.showLastColumn = style.showLastColumn;
-  if (style.showRowStripes !== undefined) clone.showRowStripes = style.showRowStripes;
-  if (style.showColumnStripes !== undefined) clone.showColumnStripes = style.showColumnStripes;
+  const clone = cloneWith(style, STYLE_INFO_CLONE);
+  // `cloneWith` skips a field the source omits; the `None` rule turns a present one into an omission,
+  // which it cannot express, so the key is removed here instead.
+  if (clone.name === undefined) delete (clone as {name?: string}).name;
   return clone;
 }
 

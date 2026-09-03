@@ -75,20 +75,44 @@ const CT = {
 // rels-part wiring in `buildPackageParts`).
 export type PreservedWorkbookRel = PreservedWorkbookReferencePlan & {readonly relId: string};
 
-export function contentTypesXml(
-  sheetCount: number,
-  tables: readonly TablePlan[],
-  commentNumbers: readonly number[],
-  drawingNumbers: readonly number[],
-  printerSettingsNumbers: readonly number[],
-  mediaExtensions: readonly string[],
-  hasSharedStrings: boolean,
-  preservedParts: readonly PreservedPartPlan[],
-  pivots: readonly PivotPlan[],
-  preservedWorkbookRefs: readonly PreservedWorkbookReferencePlan[],
-  threadedCommentNumbers: readonly number[],
-  hasPersons: boolean,
-): string {
+/**
+ * What `[Content_Types].xml` needs to know about a package: every part family it declares.
+ *
+ * One object rather than twelve positional parameters, eight of them arrays and four of those bare
+ * `readonly number[]`, which two adjacent ones could be silently transposed between. That is the same
+ * hazard `SheetReferences` and `SheetPlan` were introduced to remove, applied to the last place in
+ * this writer that still had it.
+ */
+export interface ContentTypeInputs {
+  readonly sheetCount: number;
+  readonly tables: readonly TablePlan[];
+  readonly commentNumbers: readonly number[];
+  readonly drawingNumbers: readonly number[];
+  readonly printerSettingsNumbers: readonly number[];
+  readonly mediaExtensions: readonly string[];
+  readonly hasSharedStrings: boolean;
+  readonly preservedParts: readonly PreservedPartPlan[];
+  readonly pivots: readonly PivotPlan[];
+  readonly preservedWorkbookRefs: readonly PreservedWorkbookReferencePlan[];
+  readonly threadedCommentNumbers: readonly number[];
+  readonly hasPersons: boolean;
+}
+
+export function contentTypesXml(inputs: ContentTypeInputs): string {
+  const {
+    sheetCount,
+    tables,
+    commentNumbers,
+    drawingNumbers,
+    printerSettingsNumbers,
+    mediaExtensions,
+    hasSharedStrings,
+    preservedParts,
+    pivots,
+    preservedWorkbookRefs,
+    threadedCommentNumbers,
+    hasPersons,
+  } = inputs;
   // One extension→default-content-type map both halves read: the defaults render it, the overrides
   // correct any preserved part whose own type differs from its extension's default. Sharing it is what
   // keeps a `<Default>` and its `<Override>`s from ever disagreeing.

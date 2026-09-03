@@ -7,7 +7,7 @@
 // `TableStyleInfo.name`.
 
 import {AuthoringError} from '../errors.ts';
-import type {DifferentialStyle} from './style.ts';
+import type {DifferentialStyle} from './workbook-styles.ts';
 
 /**
  * The regions a table style can format (`ST_TableStyleType`).

@@ -8,7 +8,7 @@
 
 import type {RichTextRun} from '../../core/value.ts';
 import {textElement} from '../../xml/xml.ts';
-import {fontXml} from './styles.ts';
+import {fontXml} from './style-elements.ts';
 
 /**
  * Serialise a rich-text value's runs as the inner content of an `<is>` element. A zero-length run

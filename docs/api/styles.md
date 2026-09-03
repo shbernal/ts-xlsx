@@ -98,7 +98,7 @@ and protection. Every facet is optional and independent: a cell sets only the fa
 and inherits the rest. This one tuple is the unit of style throughout the library, so the
 interfaces that carry a cell's formatting compose it rather than re-listing the fields: a column,
 table column, or named style whose facets *default* the cells that leave them unset (see
-[`ColumnProperties`](./worksheet.md#columnproperties), [`NamedCellStyle`](./styles.md#namedcellstyle)), and a cell's own resolved format. Because they
+[`ColumnProperties`](./worksheet.md#columnproperties), [`NamedCellStyle`](./workbook-styles.md#namedcellstyle)), and a cell's own resolved format. Because they
 share this type, "add a facet" is a single edit here and the compiler enforces that no read/write
 path silently drops one, the round-trip symmetry the merge-loss contract depends on.
 
@@ -133,32 +133,6 @@ interface Color {
    *  automatic placeholder `indexed="64"`; the visible colour lives on `fgColor`. */
   readonly indexed?: number;
 }
-```
-
----
-
-### `DifferentialStyle`
-
-<sub>type</sub>
-
-A differential style (OOXML CT_Dxf): formatting laid *over* whatever a cell already carries. Only
-the facets present override; the rest of the cell's own style shows through. It carries the subset
-of the cell-style facets (see [`CellStyle`](./styles.md#cellstyle)) a `<dxf>` can express: font, number format, fill,
-and border.
-
-Differential styles live in one workbook-level table (`<dxfs>`) that several features index into:
-a conditional-formatting rule's highlight format, and a table style's per-element formatting
-(`<tableStyleElement dxfId="…">`). They are interned and shared, so two features asking for the
-same formatting land on one entry.
-
-Not every facet reaches every consumer. As a **table style element**, Excel applies only the font,
-fill, and border: its own object model exposes `Font`, `Interior`, and `Borders` on a table style
-element and nothing for a number format, so a `numFmt` set here is carried faithfully through a
-round-trip but has no visible effect. The type is left whole rather than split, because the same
-value is legitimately reused across both consumers and narrowing it would only move the surprise.
-
-```ts
-type DifferentialStyle = Pick<CellStyle, 'font' | 'numFmt' | 'fill' | 'border'>;
 ```
 
 ---
@@ -324,25 +298,6 @@ type HorizontalAlignment =
 
 ---
 
-### `NamedCellStyle`
-
-<sub>type</sub>
-
-A named cell style: the OOXML `cellStyleXfs`/`cellStyles` layer. A spreadsheet applies a built-in
-or custom style (e.g. "Normal", "Accent1") whose visual facets live in this shared, named layer
-rather than on each cell's direct format; a cell links to it and inherits any facet the direct
-format leaves unset. The facets are a cell's own (see [`CellStyle`](./styles.md#cellstyle)); `name` is the style's
-display name and `builtinId` its Excel gallery index when it is a built-in style.
-
-```ts
-type NamedCellStyle = Readonly<CellStyle> & {
-  readonly name?: string;
-  readonly builtinId?: number;
-};
-```
-
----
-
 ### `PatternFill`
 
 <sub>interface</sub>
@@ -377,61 +332,6 @@ protected sheet. A cell that never set either flag reads back with neither.
 interface Protection {
   readonly locked?: boolean;
   readonly hidden?: boolean;
-}
-```
-
----
-
-### `TableStyleNamespace`
-
-<sub>interface</sub>
-
-One namespace declaration a preserved `<tableStyle>` fragment depends on.
-
-```ts
-interface TableStyleNamespace {
-  readonly prefix: string;
-  readonly uri: string;
-  /** Whether the source listed this prefix in the stylesheet's `mc:Ignorable`. */
-  readonly ignorable: boolean;
-}
-```
-
----
-
-### `TableStyleTable`
-
-<sub>interface</sub>
-
-The `<tableStyles>` block of a styles part: the custom table/pivot style definitions a file
-declares, and the two gallery names it nominates as the default for a new table and a new pivot.
-
-Each entry of `styles` is one `<tableStyle>…</tableStyle>` fragment kept verbatim, for the
-same reason a `<dxf>` is: a `tableStyleElement`'s `dxfId` indexes the differential-style table,
-which the writer re-emits **at its original indices**, so the references stay valid without
-reparsing anything. That index-stability is load-bearing: renumbering the dxf table would
-silently re-point every preserved table style at a different format.
-
-The two default names are ordinary strings, not fragments: they are re-escaped on write, so they
-are held decoded.
-
-```ts
-interface TableStyleTable {
-  readonly styles: readonly string[];
-  readonly defaultTableStyle?: string | undefined;
-  readonly defaultPivotStyle?: string | undefined;
-  /**
-   * The namespace prefixes the verbatim {@link styles} fragments use, mapped to their URI and to
-   * whether the source marked the prefix ignorable (`mc:Ignorable`).
-   *
-   * Carrying a fragment verbatim carries its *prefixes* too. Excel stamps a revision id
-   * (`xr9:uid="{…}"`) on every `<tableStyle>` it writes, so a fragment re-emitted under a
-   * `<styleSheet>` that declares only the default namespace is not namespace-well-formed, and no
-   * consumer can parse the part at all, which is a far louder failure than the dropped table style
-   * this preservation exists to prevent. The writer re-declares each prefix on `<styleSheet>` and
-   * re-states the ignorable ones, exactly as the source did.
-   */
-  readonly namespaces?: readonly TableStyleNamespace[];
 }
 ```
 

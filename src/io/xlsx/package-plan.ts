@@ -12,6 +12,7 @@ import {AuthoringError, InternalError} from '../../errors.ts';
 import {extensionOf, relativePartPath, relsPathFor, THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relsPartXml} from '../opc/rels.ts';
 import type {CommentCell} from './comments.ts';
+import type {HyperlinkPlan} from './hyperlinks.ts';
 import type {DrawingImage} from './images.ts';
 import {
   drawingPart,
@@ -457,4 +458,19 @@ function numberedPartPrefix(part: (n: number) => string): string {
 
 function isNumberedPart(path: string, prefix: string): boolean {
   return path.startsWith(prefix) && /^\d+\.xml$/.test(path.slice(prefix.length));
+}
+
+// One worksheet's planned package parts and the sheet-local relationship ids wiring them, produced in
+// the single planning pass. Held as a struct per sheet rather than eight index-aligned arrays, so a
+// downstream step reads one sheet's plan as a unit and cannot transpose two sheets by mis-indexing.
+export interface SheetPlan {
+  readonly tables: TablePlan[];
+  readonly drawing: DrawingPlan | null;
+  readonly comments: CommentPlan | null;
+  readonly threadedComments: ThreadedCommentPlan | null;
+  readonly printerSettings: PrinterSettingsPlan | null;
+  readonly hyperlinks: HyperlinkPlan[];
+  readonly background: BackgroundPlan | null;
+  readonly preservedRefs: PreservedReferencePlan[];
+  readonly pivots: PivotPlan[];
 }

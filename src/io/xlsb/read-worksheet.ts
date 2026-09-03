@@ -118,38 +118,17 @@ export function parseWorksheet(
         rgce: reader.bytes(reader.u32()),
         rgcb: reader.bytes(reader.u32()),
       });
-    } else if ((CELL_RECORDS.has(record.type) || FORMULA_RECORDS.has(record.type)) && row > 0) {
-      const {column, styleIndex} = reader.cell();
-      if (!inGrid(column, row - 1)) continue;
-      // A cell's own format wins, then its row's, then its column's: the order Excel applies.
-      // Index 0 is the default xf, which BIFF12 writes where XML simply omits `s`, so it means
-      // "no format of my own" and lets the row/column default through.
-      const resolved =
-        styleIndex > 0 ? styleIndex : rowStyle >= 0 ? rowStyle : (columnStyle.get(column) ?? -1);
-      const style = resolved >= 0 ? xfStyles[resolved] : xfStyles[0];
-      const cell = sheet.getCell(encodeAddress(column + 1, row));
-      applyXfToCell(cell, style);
-      if (!FORMULA_RECORDS.has(record.type)) {
-        cell.value = decodeCell(record.type, reader, sharedStrings, style?.numFmt);
-        continue;
-      }
-      const result = cachedResult(record.type, reader, style?.numFmt);
-      reader.skip(2); // grbitFlags: per-cell recalculation hints the model does not carry.
-      const rgce = reader.bytes(reader.u32());
-      const rgcb = reader.bytes(reader.u32());
-      const anchor = formulaAnchor(rgce, rgcb);
-      if (anchor === undefined) {
-        cell.value = formulaValue(decodeFormula(rgce, rgcb, scope), result);
-      } else {
-        deferred.push({
-          cell,
-          row: row - 1,
-          column,
-          anchorRow: anchor.row,
-          anchorColumn: anchor.column,
-          result,
-        });
-      }
+    } else if (CELL_RECORDS.has(record.type) || FORMULA_RECORDS.has(record.type)) {
+      const member = readCellRecord(record.type, reader, {
+        sheet,
+        sharedStrings,
+        xfStyles,
+        scope,
+        row,
+        rowStyle,
+        columnStyle,
+      });
+      if (member !== undefined) deferred.push(member);
     }
   }
 
@@ -163,6 +142,70 @@ export function parseWorksheet(
         ? (member.result ?? null)
         : formulaValue(decodeFormula(group.rgce, group.rgcb, scope), member.result);
   }
+}
+
+/** What reading one cell record needs from the sheet around it: the tables it resolves through, and
+ * the row it is currently inside. */
+interface CellRecordContext {
+  readonly sheet: Worksheet;
+  readonly sharedStrings: readonly string[];
+  readonly xfStyles: ReadonlyArray<XfStyle>;
+  readonly scope: FormulaScope;
+  /** The open row, one-based; -1 when none is, which is a malformed sheet. */
+  readonly row: number;
+  readonly rowStyle: number;
+  readonly columnStyle: ReadonlyMap<number, number>;
+}
+
+/**
+ * Read one cell or formula record onto its cell, returning the deferred entry when the formula is an
+ * array-group member whose group has not been seen yet.
+ *
+ * Lifted out of the record loop, where it was thirty-three lines three levels deep doing style
+ * resolution, value decoding, formula decoding and deferred-group bookkeeping in one block. The loop
+ * is now six one-line dispatches, and this is testable on its own, which the block was not.
+ */
+function readCellRecord(
+  type: number,
+  reader: RecordReader,
+  context: CellRecordContext,
+): DeferredFormula | undefined {
+  const {sheet, sharedStrings, xfStyles, scope, row, rowStyle, columnStyle} = context;
+  // A cell record arriving before any row header is dropped rather than guessed at.
+  if (row <= 0) return undefined;
+  const {column, styleIndex} = reader.cell();
+  if (!inGrid(column, row - 1)) return undefined;
+  // A cell's own format wins, then its row's, then its column's: the order Excel applies. Index 0 is
+  // the default xf, which BIFF12 writes where XML simply omits `s`, so it means "no format of my own"
+  // and lets the row/column default through.
+  const resolved =
+    styleIndex > 0 ? styleIndex : rowStyle >= 0 ? rowStyle : (columnStyle.get(column) ?? -1);
+  const style = resolved >= 0 ? xfStyles[resolved] : xfStyles[0];
+  const cell = sheet.getCell(encodeAddress(column + 1, row));
+  applyXfToCell(cell, style);
+
+  if (!FORMULA_RECORDS.has(type)) {
+    cell.value = decodeCell(type, reader, sharedStrings, style?.numFmt);
+    return undefined;
+  }
+
+  const result = cachedResult(type, reader, style?.numFmt);
+  reader.skip(2); // grbitFlags: per-cell recalculation hints the model does not carry.
+  const rgce = reader.bytes(reader.u32());
+  const rgcb = reader.bytes(reader.u32());
+  const anchor = formulaAnchor(rgce, rgcb);
+  if (anchor === undefined) {
+    cell.value = formulaValue(decodeFormula(rgce, rgcb, scope), result);
+    return undefined;
+  }
+  return {
+    cell,
+    row: row - 1,
+    column,
+    anchorRow: anchor.row,
+    anchorColumn: anchor.column,
+    result,
+  };
 }
 
 function groupKey(row: number, column: number): string {

@@ -123,7 +123,6 @@ export type {
   BorderStyle,
   CellStyle,
   Color,
-  DifferentialStyle,
   Fill,
   FillPatternType,
   Font,
@@ -132,11 +131,8 @@ export type {
   GradientFill,
   GradientStop,
   HorizontalAlignment,
-  NamedCellStyle,
   PatternFill,
   Protection,
-  TableStyleNamespace,
-  TableStyleTable,
   UnderlineStyle,
   VerticalAlignment,
 } from '../core/style.ts';
@@ -148,6 +144,15 @@ export {
   type TableRegion,
   type TableStyleInfo,
 } from '../core/table.ts';
+// The workbook style *tables*: shapes that compose `CellStyle` without being one, so they live beside
+// the slice that owns them rather than beside `Fill`. Only the declaration moved; the public surface
+// is unchanged.
+export type {
+  DifferentialStyle,
+  NamedCellStyle,
+  TableStyleNamespace,
+  TableStyleTable,
+} from '../core/workbook-styles.ts';
 export {
   isTableStyleElementType,
   STRIPE_ELEMENT_TYPES,

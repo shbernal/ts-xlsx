@@ -8,7 +8,10 @@
 // `formulae`, and differential-style reference, so a read/write cycle never silently drops a rule.
 
 import {tokenSet} from '../token-set.ts';
-import type {Color, DifferentialStyle} from './style.ts';
+import {type ClonePlan, cloneWith} from './clone.ts';
+import type {AssertNever} from './internal.ts';
+import type {Color} from './style.ts';
+import type {DifferentialStyle} from './workbook-styles.ts';
 
 /** How a {@link CfValueObject} reads its `value`: `ST_CfvoType` verbatim. */
 export type CfValueObjectType = 'num' | 'percent' | 'max' | 'min' | 'percentile' | 'formula';
@@ -260,26 +263,51 @@ export function cloneConditionalFormatting(cf: ConditionalFormatting): Condition
   return {ref: cf.ref, rules: cf.rules.map(cloneRule)};
 }
 
+// One entry per field, so a new one on the rule does not compile until someone says how deep its copy
+// goes. The spread this replaces carried a new nested field BY REFERENCE, which meant the stored rule
+// aliased the caller's object with nothing failing to build.
+const RULE_CLONE: ClonePlan<ConditionalFormattingRule> = {
+  type: 'value',
+  priority: 'value',
+  stopIfTrue: 'value',
+  operator: 'value',
+  formulae: 'values',
+  text: 'value',
+  style: cloneStyle,
+  dxfId: 'value',
+  cfvo: 'records',
+  color: 'record',
+  colors: 'records',
+  gradient: 'value',
+  negativeFillColor: 'record',
+  axisColor: 'record',
+  iconSet: 'value',
+  rank: 'value',
+  percent: 'value',
+  bottom: 'value',
+  aboveAverage: 'value',
+  equalAverage: 'value',
+  stdDev: 'value',
+  timePeriod: 'value',
+};
+export type EveryRuleFieldIsCloned = AssertNever<
+  Exclude<keyof Required<ConditionalFormattingRule>, keyof typeof RULE_CLONE>
+>;
+
 function cloneRule(rule: ConditionalFormattingRule): ConditionalFormattingRule {
-  return {
-    ...rule,
-    ...(rule.formulae !== undefined ? {formulae: [...rule.formulae]} : {}),
-    ...(rule.cfvo !== undefined ? {cfvo: rule.cfvo.map((v) => ({...v}))} : {}),
-    ...(rule.color !== undefined ? {color: {...rule.color}} : {}),
-    ...(rule.negativeFillColor !== undefined
-      ? {negativeFillColor: {...rule.negativeFillColor}}
-      : {}),
-    ...(rule.axisColor !== undefined ? {axisColor: {...rule.axisColor}} : {}),
-    ...(rule.colors !== undefined ? {colors: rule.colors.map((c) => ({...c}))} : {}),
-    ...(rule.style !== undefined ? {style: cloneStyle(rule.style)} : {}),
-  };
+  return cloneWith(rule, RULE_CLONE);
 }
 
+const STYLE_CLONE: ClonePlan<DifferentialStyle> = {
+  font: 'record',
+  fill: 'record',
+  border: 'record',
+  numFmt: 'value',
+};
+export type EveryDifferentialStyleFieldIsCloned = AssertNever<
+  Exclude<keyof Required<DifferentialStyle>, keyof typeof STYLE_CLONE>
+>;
+
 function cloneStyle(style: DifferentialStyle): DifferentialStyle {
-  return {
-    ...style,
-    ...(style.font !== undefined ? {font: {...style.font}} : {}),
-    ...(style.fill !== undefined ? {fill: {...style.fill}} : {}),
-    ...(style.border !== undefined ? {border: {...style.border}} : {}),
-  };
+  return cloneWith(style, STYLE_CLONE);
 }

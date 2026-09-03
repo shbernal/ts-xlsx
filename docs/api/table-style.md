@@ -73,12 +73,12 @@ interface TableStyle {
 
 <sub>interface</sub>
 
-How one region of a table is formatted: a [`DifferentialStyle`](./styles.md#differentialstyle) laid over whatever the cells
+How one region of a table is formatted: a [`DifferentialStyle`](./workbook-styles.md#differentialstyle) laid over whatever the cells
 already carry, plus, for a stripe, how many rows or columns wide one band is.
 
 A `numFmt` here is carried faithfully but has no visible effect: Excel's own table-style element
 exposes a font, an interior and borders, and nothing for a number format. See
-[`DifferentialStyle`](./styles.md#differentialstyle).
+[`DifferentialStyle`](./workbook-styles.md#differentialstyle).
 
 ```ts
 interface TableStyleElement extends DifferentialStyle {

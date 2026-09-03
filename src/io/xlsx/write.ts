@@ -23,7 +23,7 @@ import {relativePartPath, relsPathFor, THEME_PART_PATH} from '../opc/part-paths.
 import {relsPartXml} from '../opc/rels.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 import {collectComments, commentsXml, vmlDrawingXml} from './comments.ts';
-import {collectHyperlinks, type HyperlinkPlan, liveCells, planHyperlinks} from './hyperlinks.ts';
+import {collectHyperlinks, liveCells, planHyperlinks} from './hyperlinks.ts';
 import {drawingRelsXml, drawingXml} from './images.ts';
 import {
   type BackgroundPlan,
@@ -35,6 +35,7 @@ import {
   type PreservedPartPlan,
   type PreservedPlan,
   type PreservedReferencePlan,
+  type SheetPlan,
   type PreservedWorkbookReferencePlan,
   type PrinterSettingsPlan,
   planMedia,
@@ -64,6 +65,7 @@ import {
 } from './part-names.ts';
 import {pivotCacheDefinitionXml, pivotCacheRecordsXml, pivotTableXml} from './pivot.ts';
 import {REL} from './relationships.ts';
+import type {FlushedSheet} from './row-xml.ts';
 import {SharedStringTable} from './shared-strings.ts';
 import {StyleRegistry} from './styles.ts';
 import {tableXml} from './tables.ts';
@@ -77,20 +79,7 @@ import {
   workbookRelsXml,
   workbookXml,
 } from './workbook-xml.ts';
-import {
-  type FlushedSheet,
-  type SheetReferences,
-  worksheetRelsXml,
-  worksheetXml,
-} from './worksheet-xml.ts';
-
-export {
-  buildColumnDefaults,
-  Extent,
-  type FlushedSheet,
-  type RowRenderContext,
-  renderRow,
-} from './worksheet-xml.ts';
+import {type SheetReferences, worksheetRelsXml, worksheetXml} from './worksheet-xml.ts';
 
 /** Options controlling how {@link writeXlsx} serialises a workbook. */
 export interface WriteOptions {
@@ -208,21 +197,6 @@ export function createStyleRegistry(workbook: Workbook): StyleRegistry {
   // seeded dxfs: the ordering that keeps every preserved dxfId pointing where it did.
   for (const style of workbook.customTableStyles) styles.addTableStyle(style);
   return styles;
-}
-
-// One worksheet's planned package parts and the sheet-local relationship ids wiring them, produced in
-// the single planning pass. Held as a struct per sheet rather than eight index-aligned arrays, so a
-// downstream step reads one sheet's plan as a unit and cannot transpose two sheets by mis-indexing.
-interface SheetPlan {
-  readonly tables: TablePlan[];
-  readonly drawing: DrawingPlan | null;
-  readonly comments: CommentPlan | null;
-  readonly threadedComments: ThreadedCommentPlan | null;
-  readonly printerSettings: PrinterSettingsPlan | null;
-  readonly hyperlinks: HyperlinkPlan[];
-  readonly background: BackgroundPlan | null;
-  readonly preservedRefs: PreservedReferencePlan[];
-  readonly pivots: PivotPlan[];
 }
 
 // The workbook-global part counters the per-sheet planning advances: tables, drawings and pivot
@@ -577,20 +551,20 @@ function emitPackageParts(context: {
   files.add(
     '[Content_Types].xml',
     strToU8(
-      contentTypesXml(
-        sheets.length,
-        allTables,
+      contentTypesXml({
+        sheetCount: sheets.length,
+        tables: allTables,
         commentNumbers,
         drawingNumbers,
         printerSettingsNumbers,
-        media.extensions,
+        mediaExtensions: media.extensions,
         hasSharedStrings,
-        preserved.parts,
-        allPivots,
-        preservedWorkbookRels,
+        preservedParts: preserved.parts,
+        pivots: allPivots,
+        preservedWorkbookRefs: preservedWorkbookRels,
         threadedCommentNumbers,
-        persons.length > 0,
-      ),
+        hasPersons: persons.length > 0,
+      }),
     ),
   );
   files.add('_rels/.rels', strToU8(rootRelsXml(preserved.root)));
@@ -745,22 +719,7 @@ function emitSheetParts(
       preservedRefs.length > 0 ||
       pivots.length > 0
     ) {
-      files.add(
-        relsPathFor(worksheetPart(i + 1)),
-        strToU8(
-          worksheetRelsXml(
-            tables,
-            drawing,
-            comments,
-            threadedComments,
-            printerSettings,
-            background,
-            hyperlinks,
-            preservedRefs,
-            pivots,
-          ),
-        ),
-      );
+      files.add(relsPathFor(worksheetPart(i + 1)), strToU8(worksheetRelsXml(plan)));
     }
     if (printerSettings !== null) {
       files.add(printerSettingsPart(printerSettings.number), printerSettings.data);

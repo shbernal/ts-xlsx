@@ -9,6 +9,8 @@
 // and a reader narrows through the guard rather than asserting past it.
 
 import {tokenSet} from '../token-set.ts';
+import {type ClonePlan, cloneWith} from './clone.ts';
+import type {AssertNever} from './internal.ts';
 
 /** The kind of constraint a validation enforces. `list` is a dropdown; `custom` is an arbitrary
  * boolean formula; `none` constrains nothing and exists only to carry the rule's messages; the rest
@@ -100,9 +102,25 @@ export interface DataValidationEntry {
 
 /** A defensive copy of a rule, so a stored validation never aliases the caller's object (nor its
  * `formulae` array). */
+const RULE_CLONE: ClonePlan<DataValidation> = {
+  type: 'value',
+  operator: 'value',
+  formulae: 'values',
+  allowBlank: 'value',
+  showInputMessage: 'value',
+  showErrorMessage: 'value',
+  errorStyle: 'value',
+  error: 'value',
+  errorTitle: 'value',
+  prompt: 'value',
+  promptTitle: 'value',
+};
+
+/** The proof that {@link RULE_CLONE} names every field of the rule. */
+export type EveryDataValidationFieldIsCloned = AssertNever<
+  Exclude<keyof Required<DataValidation>, keyof typeof RULE_CLONE>
+>;
+
 export function cloneDataValidation(rule: DataValidation): DataValidation {
-  return {
-    ...rule,
-    ...(rule.formulae !== undefined ? {formulae: [...rule.formulae]} : {}),
-  };
+  return cloneWith(rule, RULE_CLONE);
 }

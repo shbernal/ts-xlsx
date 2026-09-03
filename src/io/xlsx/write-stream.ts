@@ -69,16 +69,9 @@ import {AuthoringError} from '../../errors.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 import {type CommentCell, collectNotes} from './comments.ts';
 import {type CollectedHyperlink, collectHyperlinks} from './hyperlinks.ts';
+import {buildColumnDefaults, Extent, type FlushedSheet, renderRow} from './row-xml.ts';
 import type {StyleRegistry} from './styles.ts';
-import {
-  buildColumnDefaults,
-  buildPackageParts,
-  createStyleRegistry,
-  Extent,
-  type FlushedSheet,
-  renderRow,
-  type WriteOptions,
-} from './write.ts';
+import {buildPackageParts, createStyleRegistry, type WriteOptions} from './write.ts';
 
 /** Calculation settings applied to the streamed workbook. Mirrors the {@link Workbook} flags. */
 export interface CalcProperties {

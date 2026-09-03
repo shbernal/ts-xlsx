@@ -34,7 +34,7 @@ import {
 import {INTERNAL} from './internal.ts';
 import {INVALID_SHEET_NAME_CHARS, MAX_SHEET_NAME_LENGTH} from './limits.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
-import type {Color, Font, NamedCellStyle, TableStyleTable} from './style.ts';
+import type {Color, Font} from './style.ts';
 import {checkTableStyle, type TableStyle} from './table-style.ts';
 import {
   OFFICE_BODY_FACE,
@@ -46,7 +46,7 @@ import {
   type ThemeOverrides,
 } from './theme.ts';
 import type {WorkbookProtection} from './workbook-protection.ts';
-import {WorkbookStyleTables} from './workbook-styles.ts';
+import {type NamedCellStyle, type TableStyleTable, WorkbookStyleTables} from './workbook-styles.ts';
 import {type DeclaredThemeSchemes, WorkbookTheme} from './workbook-theme.ts';
 import {WorkbookVbaProject} from './workbook-vba.ts';
 import {type Visibility, Worksheet, type WorksheetState} from './worksheet.ts';
