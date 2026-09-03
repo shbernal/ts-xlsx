@@ -1005,6 +1005,34 @@ export const grid = {
       read: readXlsx(bytes).worksheets[0]?.headerFooter.oddHeader ?? null,
     };
   },
+  // Build a merge whose covered cell was materialised BEFORE the merge, then report what a range over
+  // the whole merged block sees and what clearing its style does → { addresses, numFmtsAfterClear }.
+  // `Worksheet.getCell` resolves a covered address to the merge master, so a walk that tested
+  // `hasCell(row, col)` and then fetched by address got the master once per covered position and never
+  // saw the covered cell: `cells` reported the master twice, and `clearStyle` cleared it twice and left
+  // the covered cell styled, the opposite of what it documents.
+  rangeOverMergeReport() {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    sheet.getCell('B2').value = 'master';
+    const covered = sheet.getCell('C2');
+    covered.value = 'covered';
+    covered.numFmt = '0.00';
+    sheet.getCell('B2').numFmt = '0.00';
+    sheet.mergeCells('B2:C2');
+
+    const range = sheet.getRange('B2:C2');
+    const addresses = range.cells.map((cell) => cell.address);
+    range.clearStyle();
+
+    // Read back off the sheet's own iteration, which is merge-blind, so a covered cell left styled is
+    // visible rather than hidden behind the same resolution that caused the bug.
+    const numFmtsAfterClear: Record<string, string | null> = {};
+    for (const {cells} of sheet.rows()) {
+      for (const cell of cells) numFmtsAfterClear[cell.address] = cell.numFmt ?? null;
+    }
+    return {addresses, numFmtsAfterClear};
+  },
 };
 
 // The six `<headerFooter>` children, in CT_HeaderFooter order: the slots a header/footer report walks.

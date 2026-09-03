@@ -12,6 +12,7 @@
 
 import {decodeRange, encodeAddress, type GridRect, MAX_COLUMN, MAX_ROW} from './address.ts';
 import {applyCellStyle, type Cell} from './cell.ts';
+import {INTERNAL} from './internal.ts';
 import {
   type Alignment,
   type Border,
@@ -115,11 +116,7 @@ export class Range implements GridRect {
    */
   get cells(): readonly Cell[] {
     const cells: Cell[] = [];
-    for (let row = this.top; row <= this.bottom; row++) {
-      for (let col = this.left; col <= this.right; col++) {
-        if (this.#sheet.hasCell(row, col)) cells.push(this.#sheet.getCell(encodeAddress(col, row)));
-      }
-    }
+    for (const cell of this.#storedCells()) cells.push(cell);
     return cells;
   }
 
@@ -158,7 +155,7 @@ export class Range implements GridRect {
    * Materialises nothing: a cell that does not exist carries no style to clear.
    */
   clearStyle(): void {
-    for (const cell of this.cells) {
+    for (const cell of this.#storedCells()) {
       for (const facet of CELL_STYLE_FACETS) setFacet(cell, facet, undefined);
     }
   }
@@ -222,8 +219,25 @@ export class Range implements GridRect {
   // Clearing one (`undefined`) touches only the cells that exist: there is nothing to clear on a hole,
   // and materialising the block to write nothing onto it would be pure cost.
   #writeFacet<K extends keyof CellStyle>(facet: K, value: CellStyle[K]): void {
-    const cells = value === undefined ? this.cells : this.#materialise();
+    const cells = value === undefined ? [...this.#storedCells()] : this.#materialise();
     for (const cell of cells) setFacet(cell, facet, value);
+  }
+
+  // The cells the block actually stores, row-major, creating nothing and resolving no merge.
+  //
+  // Deliberately not `hasCell` + `getCell`: `getCell` resolves a covered address to its merge master,
+  // so a block overlapping a merge yielded the master once per covered position and the covered cells
+  // never. `clearStyle` then cleared the master repeatedly and left the covered cells styled, which is
+  // the opposite of what it says it does. This also drops a number → address string → regex → number
+  // round-trip that cost about three times a direct positional read.
+  *#storedCells(): Generator<Cell, void, undefined> {
+    const internals = this.#sheet[INTERNAL];
+    for (let row = this.top; row <= this.bottom; row++) {
+      for (let col = this.left; col <= this.right; col++) {
+        const cell = internals.peekCell(row, col);
+        if (cell !== undefined) yield cell;
+      }
+    }
   }
 
   // One facet of the block-wide style onto the record being assembled. Narrowed to a single key for
@@ -237,14 +251,13 @@ export class Range implements GridRect {
   // undefined. A hole counts as "no facet", so a partly-styled block is reported as disagreeing,
   // which it does, since the empty positions render unstyled.
   #sharedFacet<K extends keyof CellStyle>(facet: K): CellStyle[K] {
+    const internals = this.#sheet[INTERNAL];
     let first: CellStyle[K] | undefined;
     let firstKey: string | undefined;
     let seen = 0;
     for (let row = this.top; row <= this.bottom; row++) {
       for (let col = this.left; col <= this.right; col++) {
-        const value = this.#sheet.hasCell(row, col)
-          ? this.#sheet.getCell(encodeAddress(col, row))[facet]
-          : undefined;
+        const value = internals.peekCell(row, col)?.[facet];
         const key = facetKey(value);
         if (seen === 0) {
           first = value;

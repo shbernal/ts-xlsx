@@ -8,10 +8,12 @@ import {partMapOf} from './package-facts.ts';
 import {
   type CellInstance,
   fixtureBytes,
+  NAMED_STYLE_ID,
   readFixture,
   readXlsx,
   Workbook,
   type WorkbookInstance,
+  type WorksheetInstance,
   writeXlsx,
 } from './runtime.ts';
 import {applyStyle, buildFrom} from './spec-model.ts';
@@ -171,6 +173,68 @@ export const styles = {
     );
     const reloaded = readXlsx(buffer).getWorksheet('S')!.getCell('A1').quotePrefix === true;
     return {writtenQuotePrefix, reloaded};
+  },
+
+  // Take a cell carrying every kind of formatting a cell can carry (a shared style facet, the
+  // quote-prefix flag, a link to a named cell style), put it through each path that COPIES a cell (a
+  // row splice, a column splice, duplicateRow, a model assignment onto another sheet), and report what
+  // survives each → { spliceRows, spliceColumns, duplicateRow, modelCopy, written }, each
+  // { value, numFmt, quotePrefix, namedStyle }. The named-style link is codec-only and has no public
+  // accessor, so it is read back off the written package instead of off the model: `written` reports
+  // whether the re-emitted xf still carries quotePrefix and an xfId. Use it to assert a structural edit
+  // carries a cell's WHOLE formatting, not the six facets that happen to be in the shared style tuple.
+  cellContentSurvivesCopies() {
+    const seed = (sheet: WorksheetInstance, ref: string) => {
+      const cell = sheet.getCell(ref);
+      cell.value = '007';
+      cell.numFmt = '0.00';
+      cell.quotePrefix = true;
+      (cell as Untyped)[NAMED_STYLE_ID] = 1;
+    };
+    const facts = (cell: Untyped) => ({
+      value: cell.value as unknown,
+      numFmt: cell.numFmt as unknown,
+      quotePrefix: cell.quotePrefix === true,
+      namedStyle: cell[NAMED_STYLE_ID] as unknown,
+    });
+
+    const wb = new Workbook();
+
+    const rowSpliced = wb.addWorksheet('RowSplice');
+    seed(rowSpliced, 'A1');
+    rowSpliced.spliceRows(1, 0, ['inserted']);
+
+    const columnSpliced = wb.addWorksheet('ColSplice');
+    seed(columnSpliced, 'A1');
+    columnSpliced.spliceColumns(1, 0, ['inserted']);
+
+    const duplicated = wb.addWorksheet('Duplicate');
+    seed(duplicated, 'A1');
+    duplicated.duplicateRow(1, {count: 1, insert: true});
+
+    const source = wb.addWorksheet('Source');
+    seed(source, 'A1');
+    const destination = wb.addWorksheet('Destination');
+    destination.model = source.model;
+
+    // The written package, so the two cell-only facets are checked where they actually land.
+    const single = new Workbook();
+    const only = single.addWorksheet('S');
+    seed(only, 'A1');
+    only.spliceRows(1, 0, ['inserted']);
+    const styles = partMapOf(writeXlsx(single))['xl/styles.xml'] ?? '';
+    const cellXfs = (styles.match(/<cellXfs[\s\S]*?<\/cellXfs>/) ?? [])[0] ?? '';
+
+    return {
+      spliceRows: facts(rowSpliced.getCell('A2') as Untyped),
+      spliceColumns: facts(columnSpliced.getCell('B1') as Untyped),
+      duplicateRow: facts(duplicated.getCell('A2') as Untyped),
+      modelCopy: facts(destination.getCell('A1') as Untyped),
+      written: {
+        quotePrefix: /<xf\b[^>]*quotePrefix="1"/.test(cellXfs),
+        xfId: /<xf\b[^>]*xfId="1"/.test(cellXfs),
+      },
+    };
   },
 
   // Load a fixture whose A1 fill lives only in a named cell style (cellXfs xfId → cellStyleXfs), and

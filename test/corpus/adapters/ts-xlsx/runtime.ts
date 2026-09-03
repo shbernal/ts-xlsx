@@ -28,6 +28,10 @@ export const loadModule = <T>(rel: string): Promise<T> =>
 export const {decodeAddress, decodeRange, encodeAddress, MAX_COLUMN, MAX_ROW} =
   await loadModule<typeof import('../../../../src/core/address.ts')>('core/address');
 export const {XlsxError} = await loadModule<typeof import('../../../../src/errors.ts')>('errors');
+// The codec's back channel, for the two facts a cell carries that have no public accessor. A case
+// never sees these; the adapter reaches them so it can report what survived a copy.
+export const {NAMED_STYLE_ID} =
+  await loadModule<typeof import('../../../../src/core/internal.ts')>('core/internal');
 export const {detectValueType, isRichTextValue} =
   await loadModule<typeof import('../../../../src/core/value.ts')>('core/value');
 export const {Workbook} =

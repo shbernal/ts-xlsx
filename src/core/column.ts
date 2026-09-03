@@ -53,6 +53,10 @@ export class Column extends AxisHandle<ColumnProperties> {
     return this.#sheet[INTERNAL].ensureColumnProperties(this.index);
   }
 
+  protected override dropProperties(): void {
+    this.#sheet[INTERNAL].dropColumnProperties(this.index);
+  }
+
   /**
    * Stable key naming this column so a keyed-object row (see {@link Worksheet.addRow}) can place a
    * value under it by name rather than position. In-memory only: never serialized to OOXML.

@@ -34,7 +34,7 @@ import {
 import {Range, rangeFrom} from './range.ts';
 import {buildRowCells, positionalPlacements, rowPlacements} from './row-input.ts';
 import {Row} from './row.ts';
-import type {CellStyle, Color, Fill} from './style.ts';
+import type {CellContent, CellStyle, Color, Fill} from './style.ts';
 import {Table, type TableOptions} from './table.ts';
 import {UsedExtent} from './used-extent.ts';
 import type {CellValue} from './value.ts';
@@ -143,8 +143,13 @@ export interface RowProperties {
   fill?: Fill;
 }
 
-/** One materialised cell in a {@link WorksheetModel}: its position, value, and per-cell style facets. */
-export interface CellModel extends CellStyle {
+/**
+ * One materialised cell in a {@link WorksheetModel}: its position, value, note, and every facet of its
+ * formatting. Extends {@link CellContent} rather than {@link CellStyle} so the quote-prefix flag and
+ * the named-style link travel with a model round-trip: they are written and read back like any other
+ * facet, and leaving them off the tuple is what made a `dst.model = src.model` drop them.
+ */
+export interface CellModel extends CellContent {
   readonly row: number;
   readonly col: number;
   value: CellValue;
@@ -1143,6 +1148,7 @@ export class Worksheet {
       this.#protection = protection;
     },
     cellAt: (row, col) => this.#cellAt(row, col),
+    peekCell: (row, col) => this.#rows.get(row)?.get(col),
     rowPropertiesOf: (number) => this.#rowProperties.get(number),
     ensureRowProperties: (number) => {
       let properties = this.#rowProperties.get(number);
@@ -1152,6 +1158,11 @@ export class Worksheet {
       }
       this.#extent.noteDeclaredRow(number);
       return properties;
+    },
+    dropRowProperties: (number) => {
+      // The extent only ever grows as positions are declared, so removing one has to make it
+      // re-derive rather than be told: nothing else can know whether this row was the bound.
+      if (this.#rowProperties.delete(number)) this.#extent.invalidate();
     },
     rowCells: (number) => {
       const cols = this.#rows.get(number);
@@ -1166,6 +1177,9 @@ export class Worksheet {
       }
       this.#extent.noteDeclaredColumn(index);
       return properties;
+    },
+    dropColumnProperties: (index) => {
+      if (this.#columns.delete(index)) this.#extent.invalidate();
     },
     columnCells: (index) => {
       const cells: Cell[] = [];
@@ -1253,20 +1267,34 @@ export interface WorksheetInternals {
    * master mid-load would move it.
    */
   cellAt(row: number, col: number): Cell;
+  /**
+   * The cell materialised at a position, or `undefined` when nothing has been written there.
+   *
+   * Merge-blind and non-materialising, which is what separates it from `Worksheet.getCell`: that
+   * resolves a covered address to its merge master, so `hasCell(row, col)` followed by a `getCell` of
+   * the same position can hand back a *different* cell. A caller walking a rectangle got the master
+   * once per covered position and never saw the covered cells at all, which made a `clearStyle` over a
+   * merge clear the master repeatedly and the covered cells not once. A caller that wants merge
+   * resolution keeps `getCell`; a caller enumerating what is actually stored wants this.
+   */
+  peekCell(row: number, col: number): Cell | undefined;
 
   /**
-   * The store behind a {@link Row} or {@link Column} handle. These six exist because the handles are
+   * The store behind a {@link Row} or {@link Column} handle. These exist because the handles are
    * views rather than records: they hold a sheet and a position, and every read and write goes
    * through here to the one authoritative map. `…PropertiesOf` never fabricates, so reading a row
    * cannot extend the used range; `ensure…` is what a write calls, so the record appears exactly
-   * when a value is set.
+   * when a value is set; `drop…` is what clearing the last field calls, so the record disappears
+   * exactly when the line stops being formatted, which is what keeps the used range honest.
    */
   rowPropertiesOf(number: number): RowProperties | undefined;
   ensureRowProperties(number: number): RowProperties;
+  dropRowProperties(number: number): void;
   /** The row's materialised cells in ascending column order. */
   rowCells(number: number): Cell[];
   columnPropertiesOf(index: number): ColumnProperties | undefined;
   ensureColumnProperties(index: number): ColumnProperties;
+  dropColumnProperties(index: number): void;
   /** The column's materialised cells in ascending row order. */
   columnCells(index: number): Cell[];
 }

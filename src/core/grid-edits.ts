@@ -81,7 +81,15 @@ export class GridEdits {
     const shifted = new Map<number, Map<number, Cell>>();
     for (const [row, cols] of this.#rows) {
       if (row < start) shifted.set(row, cols);
-      else if (row >= start + count) shifted.set(row + delta, this.#relocateRow(cols, row + delta));
+      else if (row >= start + count) {
+        // Through `shiftIndex` like every other participant. Raw arithmetic here let an insert on a
+        // sheet holding a cell in the last row hand `new Cell` a coordinate it asserts against, so the
+        // splice died with a `RangeError` from inside the grid where a merge or a table would have
+        // clamped. A row clamped onto the last one lands on whatever is already there, which is the
+        // content Excel also loses when it pushes a row off the bottom.
+        const dest = shiftIndex(row, start, count, delta, 'row');
+        shifted.set(dest, this.#relocateRow(cols, dest));
+      }
     }
     inserted.forEach((cols, i) => {
       shifted.set(start + i, this.#relocateRow(cols, start + i));
@@ -103,13 +111,20 @@ export class GridEdits {
   // shared-formula clones and the range-bound overlays re-anchor the same way.
   spliceColumns(start: number, count: number, inserts: CellValue[][]): void {
     const delta = inserts.length - count;
+    // Built whole, then swapped in, the way `spliceRows` does it. Writing each row back inside the loop
+    // meant a throw part-way left the sheet half-spliced: rows already visited shifted, the rest not,
+    // with no way for the caller to act on the error. Nothing here throws any more, but a partial edit
+    // is not a state this class should be able to reach at all.
+    const shiftedRows = new Map<number, Map<number, Cell>>();
     for (const [row, cols] of this.#rows) {
       const shifted = new Map<number, Cell>();
       for (const [col, cell] of cols) {
         if (col < start) {
           shifted.set(col, cell);
         } else if (col >= start + count) {
-          const dest = col + delta;
+          // `shiftIndex` for the same reason the row axis uses it: `new Cell` asserts its coordinates,
+          // so an unclamped destination past column XFD threw from inside the splice.
+          const dest = shiftIndex(col, start, count, delta, 'col');
           const moved = new Cell(row, dest);
           copyCellContent(cell, moved);
           shifted.set(dest, moved);
@@ -123,8 +138,9 @@ export class GridEdits {
           shifted.set(start + i, cell);
         }
       });
-      this.#rows.set(row, shifted);
+      shiftedRows.set(row, shifted);
     }
+    for (const [row, cols] of shiftedRows) this.#rows.set(row, cols);
     this.#shiftLineProperties(this.#columns, start, count, delta);
     this.#shiftMerges('col', start, count, delta);
     this.#shiftTables('col', start, count, delta);

@@ -5,7 +5,7 @@
 // facets landed so far: colours, fills, borders, fonts, alignment, and protection.
 
 import {tokenSet} from '../token-set.ts';
-import type {AssertNever} from './internal.ts';
+import {type AssertNever, NAMED_STYLE_ID} from './internal.ts';
 
 /** Underline can be a plain flag or one of Excel's named underline styles. */
 export type UnderlineStyle =
@@ -410,6 +410,58 @@ const CELL_STYLE_FACET_KEYS: Record<keyof CellStyle, true> = {
 
 /** The names of the {@link CellStyle} facets, for helpers that copy the tuple facet-by-facet. */
 export const CELL_STYLE_FACETS = Object.keys(CELL_STYLE_FACET_KEYS) as (keyof CellStyle)[];
+
+/**
+ * Everything a cell's *formatting* is, which is the six {@link CellStyle} facets plus two that only a
+ * cell can carry: the quote-prefix flag and the link to a named cell style.
+ *
+ * The two extras are on the cell's `xf` record exactly as the six are, and are written and read back
+ * exactly as the six are, but they sat outside the tuple, so every copy path driven by the tuple
+ * dropped them: a splice, a `duplicateRow`, or a `dst.model = src.model` turned a leading-apostrophe
+ * text cell back into an unprefixed one. That is the merge-loss the tuple exists to make impossible,
+ * so they join it. Callers that mean "the six shared facets" (a column default, a named style, a
+ * `<dxf>`) still say {@link CellStyle}; callers copying a *cell* say this.
+ */
+export type CellContent = CellStyle & {
+  quotePrefix?: boolean | undefined;
+  [NAMED_STYLE_ID]?: number | undefined;
+};
+
+// One entry per cell-only facet, on the same terms as CELL_STYLE_FACET_KEYS: the Record shape is what
+// makes the compiler reject this the moment CellContent gains a facet it does not list.
+const CELL_CONTENT_ONLY_KEYS: Record<Exclude<keyof CellContent, keyof CellStyle>, true> = {
+  quotePrefix: true,
+  [NAMED_STYLE_ID]: true,
+};
+
+/**
+ * The names of every {@link CellContent} facet, the six shared ones first. Helpers that copy a cell's
+ * whole formatting drive off this, so a facet added to either half reaches all of them at once.
+ */
+export const CELL_CONTENT_FACETS = [
+  ...CELL_STYLE_FACETS,
+  ...(Reflect.ownKeys(CELL_CONTENT_ONLY_KEYS) as Exclude<keyof CellContent, keyof CellStyle>[]),
+] as (keyof CellContent)[];
+
+/**
+ * Copy every present facet of a cell's formatting from `source` onto `target`, leaving facets
+ * `source` omits untouched: {@link assignStyleFacets} widened to the two cell-only facets. This is
+ * what a copy of a *cell* uses, so no structural edit can drop one.
+ */
+export function assignContentFacets(target: CellContent, source: Readonly<CellContent>): void {
+  for (const facet of CELL_CONTENT_FACETS) copyContentFacet(target, source, facet);
+}
+
+// One key at a time, for the reason copyFacet is: a correlated-key write the compiler cannot verify
+// when the key is the whole union.
+function copyContentFacet<K extends keyof CellContent>(
+  target: CellContent,
+  source: Readonly<CellContent>,
+  key: K,
+): void {
+  const value = source[key];
+  if (value !== undefined) target[key] = value;
+}
 
 /**
  * Copy each present facet of `source` onto `target`, leaving facets `source` omits untouched: the

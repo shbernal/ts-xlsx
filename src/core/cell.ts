@@ -9,9 +9,10 @@ import {assertColumnInBounds, assertRowInBounds, encodeAddress} from './address.
 import {NAMED_STYLE_ID} from './internal.ts';
 import {
   type Alignment,
+  assignContentFacets,
   assignStyleFacets,
   type Border,
-  CELL_STYLE_FACETS,
+  CELL_CONTENT_FACETS,
   type CellStyle,
   type Fill,
   type Font,
@@ -265,9 +266,10 @@ export class Cell {
 }
 
 /**
- * Whether a cell carries formatting of its own: one of the {@link CellStyle} facets, the quote-prefix
- * flag, or a link to a named style. Driven by {@link CELL_STYLE_FACETS}, so a facet added to the
- * tuple reaches every "is this cell blank" decision without anyone remembering to widen a literal.
+ * Whether a cell carries formatting of its own: any {@link CellContent} facet, which is the six shared
+ * style facets plus the quote-prefix flag and the link to a named style. Driven by
+ * {@link CELL_CONTENT_FACETS}, so a facet added to the tuple reaches every "is this cell blank"
+ * decision without anyone remembering to widen a literal.
  *
  * Row- and column-inherited formatting is not the cell's own and does not count. Neither does a
  * note: it lives in the comments part, not the cell's `<c>` element, so a writer deciding whether an
@@ -275,11 +277,7 @@ export class Cell {
  * {@link cellCarriesContent}, which is this plus the value and the note.
  */
 export function cellHasOwnStyle(cell: Cell): boolean {
-  return (
-    CELL_STYLE_FACETS.some((facet) => cell[facet] !== undefined) ||
-    cell.quotePrefix === true ||
-    cell[NAMED_STYLE_ID] !== undefined
-  );
+  return CELL_CONTENT_FACETS.some((facet) => cell[facet] !== undefined);
 }
 
 /**
@@ -314,22 +312,23 @@ export function applyCellStyle(cell: Cell, style: Readonly<CellStyle>): void {
 // load content into a cell: a structural edit shifting a cell to fresh coordinates (`Cell` fixes its
 // `(row, col)` at construction, so the shifted cell is a new cell carrying the original's content) and
 // assigning a {@link WorksheetModel} onto a sheet. Position is never copied: the target keeps its own
-// `(row, col)`. The style facets go through {@link applyCellStyle} (targets are always fresh cells, so
-// its skip-if-absent is equivalent to a full copy here). Paired with {@link cellToModel} (the read
-// direction); a facet cellToModel emits but applyCellStyle omits (or the reverse) would silently drop
-// on a model round-trip, the historical merge-loss failure the CellStyle tuple now guards by type.
+// `(row, col)`. The formatting goes through {@link assignContentFacets} (targets are always fresh
+// cells, so its skip-if-absent is equivalent to a full copy here). Paired with {@link cellToModel}
+// (the read direction); a facet one emits and the other omits would silently drop on a model
+// round-trip, the historical merge-loss failure the CellContent tuple now guards by type.
 export function copyCellContent(source: CellModel, target: Cell): void {
   target.value = source.value;
-  applyCellStyle(target, source);
+  assignContentFacets(target, source);
   target.note = source.note;
 }
 
 // Snapshot a cell's position and content as a {@link CellModel}: the read direction paired with
-// {@link copyCellContent}'s write. The style facets flow through the same {@link assignStyleFacets} loop
-// as every other copy (a {@link Cell} is structurally a {@link CellStyle} source), so this direction emits
-// exactly the facets the apply direction consumes: a `dst.model = src.model` round-trip carries every one,
-// and a facet added to {@link CellStyle} propagates here without a hand edit. Facets the cell does not
-// carry are left off the model rather than pinned to `undefined`; no consumer distinguishes the two.
+// {@link copyCellContent}'s write. The formatting flows through the same {@link assignContentFacets}
+// loop as every other copy (a {@link Cell} is structurally a {@link CellContent} source), so this
+// direction emits exactly the facets the apply direction consumes: a `dst.model = src.model` round-trip
+// carries every one, and a facet added to {@link CellContent} propagates here without a hand edit.
+// Facets the cell does not carry are left off the model rather than pinned to `undefined`; no consumer
+// distinguishes the two.
 export function cellToModel(cell: Cell): CellModel {
   const model: CellModel = {
     row: cell.row,
@@ -337,6 +336,6 @@ export function cellToModel(cell: Cell): CellModel {
     value: cell.value,
     note: cell.note,
   };
-  assignStyleFacets(model, cell);
+  assignContentFacets(model, cell);
   return model;
 }

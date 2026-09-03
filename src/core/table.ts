@@ -455,13 +455,22 @@ export class Table {
   }
 
   /**
-   * Re-pin the table through a column splice. A splice entirely to the table's left moves its anchor
-   * by `delta`; one to its right leaves it untouched. A splice landing inside the table's columns is
-   * structural surgery on named columns with no unambiguous answer, so the table's columns are left
-   * as-is (anchor unchanged) rather than fabricated or dropped. Always returns `true`.
+   * Re-pin the table through a column splice, the mirror of {@link shiftRows}. A splice entirely to the
+   * table's left moves its anchor by `delta`; one to its right leaves it untouched; one that deletes
+   * the table's every column removes it. Returns `false` when the table no longer has a column to
+   * occupy (the caller drops it), `true` when it survives.
+   *
+   * A splice landing *inside* the table's columns is structural surgery on named columns with no
+   * unambiguous answer, so those columns are left as-is rather than fabricated or dropped. Whole-table
+   * deletion is not that case: a table left declared over whatever slid into its place, carrying the
+   * names of columns that no longer exist, is content the writer then emits.
    */
   shiftColumns(start: number, count: number, delta: number): boolean {
-    if (this.#anchorCol >= start + count) this.#anchorCol += delta;
+    // A table whose every column lies within the deleted span has nothing left to occupy.
+    if (isDeletedSpan(this.#anchorCol, this.#right, start, count)) return false;
+    // Clamped, like every other coordinate a splice moves: an unbounded increment could put the anchor
+    // past the last column, where `range`, `autoFilterRef` and `region` all throw on read.
+    this.#anchorCol = shiftIndex(this.#anchorCol, start, count, delta, 'col');
     return true;
   }
 

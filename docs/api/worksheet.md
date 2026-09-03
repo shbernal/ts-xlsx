@@ -6,10 +6,13 @@
 
 <sub>interface</sub>
 
-One materialised cell in a [`WorksheetModel`](./worksheet.md#worksheetmodel): its position, value, and per-cell style facets.
+One materialised cell in a [`WorksheetModel`](./worksheet.md#worksheetmodel): its position, value, note, and every facet of its
+formatting. Extends `CellContent` rather than [`CellStyle`](./styles.md#cellstyle) so the quote-prefix flag and
+the named-style link travel with a model round-trip: they are written and read back like any other
+facet, and leaving them off the tuple is what made a `dst.model = src.model` drop them.
 
 ```ts
-interface CellModel extends CellStyle {
+interface CellModel extends CellContent {
   readonly row: number;
   readonly col: number;
   value: CellValue;

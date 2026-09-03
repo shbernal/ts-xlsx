@@ -140,3 +140,27 @@ test('sheet.columns() yields handles for the formatted columns, ascending', () =
   );
   assert.equal(columns[1]?.width, 12);
 });
+
+test("clearing a column's last property takes the record with it, and the used range with that", () => {
+  // The same rule as a row's, stated once on `AxisHandle` and reached from both axes. An emptied
+  // record still declared the column, so the used range stayed pinned at 100 with nothing formatted
+  // there, and `properties` answered `{}` where its own doc promises a read that never fabricates.
+  const sheet = new Worksheet('S', 1);
+  sheet.getColumn(100).width = 12;
+  assert.equal(sheet.columnCount, 100);
+
+  sheet.getColumn(100).width = undefined;
+  assert.equal(sheet.getColumn(100).properties, undefined);
+  assert.equal(sheet.columnCount, 0);
+});
+
+test('clearing one of several column properties keeps the record and the rest', () => {
+  const sheet = new Worksheet('S', 1);
+  const column = sheet.getColumn(4);
+  column.width = 12;
+  column.hidden = true;
+
+  column.width = undefined;
+  assert.deepEqual(column.properties, {hidden: true});
+  assert.equal(sheet.columnCount, 4, 'still formatted, so still in the used range');
+});

@@ -33,15 +33,35 @@ test('writing formatting through a row creates the record, and clearing it remov
   const row = sheet.getRow(2);
 
   row.hidden = true;
-  assert.deepEqual(row.properties, {hidden: true}, 'the write created exactly the key it named');
+  row.height = 30;
+  assert.deepEqual(
+    row.properties,
+    {hidden: true, height: 30},
+    'each write created exactly the key it named',
+  );
   assert.equal(sheet.rowCount, 2, 'a formatted row is in the used range');
 
   row.hidden = undefined;
   assert.deepEqual(
     row.properties,
-    {},
+    {height: 30},
     'clearing deletes the key rather than storing an explicit undefined',
   );
+  assert.equal(sheet.rowCount, 2, 'and the row is still formatted, so still in the used range');
+});
+
+test("clearing a row's last property takes the record with it, and the used range with that", () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getRow(500).height = 20;
+  assert.equal(sheet.rowCount, 500);
+
+  sheet.getRow(500).height = undefined;
+  assert.equal(
+    sheet.getRow(500).properties,
+    undefined,
+    'an emptied record is not a record: `properties` promises a read that never fabricates',
+  );
+  assert.equal(sheet.rowCount, 0, 'and nothing is left declaring row 500, so the extent recedes');
 });
 
 test('clearing a property on a row that has no record creates no record', () => {

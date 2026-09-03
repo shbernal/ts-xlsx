@@ -13,6 +13,7 @@
 import {AuthoringError, InternalError} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
 import {encodeAddress} from './address.ts';
+import {INTERNAL} from './internal.ts';
 import {
   type CellValue,
   isErrorValue,
@@ -197,10 +198,20 @@ export class PivotTable {
       throw new AuthoringError('a pivot source needs a header row and at least one data row');
     }
 
+    // The source is read positionally, never through `getCell`. `getCell` materialises, so reading a
+    // rectangle bounded by the used extent created a cell at every position in it: a source holding 22
+    // cells plus one lone value far down a column grew to 150,000 cells on the source sheet, in 189 ms,
+    // and they stayed there. That is exactly the cost cliff `core/range.ts` refuses to permit for a
+    // range, and a pivot has no more right to it. A position with no cell is blank, which `scalarOf`
+    // already answers for `null`.
+    const internals = source[INTERNAL];
+    const valueAt = (row: number, col: number): CellValue =>
+      internals.peekCell(row, col)?.value ?? null;
+
     // Every non-blank header cell in row 1 defines a field, in ascending column order.
     const fields: {readonly name: string; readonly col: number}[] = [];
     for (let col = 1; col <= columnCount; col++) {
-      const name = textOf(scalarOf(source.getCell(encodeAddress(col, 1)).value));
+      const name = textOf(scalarOf(valueAt(1, col)));
       if (name !== '') fields.push({name, col});
     }
     if (fields.length === 0) throw new AuthoringError('the pivot source header row is empty');
@@ -242,9 +253,7 @@ export class PivotTable {
     const dataRowCount = lastRow - 1;
     const columnScalars = fields.map((field) => {
       const scalars: PivotItem[] = [];
-      for (let row = 2; row <= lastRow; row++) {
-        scalars.push(scalarOf(source.getCell(encodeAddress(field.col, row)).value));
-      }
+      for (let row = 2; row <= lastRow; row++) scalars.push(scalarOf(valueAt(row, field.col)));
       return scalars;
     });
 

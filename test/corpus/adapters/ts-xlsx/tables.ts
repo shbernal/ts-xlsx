@@ -7,7 +7,14 @@ import path from 'node:path';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {type PartMap, partMapOf} from './package-facts.ts';
-import {FIXTURES_ROOT, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
+import {
+  FIXTURES_ROOT,
+  readFixture,
+  readXlsx,
+  Workbook,
+  type WorksheetInstance,
+  writeXlsx,
+} from './runtime.ts';
 import {buildFrom} from './spec-model.ts';
 
 export const tables = {
@@ -461,4 +468,54 @@ export const tables = {
       reloadedName: table ? table.name : null,
     };
   },
+  // Splice columns against a two-column table and report what is left → { wholeDelete, leftInsert,
+  // rightEdge }. `shiftRows` asks whether the deleted span swallowed the table and returns false so
+  // the caller prunes it; `shiftColumns` did neither that nor the clamp every other coordinate gets,
+  // so a table survived a splice that deleted its every column (still naming columns that no longer
+  // exist, declared over whatever slid left, and emitted that way), and an insert could push its
+  // anchor past the last column, where `range` throws on read.
+  tableThroughColumnSplice() {
+    const build = () => {
+      const wb = new Workbook();
+      const sheet = wb.addWorksheet('S');
+      sheet.getCell('B1').value = 'h1';
+      sheet.getCell('C1').value = 'h2';
+      sheet.getCell('B2').value = 1;
+      sheet.getCell('C2').value = 2;
+      sheet.addTable({name: 'T', ref: 'B1', columns: [{name: 'h1'}, {name: 'h2'}], rowCount: 1});
+      return sheet;
+    };
+
+    const deleted = build();
+    deleted.spliceColumns(2, 2);
+
+    const shifted = build();
+    shifted.spliceColumns(1, 0, ['inserted']);
+
+    // A table anchored on the very last column, where an unclamped anchor would leave the grid.
+    const edgeWb = new Workbook();
+    const edge = edgeWb.addWorksheet('E');
+    edge.getCell('XFD1').value = 'h';
+    edge.getCell('XFD2').value = 1;
+    edge.addTable({name: 'T', ref: 'XFD1', columns: [{name: 'h'}], rowCount: 1});
+    edge.spliceColumns(1, 0, ['inserted']);
+
+    return {
+      wholeDelete: {tableCount: deleted.tables.length},
+      leftInsert: {tableCount: shifted.tables.length, range: shifted.tables[0]?.range ?? null},
+      // Reported as data either way: reading `range` on an anchor pushed off the grid throws, and a
+      // thrown range is exactly the failure the clamp exists to prevent.
+      rightEdge: {range: readRange(edge)},
+    };
+  },
 };
+
+// A table's range, or the message reading it threw. An anchor moved past the last column makes
+// `range`, `autoFilterRef` and `region` all throw, so a case has to be able to see that as a value.
+function readRange(sheet: WorksheetInstance): string | null {
+  try {
+    return sheet.tables[0]?.range ?? null;
+  } catch (e) {
+    return messageOf(e);
+  }
+}

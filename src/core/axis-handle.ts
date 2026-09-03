@@ -22,6 +22,9 @@ export abstract class AxisHandle<P extends object> {
   /** This position's format record, created if it does not exist yet. */
   protected abstract ensureProperties(): P;
 
+  /** Remove this position's format record entirely, so nothing is left declaring the line. */
+  protected abstract dropProperties(): void;
+
   protected read<K extends keyof P>(key: K): P[K] | undefined {
     return this.propertiesOf()?.[key];
   }
@@ -31,10 +34,19 @@ export abstract class AxisHandle<P extends object> {
   // one, and it would make an unformatted row or column look formatted to anything reading
   // `properties`. Clearing a position that has no record at all is a no-op, so a write of `undefined`
   // never materialises one.
+  //
+  // Clearing the *last* field takes the record with it. An emptied record is not the same thing as no
+  // record: the used extent derives its bounds from which positions have one, so a row formatted at
+  // 500 and then unformatted kept `rowCount` at 500 forever; `properties` promised a read that never
+  // fabricates and answered `{}`; and a model round-trip was not idempotent, because the importer
+  // assigns an empty record through setters that never fire, so the destination never recreated it.
+  // One rule, stated here, fixes all three.
   protected write<K extends keyof P>(key: K, value: P[K]): void {
     if (value === undefined) {
       const properties = this.propertiesOf();
-      if (properties !== undefined) delete properties[key];
+      if (properties === undefined) return;
+      delete properties[key];
+      if (Object.keys(properties).length === 0) this.dropProperties();
       return;
     }
     this.ensureProperties()[key] = value;

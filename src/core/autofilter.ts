@@ -92,17 +92,27 @@ export function canonicalizeAutoFilter(input: string | AutoFilter): AutoFilter {
   };
 }
 
+// Validated and copied, never stored by reference. The two other range-bound overlays
+// (`DataValidationOverlay.add`, `ConditionalFormattingOverlay.add`) both deep-copy what a caller hands
+// them so a later mutation of the caller's object cannot reach into the sheet, and a filter is the
+// same kind of thing; this was the one of the three that kept the caller's objects. Every field here
+// is `readonly`, so the copy only has to be one level deep per collection.
 function canonicalizeColumn(column: FilterColumn, width: number): FilterColumn {
   if (!Number.isInteger(column.colId) || column.colId < 0 || column.colId >= width) {
     throw new AuthoringError(`autofilter colId ${column.colId} is outside the filter range`);
   }
-  if (column.criteria.kind === 'custom') {
-    const count = column.criteria.predicates.length;
-    if (count < 1 || count > 2) {
-      throw new AuthoringError(`a custom filter needs one or two predicates, got ${count}`);
-    }
+  const criteria = column.criteria;
+  if (criteria.kind === 'values') {
+    return {colId: column.colId, criteria: {...criteria, values: [...criteria.values]}};
   }
-  return column;
+  const count = criteria.predicates.length;
+  if (count < 1 || count > 2) {
+    throw new AuthoringError(`a custom filter needs one or two predicates, got ${count}`);
+  }
+  return {
+    colId: column.colId,
+    criteria: {...criteria, predicates: criteria.predicates.map((predicate) => ({...predicate}))},
+  };
 }
 
 /**

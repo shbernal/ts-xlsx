@@ -300,3 +300,53 @@ test('a column splice holds the right edge at the last column, the same rule on 
     'the insert is inside it: only its right edge could move, and it cannot',
   );
 });
+
+test('a splice with content on the last line completes instead of dying inside the grid', () => {
+  // The cell grid was the one splice participant doing raw arithmetic where every other one went
+  // through `shiftIndex`. `new Cell` asserts its coordinates, so an insert on a sheet holding a cell
+  // in the last row or column threw a `RangeError` from inside the splice, and the column axis wrote
+  // each row back as it went, so the throw left half the sheet shifted and the other half not.
+  const rows = new Workbook().addWorksheet('R');
+  rows.getCell('A1').value = 'first';
+  rows.getCell(`A${LAST_ROW}`).value = 'last';
+  rows.insertRow(1, ['inserted']);
+  assert.equal(rows.getCell('A1').value, 'inserted');
+  assert.equal(rows.getCell('A2').value, 'first');
+
+  const columns = new Workbook().addWorksheet('C');
+  columns.getCell('A1').value = 'a1';
+  columns.getCell('XFD2').value = 'edge';
+  columns.getCell('A3').value = 'a3';
+  columns.spliceColumns(1, 0, ['inserted']);
+
+  assert.equal(columns.getCell('A1').value, 'inserted', 'the insert landed');
+  assert.equal(columns.getCell('B1').value, 'a1', 'row 1 shifted');
+  assert.equal(columns.getCell('B3').value, 'a3', 'and so did row 3, which the throw used to skip');
+});
+
+test('a column splice that deletes a table whole drops the table rather than re-pointing it', () => {
+  // `shiftRows` asks `isDeletedSpan` and returns false so the caller prunes; `shiftColumns` did not,
+  // so a table survived a splice that deleted its every column, still carrying the names of columns
+  // that no longer exist, declared over whatever slid left. The writer then emits that.
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.getCell('B1').value = 'h1';
+  sheet.getCell('C1').value = 'h2';
+  sheet.getCell('B2').value = 1;
+  sheet.getCell('C2').value = 2;
+  sheet.addTable({name: 'T', ref: 'B1', columns: [{name: 'h1'}, {name: 'h2'}], rowCount: 1});
+
+  sheet.spliceColumns(2, 2);
+  assert.deepEqual(sheet.tables, [], 'the table had no column left to occupy');
+});
+
+test('a table on the right edge keeps its anchor inside the grid', () => {
+  // The unclamped increment could put the anchor past the last column, where `range`, `autoFilterRef`
+  // and `region` all throw on read: a sheet that cannot be serialised or even inspected.
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.getCell('XFD1').value = 'h';
+  sheet.getCell('XFD2').value = 1;
+  sheet.addTable({name: 'T', ref: 'XFD1', columns: [{name: 'h'}], rowCount: 1});
+
+  sheet.spliceColumns(1, 0, ['inserted']);
+  assert.doesNotThrow(() => sheet.tables[0]?.range);
+});

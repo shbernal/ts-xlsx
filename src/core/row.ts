@@ -53,6 +53,10 @@ export class Row extends AxisHandle<RowProperties> {
     return this.#sheet[INTERNAL].ensureRowProperties(this.number);
   }
 
+  protected override dropProperties(): void {
+    this.#sheet[INTERNAL].dropRowProperties(this.number);
+  }
+
   /**
    * Row height in points; `undefined` leaves the sheet default in force.
    *
