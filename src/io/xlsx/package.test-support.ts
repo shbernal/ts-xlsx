@@ -22,10 +22,28 @@ import {writeXlsx} from './write.ts';
 /** The first worksheet's part path, which most writer tests are reaching for. */
 export const SHEET1 = 'xl/worksheets/sheet1.xml';
 
+// One unzip per package, not one per accessor. Every accessor below used to inflate the whole
+// package to answer for a single part, and a test that checks four parts of one workbook paid for
+// four; `read.test.ts` does exactly that repeatedly. Keyed on the package's own bytes, so a test
+// that writes twice gets two entries and a test that never re-reads pays nothing, and weakly so
+// that a suite building hundreds of workbooks does not hold them all.
+//
+// The record `unzipSync` returns is the memo itself, so nothing may write to it. `patchParts` is
+// the one caller that wants to, and copies first.
+const inflated = new WeakMap<Uint8Array, Record<string, Uint8Array>>();
+
+function filesOf(pkg: Uint8Array): Record<string, Uint8Array> {
+  const hit = inflated.get(pkg);
+  if (hit !== undefined) return hit;
+  const files = unzipSync(pkg);
+  inflated.set(pkg, files);
+  return files;
+}
+
 /** Every part of a package, decoded to text, keyed by part path. */
 export function partsOf(pkg: Uint8Array): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [name, bytes] of Object.entries(unzipSync(pkg))) out[name] = strFromU8(bytes);
+  for (const [name, bytes] of Object.entries(filesOf(pkg))) out[name] = strFromU8(bytes);
   return out;
 }
 
@@ -42,7 +60,7 @@ export function partsWritten(workbook: Workbook): Record<string, string> {
 
 /** One named part's text. Fails the test, naming the part, when it is absent. */
 export function partText(pkg: Uint8Array, name: string): string {
-  const bytes = unzipSync(pkg)[name];
+  const bytes = filesOf(pkg)[name];
   assert.ok(bytes, `expected part ${name}`);
   return strFromU8(bytes);
 }
@@ -60,7 +78,7 @@ export function partIn(parts: Record<string, string>, name: string): string {
 
 /** One named part's text, or undefined: for a test asserting a part was *not* written. */
 export function optionalPartText(pkg: Uint8Array, name: string): string | undefined {
-  const bytes = unzipSync(pkg)[name];
+  const bytes = filesOf(pkg)[name];
   return bytes === undefined ? undefined : strFromU8(bytes);
 }
 
@@ -88,7 +106,7 @@ export function patchParts(
   pkg: Uint8Array,
   edits: Record<string, (xml: string) => string>,
 ): Uint8Array {
-  const files = unzipSync(pkg);
+  const files = {...filesOf(pkg)};
   for (const [name, edit] of Object.entries(edits)) {
     const bytes = files[name];
     assert.ok(bytes, `expected part ${name}`);

@@ -92,6 +92,13 @@ export function readXlsbPackage(files: Record<string, Uint8Array>): Workbook {
 }
 
 // One sheet as `xl/workbook.bin` declares it, in workbook (tab) order.
+//
+// The xlsx codec models the same thing as `SheetEntry` in `read-workbook-xml.ts`, with the same
+// three fields differing only in how they spell optionality. Kept apart on purpose: the codecs are
+// peers, neither imports the other, and a shared type would buy one interface at the cost of a
+// dependency edge that does not otherwise exist. A sheet declaration *is* a workbook-part concept,
+// so if a third codec ever needs one, hoist it to `opc` rather than making one of these two import
+// the other.
 interface SheetDeclaration {
   readonly name: string;
   readonly relId: string | undefined;

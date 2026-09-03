@@ -29,10 +29,9 @@ import {spawnSync} from 'node:child_process';
 import {lstatSync, readdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {homedir} from 'node:os';
-import {dirname, isAbsolute, join, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {isAbsolute, join, resolve} from 'node:path';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import {fromRoot, NODE, ROOT} from './repo.ts';
 
 /** A `git` query, or undefined when git declines to answer: no repo, or the key is unset. */
 function git(...args: readonly string[]): string | undefined {
@@ -125,9 +124,9 @@ function failClosed(hooksDir: string): void {
 }
 
 function install(hooksDir: string, ...args: readonly string[]): void {
-  // The package's own entry, not `node_modules/.bin/lefthook`. The shim is a `.CMD` on Windows,
-  // which Node will not spawn without a shell, and a shell here would be one more dialect to get
-  // wrong. This path is the same file the shim would have run.
+  // The package's own entry, not `node_modules/.bin/lefthook`, for the reason `repo.ts` states
+  // about every other tool here. Resolved rather than spelled out, because unlike those this is a
+  // platform-split package: the entry re-dispatches to whichever `lefthook-<os>-<arch>` came down.
   let entry: string;
   try {
     entry = createRequire(import.meta.url).resolve('lefthook/bin/index.js');
@@ -142,7 +141,7 @@ function install(hooksDir: string, ...args: readonly string[]): void {
     // produces that; an EDR sweep that eats `.js` out of the tree does, and it did. Announcing
     // "nothing to do" for a package that is supposed to be there is the same fail-open the
     // generated hooks had, one level up -- so this exits non-zero and says which one it is.
-    if (present(join(ROOT, 'node_modules', 'lefthook'))) {
+    if (present(fromRoot('node_modules/lefthook'))) {
       console.error('hooks: node_modules/lefthook exists but lefthook/bin/index.js does not.');
       console.error('       The install is damaged rather than absent, so hooks are NOT installed');
       console.error('       and this is not being reported as success. Repair the tree with');
@@ -154,7 +153,7 @@ function install(hooksDir: string, ...args: readonly string[]): void {
     return;
   }
 
-  const result = spawnSync(process.execPath, [entry, 'install', ...args], {
+  const result = spawnSync(NODE, [entry, 'install', ...args], {
     cwd: ROOT,
     stdio: 'inherit',
   });
