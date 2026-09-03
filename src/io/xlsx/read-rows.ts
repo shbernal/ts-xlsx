@@ -166,23 +166,31 @@ interface OpenPackage {
 }
 
 function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined): OpenPackage {
-  const {pkg, workbookXml} = openSpreadsheetPackage(data, maxUncompressedBytes);
-  const {partText: text} = pkg;
+  const {pkg, documentPath, workbookXml} = openSpreadsheetPackage(data, maxUncompressedBytes);
+  const {partText: text, partBytes} = pkg;
 
   // A binary `.xlsb` is a workbook this library *can* read, just not through here. Row streaming is
   // built on the XML worksheet parser, so the binary cell table has no streaming path yet; say so,
   // rather than reporting the format as unreadable when `readXlsx` would take the very same bytes.
   if (workbookXml === undefined) {
     throw unsupportedWorkbookPart(
-      text,
+      partBytes,
+      documentPath,
       'the binary .xlsb format (BIFF12) cannot be row-streamed yet; read it with readXlsx or readXlsb',
     );
   }
 
   const sheets = parseWorkbookSheets(workbookXml);
-  const rels = readPartRelationships('xl/workbook.xml', text);
-  const sharedStrings = parseSharedStrings(text('xl/sharedStrings.xml') ?? '');
-  const {cellXfs: xfStyles} = parseStyleTable(text('xl/styles.xml') ?? '');
+  // Every part below is reached through the relationship that names it, with the conventional path
+  // only as the fallback: the same resolution `readXlsx` does, because a streamed read of a package
+  // must not decode a cell differently from a buffered one.
+  const rels = readPartRelationships(documentPath, text);
+  const sharedStrings = parseSharedStrings(
+    rels.relatedText('sharedStrings') ?? text('xl/sharedStrings.xml') ?? '',
+  );
+  const {cellXfs: xfStyles} = parseStyleTable(
+    rels.relatedText('styles') ?? text('xl/styles.xml') ?? '',
+  );
 
   return {
     sheets,

@@ -771,6 +771,23 @@ The stack is deliberately small and each choice is recorded as an ADR under
   encoder carries a time bound (a hash chain over three-byte prefixes rather than a rescan of the
   whole back-window) and why the `dir` editors *check* the record ordering they patch against
   rather than asserting it in a comment.
+- **A part is found through the relationship that names it, never by its conventional path.**
+  `xl/workbook.xml`, `xl/sharedStrings.xml`, `xl/styles.xml` and the rest are where Excel puts those
+  parts, not where OPC says they live: the package names its office document in `_rels/.rels` and its
+  pool and stylesheet in the workbook's own `.rels`, and a conforming producer may point them
+  anywhere. The conventional path stays as a *fallback* for a package whose rels graph is damaged,
+  never as the first question. What makes this worth a rule rather than a bug report is how the two
+  halves fail: a workbook part not found is loud, while a pool not found reads every `t="s"` cell as
+  the empty string and a stylesheet not found leaves every cell without a number format, which
+  changes a date cell's *type*, silently, because the date test reads `numFmt` off the resolved style.
+- **Part-name lookups fold ASCII case; the package's own spelling is what gets written back.** OPC
+  compares part names case-insensitively, so `/XL/Workbook.XML` and `/xl/workbook.xml` name one part,
+  and a package cased differently from the references to it used to read as a package with no
+  workbook at all. The fold lives once, at the boundary: `packageAccessors` tries the exact key and
+  falls back to a folded map, and `contentTypeResolver` folds its `<Override PartName>` keys the way
+  it already folded `<Default Extension>`. It is a *lookup* rule only. The inflated part map keeps
+  the package's own spelling, which is the name a preserved part is re-emitted under, so folding
+  never rewrites what a round trip hands back.
 - **A name inside an error message goes through `quoted()`.** `src/errors.ts` exports it, every
   layer may import it, and it is the only spelling: the tree had grown three (`"…"`, `'…'`,
   `JSON.stringify`), split by directory rather than by intent, and only the last survives a name that

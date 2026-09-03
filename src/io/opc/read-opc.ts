@@ -24,22 +24,31 @@ export interface PackageAccessors {
 }
 
 /** A spreadsheet package opened for reading: inflated under the read bound, its parts bound to
- * accessors, and its XML office document read if it has one. */
+ * accessors, its office document located through the package's own relationship graph, and that
+ * document read if it is XML. */
 export interface OpenedSpreadsheet {
   /** The inflated parts, for a reader that hands the whole package on to another codec. */
   readonly files: Record<string, Uint8Array>;
   readonly pkg: PackageAccessors;
-  /** `xl/workbook.xml`, or undefined when the package carries no XML office document (a `.xlsb`
-   * carries `xl/workbook.bin` instead). Each entry point answers that case for itself: they
-   * genuinely want different answers, and the difference is documented where they diverge. */
+  /**
+   * Where this package keeps its office document, resolved through `_rels/.rels`. Conventionally
+   * `xl/workbook.xml` (or `xl/workbook.bin` for a `.xlsb`), but the convention is Excel's habit
+   * rather than the format's rule, and a package is free to name the part anything its root
+   * relationship points at.
+   */
+  readonly documentPath: string;
+  /** The office document's text, or undefined when the package's document is not XML (a `.xlsb`
+   * carries a BIFF12 part instead). Each entry point answers that case for itself: they genuinely
+   * want different answers, and the difference is documented where they diverge. */
   readonly workbookXml: string | undefined;
 }
 
 /**
- * Open a spreadsheet package: the six-step preamble every reader shares, and in particular the two
+ * Open a spreadsheet package: the six-step preamble every reader shares, and in particular the three
  * decisions worth having exactly one of. The inflate bound is a security decision (an unbounded
- * inflate is a zip bomb) and "does this package carry an XML office document" is the dispatch
- * decision between the two codecs, so neither should be restated once per entry point.
+ * inflate is a zip bomb), *where the office document lives* is a question only the package can
+ * answer, and "is that document XML" is the dispatch decision between the two codecs. None should be
+ * restated once per entry point.
  *
  * It deliberately stops short of the shared strings and the style table: those are codec-specific
  * (`xl/sharedStrings.xml` against BIFF12's own record stream), and lifting them here would put
@@ -51,7 +60,32 @@ export function openSpreadsheetPackage(
 ): OpenedSpreadsheet {
   const files = inflateSpreadsheetPackage(data, maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED);
   const pkg = packageAccessors(files);
-  return {files, pkg, workbookXml: pkg.partText('xl/workbook.xml')};
+  // The graph first, the convention only as a fallback: a package whose rels are damaged should still
+  // open at the path Excel would have written, and one that simply named its part something else must
+  // open at all.
+  const documentPath =
+    readPartRelationships('', pkg.partText).targetPath(OFFICE_DOCUMENT_REL) ??
+    conventionalDocument(pkg);
+  // Read as text only when the part is XML. `.xlsb`'s office document is BIFF12, and decoding those
+  // bytes as UTF-8 yields a string rather than the `undefined` that dispatches to the binary codec.
+  const workbookXml = extensionOf(documentPath) === 'xml' ? pkg.partText(documentPath) : undefined;
+  return {files, pkg, documentPath, workbookXml};
+}
+
+const OFFICE_DOCUMENT_REL = 'officeDocument';
+
+// Where Excel puts an office document, XML first: not a rule of the format (see
+// `OpenedSpreadsheet.documentPath`), but what a package with an unreadable relationship graph is
+// searched for, in the order that keeps an `.xlsx` an `.xlsx`.
+const CONVENTIONAL_DOCUMENTS = ['xl/workbook.xml', 'xl/workbook.bin'] as const;
+
+// The first conventional path the package actually holds, falling back to the XML one so a package
+// holding neither still reports the absence in the terms a reader expects.
+function conventionalDocument(pkg: PackageAccessors): string {
+  return (
+    CONVENTIONAL_DOCUMENTS.find((path) => pkg.partBytes(path) !== undefined) ??
+    CONVENTIONAL_DOCUMENTS[0]
+  );
 }
 
 // Bind the part-lookup accessors over an inflated package (a part-path → bytes map).
@@ -63,12 +97,26 @@ export function openSpreadsheetPackage(
 // fifteen destructurings report as an unbound method. Property syntax is also the stricter
 // declaration: method-syntax parameters are checked bivariantly even under `strictFunctionTypes`.
 export function packageAccessors(files: Record<string, Uint8Array>): PackageAccessors {
+  // OPC compares part names case-insensitively (ASCII), so `XL/Workbook.xml` and `xl/workbook.xml`
+  // name one part, and a package written by a producer that cased them differently from Excel used to
+  // read as a package with no workbook at all. The fold is for *lookup* only: `files` keeps the
+  // package's own spelling, which is what a preserved part is re-emitted under. Exact-first keeps the
+  // ordinary path a single map read and keeps two entries differing only in case resolving to the one
+  // actually asked for; the folded map holds the first of them in package order, which is a choice
+  // only a package no OPC writer can produce ever notices.
+  const folded = new Map<string, Uint8Array>();
+  for (const [path, bytes] of Object.entries(files)) {
+    const key = path.toLowerCase();
+    if (!folded.has(key)) folded.set(key, bytes);
+  }
+  const lookup = (path: string): Uint8Array | undefined =>
+    files[path] ?? folded.get(path.toLowerCase());
   return {
     partText: (path: string): string | undefined => {
-      const bytes = files[path];
+      const bytes = lookup(path);
       return bytes === undefined ? undefined : strFromU8(bytes);
     },
-    partBytes: (path: string): Uint8Array | undefined => files[path],
+    partBytes: lookup,
   };
 }
 
@@ -196,7 +244,11 @@ export function contentTypeResolver(contentTypesXml: string): (path: string) => 
   const defaults = new Map<string, string>();
   for (const {local, attrs} of openElements(contentTypesXml, 'Override', 'Default')) {
     if (local === 'Override' && attrs.PartName !== undefined && attrs.ContentType !== undefined) {
-      overrides.set(attrs.PartName, attrs.ContentType);
+      // Folded on both sides, as the `<Default Extension>` key below already was: the two halves of
+      // one resolver disagreeing about case meant an override whose spelling differed from the zip
+      // entry's fell through to the generic binary type, and a preserved part is re-declared under
+      // whatever this returns.
+      overrides.set(attrs.PartName.toLowerCase(), attrs.ContentType);
     } else if (
       local === 'Default' &&
       attrs.Extension !== undefined &&
@@ -206,7 +258,9 @@ export function contentTypeResolver(contentTypesXml: string): (path: string) => 
     }
   }
   return (path: string): string =>
-    overrides.get(`/${path}`) ?? defaults.get(extensionOf(path)) ?? 'application/octet-stream';
+    overrides.get(`/${path}`.toLowerCase()) ??
+    defaults.get(extensionOf(path)) ??
+    'application/octet-stream';
 }
 
 // Gather the transitive closure of package parts reachable from an entry part: the part itself, then

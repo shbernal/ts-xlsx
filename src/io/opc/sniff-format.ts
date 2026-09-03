@@ -88,18 +88,19 @@ export function inflateSpreadsheetPackage(
 }
 
 /**
- * The typed error for an inflated package that carries no `xl/workbook.xml`: a `.xlsb` if its binary
- * `xl/workbook.bin` office document is present, otherwise an unrecognised (non-workbook) ZIP.
+ * The typed error for an inflated package whose office document is not XML: a `.xlsb` if that
+ * document is present as binary, otherwise an unrecognised (non-workbook) ZIP.
  *
  * The `.xlsb` branch takes the caller's own explanation, because whether a binary workbook is
  * readable now depends on *which* entry point was asked: `readXlsx` reads one, the row streamer
  * cannot yet. A single baked-in "not supported" message would be wrong for one of them.
  */
 export function unsupportedWorkbookPart(
-  partText: (path: string) => string | undefined,
+  partBytes: (path: string) => Uint8Array | undefined,
+  documentPath: string,
   xlsbMessage: string,
 ): UnsupportedFormatError {
-  if (partText('xl/workbook.bin') !== undefined) {
+  if (partBytes(documentPath) !== undefined) {
     return new UnsupportedFormatError('xlsb', xlsbMessage);
   }
   return new UnsupportedFormatError('unknown');

@@ -36,7 +36,7 @@ import {
 } from '../opc/read-opc.ts';
 import type {ReadPackageOptions} from '../opc/read-options.ts';
 import type {XfStyle} from '../style/xf-style.ts';
-import {readXlsbPackage, XLSB_WORKBOOK_PART} from '../xlsb/read.ts';
+import {readXlsbPackage} from '../xlsb/read.ts';
 import type {SharedString} from './cell-value.ts';
 import {applyNotes} from './comments.ts';
 import {conditionalFormattingPass} from './conditional-formatting.ts';
@@ -99,13 +99,17 @@ export {applyWorkbookView, parseWorkbookSheets, type SheetEntry} from './read-wo
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
 export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Workbook {
-  const {files, pkg, workbookXml} = openSpreadsheetPackage(data, options.maxUncompressedBytes);
-  const {partText} = pkg;
+  const {files, pkg, documentPath, workbookXml} = openSpreadsheetPackage(
+    data,
+    options.maxUncompressedBytes,
+  );
+  const {partText, partBytes} = pkg;
 
   if (workbookXml === undefined) {
     // No XML office document. A binary one means this is an `.xlsb`, which reads through the BIFF12
-    // codec over the very same model. The package is already inflated, so it is handed over as-is.
-    if (files[XLSB_WORKBOOK_PART] !== undefined) return readXlsbPackage(files);
+    // codec over the very same model. The package is already inflated, so it is handed over as-is,
+    // along with where its own relationship graph says the binary workbook lives.
+    if (partBytes(documentPath) !== undefined) return readXlsbPackage(files, documentPath);
     throw new UnsupportedFormatError('unknown');
   }
 
@@ -117,12 +121,20 @@ export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Wo
   // One parse of the workbook's rels, queried by the sheet loop and by the two workbook-level part
   // readers below. It used to be held as a raw string and handed to three separate scanners, which
   // also left two different idioms for "reach a related part" side by side in one function.
-  const workbookRels = readPartRelationships('xl/workbook.xml', partText);
-  const sharedStrings = parseSharedStrings(partText('xl/sharedStrings.xml') ?? '');
+  const workbookRels = readPartRelationships(documentPath, partText);
+  // Through the relationship, not the conventional path. A workbook's own rels are what say where its
+  // pool and its stylesheet live, and a package free to name the workbook part anything is free to
+  // name these too. The conventional path stays as the fallback for a package whose rels are damaged;
+  // without the relationship first, a renamed pool read as no pooled strings at all, and a renamed
+  // stylesheet silently changed cell *types*, because the date test reads `numFmt` off the resolved
+  // style to tell `45000` from a date.
+  const sharedStrings = parseSharedStrings(
+    workbookRels.relatedText('sharedStrings') ?? partText('xl/sharedStrings.xml') ?? '',
+  );
   // The style table resolves a cell/row/column style index to its facets (fill, number
   // format); a package without one (a hand-rolled foreign file) yields an empty table and
   // every index reads as unstyled.
-  const stylesXml = partText('xl/styles.xml') ?? '';
+  const stylesXml = workbookRels.relatedText('styles') ?? partText('xl/styles.xml') ?? '';
   const {cellXfs: xfStyles, namedStyles, defaultFont, preserved} = parseStyleTable(stylesXml);
 
   const workbook = new Workbook();

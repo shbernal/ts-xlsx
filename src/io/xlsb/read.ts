@@ -18,6 +18,7 @@ import {unmangleFunctions} from '../../core/formula.ts';
 import {INTERNAL} from '../../core/internal.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {WorksheetState} from '../../core/worksheet.ts';
+import {quoted} from '../../errors.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
 import {openSpreadsheetPackage, packageAccessors, readPartRelationships} from '../opc/read-opc.ts';
 import type {ReadPackageOptions} from '../opc/read-options.ts';
@@ -43,27 +44,53 @@ export const XLSB_WORKBOOK_PART = 'xl/workbook.bin';
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
 export function readXlsb(data: Uint8Array, options: ReadPackageOptions = {}): Workbook {
-  return readXlsbPackage(openSpreadsheetPackage(data, options.maxUncompressedBytes).files);
+  const {files, documentPath, workbookXml} = openSpreadsheetPackage(
+    data,
+    options.maxUncompressedBytes,
+  );
+  // An XML office document is a package this library reads, through the other codec. Said here rather
+  // than left to the record reader, which would report the first byte of `<workbook` as a malformed
+  // BIFF12 record: the format is what is wrong, not the bytes.
+  if (workbookXml !== undefined) {
+    throw new UnsupportedFormatError(
+      'unknown',
+      `not a valid .xlsb package: its office document ${quoted(documentPath)} is XML, not the binary ${XLSB_WORKBOOK_PART} a .xlsb carries; read it with readXlsx`,
+    );
+  }
+  return readXlsbPackage(files, documentPath);
 }
 
 /**
  * Build the model from an already-inflated `.xlsb` package. Separate from {@link readXlsb} so the
  * `.xlsx` reader can hand over a package it has already inflated and classified, rather than
  * inflating the same bytes twice.
+ *
+ * `documentPath` is where the package's own `_rels/.rels` says its workbook lives; it defaults to the
+ * conventional path for a caller holding nothing but the parts.
  */
-export function readXlsbPackage(files: Record<string, Uint8Array>): Workbook {
+export function readXlsbPackage(
+  files: Record<string, Uint8Array>,
+  documentPath: string = XLSB_WORKBOOK_PART,
+): Workbook {
   const {partText, partBytes} = packageAccessors(files);
-  const workbookPart = partBytes(XLSB_WORKBOOK_PART);
+  const workbookPart = partBytes(documentPath);
   if (workbookPart === undefined) {
     throw new UnsupportedFormatError(
       'unknown',
-      `not a valid .xlsb package: ${XLSB_WORKBOOK_PART} is missing`,
+      `not a valid .xlsb package: ${quoted(documentPath)} is missing`,
     );
   }
 
-  const rels = readPartRelationships(XLSB_WORKBOOK_PART, partText);
-  const sharedStrings = parseSharedStrings(partBytes('xl/sharedStrings.bin'));
-  const {cellXfs, namedStyles, defaultFont} = parseStyleTable(partBytes('xl/styles.bin'));
+  // The pool and the stylesheet are reached through the workbook's relationships, with the
+  // conventional paths as the fallback: the same resolution the XML reader does, for the same reason.
+  // A package is free to name these parts anything its relationship graph points at.
+  const rels = readPartRelationships(documentPath, partText, partBytes);
+  const sharedStrings = parseSharedStrings(
+    rels.relatedBytes('sharedStrings') ?? partBytes('xl/sharedStrings.bin'),
+  );
+  const {cellXfs, namedStyles, defaultFont} = parseStyleTable(
+    rels.relatedBytes('styles') ?? partBytes('xl/styles.bin'),
+  );
 
   const workbook = new Workbook();
   // As in the XML reader, the named-style layer is restored only when a file declares more than the
