@@ -23,7 +23,7 @@ import {relativePartPath, relsPathFor, THEME_PART_PATH} from '../opc/part-paths.
 import {relsPartXml} from '../opc/rels.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 import {collectComments, commentsXml, vmlDrawingXml} from './comments.ts';
-import {collectHyperlinks, type HyperlinkPlan, planHyperlinks} from './hyperlinks.ts';
+import {collectHyperlinks, type HyperlinkPlan, liveCells, planHyperlinks} from './hyperlinks.ts';
 import {drawingRelsXml, drawingXml} from './images.ts';
 import {
   type BackgroundPlan,
@@ -252,8 +252,10 @@ function planSheet(context: {
   readonly media: MediaPlan;
   readonly preserved: PreservedPlan;
   readonly numbering: PartNumbering;
+  // What the streaming writer already flushed for this sheet, whose cells are gone from the model.
+  readonly flushed?: FlushedSheet | undefined;
 }): SheetPlan {
-  const {sheet, index, media, preserved, numbering} = context;
+  const {sheet, index, media, preserved, numbering, flushed} = context;
   const rels = new SheetRelIds();
 
   const tables: TablePlan[] = sheet.tables.map((table) => ({
@@ -285,7 +287,7 @@ function planSheet(context: {
   // absent is ignored, leaving the cell blank. A thread with no messages is not one of them: it has
   // nothing to say, and no head id for its replies or its fallback to hang off.
   const threads = sheet.commentThreads.filter((thread) => thread.comments.length > 0);
-  const sheetComments = collectComments(sheet, threads);
+  const sheetComments = collectComments(liveCells(sheet), threads, flushed?.notes ?? []);
   const comments: CommentPlan | null =
     sheetComments.length === 0
       ? null
@@ -302,7 +304,15 @@ function planSheet(context: {
   const printerSettings: PrinterSettingsPlan | null =
     printerData === undefined ? null : {number: index + 1, data: printerData, relId: rels.next()};
 
-  const hyperlinks = planHyperlinks(collectHyperlinks(sheet), rels);
+  // The live rows plus whatever the streaming writer already flushed and evicted, merged back into
+  // the row-major order Excel writes them in: a committed row's cells are gone from the model, so the
+  // walk alone would silently drop its links.
+  const hyperlinks = planHyperlinks(
+    [...collectHyperlinks(liveCells(sheet)), ...(flushed?.hyperlinks ?? [])].sort(
+      (a, b) => a.row - b.row || a.col - b.col,
+    ),
+    rels,
+  );
 
   let background: BackgroundPlan | null = null;
   if (sheet.backgroundImageId !== undefined) {
@@ -425,7 +435,11 @@ interface PackagePlan {
 
 // Resolve the whole package graph: the media the sheets share, the verbatim-preserved parts numbered
 // past the generated ones, then every sheet's parts in a single pass through {@link planSheet}.
-function planPackage(workbook: Workbook, sheets: readonly Worksheet[]): PackagePlan {
+function planPackage(
+  workbook: Workbook,
+  sheets: readonly Worksheet[],
+  flushed: InternalWriteOptions['flushed'],
+): PackagePlan {
   // Anchored images share workbook-wide media: every image a sheet references becomes one media part,
   // addressed by a global number. Resolved before the sheet loop so a drawing's embeds can target it.
   const media = planMedia(workbook, sheets);
@@ -443,7 +457,7 @@ function planPackage(workbook: Workbook, sheets: readonly Worksheet[]): PackageP
   // shared state is in the signature instead of being three `let`s a callback happens to close over.
   const numbering: PartNumbering = {table: 0, drawing: 0, pivot: 0};
   const perSheet = sheets.map((sheet, index) =>
-    planSheet({sheet, index, media, preserved, numbering}),
+    planSheet({sheet, index, media, preserved, numbering, flushed: flushed?.get(sheet)}),
   );
 
   return {
@@ -624,7 +638,7 @@ export function buildPackageParts(
   // flushed rows' styles); the buffered path seeds a fresh one here.
   const styles = options.styles ?? createStyleRegistry(workbook);
 
-  const plan = planPackage(workbook, sheets);
+  const plan = planPackage(workbook, sheets, options.flushed);
   const sheetXml = serialiseSheets(workbook, sheets, plan, styles, sharedStrings, options.flushed);
   return emitPackageParts({workbook, sheets, plan, styles, sharedStrings, sheetXml});
 }

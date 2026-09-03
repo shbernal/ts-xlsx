@@ -20,6 +20,7 @@
 // *suppressed on read*, rather than round-tripped as a plain note.
 
 import {tryDecodeCellRef} from '../../core/address.ts';
+import type {Cell} from '../../core/cell.ts';
 import type {CommentThread} from '../../core/comment-thread.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {parseXml} from '../../xml/xml-read.ts';
@@ -57,22 +58,37 @@ export interface CommentCell {
  * notes rather than appended after them, and the VML shapes follow the same order.
  */
 export function collectComments(
-  sheet: Worksheet,
+  cells: Iterable<Cell>,
   threads: readonly CommentThread[],
+  alreadyCollected: readonly CommentCell[] = [],
 ): CommentCell[] {
   const fallbacks = threadFallbacks(threads);
   const anchored = new Set(fallbacks.map((fallback) => fallback.ref));
-  const comments = [...fallbacks];
-  for (const {cells} of sheet.rows()) {
-    for (const cell of cells) {
-      // Excel refuses to put a note and a thread on one cell, so a file carrying both (only a foreign
-      // generator or a hand-edit makes one) is written back as the thread alone: two comments on one ref
-      // is a shape Excel repairs by dropping both, which would lose the conversation as well as the note.
-      if (cell.note === undefined || anchored.has(cell.address)) continue;
-      comments.push({ref: cell.address, row: cell.row, col: cell.col, text: cell.note});
+  const comments = [...fallbacks, ...alreadyCollected];
+  for (const cell of cells) {
+    // Excel refuses to put a note and a thread on one cell, so a file carrying both (only a foreign
+    // generator or a hand-edit makes one) is written back as the thread alone: two comments on one ref
+    // is a shape Excel repairs by dropping both, which would lose the conversation as well as the note.
+    if (cell.note === undefined || anchored.has(cell.address)) continue;
+    comments.push({ref: cell.address, row: cell.row, col: cell.col, text: cell.note});
+  }
+  // A note gathered from a flushed row cannot know whether a thread was later anchored on the same
+  // cell, so the thread's precedence is applied here over the whole merged list rather than only over
+  // the live half.
+  return comments
+    .filter((comment) => comment.threadId !== undefined || !anchored.has(comment.ref))
+    .sort((a, b) => a.row - b.row || a.col - b.col);
+}
+
+/** The notes among a run of cells, for a writer that must ask before the cells are evicted. */
+export function collectNotes(cells: Iterable<Cell>): CommentCell[] {
+  const notes: CommentCell[] = [];
+  for (const cell of cells) {
+    if (cell.note !== undefined) {
+      notes.push({ref: cell.address, row: cell.row, col: cell.col, text: cell.note});
     }
   }
-  return comments.sort((a, b) => a.row - b.row || a.col - b.col);
+  return notes;
 }
 
 // One legacy fallback per conversation, keyed to the thread head whose id binds it. A thread with no

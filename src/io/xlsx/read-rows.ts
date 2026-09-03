@@ -26,6 +26,7 @@ import {boolStrict, localName, numInteger, xmlEvents} from '../../xml/xml-scan.t
 import {openSpreadsheetPackage, readPartRelationships} from '../opc/read-opc.ts';
 import {unsupportedWorkbookPart} from '../opc/sniff-format.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
+import {CellStyleResolver} from './cell-style-resolution.ts';
 import type {SharedString} from './cell-value.ts';
 import {ColumnRecordBudget} from './column-budget.ts';
 import {XlsxParseError} from './errors.ts';
@@ -303,6 +304,7 @@ function* scanSheet(
   let rowInGrid = true;
   let cells: StreamedCell[] = [];
   const columnBudget = new ColumnRecordBudget();
+  const styleResolution = new CellStyleResolver();
 
   // The in-flight `<c>`, gathered exactly as the buffered reader gathers it, then taken as the
   // cell's plain decoded value (via decode) rather than through the shared-formula / data-table
@@ -313,7 +315,11 @@ function* scanSheet(
 
   const finalizeCell = (): void => {
     if (cell.ref === '' || cell.col < 0 || !rowInGrid) return;
-    const style = cell.styleIndex >= 0 ? xfStyles[cell.styleIndex] : undefined;
+    // Through the shared resolution, not the cell's own `s` alone. `decodeCellContent` reads `numFmt`
+    // off the resolved style to tell a date serial from a plain number, so reading only `s` decoded a
+    // cell under a date-formatted column to a different *type* than the buffered reader did.
+    const styleIndex = styleResolution.indexFor(cell.col, cell.styleIndex);
+    const style = styleIndex >= 0 ? xfStyles[styleIndex] : undefined;
     const value = cell.decode(sharedStrings, style);
     // A blank or purely style-only cell decodes to null; a data read wants only cells that carry
     // something (a formula object, an empty string, a false, and a 0 all count; only null drops).
@@ -342,11 +348,12 @@ function* scanSheet(
           // with the element stream, but nothing is retained for them and no row is handed off.
           rowInGrid = rowNumber <= MAX_ROW;
           rowHidden = boolStrict(event.attrs.hidden);
+          styleResolution.openRow(event.attrs);
           cells = [];
           break;
         }
         case 'col':
-          collectHiddenColumn(event.attrs, hiddenColumns, columnBudget);
+          collectColumn(event.attrs, hiddenColumns, styleResolution, columnBudget);
           break;
         case 'mergeCell':
           if (event.attrs.ref !== undefined) merges.push(event.attrs.ref);
@@ -361,26 +368,32 @@ function* scanSheet(
     const claimed = cell.closeElement(local);
     if (claimed === 'cell') finalizeCell();
     else if (claimed === 'other' && local === 'row') {
+      styleResolution.closeRow();
       if (rowInGrid) yield {number: rowNumber, hidden: rowHidden, cells};
     }
   }
 }
 
-// Record the hidden columns a `<col min max hidden>` element declares. The span is clamped to the
-// format's column ceiling and gathered into a Set, so even a hostile file full of full-width hidden
-// spans can add at most MAX_COLUMN distinct entries, never an unbounded allocation. Memory was never
-// the whole question though: a Set bounded at 16,384 entries still costs one insertion per column per
-// element, and nothing bounds the element count, so the per-sheet budget bounds the time too.
-function collectHiddenColumn(
+// Take what a `<col min max hidden style>` element says: which columns it hides, and the cell-format
+// default its cells inherit. The span is clamped to the format's column ceiling and the hidden columns
+// gathered into a Set, so even a hostile file full of full-width hidden spans can add at most
+// MAX_COLUMN distinct entries, never an unbounded allocation. Memory was never the whole question
+// though: a Set bounded at 16,384 entries still costs one insertion per column per element, and
+// nothing bounds the element count, so the per-sheet budget bounds the time too.
+function collectColumn(
   attrs: {readonly [k: string]: string | undefined},
   hiddenColumns: Set<number>,
+  styleResolution: CellStyleResolver,
   budget: ColumnRecordBudget,
 ): void {
-  if (!boolStrict(attrs.hidden)) return;
   const min = numInteger(attrs.min, 1);
   const max = numInteger(attrs.max, 1);
   if (min === undefined || max === undefined) return;
   const last = budget.take(min, Math.min(max, MAX_COLUMN));
   if (last === undefined) return;
+  // The span's cell-format default, which a bare `<c>` in these columns inherits: the streaming
+  // reader ignored it entirely, which is what made it decode a date column's cells as numbers.
+  styleResolution.noteColumnSpan(min, last, attrs);
+  if (!boolStrict(attrs.hidden)) return;
   for (let index = min; index <= last; index++) hiddenColumns.add(index);
 }

@@ -42,6 +42,7 @@ import {
 } from '../../xml/xml-scan.ts';
 import type {XfStyle} from '../style/xf-style.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
+import {CellStyleResolver} from './cell-style-resolution.ts';
 import type {SharedString} from './cell-value.ts';
 import {parseColor} from './color-xml.ts';
 import {ColumnRecordBudget} from './column-budget.ts';
@@ -241,26 +242,17 @@ export function worksheetPass(
   // runs, and the sheet-spanning shared-formula master map. Each `<c>` resets it and commits it.
   const cell = new CellAccumulator({richRuns: true});
   // A row with customFormat="1" supplies a default style for its cells that carry no `s`.
-  let rowStyle = -1;
-  let rowCustomFormat = false;
   const autoFilter = new AutoFilterAccumulator();
   const pageBreaks = new PageBreakAccumulator();
-  // A column's `style` is the default for its cells that carry no style of their own; this
-  // maps a column index to that style index so a bare cell can inherit it (as Excel does,
-  // without stamping every cell). Columns are parsed before any cell references them.
-  const columnStyle = new Map<number, number>();
+  const styleResolution = new CellStyleResolver();
   const columnBudget = new ColumnRecordBudget();
 
   // Commit the cell held in the accumulator, resolving its style from its own `s`, then its row's
-  // (when customFormat), then its column's default: the order Excel applies. Runs on `</c>` close,
+  // (when customFormat), then its column's default: the order Excel applies, shared with the
+  // streaming reader so the two cannot decode the same cell to different types. Runs on `</c>` close,
   // including the synthesized close of a self-closing `<c/>` formatted-but-empty cell.
   const finalizeCellFromState = (): void => {
-    const styleIndex =
-      cell.styleIndex >= 0
-        ? cell.styleIndex
-        : rowCustomFormat && rowStyle >= 0
-          ? rowStyle
-          : (columnStyle.get(cell.col) ?? -1);
+    const styleIndex = styleResolution.indexFor(cell.col, cell.styleIndex);
     const style = styleIndex >= 0 ? xfStyles[styleIndex] : xfStyles[0];
     cell.finalize(sheet, sharedStrings, style);
   };
@@ -278,12 +270,11 @@ export function worksheetPass(
       }
       switch (local) {
         case 'col':
-          applyColumn(sheet, attrs, xfStyles, columnStyle, columnBudget);
+          applyColumn(sheet, attrs, xfStyles, styleResolution, columnBudget);
           break;
         case 'row':
           applyRow(sheet, attrs);
-          rowStyle = numInteger(attrs.s, 0) ?? -1;
-          rowCustomFormat = boolStrict(attrs.customFormat);
+          styleResolution.openRow(attrs);
           break;
         case 'mergeCell':
           // A well-formed file never declares overlapping merges; a corrupt one might. Reject the
@@ -362,8 +353,7 @@ export function worksheetPass(
       }
       switch (local) {
         case 'row':
-          rowStyle = -1;
-          rowCustomFormat = false;
+          styleResolution.closeRow();
           break;
         case 'filterColumn':
           autoFilter.endColumn();
@@ -446,7 +436,7 @@ function applyColumn(
   sheet: Worksheet,
   attrs: XmlAttributes,
   xfStyles: ReadonlyArray<XfStyle>,
-  columnStyle: Map<number, number>,
+  styleResolution: CellStyleResolver,
   budget: ColumnRecordBudget,
 ): void {
   const min = numInteger(attrs.min, 1);
@@ -471,9 +461,11 @@ function applyColumn(
     if (outlineLevel !== undefined) column.outlineLevel = outlineLevel;
     if (boolStrict(attrs.collapsed)) column.collapsed = true;
     if (style !== undefined) assignStyleFacets(column, style);
-    // Record the column's style so a bare cell in it can inherit the full column format on read.
-    if (styleIndex >= 0) columnStyle.set(index, styleIndex);
   }
+  // Record the column's style so a bare cell in it can inherit the full column format on read. Noted
+  // over the whole affordable span rather than per index inside the loop above, which is the same
+  // work said once.
+  styleResolution.noteColumnSpan(min, last, attrs);
 }
 
 function applyRow(sheet: Worksheet, attrs: XmlAttributes): void {

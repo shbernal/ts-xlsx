@@ -21,7 +21,7 @@
 // exception: LET/LAMBDA parameter scope opens and closes at paren boundaries, state `scanFormula`'s
 // per-run transform cannot carry, so it runs its own forward walk, still deferring to `skipOpaque`.
 
-import {columnToNumber, numberToColumn} from './address.ts';
+import {columnToNumber, MAX_COLUMN, MAX_ROW, numberToColumn} from './address.ts';
 import {MODERN_FUNCTIONS} from './modern-functions.ts';
 
 const XLFN = '_xlfn.';
@@ -335,10 +335,20 @@ export function translateFormula(formula: string, colDelta: number, rowDelta: nu
       CELL_REFERENCE,
       (_match, colAbs: string, colLetters: string, rowAbs: string, rowDigits: string) => {
         const col =
-          colAbs === '$' ? colLetters : numberToColumn(columnToNumber(colLetters) + colDelta);
-        const row = rowAbs === '$' ? rowDigits : String(Number(rowDigits) + rowDelta);
-        return `${colAbs}${col}${rowAbs}${row}`;
+          colAbs === '$' ? columnToNumber(colLetters) : columnToNumber(colLetters) + colDelta;
+        const row = rowAbs === '$' ? Number(rowDigits) : Number(rowDigits) + rowDelta;
+        // A reference shifted off the grid becomes `#REF!`, on both axes, which is what Excel writes
+        // for the same shift. The two axes used to answer differently and both wrongly: the column
+        // went through `numberToColumn`, whose bounds assert threw a bare `RangeError` from inside a
+        // *read* (the deltas come from a file's own shared-formula geometry, so a hostile or merely
+        // odd file aborted the whole sheet with an error outside the library's taxonomy), while the
+        // row axis just did the arithmetic and emitted `A0` or `A-4`, which is not a reference at all.
+        if (col < 1 || col > MAX_COLUMN || row < 1 || row > MAX_ROW) return REF_ERROR;
+        return `${colAbs}${numberToColumn(col)}${rowAbs}${row}`;
       },
     ),
   );
 }
+
+// The error a spreadsheet puts in place of a reference that has nowhere left to point.
+const REF_ERROR = '#REF!';

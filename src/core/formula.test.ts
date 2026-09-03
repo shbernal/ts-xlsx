@@ -206,6 +206,25 @@ test('translateFormula shifts a relative reference by the row and column delta',
   assert.equal(translateFormula('B2+C3', 2, 3), 'D5+E6', 'both axes, several references');
 });
 
+test('translateFormula answers #REF! on either axis when the shift leaves the grid', () => {
+  // One question, two wrong answers before this: the column axis threw a bare `RangeError` out of
+  // `numberToColumn`'s bounds assert, and the row axis emitted `A0` or `A-4`, which is not a
+  // reference. The throw is the worse of the two, because this runs on the READ path with deltas
+  // taken from a file's own shared-formula geometry, so an odd file aborted the whole sheet read with
+  // an error outside the library's taxonomy. `#REF!` is what Excel writes for the same shift.
+  assert.equal(translateFormula('XFD1', 1, 0), '#REF!', 'one column past the last');
+  assert.equal(translateFormula('A1', -1, 0), '#REF!', 'one column before the first');
+  assert.equal(translateFormula('A1*2', 0, -1), '#REF!*2', 'row 0 is not a row');
+  assert.equal(translateFormula('A1*2', 0, -5), '#REF!*2', 'and neither is a negative one');
+  assert.equal(translateFormula('A1048576', 0, 5), '#REF!', 'past the last row');
+});
+
+test('translateFormula leaves the references that stay on the grid alone', () => {
+  assert.equal(translateFormula('XFC1', 1, 0), 'XFD1', 'the last column is reachable');
+  assert.equal(translateFormula('A1048571', 0, 5), 'A1048576', 'and so is the last row');
+  assert.equal(translateFormula('SUM(A1,XFD1)', 1, 0), 'SUM(B1,#REF!)', 'one operand at a time');
+});
+
 test('translateFormula leaves an absolute axis fixed and shifts only the relative one', () => {
   assert.equal(translateFormula('$A$1', 3, 4), '$A$1', 'fully absolute never moves');
   assert.equal(translateFormula('$A1', 5, 1), '$A2', 'absolute column, relative row');

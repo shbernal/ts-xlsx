@@ -11,6 +11,7 @@
 // destination doubled.
 
 import {tryDecodeRange} from '../../core/address.ts';
+import type {Cell} from '../../core/cell.ts';
 import {type HyperlinkValue, isHyperlinkValue, isRichTextValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {type CollectingPass} from '../../xml/xml-read.ts';
@@ -19,9 +20,15 @@ import {escapeAttr, textAttr} from '../../xml/xml.ts';
 import type {SheetRelIds} from './package-plan.ts';
 
 /** A hyperlink gathered from a sheet for serialisation: the cell it sits on, its target, and an
- * optional tooltip. The visible label is the cell's own value and is serialised as that value. */
+ * optional tooltip. The visible label is the cell's own value and is serialised as that value.
+ *
+ * `row`/`col` are the anchor's position, kept so links gathered from separate passes (the sheet's live
+ * rows, and the rows the streaming writer already flushed and evicted) can be merged back into the
+ * row-major order Excel writes them in. They are not serialised; `ref` is. */
 export interface CollectedHyperlink {
   readonly ref: string;
+  readonly row: number;
+  readonly col: number;
   readonly target: string;
   readonly tooltip?: string;
 }
@@ -37,25 +44,37 @@ export interface HyperlinkPlan {
   readonly tooltip?: string;
 }
 
-/** Gather every hyperlink cell on a sheet, in row-major order. */
-export function collectHyperlinks(sheet: Worksheet): CollectedHyperlink[] {
+/**
+ * Gather every hyperlink among a run of cells.
+ *
+ * Takes the cells rather than the sheet, because the streaming writer has to ask this question of a
+ * row at the moment it commits: after that the row's cells are evicted, and a post-hoc walk of
+ * `sheet.rows()` finds nothing. Both writers therefore ask the same function, over whatever cells
+ * they still hold.
+ */
+export function collectHyperlinks(cells: Iterable<Cell>): CollectedHyperlink[] {
   const links: CollectedHyperlink[] = [];
-  for (const {cells} of sheet.rows()) {
-    for (const cell of cells) {
-      const value = cell.value;
-      if (isHyperlinkValue(value)) {
-        // A link that spans a range carries its extent in `range`; the anchor cell (this one) is the
-        // range's top-left. Emit that extent as `ref` so the clickable area survives, falling back to
-        // the single cell for an ordinary link.
-        links.push({
-          ref: value.range ?? cell.address,
-          target: value.hyperlink,
-          ...(value.tooltip !== undefined ? {tooltip: value.tooltip} : {}),
-        });
-      }
+  for (const cell of cells) {
+    const value = cell.value;
+    if (isHyperlinkValue(value)) {
+      // A link that spans a range carries its extent in `range`; the anchor cell (this one) is the
+      // range's top-left. Emit that extent as `ref` so the clickable area survives, falling back to
+      // the single cell for an ordinary link.
+      links.push({
+        ref: value.range ?? cell.address,
+        row: cell.row,
+        col: cell.col,
+        target: value.hyperlink,
+        ...(value.tooltip !== undefined ? {tooltip: value.tooltip} : {}),
+      });
     }
   }
   return links;
+}
+
+/** Every cell a sheet still holds, row-major: the live half of what a writer must gather. */
+export function* liveCells(sheet: Worksheet): Generator<Cell, void, undefined> {
+  for (const {cells} of sheet.rows()) yield* cells;
 }
 
 /** Split collected links into internal (location, no rel) and external (relationship) forms, drawing

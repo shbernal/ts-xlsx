@@ -67,6 +67,8 @@ import {type AddImageOptions, type AddWorksheetOptions, Workbook} from '../../co
 import type {ColumnProperties, Worksheet} from '../../core/worksheet.ts';
 import {AuthoringError} from '../../errors.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
+import {type CommentCell, collectNotes} from './comments.ts';
+import {type CollectedHyperlink, collectHyperlinks} from './hyperlinks.ts';
 import type {StyleRegistry} from './styles.ts';
 import {
   buildColumnDefaults,
@@ -174,7 +176,10 @@ export class WorksheetStreamWriter {
   // number; the set is what lets `getCell` refuse that rather than produce it.
   readonly #flushedNumbers = new Set<number>();
   readonly #extent = new Extent();
-  #maxRowOutlineLevel = 0;
+  readonly #rowOutline = new Map<number, {outlineLevel: number; hidden: boolean}>();
+  // What a flushed row carried that is serialised outside its `<row>`, taken before eviction.
+  readonly #hyperlinks: CollectedHyperlink[] = [];
+  readonly #notes: CommentCell[] = [];
 
   constructor(sheet: Worksheet, eager: boolean, styles: StyleRegistry) {
     this.#sheet = sheet;
@@ -248,10 +253,22 @@ export class WorksheetStreamWriter {
     }
     this.#columnDefaults ??= buildColumnDefaults(this.#sheet);
     const properties = this.#sheet.getRow(number).properties;
-    // The row's outline depth is read off here because eviction is about to take its properties with
-    // it, and `<sheetFormatPr outlineLevelRow>`, written long after once every row is flushed,
-    // reports the deepest level on the whole sheet.
-    this.#maxRowOutlineLevel = Math.max(this.#maxRowOutlineLevel, properties?.outlineLevel ?? 0);
+
+    // The row's outline level and hidden flag are read off here because eviction is about to take its
+    // properties with it, and both feed whole-sheet derivations made long afterwards: `<sheetFormatPr
+    // outlineLevelRow>` is the deepest level on the sheet, and `collapsed="1"` rides a summary row only
+    // when its whole detail group is hidden. Both are questions about other rows, so the inputs are
+    // carried and the derivation runs at commit.
+    this.#rowOutline.set(number, {
+      outlineLevel: properties?.outlineLevel ?? 0,
+      hidden: properties?.hidden ?? false,
+    });
+    // A hyperlink and a note are serialised outside the `<row>`, into the sheet's `<hyperlinks>`
+    // element and into the comments/VML parts, and the buffered pass gathers both by walking the
+    // sheet's rows at commit. Eviction is about to make that walk find nothing, so they are taken
+    // here for the same reason the outline level is.
+    this.#hyperlinks.push(...collectHyperlinks(cells));
+    this.#notes.push(...collectNotes(cells));
     const {xml, minCol, maxCol} = renderRow(
       {number, cells, properties},
       {
@@ -276,7 +293,9 @@ export class WorksheetStreamWriter {
     return {
       rows: this.#flushedRows,
       extent: this.#extent,
-      maxRowOutlineLevel: this.#maxRowOutlineLevel,
+      rowOutline: this.#rowOutline,
+      hyperlinks: this.#hyperlinks,
+      notes: this.#notes,
     };
   }
 

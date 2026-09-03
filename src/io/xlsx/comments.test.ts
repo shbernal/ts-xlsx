@@ -12,6 +12,7 @@ import {
   parseComments,
   vmlDrawingXml,
 } from './comments.ts';
+import {liveCells} from './hyperlinks.ts';
 import {partsOf, partText, roundtrip, sheetXml} from './package.test-support.ts';
 import {writeXlsx} from './write.ts';
 
@@ -124,7 +125,7 @@ const threadOn = (
 
 // The conversations the package will carry, which is what the writer passes: always the sheet's own, since
 // the writer serialises the `threadedComment` part from the very same list.
-const shadowing = (sheet: Worksheet) => collectComments(sheet, sheet.commentThreads);
+const shadowing = (sheet: Worksheet) => collectComments(liveCells(sheet), sheet.commentThreads);
 
 test('a thread is written as a fallback comment bound to its head by a tc= author and an xr:uid', () => {
   const wb = new Workbook();

@@ -40,9 +40,10 @@ import {
 } from '../../xml/xml.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import type {XfStyle} from '../style/xf-style.ts';
+import type {CommentCell} from './comments.ts';
 import {conditionalFormattingsExtXml, conditionalFormattingsXml} from './conditional-formatting.ts';
 import {dataValidationsExtXml, dataValidationsXml} from './data-validation.ts';
-import {type HyperlinkPlan, hyperlinksXml} from './hyperlinks.ts';
+import {type CollectedHyperlink, type HyperlinkPlan, hyperlinksXml} from './hyperlinks.ts';
 import {SLICER_LIST_EXT_URI} from './namespaces.ts';
 import type {
   BackgroundPlan,
@@ -131,11 +132,27 @@ export interface FlushedSheet {
   readonly rows: ReadonlyArray<{readonly number: number; readonly xml: string}>;
   readonly extent: Extent;
   /**
-   * The deepest row outline level among the flushed rows. Carried across the eviction because
-   * `<sheetFormatPr outlineLevelRow>` is derived from every row on the sheet, and a flushed row's
-   * properties are gone from the model by the time the header is serialised.
+   * Each flushed row's outline level and hidden flag. Carried across the eviction because both feed
+   * whole-sheet derivations made long after the row is gone from the model: `<sheetFormatPr
+   * outlineLevelRow>` is the deepest level on the sheet, and `collapsed="1"` rides a summary row only
+   * when its whole detail group is hidden, which is a question about *other* rows.
+   *
+   * Carried as the two inputs rather than the derived flag, because the derivation is a look-ahead a
+   * row being finalised cannot do, while its inputs are per-row and known exactly when the row flushes.
    */
-  readonly maxRowOutlineLevel: number;
+  readonly rowOutline: ReadonlyMap<
+    number,
+    {readonly outlineLevel: number; readonly hidden: boolean}
+  >;
+  /**
+   * The hyperlinks and notes the flushed rows carried, on the same terms and for the same reason.
+   * Both are serialised outside the `<row>`: a hyperlink into the sheet's `<hyperlinks>` element plus
+   * an external relationship, a note into the comments and VML parts. The buffered pass gathers them
+   * by walking the sheet's rows at commit time, which finds nothing on a row whose cells have already
+   * been evicted, so a streamed row's link kept its visible label and silently lost its destination.
+   */
+  readonly hyperlinks: readonly CollectedHyperlink[];
+  readonly notes: readonly CommentCell[];
 }
 
 // The sheet-local relationship ids that wire a worksheet's tail elements to their parts, gathered into
@@ -176,7 +193,7 @@ export function worksheetXml(
   // A fully-hidden outline group's collapse toggle belongs on its summary row; derive that set once
   // so the row loop can stamp it even onto a summary row that carries no properties of its own. The
   // same pass yields the sheet's deepest row outline level for `<sheetFormatPr>`.
-  const rowOutline = scanRowOutline(sheet);
+  const rowOutline = scanRowOutline(sheet, flushed);
   const collapsedSummaries = rowOutline.collapsedSummaries;
 
   const context: RowRenderContext = {
@@ -206,7 +223,9 @@ export function worksheetXml(
   // flushed row can carry any number, and rows may be committed out of order. The buffered path has no
   // flushed rows, so it skips the merge and its sort entirely.
   const orderedRows = flushed
-    ? [...flushed.rows, ...liveRows].sort((a, b) => a.number - b.number)
+    ? [...flushed.rows.map((row) => completeCollapsed(row, collapsedSummaries)), ...liveRows].sort(
+        (a, b) => a.number - b.number,
+      )
     : liveRows;
   const bodyXml = orderedRows.map((row) => row.xml).join('');
   const sheetData = bodyXml === '' ? '<sheetData/>' : `<sheetData>${bodyXml}</sheetData>`;
@@ -221,7 +240,7 @@ export function worksheetXml(
       col: maxColumnOutlineLevel(sheet),
       // A streamed sheet's flushed rows are gone from the model; their deepest level rides along on
       // the flush record so the header still reports the whole sheet's outline.
-      row: Math.max(rowOutline.maxLevel, flushed?.maxRowOutlineLevel ?? 0),
+      row: rowOutline.maxLevel,
     }) +
     colsXml(sheet, styles) +
     sheetData +
@@ -668,19 +687,53 @@ interface RowOutline {
 // higher-outline-level rows on the summary side, is non-empty and every row in it is hidden.
 // Placement follows the sheet's summaryBelow flag (Excel's default is summary below the detail); the
 // walk stops at the first row of level <= the summary's own, so a gap or a boundary ends the group.
-function scanRowOutline(sheet: Worksheet): RowOutline {
+/**
+ * Add `collapsed="1"` to a flushed summary row whose whole detail group turned out to be hidden.
+ *
+ * Every other row attribute is a fact about that row alone, so a row can be rendered the moment it is
+ * committed; this one is a fact about the rows *after* it, which the row cannot know when it flushes.
+ * Rather than refuse an outlined row on a streamed sheet, or leave the group silently rendering
+ * expanded, the one attribute that needs the look-ahead is added once the look-ahead is possible. The
+ * string being patched is one this module produced (see {@link rowAttrs}), so its shape is known: an
+ * opening `<row` tag whose attributes end at the first `>` or `/>`.
+ */
+function completeCollapsed(
+  row: {readonly number: number; readonly xml: string},
+  collapsedSummaries: ReadonlySet<number>,
+): {number: number; xml: string} {
+  if (!collapsedSummaries.has(row.number) || row.xml.includes(' collapsed="1"')) {
+    return {number: row.number, xml: row.xml};
+  }
+  const end = row.xml.indexOf('>');
+  if (end < 0) return {number: row.number, xml: row.xml};
+  const selfClosing = row.xml[end - 1] === '/';
+  const attributesEnd = selfClosing ? end - 1 : end;
+  return {
+    number: row.number,
+    xml: `${row.xml.slice(0, attributesEnd)} collapsed="1"${row.xml.slice(attributesEnd)}`,
+  };
+}
+
+function scanRowOutline(sheet: Worksheet, flushed: FlushedSheet | undefined): RowOutline {
   const level = new Map<number, number>();
   const hidden = new Map<number, boolean>();
   let maxLevel = 0;
-  for (const {number, properties} of sheet.rows()) {
-    const rowLevel = properties?.outlineLevel ?? 0;
+  const note = (number: number, rowLevel: number, rowHidden: boolean): void => {
     // Refused here and not only where the attribute is written, because the walk below compares
     // levels to find a group's end: against `-Infinity` every comparison holds and the walk runs off
     // the sheet forever, and against `NaN` none does and the group ends before it starts.
     assertWritableNumber(rowLevel);
     level.set(number, rowLevel);
-    hidden.set(number, properties?.hidden ?? false);
+    hidden.set(number, rowHidden);
     if (rowLevel > maxLevel) maxLevel = rowLevel;
+  };
+  // The flushed rows first, so a live row carrying the same number (which cannot happen, but the map
+  // has to answer something) wins, matching the row merge below.
+  for (const [number, entry] of flushed?.rowOutline ?? []) {
+    note(number, entry.outlineLevel, entry.hidden);
+  }
+  for (const {number, properties} of sheet.rows()) {
+    note(number, properties?.outlineLevel ?? 0, properties?.hidden ?? false);
   }
   const levelOf = (row: number): number => level.get(row) ?? 0;
   const step = sheet.outline.summaryBelow === false ? 1 : -1;

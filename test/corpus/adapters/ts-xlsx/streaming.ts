@@ -4,7 +4,7 @@
 import {tmpdir} from 'node:os';
 import {Duplex, PassThrough} from 'node:stream';
 
-import {strFromU8, unzipSync} from 'fflate';
+import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {codeOrMessageOf, messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
@@ -534,6 +534,122 @@ export const streaming = {
       break; // first worksheet only
     }
     return {eager, streaming};
+  },
+
+  // Read ONE workbook both ways and report every populated cell from each path, as
+  // { eager, streaming } maps of "Sheet!A1" -> { value, type }, plus the sheet names each saw. The
+  // general property behind every stream-vs-eager case: two readers over one format must produce one
+  // model, and a divergence here is a silent data bug in exactly one path with no error on either
+  // side. `type` is reported alongside the value because the divergences found were of *type* (a date
+  // serial under a date-formatted column decoding as a Date in one path and a number in the other),
+  // which a value comparison alone can miss once both are stringified.
+  //
+  // Optionally patched first, so a case can drive the inheritance a hand-written package exercises but
+  // the writer never emits: `stripCellStyles` removes every `<c s>` so a cell's format can only come
+  // from its row or column.
+  streamVsEagerCells(spec: Untyped, {stripCellStyles = false} = {}) {
+    let bytes = writeXlsx(buildFrom(spec));
+    if (stripCellStyles) {
+      const files = unzipSync(bytes);
+      for (const name of Object.keys(files)) {
+        if (!/^xl\/worksheets\/sheet\d+\.xml$/.test(name)) continue;
+        files[name] = strToU8(
+          strFromU8(files[name]!).replace(/(<c r="[A-Z]+\d+")\s+s="\d+"/g, '$1'),
+        );
+      }
+      bytes = zipSync(files);
+    }
+
+    const describe = (value: Untyped) => ({
+      value: value instanceof Date ? value.toISOString() : (value as unknown),
+      type: value instanceof Date ? 'date' : value === null ? 'null' : typeof value,
+    });
+
+    const eager: Record<string, {value: unknown; type: string}> = {};
+    const eagerSheets: string[] = [];
+    for (const sheet of readXlsx(bytes).worksheets) {
+      eagerSheets.push(sheet.name);
+      for (const {cells} of sheet.rows()) {
+        for (const cell of cells) {
+          if (cell.value !== null) eager[`${sheet.name}!${cell.address}`] = describe(cell.value);
+        }
+      }
+    }
+
+    const streaming: Record<string, {value: unknown; type: string}> = {};
+    const streamingSheets: string[] = [];
+    for (const sheet of readWorkbookStream(bytes)) {
+      streamingSheets.push(sheet.name);
+      for (const row of sheet.rows()) {
+        for (const cell of row.cells) {
+          streaming[`${sheet.name}!${cell.address}`] = describe(cell.value);
+        }
+      }
+    }
+
+    return {eager, eagerSheets, streaming, streamingSheets};
+  },
+
+  // Stream a sheet whose committed rows carry a hyperlink and a note, and an outlined group whose
+  // detail rows are all hidden, then report what the package holds → { parts, hyperlinks, reread,
+  // rows, sheetFormatPr } alongside the same sheet written by the BUFFERED writer, so the two are
+  // compared rather than each being judged alone. Everything here is serialised OUTSIDE the `<row>`
+  // or derived from rows other than the one being written, which is precisely what a writer that
+  // finalises and evicts a row cannot do afterwards: the buffered pass gathers hyperlinks and notes by
+  // walking `sheet.rows()` at commit, and finds nothing on a row already gone.
+  async streamedRowSideContentReport() {
+    const link = {text: 'link', hyperlink: 'https://example.com/a', tooltip: 'go'};
+
+    const writer = new WorkbookStreamWriter();
+    const streamedSheet = writer.addWorksheet('S');
+    const first = streamedSheet.addRow([link, 'noted']);
+    streamedSheet.getCell('B1').note = 'a note';
+    first.commit();
+    for (const number of [2, 3]) {
+      const detail = streamedSheet.addRow([`detail${number}`]);
+      streamedSheet.model.getRow(number).outlineLevel = 1;
+      streamedSheet.model.getRow(number).hidden = true;
+      detail.commit();
+    }
+    streamedSheet.addRow(['summary']).commit();
+    streamedSheet.commit();
+    const streamedBytes = await writer.commit();
+
+    const wb = new Workbook();
+    const buffered = wb.addWorksheet('S');
+    buffered.getCell('A1').value = link;
+    buffered.getCell('B1').value = 'noted';
+    buffered.getCell('B1').note = 'a note';
+    for (const number of [2, 3]) {
+      buffered.getCell(`A${number}`).value = `detail${number}`;
+      buffered.getRow(number).outlineLevel = 1;
+      buffered.getRow(number).hidden = true;
+    }
+    buffered.getCell('A4').value = 'summary';
+    const bufferedBytes = writeXlsx(wb);
+
+    const facts = (bytes: Uint8Array) => {
+      const parts = partMapOf(bytes);
+      const sheetXml = parts['xl/worksheets/sheet1.xml'] ?? '';
+      const reread = readXlsx(bytes).getWorksheet('S');
+      return {
+        // Only the part families this asks about, so an unrelated part never moves the comparison.
+        parts: Object.keys(parts)
+          .filter((name) => /comments|vmlDrawing|sheet1\.xml\.rels/.test(name))
+          .sort(),
+        hyperlinks: (sheetXml.match(/<hyperlink\b[^>]*\/>/g) ?? []).map((tag) =>
+          tag.replace(/ r:id="[^"]*"/, ' r:id="…"'),
+        ),
+        rows: sheetXml.match(/<row\b[^>]*?\/?>/g) ?? [],
+        sheetFormatPr: (sheetXml.match(/<sheetFormatPr\b[^>]*\/>/) ?? [])[0] ?? null,
+        reread: {
+          a1: reread?.getCell('A1').value ?? null,
+          b1Note: reread?.getCell('B1').note ?? null,
+        },
+      };
+    };
+
+    return {streamed: facts(streamedBytes), buffered: facts(bufferedBytes)};
   },
 
   // Report each populated first-sheet row's { number, hidden } from both paths → { eager, streaming }.
