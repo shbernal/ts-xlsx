@@ -11,6 +11,7 @@
 // the number they agree on is the contract.
 
 import {MAX_COLUMN} from '../../core/address.ts';
+import {numInteger, type XmlAttributes} from '../../xml/xml-scan.ts';
 
 // Four times the whole grid. Excel writes disjoint spans covering at most `MAX_COLUMN` columns in
 // total, so no legitimate file comes near this, while the worst case stays a fraction of a second.
@@ -33,4 +34,26 @@ export class ColumnRecordBudget {
     this.#remaining -= affordable - first + 1;
     return affordable;
   }
+}
+
+/**
+ * The columns a `<col min max>` element actually applies to, or `undefined` for one that applies to
+ * none: unreadable bounds, a span starting past the grid, or a budget already spent.
+ *
+ * Beside the budget because the two decisions are one decision. Both readers had their own copy, and
+ * the copies had already drifted: one tested `min > MAX_COLUMN` and the other did not, which happened
+ * not to matter only because `budget.take` returns `undefined` when `first > last` - an accident of
+ * this class's contract rather than an agreement between the readers.
+ */
+export function takeColumnSpan(
+  attrs: XmlAttributes,
+  budget: ColumnRecordBudget,
+): {first: number; last: number} | undefined {
+  const first = numInteger(attrs.min, 1);
+  const declared = numInteger(attrs.max, 1);
+  if (first === undefined || declared === undefined || first > MAX_COLUMN) return undefined;
+  // Clamped to the format's ceiling rather than refused: `<col max="99999999">` is a file Excel
+  // opens, and an unclamped loop would materialise 16.7 million column records before dying.
+  const last = budget.take(first, Math.min(declared, MAX_COLUMN));
+  return last === undefined ? undefined : {first, last};
 }

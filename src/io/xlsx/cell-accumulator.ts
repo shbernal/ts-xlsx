@@ -14,7 +14,7 @@
 // what is genuinely its own -- what committing a cell means, and whether rich runs are read at all
 // -- and falls through to this for the rest.
 
-import {encodeAddress, tryDecodeCellRef} from '../../core/address.ts';
+import {encodeAddress, MAX_COLUMN, tryDecodeCellRef} from '../../core/address.ts';
 import type {DateEpoch} from '../../core/date.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {
@@ -50,6 +50,8 @@ export class CellAccumulator {
   #style = -1;
   #col = -1;
   #row = -1;
+  // Where a `<c>` with no `r` of its own sits: the column after the last one placed in this row.
+  #nextCol = 1;
   #formula = '';
   // Shared-formula bookkeeping. A master `<f t="shared" ref si>TEXT</f>` seeds the group; every clone
   // `<f t="shared" si/>` in the sheet references it by `si` and carries no text of its own.
@@ -90,9 +92,18 @@ export class CellAccumulator {
     return this.#style;
   }
 
-  /** This cell's 1-based column, or -1 when its address was absent or unparseable. */
+  /** This cell's 1-based column, or -1 when its address was unparseable. */
   get col(): number {
     return this.#col;
+  }
+
+  /**
+   * Open a `<row>`: the cells that follow belong to it, and the next one with no `r` of its own is
+   * its first column. Both readers call this where they already tell the style resolver a row opened.
+   */
+  openRow(number: number): void {
+    this.#row = number;
+    this.#nextCol = 1;
   }
 
   // Begin a new `<c>`: record its address/type/style and clear every per-cell gathered field so the
@@ -100,13 +111,7 @@ export class CellAccumulator {
   #beginCell(attrs: XmlAttributes): void {
     this.#type = attrs.t ?? '';
     this.#style = numInteger(attrs.s, 0) ?? -1;
-    // A `<c>` whose `r` names no cell that can exist (`A0`, `ZZZZ1`, `junk!!`) is treated as one
-    // with no address at all: dropped, the way any unreadable foreign attribute is, instead of
-    // aborting the sheet. -1 is the sentinel the shared-formula translation reads for that state.
-    const decoded = tryDecodeCellRef(attrs.r ?? '');
-    this.#ref = decoded === undefined ? '' : (attrs.r ?? '');
-    this.#col = decoded?.col ?? -1;
-    this.#row = decoded?.row ?? -1;
+    this.#placeCell(attrs.r);
     this.#formula = '';
     this.#valueText = '';
     this.#runs.beginContainer();
@@ -116,6 +121,35 @@ export class CellAccumulator {
     this.#formulaSi = -1;
     this.#sharedClone = false;
     this.#dataTable = null;
+  }
+
+  /**
+   * Resolve where this `<c>` sits, from its `r` or from its position in the row.
+   *
+   * The two absences are different and used to be conflated. An `r` that names no cell that can exist
+   * (`A0`, `ZZZZ1`, `junk!!`) is malformed, and the cell is dropped the way any unreadable foreign
+   * attribute is; -1 is the sentinel the shared-formula translation reads for that state. An `r` that
+   * is simply *absent* is not malformed at all: `r` is optional on `sml:CT_Cell`, and a producer
+   * relying on document position is emitting a legal file that this reader used to lose every cell of.
+   */
+  #placeCell(ref: string | undefined): void {
+    const decoded = ref === undefined ? undefined : tryDecodeCellRef(ref);
+    if (decoded !== undefined) {
+      this.#ref = ref ?? '';
+      this.#col = decoded.col;
+      this.#row = decoded.row;
+    } else if (ref === undefined && this.#row > 0 && this.#nextCol <= MAX_COLUMN) {
+      this.#col = this.#nextCol;
+      this.#ref = encodeAddress(this.#col, this.#row);
+    } else {
+      this.#ref = '';
+      this.#col = -1;
+      // The row is left alone: it belongs to the open `<row>`, not to this cell, and a malformed `r`
+      // must not cost the cells after it their position.
+    }
+    // A declared `r` re-anchors the count the way it does for rows, so a file mixing the two
+    // spellings resumes counting from wherever it last said it was.
+    if (this.#col > 0) this.#nextCol = this.#col + 1;
   }
 
   // Begin an `<f>`: record its shared-formula grouping and any data-table declaration. A self-closing

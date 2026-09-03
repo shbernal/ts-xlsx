@@ -18,19 +18,18 @@
 // make the inflate itself per-part lazy; the pull primitive this stands on (`xmlEvents`) is the
 // same one that path will use.
 
-import {MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
 import type {DateEpoch} from '../../core/date.ts';
 import type {CellValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {AuthoringError, quoted} from '../../errors.ts';
 import {closeEmptyElements} from '../../xml/xml-read.ts';
-import {boolStrict, localName, numInteger, xmlEvents} from '../../xml/xml-scan.ts';
+import {boolStrict, localName, type XmlAttributes, xmlEvents} from '../../xml/xml-scan.ts';
 import {openSpreadsheetPackage, readPartRelationships} from '../opc/read-opc.ts';
 import {unsupportedWorkbookPart} from '../opc/sniff-format.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
 import {CellStyleResolver} from './cell-style-resolution.ts';
 import type {SharedString} from './cell-value.ts';
-import {ColumnRecordBudget} from './column-budget.ts';
+import {ColumnRecordBudget, takeColumnSpan} from './column-budget.ts';
 import {XlsxParseError} from './errors.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {
@@ -41,6 +40,7 @@ import {
   type SheetEntry,
   type XfStyle,
 } from './read.ts';
+import {RowPositionTracker} from './row-position.ts';
 
 export interface ReadSheetRowsOptions extends ReadPackageOptions {
   /**
@@ -324,12 +324,12 @@ function* scanSheet(
   merges: string[],
 ): Generator<StreamedRow, void, undefined> {
   let rowNumber = 0;
-  let lastRow = 0;
   let rowHidden = false;
   let rowInGrid = true;
   let cells: StreamedCell[] = [];
   const columnBudget = new ColumnRecordBudget();
   const styleResolution = new CellStyleResolver();
+  const rowPosition = new RowPositionTracker();
 
   // The in-flight `<c>`, gathered exactly as the buffered reader gathers it, then taken as the
   // cell's plain decoded value (via decode) rather than through the shared-formula / data-table
@@ -364,15 +364,14 @@ function* scanSheet(
       if (cell.openElement(local, event.attrs, event.selfClosing)) continue;
       switch (local) {
         case 'row': {
-          rowNumber = numInteger(event.attrs.r, 1) ?? lastRow + 1;
-          lastRow = rowNumber;
-          // A row past the grid is dropped whole, the same reading `applyRow` takes in the buffered
-          // reader: an `<r>` names one row, so there is nothing to clamp it onto, and yielding a
-          // `number` of 1048577 would hand the consumer an address no `getCell` will accept. The
-          // `<c>` machine still runs over its cells, because it is what keeps the reader in step
-          // with the element stream, but nothing is retained for them and no row is handed off.
-          rowInGrid = rowNumber <= MAX_ROW;
+          // A row past the grid is dropped whole, the same reading the buffered reader takes: an `r`
+          // names one row, so there is nothing to clamp it onto, and yielding a `number` of 1048577
+          // would hand the consumer an address no `getCell` will accept. The `<c>` machine still runs
+          // over its cells, because it is what keeps the reader in step with the element stream, but
+          // nothing is retained for them and no row is handed off.
+          ({number: rowNumber, inGrid: rowInGrid} = rowPosition.open(event.attrs));
           rowHidden = boolStrict(event.attrs.hidden);
+          cell.openRow(rowInGrid ? rowNumber : -1);
           styleResolution.openRow(event.attrs);
           cells = [];
           break;
@@ -406,16 +405,14 @@ function* scanSheet(
 // though: a Set bounded at 16,384 entries still costs one insertion per column per element, and
 // nothing bounds the element count, so the per-sheet budget bounds the time too.
 function collectColumn(
-  attrs: {readonly [k: string]: string | undefined},
+  attrs: XmlAttributes,
   hiddenColumns: Set<number>,
   styleResolution: CellStyleResolver,
   budget: ColumnRecordBudget,
 ): void {
-  const min = numInteger(attrs.min, 1);
-  const max = numInteger(attrs.max, 1);
-  if (min === undefined || max === undefined) return;
-  const last = budget.take(min, Math.min(max, MAX_COLUMN));
-  if (last === undefined) return;
+  const span = takeColumnSpan(attrs, budget);
+  if (span === undefined) return;
+  const {first: min, last} = span;
   // The span's cell-format default, which a bare `<c>` in these columns inherits: the streaming
   // reader ignored it entirely, which is what made it decode a date column's cells as numbers.
   styleResolution.noteColumnSpan(min, last, attrs);

@@ -402,7 +402,13 @@ monolith, split along the OOXML package's own divisions so a change touches one 
   self-closing `<x/>` fires no close and a latch nothing closes is a latch that eats the next
   element's text. `capturedText` is its pull shape, for a parser whose whole job is reading a handful
   of text elements out of a part; a parser that interleaves capture with per-element state of its own
-  stays bespoke.
+  stays bespoke. The same rule reaches past the grammar to the *decisions* the two readers make about
+  a row and a column: `row-position.ts` owns where a `<row>` sits when it declares no `r`, and
+  `takeColumnSpan` (beside `ColumnRecordBudget`) owns which columns a `<col min max>` reaches. Both
+  were a line each, copied into both readers, and both copies had drifted: one reader inferred a
+  missing row number positionally while the other dropped the row's formatting, and one tested a span
+  starting past the grid while the other relied on the budget's contract to catch it by accident. A
+  decision small enough to inline is exactly the size that drifts unnoticed.
 - **write** (`src/io/xlsx/`): `package-plan.ts` (the part-graph plan layer), `workbook-xml.ts`
   and `worksheet-xml.ts` (the serialisers), `relationships.ts` (the SpreadsheetML relationship-type
   vocabulary), with `write.ts` keeping `writeXlsx` and the `buildPackageParts` orchestrator.

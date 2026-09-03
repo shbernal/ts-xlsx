@@ -3,7 +3,7 @@
 // (the cell being read, shared-formula masters, an autofilter draft, the current page-break axis) so
 // each element commits its state as it closes. Style indices resolve through the parsed style table.
 
-import {MAX_COLUMN, MAX_ROW, tryDecodeRange} from '../../core/address.ts';
+import {tryDecodeRange} from '../../core/address.ts';
 import {
   type CustomFilterPredicate,
   type FilterColumn,
@@ -46,7 +46,8 @@ import {CellAccumulator} from './cell-accumulator.ts';
 import {CellStyleResolver} from './cell-style-resolution.ts';
 import type {SharedString} from './cell-value.ts';
 import {parseColor} from './color-xml.ts';
-import {ColumnRecordBudget} from './column-budget.ts';
+import {ColumnRecordBudget, takeColumnSpan} from './column-budget.ts';
+import {RowPositionTracker} from './row-position.ts';
 
 // Membership, not order: the reader meets a `<headerFooter>` child by name and needs only to know
 // whether it is one, on both the open (start capturing) and the close (commit). The order the tuple
@@ -248,6 +249,7 @@ export function worksheetPass(
   const pageBreaks = new PageBreakAccumulator();
   const styleResolution = new CellStyleResolver();
   const columnBudget = new ColumnRecordBudget();
+  const rowPosition = new RowPositionTracker();
 
   // Commit the cell held in the accumulator, resolving its style from its own `s`, then its row's
   // (when customFormat), then its column's default: the order Excel applies, shared with the
@@ -274,10 +276,16 @@ export function worksheetPass(
         case 'col':
           applyColumn(sheet, attrs, xfStyles, styleResolution, columnBudget);
           break;
-        case 'row':
-          applyRow(sheet, attrs);
+        case 'row': {
+          const {number, inGrid} = rowPosition.open(attrs);
+          if (inGrid) applyRow(sheet, number, attrs);
+          // The cell machine is told where it is whether or not the row is in the grid: it keeps
+          // reading the row's cells either way (that is what keeps it in step with the element
+          // stream), and a positional `<c>` still has to resolve against a row number.
+          cell.openRow(inGrid ? number : -1);
           styleResolution.openRow(attrs);
           break;
+        }
         case 'mergeCell':
           // A well-formed file never declares overlapping merges; a corrupt one might. Reject the
           // bad range at the model boundary, but don't let one abort the whole parse: drop it and
@@ -448,14 +456,11 @@ function applyColumn(
   styleResolution: CellStyleResolver,
   budget: ColumnRecordBudget,
 ): void {
-  const min = numInteger(attrs.min, 1);
-  const max = numInteger(attrs.max, 1);
-  if (min === undefined || max === undefined || min > MAX_COLUMN) return;
-  // Clamp the span to the format's ceiling rather than letting `getColumn` throw through the read:
-  // a `<col max="99999999">` is a file Excel opens, and an unclamped loop would materialise 16.7
-  // million column records before dying. Same reading as the streaming reader's `collectHiddenColumn`.
-  const last = budget.take(min, Math.min(max, MAX_COLUMN));
-  if (last === undefined) return;
+  // Which columns the span reaches is `takeColumnSpan`'s answer, shared with the streaming reader so
+  // the two cannot read one `<col>` as covering different columns.
+  const span = takeColumnSpan(attrs, budget);
+  if (span === undefined) return;
+  const {first: min, last} = span;
   const width = numFinite(attrs.width);
   const hidden = boolStrict(attrs.hidden);
   const styleIndex = numInteger(attrs.style, 0) ?? -1;
@@ -477,11 +482,7 @@ function applyColumn(
   styleResolution.noteColumnSpan(min, last, attrs);
 }
 
-function applyRow(sheet: Worksheet, attrs: XmlAttributes): void {
-  const number = numInteger(attrs.r, 1);
-  // Out-of-grid rows are dropped rather than clamped: unlike a `<col>` span, an `<r>` names one row,
-  // so there is nothing to fold it onto and clamping would silently move its formatting to 1048576.
-  if (number === undefined || number > MAX_ROW) return;
+function applyRow(sheet: Worksheet, number: number, attrs: XmlAttributes): void {
   // A `<row>` that states no attribute at all leaves no format record behind: the handle creates
   // one only when something is written through it. That is the right reading: a bare `<row r="5"/>`
   // carries no formatting to round-trip, and fabricating an empty record for it would put row 5 in
