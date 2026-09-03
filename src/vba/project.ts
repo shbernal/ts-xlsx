@@ -99,6 +99,18 @@ interface PendingModule {
   documentType?: boolean;
 }
 
+/**
+ * A {@link PendingModule} that reached its MODULE_TERMINATOR carrying both records a module cannot be
+ * read without. Narrowing at the push is what lets the map below read `offset` and `streamName`
+ * directly; without it the only way to spend them was an assertion restating a check thirty lines
+ * away, which is exactly the kind that survives the check being changed.
+ */
+type CompleteModule = PendingModule & {streamName: Uint8Array; offset: number};
+
+function isComplete(module: PendingModule): module is CompleteModule {
+  return module.streamName !== undefined && module.offset !== undefined;
+}
+
 export function parseVbaProject(
   bin: Uint8Array,
   maxOutput = DEFAULT_MAX_PROJECT_OUTPUT,
@@ -125,7 +137,7 @@ export function parseVbaProjectIn(
   const dir = budget.spend(dirCompressed, 0);
 
   let codePage = 1252; // Western-European default until PROJECTCODEPAGE says otherwise.
-  const rawModules: PendingModule[] = [];
+  const rawModules: CompleteModule[] = [];
   let pending: PendingModule = {};
 
   for (const {id, dataStart, size} of dirRecords(dir, 'overruns stream')) {
@@ -149,8 +161,7 @@ export function parseVbaProjectIn(
         if (size >= 4) pending.offset = readU32(dir, dataStart);
         break;
       case REC_MODULE_TERMINATOR:
-        if (pending.streamName !== undefined && pending.offset !== undefined)
-          rawModules.push(pending);
+        if (isComplete(pending)) rawModules.push(pending);
         pending = {};
         break;
       default:
@@ -169,7 +180,7 @@ export function parseVbaProjectIn(
       name,
       streamName,
       kind,
-      source: readModuleSource(cfb, streamName, m.offset as number, decoder, budget),
+      source: readModuleSource(cfb, streamName, m.offset, decoder, budget),
     };
   });
 

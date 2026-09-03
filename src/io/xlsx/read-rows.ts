@@ -22,7 +22,7 @@ import type {DateEpoch} from '../../core/date.ts';
 import type {CellValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {AuthoringError, quoted} from '../../errors.ts';
-import {closeEmptyElements} from '../../xml/xml-read.ts';
+import {closeEmptyElements, parseXmlPasses} from '../../xml/xml-read.ts';
 import {boolStrict, localName, type XmlAttributes, xmlEvents} from '../../xml/xml-scan.ts';
 import {openSpreadsheetPackage, readPartRelationships} from '../opc/read-opc.ts';
 import {unsupportedWorkbookPart} from '../opc/sniff-format.ts';
@@ -33,9 +33,9 @@ import {ColumnRecordBudget, takeColumnSpan} from './column-budget.ts';
 import {XlsxParseError} from './errors.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {
-  applyWorkbookProperties,
+  workbookPropertiesPass,
   parseStyleTable,
-  parseWorkbookSheets,
+  workbookSheetsPass,
   type ReadPackageOptions,
   type SheetEntry,
   type XfStyle,
@@ -186,7 +186,14 @@ function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined)
     );
   }
 
-  const sheets = parseWorkbookSheets(workbookXml);
+  // The model is never built here, so `<workbookPr>` is read onto a bare workbook rather than out of
+  // one: `workbookPropertiesPass` is the same reader the buffered path runs, which is what keeps the
+  // two from disagreeing about which calendar a sheet's serials are in. Both ride one scan, as they
+  // do there.
+  const properties = new Workbook();
+  const sheetsPass = workbookSheetsPass();
+  parseXmlPasses(workbookXml, [sheetsPass, workbookPropertiesPass(properties)]);
+  const sheets = sheetsPass.result();
   // Every part below is reached through the relationship that names it, with the conventional path
   // only as the fallback: the same resolution `readXlsx` does, because a streamed read of a package
   // must not decode a cell differently from a buffered one.
@@ -197,12 +204,6 @@ function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined)
   const {cellXfs: xfStyles} = parseStyleTable(
     rels.relatedText('styles') ?? text('xl/styles.xml') ?? '',
   );
-
-  // The model is never built here, so the flag is taken off a bare workbook rather than out of one:
-  // `applyWorkbookProperties` is the same reader the buffered path runs, which is what keeps the two
-  // from disagreeing about which calendar a sheet's serials are in.
-  const properties = new Workbook();
-  applyWorkbookProperties(properties, workbookXml);
 
   return {
     sheets,

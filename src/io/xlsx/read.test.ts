@@ -5,7 +5,7 @@ import {strToU8, unzipSync, zipSync} from 'fflate';
 
 import type {Fill} from '../../core/style.ts';
 import {isFormulaValue} from '../../core/value.ts';
-import {DEFAULT_WORKBOOK_VIEW, Workbook} from '../../core/workbook.ts';
+import {DEFAULT_WORKBOOK_VIEW, Workbook, type WorkbookView} from '../../core/workbook.ts';
 import {Worksheet} from '../../core/worksheet.ts';
 import {parseXmlPasses} from '../../xml/xml-read.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
@@ -21,8 +21,15 @@ import {
   sheetXml,
 } from './package.test-support.ts';
 import {worksheetPass} from './read-worksheet.ts';
-import {applyWorkbookView, readXlsx} from './read.ts';
+import {readXlsx, workbookViewPass} from './read.ts';
 import {writeXlsx} from './write.ts';
+
+// Drive the one pass under test over a fragment. The reader is a pass rather than a function over the
+// part's text because the whole workbook part is read in one scan; a test of one element still wants
+// to name only that element.
+function readView(view: WorkbookView, xml: string): void {
+  parseXmlPasses(xml, [workbookViewPass(view)]);
+}
 
 /** The foreground ARGB of a pattern fill, narrowing the Fill union (a gradient has no fgColor). */
 function fillFgArgb(fill: Fill | undefined): string | undefined {
@@ -31,7 +38,7 @@ function fillFgArgb(fill: Fill | undefined): string | undefined {
 
 test('a saved window view is read off <bookViews>, flags and all', () => {
   const view = {...DEFAULT_WORKBOOK_VIEW};
-  applyWorkbookView(
+  readView(
     view,
     '<workbook><bookViews><workbookView visibility="hidden" minimized="1" xWindow="0" ' +
       'yWindow="480" windowWidth="9000" windowHeight="6000" activeTab="2"/></bookViews></workbook>',
@@ -49,23 +56,20 @@ test('a saved window view is read off <bookViews>, flags and all', () => {
 
 test('a workbook with no <bookViews> keeps the default window view', () => {
   const view = {...DEFAULT_WORKBOOK_VIEW};
-  applyWorkbookView(view, '<workbook><sheets/></workbook>');
+  readView(view, '<workbook><sheets/></workbook>');
   assert.deepEqual(view, {...DEFAULT_WORKBOOK_VIEW});
 });
 
 test('an unusable window attribute falls back to the default rather than a NaN geometry', () => {
   const view = {...DEFAULT_WORKBOOK_VIEW};
-  applyWorkbookView(
-    view,
-    '<bookViews><workbookView xWindow="wide" windowWidth="8000"/></bookViews>',
-  );
+  readView(view, '<bookViews><workbookView xWindow="wide" windowWidth="8000"/></bookViews>');
   assert.equal(view.x, DEFAULT_WORKBOOK_VIEW.x);
   assert.equal(view.width, 8000);
 });
 
 test('only the first <workbookView> is read: the model carries one window', () => {
   const view = {...DEFAULT_WORKBOOK_VIEW};
-  applyWorkbookView(
+  readView(
     view,
     '<bookViews><workbookView windowWidth="100"/><workbookView windowWidth="200"/></bookViews>',
   );

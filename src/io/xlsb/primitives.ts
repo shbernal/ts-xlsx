@@ -51,12 +51,25 @@ const rkScratch = new DataView(new ArrayBuffer(8));
  */
 export class RecordReader {
   readonly #data: Uint8Array;
-  readonly #view: DataView;
+  // Built on the first numeric read rather than in the constructor. A reader is constructed per
+  // record, and the parts this library walks are mostly records it does not model: the worksheet and
+  // styles parsers each build one before looking at the record's type, so every one of the ~700
+  // unmodelled types was paying for a `DataView` that nothing then read. `vba/bytes.ts` records the
+  // measurement behind why a `DataView` is worth not creating: a per-call one there ran ~90x slower
+  // than an indexed read. The cost here is one `??=` on a path that already does a bounds check.
+  #cachedView: DataView | undefined;
   #offset = 0;
 
   constructor(data: Uint8Array) {
     this.#data = data;
-    this.#view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  }
+
+  get #view(): DataView {
+    return (this.#cachedView ??= new DataView(
+      this.#data.buffer,
+      this.#data.byteOffset,
+      this.#data.byteLength,
+    ));
   }
 
   /** Bytes left in the record. */

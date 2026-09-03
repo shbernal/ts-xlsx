@@ -12,7 +12,7 @@ import {INTERNAL} from '../../core/internal.ts';
 import type {PreservedWorksheetReference} from '../../core/preserved.ts';
 import {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {type CollectingPass, openElements} from '../../xml/xml-read.ts';
+import type {CollectingPass} from '../../xml/xml-read.ts';
 import {localName} from '../../xml/xml-scan.ts';
 import {relAttr} from '../opc/namespaces.ts';
 import {extensionOf, resolveRelativePart} from '../opc/part-paths.ts';
@@ -251,15 +251,14 @@ function isPreservedSheetRelType(type: string): boolean {
 // `cacheId`) and an external link's `<externalReferences>` position (its `[n]` index) are captured
 // alongside so the wiring a pivot table or a formula resolves through survives too.
 export function readWorkbookPreservedReferences(
-  workbookXml: string,
+  registrations: WorkbookRegistrations,
   workbookRels: PartRelationships,
   pkg: PackageAccessors,
   contentTypeOf: (path: string) => string,
   workbook: Workbook,
 ): void {
   const {partText, partBytes} = pkg;
-  const cacheIdByRelId = parsePivotCacheRegistrations(workbookXml);
-  const externalIndexByRelId = parseExternalReferenceRegistrations(workbookXml);
+  const {cacheIdByRelId, externalIndexByRelId} = registrations;
   for (const record of workbookRels.records) {
     if (record.external || !isPreservedWorkbookRelType(record.type)) continue;
     const entryPath = workbookRels.pathOf(record.target);
@@ -321,27 +320,44 @@ function isPreservedWorkbookRelType(type: string): boolean {
 
 // Map each `<pivotCache>` registration in the workbook's `<pivotCaches>` to the relationship id that
 // reaches its cache definition, so a preserved cache carries the `cacheId` a pivot table refers to.
-function parsePivotCacheRegistrations(workbookXml: string): Map<string, string> {
+/** The two `<pivotCaches>`/`<externalReferences>` registries a preserved reference is wired by,
+ * gathered from the workbook part's own scan rather than from two more of it. */
+export interface WorkbookRegistrations {
+  readonly cacheIdByRelId: ReadonlyMap<string, string>;
+  readonly externalIndexByRelId: ReadonlyMap<string, number>;
+}
+
+export function pivotCacheRegistrationsPass(): CollectingPass<ReadonlyMap<string, string>> {
   const byRelId = new Map<string, string>();
-  for (const {attrs, scope} of openElements(workbookXml, 'pivotCache')) {
-    const relId = relAttr(scope, attrs, 'id');
-    if (relId !== undefined && attrs.cacheId !== undefined) byRelId.set(relId, attrs.cacheId);
-  }
-  return byRelId;
+  return {
+    handlers: {
+      onOpen(name, attrs, _selfClosing, scope) {
+        if (localName(name) !== 'pivotCache') return;
+        const relId = relAttr(scope, attrs, 'id');
+        if (relId !== undefined && attrs.cacheId !== undefined) byRelId.set(relId, attrs.cacheId);
+      },
+    },
+    result: () => byRelId,
+  };
 }
 
 // Map each `<externalReference>` in the workbook's `<externalReferences>` to its 0-based position, keyed
 // by the relationship id it wires. That position is the `[n]` index a formula or defined name resolves
 // an external cell through (`[1]Sheet!$A$1`), so preserving it lets the writer re-emit the block in the
 // original order and keep every `[n]` pointing at the same linked workbook.
-function parseExternalReferenceRegistrations(workbookXml: string): Map<string, number> {
+export function externalReferenceRegistrationsPass(): CollectingPass<ReadonlyMap<string, number>> {
   const byRelId = new Map<string, number>();
   let index = 0;
-  for (const {attrs, scope} of openElements(workbookXml, 'externalReference')) {
-    const relId = relAttr(scope, attrs, 'id');
-    if (relId !== undefined) byRelId.set(relId, index++);
-  }
-  return byRelId;
+  return {
+    handlers: {
+      onOpen(name, attrs, _selfClosing, scope) {
+        if (localName(name) !== 'externalReference') return;
+        const relId = relAttr(scope, attrs, 'id');
+        if (relId !== undefined) byRelId.set(relId, index++);
+      },
+    },
+    result: () => byRelId,
+  };
 }
 
 /** The `r:id` each of the two element-wired references carries, or `undefined` where absent. */

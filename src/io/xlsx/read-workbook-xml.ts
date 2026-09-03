@@ -6,6 +6,11 @@
 // against each other: `color-xml.ts`, `theme-xml.ts`, `tables.ts`, `rels.ts` and `font-xml.ts` all do.
 // This part's reader had been living inside the orchestrator that happened to call it first, and the
 // worksheet's layout blocks were doing the same until `sheet-properties.ts` took its half back.
+//
+// Every reader here is a {@link SaxPass} rather than a function taking the part's text, because
+// `read.ts` drives all of them from one parse. Scanning the workbook part once per reader is what the
+// worksheet part was already fixed for, and this part had got none of the treatment: six scans, of
+// which four matched no element each.
 
 import {parseDateText} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
@@ -17,8 +22,8 @@ import {
 import type {DefinedName, Workbook, WorkbookView} from '../../core/workbook.ts';
 import {isVisibility, type WorksheetState} from '../../core/worksheet.ts';
 import {enumToken, numInteger} from '../../xml/xml-attrs.ts';
-import {capturedText, openElements, parseXml, TextCapture} from '../../xml/xml-read.ts';
-import {boolStrict, localName} from '../../xml/xml-scan.ts';
+import {capturedText, type CollectingPass, type SaxPass, TextCapture} from '../../xml/xml-read.ts';
+import {boolStrict, localName, type XmlAttributes} from '../../xml/xml-scan.ts';
 import {relAttr} from '../opc/namespaces.ts';
 
 // One `<sheet>` entry from `xl/workbook.xml`: its display name, the rel id linking to the sheet part,
@@ -29,30 +34,35 @@ export interface SheetEntry {
   readonly state?: WorksheetState['state'];
 }
 
-export function parseWorkbookSheets(xml: string): SheetEntry[] {
+export function workbookSheetsPass(): CollectingPass<SheetEntry[]> {
   const sheets: SheetEntry[] = [];
-  for (const {attrs, scope} of openElements(xml, 'sheet')) {
-    const entry: {name: string; relId: string; state?: WorksheetState['state']} = {
-      name: attrs.name ?? '',
-      relId: relAttr(scope, attrs, 'id') ?? '',
-    };
-    // `visible` is the schema default and the model's, so it is dropped rather than stored: keeping
-    // it would put a `state="visible"` attribute into a file Excel writes without one.
-    const state = enumToken(attrs.state, isVisibility);
-    if (state !== undefined && state !== 'visible') entry.state = state;
-    sheets.push(entry);
-  }
-  return sheets;
+  return {
+    handlers: {
+      onOpen(name, attrs, _selfClosing, scope) {
+        if (localName(name) !== 'sheet') return;
+        const entry: {name: string; relId: string; state?: WorksheetState['state']} = {
+          name: attrs.name ?? '',
+          relId: relAttr(scope, attrs, 'id') ?? '',
+        };
+        // `visible` is the schema default and the model's, so it is dropped rather than stored:
+        // keeping it would put a `state="visible"` attribute into a file Excel writes without one.
+        const state = enumToken(attrs.state, isVisibility);
+        if (state !== undefined && state !== 'visible') entry.state = state;
+        sheets.push(entry);
+      },
+    },
+    result: () => sheets,
+  };
 }
 
 // Read the workbook's structure/window protection (`<workbookProtection>`). The three lock flags are
 // decoded as booleans (an absent or "0" attribute stays unlocked), and only the whitelisted
 // password/agile-hash attributes are preserved verbatim: a hostile or unknown attribute is dropped
 // rather than echoed back on write. Returns undefined when the workbook declares no protection.
-export function parseWorkbookProtection(xml: string): WorkbookProtection | undefined {
-  let result: WorkbookProtection | undefined;
-  parseXml(xml, {
-    onOpen(name, attrs) {
+export function workbookProtectionPass(): CollectingPass<WorkbookProtection | undefined> {
+  let found: WorkbookProtection | undefined;
+  const handlers = {
+    onOpen(name: string, attrs: XmlAttributes): void {
       if (localName(name) !== 'workbookProtection') return;
       const protection: {
         lockStructure?: boolean;
@@ -69,10 +79,10 @@ export function parseWorkbookProtection(xml: string): WorkbookProtection | undef
         if (value !== undefined) credentials[key] = value;
       }
       if (Object.keys(credentials).length > 0) protection.credentials = credentials;
-      result = protection;
+      found = protection;
     },
-  });
-  return result;
+  };
+  return {handlers, result: () => found};
 }
 
 /**
@@ -84,12 +94,18 @@ export function parseWorkbookProtection(xml: string): WorkbookProtection | undef
  * `ThisWorkbook`, so a `.xlsm` written back without it has had its macros unbound from its document.
  * Neither has any signal in the file other than this element.
  */
-export function applyWorkbookProperties(workbook: Workbook, xml: string): void {
-  for (const {attrs} of openElements(xml, 'workbookPr')) {
-    if (boolStrict(attrs.date1904)) workbook.dateEpoch = 1904;
-    if (attrs.codeName !== undefined) workbook.codeName = attrs.codeName;
-    return;
-  }
+export function workbookPropertiesPass(workbook: Workbook): SaxPass {
+  let seen = false;
+  return {
+    handlers: {
+      onOpen(name, attrs) {
+        if (seen || localName(name) !== 'workbookPr') return;
+        seen = true;
+        if (boolStrict(attrs.date1904)) workbook.dateEpoch = 1904;
+        if (attrs.codeName !== undefined) workbook.codeName = attrs.codeName;
+      },
+    },
+  };
 }
 
 // Restore the workbook's saved window state from `<bookViews><workbookView/>` onto the model's view,
@@ -100,41 +116,62 @@ export function applyWorkbookProperties(workbook: Workbook, xml: string): void {
 // Each attribute is applied only when the source carried a usable value; an absent or non-numeric one
 // leaves the default in place, so a truncated or hostile element degrades to a valid window rather
 // than a NaN geometry that would serialise as garbage.
-export function applyWorkbookView(view: WorkbookView, xml: string): void {
-  for (const {attrs} of openElements(xml, 'workbookView')) {
-    // The window may sit at a negative origin (a secondary monitor left of the primary), so only
-    // the extents and the tab ordinal carry a floor.
-    const x = numInteger(attrs.xWindow);
-    if (x !== undefined) view.x = x;
-    const y = numInteger(attrs.yWindow);
-    if (y !== undefined) view.y = y;
-    const width = numInteger(attrs.windowWidth, 0);
-    if (width !== undefined) view.width = width;
-    const height = numInteger(attrs.windowHeight, 0);
-    if (height !== undefined) view.height = height;
-    const activeTab = numInteger(attrs.activeTab, 0);
-    if (activeTab !== undefined) view.activeTab = activeTab;
-    const visibility = enumToken(attrs.visibility, isVisibility);
-    if (visibility !== undefined && visibility !== 'visible') view.visibility = visibility;
-    if (boolStrict(attrs.minimized)) view.minimized = true;
-    return;
-  }
+export function workbookViewPass(view: WorkbookView): SaxPass {
+  let seen = false;
+  return {
+    handlers: {
+      onOpen(name, attrs) {
+        if (seen || localName(name) !== 'workbookView') return;
+        seen = true;
+        // The window may sit at a negative origin (a secondary monitor left of the primary), so only
+        // the extents and the tab ordinal carry a floor.
+        const x = numInteger(attrs.xWindow);
+        if (x !== undefined) view.x = x;
+        const y = numInteger(attrs.yWindow);
+        if (y !== undefined) view.y = y;
+        const width = numInteger(attrs.windowWidth, 0);
+        if (width !== undefined) view.width = width;
+        const height = numInteger(attrs.windowHeight, 0);
+        if (height !== undefined) view.height = height;
+        const activeTab = numInteger(attrs.activeTab, 0);
+        if (activeTab !== undefined) view.activeTab = activeTab;
+        const visibility = enumToken(attrs.visibility, isVisibility);
+        if (visibility !== undefined && visibility !== 'visible') view.visibility = visibility;
+        if (boolStrict(attrs.minimized)) view.minimized = true;
+      },
+    },
+  };
 }
 
 // Reconstruct the workbook's defined names. Each `<definedName>` carries its name (and optional
 // comment/hidden flag) as attributes and its refersTo formula as text content; a `localSheetId`
 // maps back through the sheet order to the scope sheet's name. A name whose localSheetId is out of
 // range (a foreign file referencing a sheet we did not load) is left global rather than dropped.
-export function parseWorkbookDefinedNames(
-  xml: string,
-  sheetOrder: readonly string[],
-): DefinedName[] {
-  const names: DefinedName[] = [];
+export interface DefinedNamesPass extends SaxPass {
+  /**
+   * The names, scoped against the sheet order.
+   *
+   * The order is supplied here rather than to the pass, and that is what lets the names ride the same
+   * scan as everything else this part carries. A scoped name's `localSheetId` indexes the sheets in
+   * declaration order, and the model's answer for index n is known only after the sheet loop has run
+   * and repaired the names it had to; resolving during the scan would have forced a second one.
+   */
+  result(sheetOrder: readonly string[]): DefinedName[];
+}
+
+export function definedNamesPass(): DefinedNamesPass {
+  // `localSheetId` is kept as read and resolved in `result`; everything else is final on close.
+  const drafts: {
+    name: string;
+    localSheetId: number;
+    comment?: string;
+    hidden?: boolean;
+    refersTo: string;
+  }[] = [];
   const refersTo = new TextCapture('definedName');
-  let pending: {name: string; scope?: string; comment?: string; hidden?: boolean} | undefined;
-  parseXml(
-    xml,
-    {
+  let pending: {name: string; localSheetId: number; comment?: string; hidden?: boolean} | undefined;
+  return {
+    handlers: {
       onOpen(name, attrs, selfClosing) {
         if (localName(name) !== 'definedName' || attrs.name === undefined) return;
         // `_xlnm._FilterDatabase` is the built-in Excel derives from a sheet's autofilter, not a
@@ -142,10 +179,7 @@ export function parseWorkbookDefinedNames(
         // here to keep it off `Workbook.definedNames` and out of a duplicating round-trip.
         if (attrs.name === '_xlnm._FilterDatabase') return;
         refersTo.open(localName(name), selfClosing);
-        const scopeIndex = numInteger(attrs.localSheetId, 0) ?? -1;
-        const scope = sheetOrder[scopeIndex];
-        pending = {name: attrs.name};
-        if (scope !== undefined) pending.scope = scope;
+        pending = {name: attrs.name, localSheetId: numInteger(attrs.localSheetId, 0) ?? -1};
         if (attrs.comment !== undefined) pending.comment = attrs.comment;
         if (boolStrict(attrs.hidden)) pending.hidden = true;
       },
@@ -157,16 +191,23 @@ export function parseWorkbookDefinedNames(
         if (text === undefined || pending === undefined) return;
         // Strip the `_xlfn.`/`_xlpm.` prefixes back to the readable name, the same normalisation the
         // reader applies to a cell formula, so the model never holds the on-disk mangling.
-        names.push({...pending, refersTo: unmangleFunctions(text)});
+        drafts.push({...pending, refersTo: unmangleFunctions(text)});
         pending = undefined;
       },
     },
     // A `<definedName name="X"/>` with no formula is legal, fires no close, and used to be dropped
     // entirely while leaving the hand-rolled capture latched on whatever text came next. Expanded
     // into an open plus a close, it commits through the same path every other name does.
-    {closeEmptyElements: new Set(['definedName'])},
-  );
-  return names;
+    closeEmptyElements: new Set(['definedName']),
+    result(sheetOrder) {
+      return drafts.map(({localSheetId, ...draft}) => {
+        // A name whose localSheetId is out of range (a foreign file referencing a sheet we did not
+        // load) is left global rather than dropped.
+        const scope = sheetOrder[localSheetId];
+        return scope === undefined ? draft : {...draft, scope};
+      });
+    },
+  };
 }
 
 // Core document properties live in docProps/core.xml under mixed namespaces

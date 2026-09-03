@@ -208,42 +208,22 @@ export class PivotTable {
     const valueAt = (row: number, col: number): CellValue =>
       internals.peekCell(row, col)?.value ?? null;
 
-    // Every non-blank header cell in row 1 defines a field, in ascending column order.
-    const fields: {readonly name: string; readonly col: number}[] = [];
-    for (let col = 1; col <= columnCount; col++) {
-      const name = textOf(scalarOf(valueAt(1, col)));
-      if (name !== '') fields.push({name, col});
-    }
-    if (fields.length === 0) throw new AuthoringError('the pivot source header row is empty');
+    const fields = discoverFields(valueAt, columnCount);
+    const roles = resolveRoles(options, fields);
+    this.rowFields = roles.rowFields;
+    this.columnFields = roles.columnFields;
+    this.valueField = roles.valueField;
+    const axisFields = new Set<number>([...roles.rowFields, ...roles.columnFields]);
 
-    const resolve = (role: string, name: string): number => {
-      const index = fields.findIndex((field) => field.name === name);
-      if (index < 0) {
-        throw new AuthoringError(
-          `pivot ${role} field ${quoted(name)} is not a column header in the source sheet`,
-        );
-      }
-      return index;
-    };
-    if (options.rows.length === 0)
-      throw new AuthoringError('a pivot table needs at least one row field');
-    if (options.columns.length === 0)
-      throw new AuthoringError('a pivot table needs at least one column field');
-    const [valueName, ...extraValues] = options.values;
-    if (valueName === undefined || extraValues.length > 0) {
-      throw new AuthoringError('a pivot table needs exactly one value field');
-    }
-
-    this.rowFields = options.rows.map((name) => resolve('row', name));
-    this.columnFields = options.columns.map((name) => resolve('column', name));
-    this.valueField = resolve('value', valueName);
-    const axisFields = new Set<number>([...this.rowFields, ...this.columnFields]);
-
-    // fields is non-empty (guarded above); the source span runs from its first to its last column.
+    // `discoverFields` guarantees at least one, so the span runs from its first to its last column.
+    // An absent one here would be this class's own bug, not the caller's, which is what separates
+    // `InternalError` from the `AuthoringError`s above: a caller cannot produce this state.
     const firstField = fields[0];
-    const lastField = fields[fields.length - 1];
+    const lastField = fields.at(-1);
     if (firstField === undefined || lastField === undefined) {
-      throw new AuthoringError('the pivot source header row is empty');
+      throw new InternalError(
+        'pivot field list is empty after discoverFields guaranteed it is not',
+      );
     }
     this.sourceSheetName = source.name;
     this.sourceRef = encodeRect({
@@ -264,7 +244,7 @@ export class PivotTable {
 
     const catalogues: (Map<string, number> | null)[] = fields.map(() => null);
     this.cacheFields = fields.map((field, fieldIndex) => {
-      const scalars = scalarsForField(columnScalars, fieldIndex);
+      const scalars = columnScalars[fieldIndex] ?? missingColumn(fieldIndex);
       const containsBlank = scalars.some((scalar) => scalar.kind === 'blank');
       if (axisFields.has(fieldIndex)) {
         const items: PivotItem[] = [];
@@ -282,18 +262,24 @@ export class PivotTable {
       return {name: field.name, sharedItems: null, numeric: numericSummary(scalars), containsBlank};
     });
 
+    // Both lookups are resolved once per field rather than once per cell. The column's scalars were
+    // being fetched (and its bounds re-asserted) inside the per-row-per-field loop, which is rows x
+    // fields repetitions of an answer that does not vary with the row.
+    const byField = fields.map((_field, fieldIndex) => ({
+      scalars: columnScalars[fieldIndex] ?? missingColumn(fieldIndex),
+      catalogue: catalogues[fieldIndex],
+    }));
     const records: (readonly PivotRecordCell[])[] = [];
     for (let row = 0; row < dataRowCount; row++) {
       records.push(
-        fields.map((_field, fieldIndex): PivotRecordCell => {
-          const scalar = scalarsForField(columnScalars, fieldIndex)[row];
+        byField.map(({scalars, catalogue}, fieldIndex): PivotRecordCell => {
+          const scalar = scalars[row];
           if (scalar === undefined) {
             throw new InternalError(
               `pivot record row ${row} is out of range for field ${fieldIndex}: every column was ` +
                 'scanned for the same dataRowCount above, so this index is always in range',
             );
           }
-          const catalogue = catalogues[fieldIndex];
           if (!catalogue) return scalar;
           // Every scalar was catalogued in the shared-items pass above, so this always hits.
           const index = catalogue.get(itemKey(scalar));
@@ -319,20 +305,66 @@ export class PivotTable {
   }
 }
 
-// columnScalars[fieldIndex] is always present: it was built by mapping the same `fields` array this
-// index is drawn from. Centralised here so the invariant is asserted once rather than cast away at
-// each of its two call sites.
-function scalarsForField(
-  columnScalars: readonly (readonly PivotItem[])[],
-  fieldIndex: number,
-): readonly PivotItem[] {
-  const scalars = columnScalars[fieldIndex];
-  if (scalars === undefined) {
-    throw new InternalError(
-      `pivot field index ${fieldIndex} is out of range for columnScalars: it was built from the same fields array`,
-    );
+/** One column of the source that a header names, and where it sits. */
+interface SourceField {
+  readonly name: string;
+  readonly col: number;
+}
+
+// Every non-blank header cell in row 1 defines a field, in ascending column order.
+function discoverFields(
+  valueAt: (row: number, col: number) => CellValue,
+  columnCount: number,
+): SourceField[] {
+  const fields: SourceField[] = [];
+  for (let col = 1; col <= columnCount; col++) {
+    const name = textOf(scalarOf(valueAt(1, col)));
+    if (name !== '') fields.push({name, col});
   }
-  return scalars;
+  if (fields.length === 0) throw new AuthoringError('the pivot source header row is empty');
+  return fields;
+}
+
+/** Which discovered field plays each role, as indices into the field list. */
+interface FieldRoles {
+  readonly rowFields: readonly number[];
+  readonly columnFields: readonly number[];
+  readonly valueField: number;
+}
+
+// Bind the caller's field *names* to positions in the source. Every refusal here is the caller's
+// mistake, so every one is an AuthoringError naming the field and the role it was asked to play.
+function resolveRoles(options: PivotTableOptions, fields: readonly SourceField[]): FieldRoles {
+  const resolve = (role: string, name: string): number => {
+    const index = fields.findIndex((field) => field.name === name);
+    if (index < 0) {
+      throw new AuthoringError(
+        `pivot ${role} field ${quoted(name)} is not a column header in the source sheet`,
+      );
+    }
+    return index;
+  };
+  if (options.rows.length === 0)
+    throw new AuthoringError('a pivot table needs at least one row field');
+  if (options.columns.length === 0)
+    throw new AuthoringError('a pivot table needs at least one column field');
+  const [valueName, ...extraValues] = options.values;
+  if (valueName === undefined || extraValues.length > 0) {
+    throw new AuthoringError('a pivot table needs exactly one value field');
+  }
+  return {
+    rowFields: options.rows.map((name) => resolve('row', name)),
+    columnFields: options.columns.map((name) => resolve('column', name)),
+    valueField: resolve('value', valueName),
+  };
+}
+
+// columnScalars[fieldIndex] is always present: it was built by mapping the same `fields` array every
+// index is drawn from. Stated once, as the fallback of the two `??` that read it.
+function missingColumn(fieldIndex: number): never {
+  throw new InternalError(
+    `pivot field index ${fieldIndex} is out of range for columnScalars: it was built from the same fields array`,
+  );
 }
 
 /** A stable dedup key for a shared item: kind-tagged so the number `1` and the string `"1"` differ. */

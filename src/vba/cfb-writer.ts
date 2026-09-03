@@ -49,6 +49,21 @@ export interface CfbStorage {
 
 export type CfbNode = CfbStream | CfbStorage;
 
+/**
+ * Which arm of {@link CfbNode} a node is.
+ *
+ * Exported beside the union rather than kept private, because the discriminant is `'data' in node`
+ * and that is the sort of test callers re-spell inline: `project-editor.ts` had it three times, once
+ * negated. The name says what the test means, and the pair says that a node is one or the other.
+ */
+export function isStream(node: CfbNode): node is CfbStream {
+  return 'data' in node;
+}
+
+export function isStorage(node: CfbNode): node is CfbStorage {
+  return !isStream(node);
+}
+
 // The v3 layout this writer chooses to emit. Not shared with the reader, which takes every one of
 // these off the header it was handed because a file may legally say otherwise.
 const SECTOR = 512;
@@ -60,11 +75,6 @@ const DIFAT_HEADER_SLOTS = 109; // FAT-sector pointers that fit in the header be
 // The red-black colour byte ([MS-CFB] 2.6.1). Every entry this writer emits is black, which is
 // legal for any tree; the reader ignores the byte entirely, so it is not a shared constant.
 const COLOR_BLACK = 1;
-
-function isStream(node: CfbNode): node is CfbStream {
-  return 'data' in node;
-}
-
 // Mutable, and carrying an `index` the reader's has no use for: this tree is under construction and
 // its sibling links are these indices. `cfb.ts` declares its own, fully readonly, for that reason.
 interface DirEntry {

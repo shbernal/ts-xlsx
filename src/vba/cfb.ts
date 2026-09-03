@@ -111,7 +111,17 @@ export class CompoundFile {
       .map((e) => e.name);
   }
 
-  /** Read a stream's raw bytes by exact entry name, or `undefined` if absent. */
+  /**
+   * Read a stream's raw bytes by exact entry name, or `undefined` if absent.
+   *
+   * @returns bytes that may be a **view onto the caller's buffer** rather than a copy. A stream small
+   *   enough to fit in one sector is assembled by `concat` from a single chunk, and `concat` hands a
+   *   lone chunk straight back; anything larger is copied into a fresh buffer. So whether the result
+   *   aliases the source depends on the stream's size, which is a rule no caller should have to know
+   *   and none here relies on: nothing mutates what this returns. Stated because it is the sort of
+   *   thing that is true until someone writes the first mutation, and then true only for large
+   *   streams. Copy before mutating.
+   */
   readStream(name: string): Uint8Array | undefined {
     const entry = this.#dir.find((e) => e.type === TYPE_STREAM && e.name === name);
     if (!entry) return undefined;
@@ -123,6 +133,8 @@ export class CompoundFile {
    * storage, so a caller can swap one stream and re-emit the whole hierarchy with {@link writeCompoundFile}.
    * Walks the red-black sibling tree each storage navigates (not the linear directory scan), so any part
    * a host reaches is carried through. Cycle- and bounds-guarded like every other chain walk here.
+   *
+   * @returns nodes whose stream bytes carry {@link readStream}'s aliasing caveat.
    */
   tree(): CfbNode[] {
     const rootIdx = this.#dir.findIndex((e) => e.type === TYPE_ROOT);

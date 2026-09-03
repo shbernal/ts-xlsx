@@ -217,18 +217,27 @@ export class Range implements GridRect {
     this.#writeFacet('protection', protection);
   }
 
-  // Every cell in the block, created where it does not exist yet. An address covered by a merge
+  // Every cell in the block, created where it does not exist yet. A position covered by a merge
   // resolves to that region's master, so a block overlapping a merge restyles the master rather than
   // stranding a style on a covered cell the serializer would then have to drop.
-  #materialise(): Cell[] {
-    return [...this.addresses()].map((address) => this.#sheet.getCell(address));
+  //
+  // Positional, and a generator, for the reasons `#storedCells` gives below: it dropped the same
+  // number to address string to regex to number round-trip, and it no longer builds the whole
+  // address list before touching the first cell.
+  *#materialise(): Generator<Cell, void, undefined> {
+    const internals = this.#sheet[INTERNAL];
+    for (let row = this.top; row <= this.bottom; row++) {
+      for (let col = this.left; col <= this.right; col++) {
+        yield internals.masterAt(row, col);
+      }
+    }
   }
 
   // Assigning a facet replaces that facet on every cell: the block-wide reading of `cell.fill = x`.
   // Clearing one (`undefined`) touches only the cells that exist: there is nothing to clear on a hole,
   // and materialising the block to write nothing onto it would be pure cost.
   #writeFacet<K extends keyof CellStyle>(facet: K, value: CellStyle[K]): void {
-    const cells = value === undefined ? [...this.#storedCells()] : this.#materialise();
+    const cells = value === undefined ? this.#storedCells() : this.#materialise();
     for (const cell of cells) setFacet(cell, facet, value);
   }
 

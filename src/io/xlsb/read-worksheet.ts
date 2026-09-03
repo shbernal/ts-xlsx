@@ -17,12 +17,12 @@
 // comes *after* those cells in the stream. Those cells are therefore parked and resolved once the
 // whole part has been read.
 
-import {encodeAddress, encodeRect, MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
+import {encodeAddress, encodeRect, MAX_COLUMN_INDEX, MAX_ROW_INDEX} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
 import {coerceDateSerial, type DateEpoch} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import {assignStyleFacets} from '../../core/style.ts';
-import type {CellValue, FormulaResult} from '../../core/value.ts';
+import type {CellValue, ErrorValue, FormulaResult} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {applyXfToCell, type XfStyle} from '../style/xf-style.ts';
 import {decodeFormula, type FormulaScope, formulaAnchor} from './formula.ts';
@@ -30,28 +30,64 @@ import {errorCodeFor, RecordReader} from './primitives.ts';
 import {readRecords} from './record-stream.ts';
 import {BRT} from './record-types.ts';
 
-// Every record that carries a plain cell, one whose payload is a value and nothing else. Membership
-// drives the dispatch below, so a record type absent from both this set and {@link FORMULA_RECORDS}
-// is skipped whole rather than being mistaken for a cell and consuming the reader.
-const CELL_RECORDS: ReadonlySet<number> = new Set([
-  BRT.CellBlank,
-  BRT.CellRk,
-  BRT.CellError,
-  BRT.CellBool,
-  BRT.CellReal,
-  BRT.CellSt,
-  BRT.CellIsst,
-  BRT.CellRString,
+/** Everything reading one cell's payload needs that is not the cursor itself. */
+interface ValueContext {
+  readonly sharedStrings: readonly string[];
+  readonly numFmt: string | undefined;
+  readonly epoch: DateEpoch;
+}
+
+/**
+ * How one cell-bearing record's payload is read: as a value, or as a formula's cached result followed
+ * by the token stream that produced it.
+ *
+ * One table rather than two sets and two switches. Membership and decoding were separate, so a record
+ * type added to the set and forgotten in the switch fell through a `default:` that also meant
+ * `BrtCellBlank` -- and read every such cell as a formatted blank, silently, for as long as nobody
+ * compared the file with what Excel showed. Here `BrtCellBlank` says `() => null` in as many words,
+ * the `default:` is gone, and a record with no entry is skipped whole rather than mistaken for a cell.
+ */
+type CellRecord =
+  | {readonly kind: 'value'; readonly read: (reader: RecordReader, ctx: ValueContext) => CellValue}
+  | {
+      readonly kind: 'formula';
+      readonly read: (reader: RecordReader, ctx: ValueContext) => FormulaResult | undefined;
+    };
+
+const value = (read: (reader: RecordReader, ctx: ValueContext) => CellValue): CellRecord => ({
+  kind: 'value',
+  read,
+});
+const formula = (
+  read: (reader: RecordReader, ctx: ValueContext) => FormulaResult | undefined,
+): CellRecord => ({kind: 'formula', read});
+
+const CELL_RECORDS: ReadonlyMap<number, CellRecord> = new Map<number, CellRecord>([
+  // Formatted but empty. The style is already applied; the value is genuinely none.
+  [BRT.CellBlank, value(() => null)],
+  [BRT.CellRk, value((r, c) => asNumberOrDate(r.rk(), c.numFmt, c.epoch))],
+  [BRT.CellReal, value((r, c) => asNumberOrDate(r.f64(), c.numFmt, c.epoch))],
+  [BRT.CellBool, value((r) => r.u8() !== 0)],
+  // An unrecognised error byte keeps the cell non-empty without inventing an error the model does not
+  // define; there is no text form to fall back to as there is in XML.
+  [BRT.CellError, value((r) => errorValueOrNull(r.u8()))],
+  [BRT.CellSt, value((r) => r.wideString())],
+  // Rich runs are not modelled in this cut; the flattened text is what a consumer sees.
+  [BRT.CellRString, value((r) => r.richString())],
+  [BRT.CellIsst, value((r, c) => c.sharedStrings[r.u32()] ?? '')],
+  // A formula's cached numeric result honours the cell's date format exactly as a bare number does,
+  // so a date-valued formula reads back as a Date rather than a serial.
+  [BRT.FmlaNum, formula((r, c) => asNumberOrDate(r.f64(), c.numFmt, c.epoch))],
+  [BRT.FmlaBool, formula((r) => r.u8() !== 0)],
+  [BRT.FmlaError, formula((r) => errorValueOrNull(r.u8()) ?? undefined)],
+  [BRT.FmlaString, formula((r) => r.wideString())],
 ]);
 
-// Every record that carries a formula: a cached result of the record's own kind, then the token
-// stream that produced it.
-const FORMULA_RECORDS: ReadonlySet<number> = new Set([
-  BRT.FmlaString,
-  BRT.FmlaNum,
-  BRT.FmlaBool,
-  BRT.FmlaError,
-]);
+// A BErr byte as the model's error value, or null when the byte names no error this library defines.
+function errorValueOrNull(code: number): ErrorValue | null {
+  const error = errorCodeFor(code);
+  return error === undefined ? null : {error};
+}
 
 // A cell whose formula defers to a group's top-left, held until the record naming that group's
 // formula has been read.
@@ -95,6 +131,7 @@ export function parseWorksheet(
   const deferred: DeferredFormula[] = [];
 
   for (const record of readRecords(part)) {
+    const cellRecord = CELL_RECORDS.get(record.type);
     const reader = new RecordReader(record.data);
     if (record.type === BRT.WsFmtInfo) {
       reader.skip(6); // dxGCol, cchDefColWidth: the default *column* width, which the model does not read.
@@ -124,8 +161,8 @@ export function parseWorksheet(
         rgce: reader.bytes(reader.u32()),
         rgcb: reader.bytes(reader.u32()),
       });
-    } else if (CELL_RECORDS.has(record.type) || FORMULA_RECORDS.has(record.type)) {
-      const member = readCellRecord(record.type, reader, {
+    } else if (cellRecord !== undefined) {
+      const member = readCellRecord(cellRecord, reader, {
         sheet,
         sharedStrings,
         xfStyles,
@@ -175,7 +212,7 @@ interface CellRecordContext {
  * is now six one-line dispatches, and this is testable on its own, which the block was not.
  */
 function readCellRecord(
-  type: number,
+  record: CellRecord,
   reader: RecordReader,
   context: CellRecordContext,
 ): DeferredFormula | undefined {
@@ -193,12 +230,13 @@ function readCellRecord(
   const cell = sheet.getCell(encodeAddress(column + 1, row));
   applyXfToCell(cell, style);
 
-  if (!FORMULA_RECORDS.has(type)) {
-    cell.value = decodeCell(type, reader, sharedStrings, style?.numFmt, dateEpoch);
+  const ctx: ValueContext = {sharedStrings, numFmt: style?.numFmt, epoch: dateEpoch};
+  if (record.kind === 'value') {
+    cell.value = record.read(reader, ctx);
     return undefined;
   }
 
-  const result = cachedResult(type, reader, style?.numFmt, dateEpoch);
+  const result = record.read(reader, ctx);
   reader.skip(2); // grbitFlags: per-cell recalculation hints the model does not carry.
   const rgce = reader.bytes(reader.u32());
   const rgcb = reader.bytes(reader.u32());
@@ -231,79 +269,14 @@ function formulaValue(formula: string | undefined, result: FormulaResult | undef
   return result === undefined ? {formula: stored} : {formula: stored, result};
 }
 
-// The result a formula record cached, decoded by the record's own kind: the binary counterpart of
-// reading `<v>` under the `t` attribute.
-function cachedResult(
-  type: number,
-  reader: RecordReader,
-  numFmt: string | undefined,
-  epoch: DateEpoch,
-): FormulaResult | undefined {
-  switch (type) {
-    case BRT.FmlaNum:
-      // A formula's cached numeric result honours the cell's date format exactly as a bare number
-      // does, so a date-valued formula reads back as a Date rather than a serial.
-      return asNumberOrDate(reader.f64(), numFmt, epoch);
-    case BRT.FmlaBool:
-      return reader.u8() !== 0;
-    case BRT.FmlaError: {
-      const error = errorCodeFor(reader.u8());
-      return error === undefined ? undefined : {error};
-    }
-    default:
-      return reader.wideString();
-  }
-}
-
 // Excel's grid bounds, zero-based as the binary format counts. [MS-XLSB] states them as MUST
 // constraints, which is exactly why a reader has to check them: a damaged or hostile file states
 // whatever it likes, and an address beyond the grid has nowhere to go. Everything positional funnels
 // through here before it reaches the model, so an out-of-grid record is dropped rather than turned
 // into an unrepresentable address (which the address encoder would reject) or, worse, a column loop
 // four billion iterations long.
-// Derived from the one-based limits `core/address.ts` owns rather than typed out: the sibling below
-// was already derived, and a hand-typed 1048575 beside it is a second statement of the same fact that
-// nothing keeps in step.
-const MAX_ROW_INDEX = MAX_ROW - 1;
-const MAX_COLUMN_INDEX = MAX_COLUMN - 1;
-
 function inGrid(column: number, row: number): boolean {
   return column >= 0 && column <= MAX_COLUMN_INDEX && row >= 0 && row <= MAX_ROW_INDEX;
-}
-
-// Decode a cell record's payload. The reader is positioned just past the shared `Cell` header, so
-// what remains is exactly the value this record type carries.
-function decodeCell(
-  type: number,
-  reader: RecordReader,
-  sharedStrings: readonly string[],
-  numFmt: string | undefined,
-  epoch: DateEpoch,
-): CellValue {
-  switch (type) {
-    case BRT.CellRk:
-      return asNumberOrDate(reader.rk(), numFmt, epoch);
-    case BRT.CellReal:
-      return asNumberOrDate(reader.f64(), numFmt, epoch);
-    case BRT.CellBool:
-      return reader.u8() !== 0;
-    case BRT.CellError: {
-      // An unrecognised error byte keeps the cell non-empty without inventing an error the model
-      // does not define; there is no text form to fall back to as there is in XML.
-      const error = errorCodeFor(reader.u8());
-      return error === undefined ? null : {error};
-    }
-    case BRT.CellSt:
-      return reader.wideString();
-    case BRT.CellRString:
-      // Rich runs are not modelled in this cut; the flattened text is what a consumer sees.
-      return reader.richString();
-    case BRT.CellIsst:
-      return sharedStrings[reader.u32()] ?? '';
-    default:
-      // BrtCellBlank: formatted but empty. The style is already applied; the value is genuinely none.
-      return null;
-  }
 }
 
 // A number stored under a date format is a date serial: surface it as a Date so a date read from an

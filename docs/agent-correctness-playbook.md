@@ -364,6 +364,16 @@ it from the writer added five modules and 8 KB to `/node`, because the writer th
 and its bounded inflater to test a string suffix. A leaf importing nothing is the fix, and the count
 is what says the problem was structural rather than the code being big.
 
+**You are adding a reader for something a package part already carries.**
+Look for a pass before you write a scan. `parseXmlPasses` (`src/xml/xml-read.ts`) delivers one parse
+to several readers, and both the worksheet part and the workbook part are read that way: a reader
+written as a `SaxPass` joins the existing parse, a reader written as a function over the part's text
+adds a whole scan of it. That is not a micro-optimisation. The worksheet part is the largest in a
+package and was being read five times over, which spent 45% of a large file's read on four scans that
+matched no element; the workbook part had six, of which four matched nothing. The same question
+applies to a binary part: a `RecordReader` is constructed per record, so anything it does eagerly is
+paid once for every record in the part, including the ~700 BIFF12 types this library does not model.
+
 **You are extending a shared enumeration, facet table, or record-type list.**
 The `AssertNever` proof beside the table covers omission from *the table*. It says nothing about a
 consumer that re-enumerates the same set beside it, and that is how these have actually drifted:

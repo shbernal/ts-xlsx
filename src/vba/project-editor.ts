@@ -12,7 +12,7 @@
 
 import {quoted} from '../errors.ts';
 import {readU16, spliceBytes, writeU16} from './bytes.ts';
-import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
+import {type CfbNode, isStream, writeCompoundFile} from './cfb-writer.ts';
 import {CompoundFile} from './cfb.ts';
 import {type Decoder, decoderForCodePage, type Encoder, encoderForCodePage} from './codepage.ts';
 import {
@@ -66,12 +66,15 @@ export function removeVbaModule(bin: Uint8Array, name: string): Uint8Array {
     );
   }
 
+  // One decoder for the whole removal, as `removeProjectwmRecord` already took. Two calls built two
+  // from the same code page, which is a `TextDecoder` allocated to read a handful of record names.
+  const decoder = decoderForCodePage(project.codePage);
   const dirCompressed = cfb.readStream(DIR_STREAM);
   if (!dirCompressed) throw new VbaParseError("VBA project has no 'dir' stream");
   const patchedDir = removeModuleDirRecord(
     decompressContainer(dirCompressed),
     module.streamName,
-    project.codePage,
+    decoder,
   );
 
   // Leave _VBA_PROJECT untouched. Resetting it to an "unmatchable version" cookie does NOT force Excel
@@ -81,7 +84,6 @@ export function removeVbaModule(bin: Uint8Array, name: string): Uint8Array {
   // the removed module, which is what makes the removal take.
   const replacements = new Map<string, Uint8Array>([[DIR_STREAM, compressContainer(patchedDir)]]);
 
-  const decoder = decoderForCodePage(project.codePage);
   const encode = encoderForCodePage(project.codePage);
   const projectText = cfb.readStream(PROJECT_STREAM);
   if (projectText) {
@@ -286,8 +288,7 @@ function insertReferenceDirRecords(dir: Uint8Array, records: readonly number[]):
 // emission order) through its own MODULE_TERMINATOR, identified by matching MODULE_STREAMNAME against
 // `streamName`. Every other record (PROJECTREFERENCES, other modules, project-level fields) is carried
 // through untouched.
-function removeModuleDirRecord(dir: Uint8Array, streamName: string, codePage: number): Uint8Array {
-  const decoder = decoderForCodePage(codePage);
+function removeModuleDirRecord(dir: Uint8Array, streamName: string, decoder: Decoder): Uint8Array {
   let countAt = -1;
   let blockStart = -1;
   let removeStart = -1;
@@ -412,10 +413,10 @@ function removeFromStorage(
   removed: Set<string>,
 ): CfbNode[] {
   return nodes.map((n) => {
-    if ('data' in n) return n;
+    if (isStream(n)) return n;
     const children = removeFromStorage(n.children, storageName, streamName, removed);
     if (n.name === storageName && !removed.has(storageName)) {
-      const filtered = children.filter((c) => !('data' in c && c.name === streamName));
+      const filtered = children.filter((c) => !(isStream(c) && c.name === streamName));
       if (filtered.length !== children.length) removed.add(storageName);
       return {name: n.name, children: filtered};
     }
@@ -431,7 +432,7 @@ function replaceStreams(
   applied: Set<string>,
 ): CfbNode[] {
   return nodes.map((node) => {
-    if ('data' in node) {
+    if (isStream(node)) {
       const data = replacements.get(node.name);
       if (data !== undefined) {
         applied.add(node.name);

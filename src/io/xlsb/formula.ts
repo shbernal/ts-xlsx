@@ -22,7 +22,7 @@
 // its caller keeps what it can still trust: the cached result Excel stored beside the formula. The
 // gaps that reach that path are listed in `docs/knowledge/specs/xlsb-binary-format-output.md`.
 
-import {MAX_COLUMN, MAX_ROW, numberToColumn} from '../../core/address.ts';
+import {MAX_COLUMN, MAX_COLUMN_INDEX, MAX_ROW_INDEX, numberToColumn} from '../../core/address.ts';
 import {formulaNumberLiteral, quoteSheetName} from '../../core/formula.ts';
 import {REF_ERROR} from '../../core/value.ts';
 import {XlsbParseError} from './errors.ts';
@@ -385,7 +385,7 @@ function rangeText(
     const last = columnOnly(packedLast);
     return first === undefined || last === undefined ? undefined : `${first}:${last}`;
   }
-  if ((packedFirst & COLUMN_MASK) === 0 && (packedLast & COLUMN_MASK) === MAX_COLUMN - 1) {
+  if ((packedFirst & COLUMN_MASK) === 0 && (packedLast & COLUMN_MASK) === MAX_COLUMN_INDEX) {
     return rowFirst > MAX_ROW_INDEX || rowLast > MAX_ROW_INDEX
       ? undefined
       : `${rowOnly(rowFirst, packedFirst)}:${rowOnly(rowLast, packedLast)}`;
@@ -490,9 +490,6 @@ const FUNCVAR_INDEX_MASK = 0x7fff;
 const COLUMN_MASK = 0x3fff;
 const COLUMN_RELATIVE = 0x4000;
 const ROW_RELATIVE = 0x8000;
-// Zero-based, from the one-based limit `core/address.ts` owns. Typed out here and in
-// `read-worksheet.ts`, it was the same fact stated twice with nothing keeping the two in step.
-const MAX_ROW_INDEX = MAX_ROW - 1;
 
 // `SerAr` element tags.
 const SER_NUM = 0x00;

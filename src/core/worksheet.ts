@@ -379,8 +379,7 @@ export class Worksheet {
    */
   getCell(reference: string): Cell {
     const {col, row} = decodeCellRef(reference);
-    const master = this.#merges.masterOf(row, col);
-    return this.#cellAt(master.row, master.col);
+    return this[INTERNAL].masterAt(row, col);
   }
 
   /** Whether a cell has been materialised at the given 1-based position. */
@@ -1143,6 +1142,10 @@ export class Worksheet {
       this.#protection = protection;
     },
     cellAt: (row, col) => this.#cellAt(row, col),
+    masterAt: (row, col) => {
+      const master = this.#merges.masterOf(row, col);
+      return this.#cellAt(master.row, master.col);
+    },
     peekCell: (row, col) => this.#rows.get(row)?.get(col),
     rowPropertiesOf: (number) => this.#rowProperties.get(number),
     ensureRowProperties: (number) => {
@@ -1274,6 +1277,17 @@ export interface WorksheetInternals {
    * resolution keeps `getCell`; a caller enumerating what is actually stored wants this.
    */
   peekCell(row: number, col: number): Cell | undefined;
+
+  /**
+   * {@link cellAt} with merge resolution: the cell a write to this position lands on, materialised.
+   *
+   * What {@link Worksheet.getCell} does, minus the address. `getCell` is the public spelling and takes
+   * an A1 reference, so a caller already holding a row and a column had to encode one and have it
+   * decoded straight back. That round-trip costs about three times a positional read, and a
+   * {@link Range} write performs one per cell: styling a 100x100 block spent 10,000 encodes and 10,000
+   * regex decodes on positions it already had.
+   */
+  masterAt(row: number, col: number): Cell;
 
   /**
    * The store behind a {@link Row} or {@link Column} handle. These exist because the handles are

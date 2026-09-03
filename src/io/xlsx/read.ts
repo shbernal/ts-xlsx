@@ -57,6 +57,8 @@ import {
   readSheetPrinterSettings,
   readSheetTables,
   readWorkbookPersons,
+  externalReferenceRegistrationsPass,
+  pivotCacheRegistrationsPass,
   readWorkbookPreservedReferences,
   readWorkbookTheme,
   worksheetReferencePass,
@@ -67,11 +69,11 @@ import {parseStyleTable} from './read-styles.ts';
 import {
   applyAppProperties,
   applyCoreProperties,
-  applyWorkbookProperties,
-  applyWorkbookView,
-  parseWorkbookDefinedNames,
-  parseWorkbookProtection,
-  parseWorkbookSheets,
+  definedNamesPass,
+  workbookPropertiesPass,
+  workbookProtectionPass,
+  workbookSheetsPass,
+  workbookViewPass,
 } from './read-workbook-xml.ts';
 import {worksheetPass} from './read-worksheet.ts';
 
@@ -84,10 +86,10 @@ export {parseStyleTable} from './read-styles.ts';
 // Re-exported rather than moved out of reach: the row streamer and this module read the same workbook
 // part, and `read.ts` is the entry a caller already has in hand.
 export {
-  applyWorkbookProperties,
-  applyWorkbookView,
-  parseWorkbookSheets,
   type SheetEntry,
+  workbookPropertiesPass,
+  workbookSheetsPass,
+  workbookViewPass,
 } from './read-workbook-xml.ts';
 
 /**
@@ -174,12 +176,27 @@ export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Wo
   if (core !== undefined) applyCoreProperties(workbook, core);
   const app = partText('docProps/app.xml');
   if (app !== undefined) applyAppProperties(workbook, app);
-  workbook.protection = parseWorkbookProtection(workbookXml);
-  // Before the sheet loop, not beside the other workbook-level reads below: the date system it
-  // carries is an input to every cell decode in every sheet, so a sheet read ahead of it would read
-  // its dates under the wrong calendar.
-  applyWorkbookProperties(workbook, workbookXml);
-  applyWorkbookView(workbook.view, workbookXml);
+  // Every reader of the workbook part, over one scan of it.
+  //
+  // The ordering that matters is unchanged and is now structural: all six see the whole part before
+  // any sheet is read, so the date system `<workbookPr>` carries is in place before the first cell
+  // decode. It used to be six scans, of which four matched no element each; the worksheet part had
+  // been fixed for exactly this and the workbook part had got none of the treatment.
+  const protection = workbookProtectionPass();
+  const sheets = workbookSheetsPass();
+  const definedNames = definedNamesPass();
+  const pivotCaches = pivotCacheRegistrationsPass();
+  const externalReferences = externalReferenceRegistrationsPass();
+  parseXmlPasses(workbookXml, [
+    protection,
+    workbookPropertiesPass(workbook),
+    workbookViewPass(workbook.view),
+    sheets,
+    definedNames,
+    pivotCaches,
+    externalReferences,
+  ]);
+  workbook.protection = protection.result();
   // The threaded-comment author registry is workbook-level, and every conversation on every sheet
   // resolves its authors and @mentions through it, so it is restored before the sheet loop that reads
   // those conversations, not alongside the other workbook-level parts below.
@@ -202,7 +219,7 @@ export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Wo
   // in the order, and every `localSheetId` that indexes past it. `sheetOrder` therefore carries the
   // name the model ended up with, which is what a scoped defined name has to resolve against.
   const takenSheetNames = new Set<string>();
-  for (const {name, relId, state} of parseWorkbookSheets(workbookXml)) {
+  for (const {name, relId, state} of sheets.result()) {
     const target = workbookRels.byId(relId)?.target;
     const sheet = workbook.addWorksheet(
       repairSheetName(name, takenSheetNames),
@@ -213,12 +230,21 @@ export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Wo
     readSheet(sheet, target === undefined ? undefined : workbookRels.pathOf(target), context);
   }
 
-  readWorkbookPreservedReferences(workbookXml, workbookRels, pkg, contentTypeOf, workbook);
+  readWorkbookPreservedReferences(
+    {
+      cacheIdByRelId: pivotCaches.result(),
+      externalIndexByRelId: externalReferences.result(),
+    },
+    workbookRels,
+    pkg,
+    contentTypeOf,
+    workbook,
+  );
   readRootPreservedReferences(pkg, contentTypeOf, workbook);
 
   // Defined names follow the sheets: a scoped name's `localSheetId` indexes the sheet order, which
   // is why the names are read only once every sheet is registered.
-  for (const name of parseWorkbookDefinedNames(workbookXml, sheetOrder)) {
+  for (const name of definedNames.result(sheetOrder)) {
     admitting(() => {
       workbook.defineName(name);
     });

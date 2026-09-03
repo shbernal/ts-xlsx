@@ -25,6 +25,17 @@ export const MAX_COLUMN = 16384;
 /** Excel's row bound: 1 through 1048576. The other axis of {@link MAX_COLUMN}. */
 export const MAX_ROW = 1048576;
 
+/**
+ * The same two bounds, zero-based: the last valid *index* on each axis.
+ *
+ * BIFF12 counts from zero throughout, so its reader and its formula decoder both need these, and both
+ * were deriving them privately. Two derivations of one fact is one fewer than three, but it is still
+ * the shape where a change to a limit reaches some of its consequences. The subtraction belongs beside
+ * the number it subtracts from.
+ */
+export const MAX_COLUMN_INDEX = MAX_COLUMN - 1;
+export const MAX_ROW_INDEX = MAX_ROW - 1;
+
 // The numeric door into the grid. `numberToColumn`/`columnToNumber` bound a reference spelled in
 // letters; these bound the same position spelled as a number, so `getColumn(16385)` and
 // `getCell('XFE1')` refuse the same mistake with the same words. Native `RangeError` rather than
