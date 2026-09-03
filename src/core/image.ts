@@ -4,6 +4,7 @@
 // a worksheet then anchors that image to a rectangle of cells. Storing the bytes centrally means the
 // same picture used on two sheets (a logo in a header band, say) is one media part, not two.
 
+import {hex} from '../hex.ts';
 import {sha512} from '../sha512.ts';
 import {tokenSet} from '../token-set.ts';
 
@@ -192,6 +193,6 @@ export interface WorksheetImages {
  */
 export function imageContentKey(image: WorkbookImage): string {
   let digest = '';
-  for (const byte of sha512(image.data)) digest += byte.toString(16).padStart(2, '0');
+  for (const byte of sha512(image.data)) digest += hex(byte, 2);
   return `${image.extension}:${image.data.length}:${digest}`;
 }

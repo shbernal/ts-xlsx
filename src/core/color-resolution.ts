@@ -10,6 +10,7 @@
 // rewriting every cell as a literal ARGB, which would bloat the styles table, break the link to the
 // theme (recolouring the workbook would stop working), and change what the file means.
 
+import {hex} from '../hex.ts';
 import {type Color, parseArgb} from './style.ts';
 import {DEFAULT_THEME_COLOR_SCHEME, THEME_COLOR_SLOTS, type ThemeColorScheme} from './theme.ts';
 
@@ -185,8 +186,5 @@ function hueToChannel(p: number, q: number, offset: number): number {
 }
 
 function channelHex(value: number): string {
-  return Math.round(clamp01(value) * 255)
-    .toString(16)
-    .toUpperCase()
-    .padStart(2, '0');
+  return hex(Math.round(clamp01(value) * 255), 2);
 }

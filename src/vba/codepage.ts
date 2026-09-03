@@ -2,6 +2,7 @@
 // (`PROJECTCODEPAGE`, [MS-OVBA] 2.3.4.2). To recover text we decode those bytes with the matching
 // encoding rather than assuming latin1: a CJK or Cyrillic project would otherwise mojibake.
 
+import {hex} from '../hex.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 
 // `TextDecoder` is a global value here, not exposed as a type by the configured libs; alias its
@@ -86,7 +87,7 @@ export function encoderForCodePage(codePage: number): Encoder {
       const byte = charToByte.get(code);
       if (byte === undefined) {
         throw new VbaAuthorError(
-          `character U+${code.toString(16).toUpperCase().padStart(4, '0')} is not representable in code page ${codePage}`,
+          `character U+${hex(code, 4)} is not representable in code page ${codePage}`,
         );
       }
       out[i] = byte;

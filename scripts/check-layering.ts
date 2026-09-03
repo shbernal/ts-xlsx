@@ -41,6 +41,11 @@ const RULES: readonly Rule[] = [
     because: 'the failure taxonomy is below every layer that throws through it',
   },
   {
+    layer: 'src/hex.ts',
+    forbidden: ['src/core', 'src/io', 'src/xml', 'src/vba', 'src/customui'],
+    because: 'rendering a number as hex is below the six layers that spell a value that way',
+  },
+  {
     layer: 'src/bytes.ts',
     forbidden: ['src/core', 'src/io', 'src/xml', 'src/vba', 'src/customui'],
     because: 'joining byte chunks is below every layer that assembles them',

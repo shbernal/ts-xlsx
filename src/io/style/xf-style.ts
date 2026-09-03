@@ -14,6 +14,7 @@ import {
   type CellStyle,
   type Fill,
   type Font,
+  type Protection,
   assignStyleFacets,
 } from '../../core/style.ts';
 import type {NamedCellStyle, TableStyleTable} from '../../core/workbook-styles.ts';
@@ -169,6 +170,33 @@ export function applyXfToCell(cell: Cell, style: XfStyle | undefined): void {
   applyCellStyle(cell, style);
   if (style.quotePrefix !== undefined) cell.quotePrefix = style.quotePrefix;
   if (style.xfId !== undefined) cell[NAMED_STYLE_ID] = style.xfId;
+}
+
+/**
+ * A cell's protection facets from the two flags either serialisation states, keeping only what
+ * carries information.
+ *
+ * `locked` defaults to TRUE in OOXML, so an explicitly *unlocked* cell is the state worth recording
+ * and a locked one merely restates the default; `hidden` defaults to false, so only a set flag does.
+ * An xf that states neither yields no protection at all rather than an empty object, which is what
+ * keeps the two readings of one workbook identical.
+ *
+ * Here rather than once per codec because that is exactly what it was: `parseProtection` in the XML
+ * reader and `readProtection` in the binary one, two spellings of two default rules, agreeing by
+ * review. The inputs differ (an attribute is tri-state, a bit is not) and the rule does not, so the
+ * codecs keep the parsing and share the rule.
+ *
+ * @param locked the `locked` attribute's tri-state reading, or the bit's boolean; `undefined` where
+ *   the file states nothing.
+ */
+export function protectionFrom(flags: {
+  readonly locked?: boolean | undefined;
+  readonly hidden?: boolean | undefined;
+}): Protection | undefined {
+  const out: {-readonly [K in keyof Protection]?: Protection[K]} = {};
+  if (flags.locked === false) out.locked = false;
+  if (flags.hidden === true) out.hidden = true;
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /**

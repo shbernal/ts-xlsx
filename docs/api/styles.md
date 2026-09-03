@@ -153,19 +153,23 @@ type Fill = PatternFill | GradientFill;
 
 <sub>type</sub>
 
-Fill pattern kinds, as OOXML's `ST_PatternType` enumerates them. `none` is the
+Fill pattern kinds, in the order OOXML's `ST_PatternType` enumerates them. `none` is the
 absence of a fill; `solid` paints the whole cell with the foreground colour (the
 common case). The remaining hatch patterns are carried for fidelity on read.
+
+The order is load-bearing rather than cosmetic, which is why it is stated twice over -- here, and
+in `FILL_PATTERNS_IN_SCHEMA_ORDER`, tied together by a proof. BIFF12 stores a pattern as its
+*index* into this enumeration, so the binary codec needs the sequence as a value; the doc above
+this type used to claim schema order while the union put `gray125` and `gray0625` at positions 2
+and 6, where the schema puts them last, and the binary codec carried a third copy that was right.
 
 ```ts
 type FillPatternType =
   | 'none'
   | 'solid'
-  | 'gray125'
-  | 'darkGray'
   | 'mediumGray'
+  | 'darkGray'
   | 'lightGray'
-  | 'gray0625'
   | 'darkHorizontal'
   | 'darkVertical'
   | 'darkDown'
@@ -177,7 +181,9 @@ type FillPatternType =
   | 'lightDown'
   | 'lightUp'
   | 'lightGrid'
-  | 'lightTrellis';
+  | 'lightTrellis'
+  | 'gray125'
+  | 'gray0625';
 ```
 
 ---

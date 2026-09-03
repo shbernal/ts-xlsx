@@ -16,8 +16,11 @@
 // line falls and why.
 //
 // This module sits below every layer that throws (`src/xml`, `src/core`, `src/io`, `src/vba`,
-// `src/customui` all import it), so it imports nothing itself; `scripts/check-layering.ts` enforces
-// that.
+// `src/customui` all import it), so it reaches for nothing above it; `scripts/check-layering.ts`
+// enforces that. Its one import is `./hex.ts`, which is a leaf for the same reason and exists so that
+// the six sites that render a number as hex, this one included, share the pad width and the case.
+
+import {hex} from './hex.ts';
 
 /**
  * What kind of failure an {@link XlsxError} reports. This is the branch most callers want, and it is
@@ -175,7 +178,7 @@ export function assertWritableNumber(value: number): void {
 
 /** `U+0001`-style spelling of a code point, for an escape body or an error message. */
 export function codePointHex(codePoint: number): string {
-  return codePoint.toString(16).toUpperCase().padStart(4, '0');
+  return hex(codePoint, 4);
 }
 
 /**

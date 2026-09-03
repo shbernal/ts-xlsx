@@ -4,7 +4,7 @@
 // formats, protection). The rewrite grows them corpus-first; this module models the
 // facets landed so far: colours, fills, borders, fonts, alignment, and protection.
 
-import {tokenSet} from '../token-set.ts';
+import {tokenSet, tokenSetOf} from '../token-set.ts';
 import {type ClonePlan, cloneWith} from './clone.ts';
 import {type AssertNever, NAMED_STYLE_ID} from './internal.ts';
 
@@ -65,18 +65,22 @@ export function parseArgb(value: string): string | undefined {
 }
 
 /**
- * Fill pattern kinds, as OOXML's `ST_PatternType` enumerates them. `none` is the
+ * Fill pattern kinds, in the order OOXML's `ST_PatternType` enumerates them. `none` is the
  * absence of a fill; `solid` paints the whole cell with the foreground colour (the
  * common case). The remaining hatch patterns are carried for fidelity on read.
+ *
+ * The order is load-bearing rather than cosmetic, which is why it is stated twice over -- here, and
+ * in {@link FILL_PATTERNS_IN_SCHEMA_ORDER}, tied together by a proof. BIFF12 stores a pattern as its
+ * *index* into this enumeration, so the binary codec needs the sequence as a value; the doc above
+ * this type used to claim schema order while the union put `gray125` and `gray0625` at positions 2
+ * and 6, where the schema puts them last, and the binary codec carried a third copy that was right.
  */
 export type FillPatternType =
   | 'none'
   | 'solid'
-  | 'gray125'
-  | 'darkGray'
   | 'mediumGray'
+  | 'darkGray'
   | 'lightGray'
-  | 'gray0625'
   | 'darkHorizontal'
   | 'darkVertical'
   | 'darkDown'
@@ -88,30 +92,54 @@ export type FillPatternType =
   | 'lightDown'
   | 'lightUp'
   | 'lightGrid'
-  | 'lightTrellis';
+  | 'lightTrellis'
+  | 'gray125'
+  | 'gray0625';
+
+/**
+ * Every {@link FillPatternType}, in `ST_PatternType` order, which is also the order BIFF12's `fls`
+ * field indexes: `fls` 1 is `solid`, 2 is `mediumGray`, and so on. Index 0 is `none`, which the
+ * model spells as no fill at all rather than as a pattern.
+ *
+ * One list, consulted by the guard below and by `io/xlsb/read-styles.ts`. It replaced three
+ * hand-maintained copies of one enumeration -- the union, the guard's own table, and the binary
+ * codec's index array -- of which only the first two were checked against each other, so adding a
+ * pattern forced the guard to be updated and let the binary codec silently drop it.
+ */
+export const FILL_PATTERNS_IN_SCHEMA_ORDER = [
+  'none',
+  'solid',
+  'mediumGray',
+  'darkGray',
+  'lightGray',
+  'darkHorizontal',
+  'darkVertical',
+  'darkDown',
+  'darkUp',
+  'darkGrid',
+  'darkTrellis',
+  'lightHorizontal',
+  'lightVertical',
+  'lightDown',
+  'lightUp',
+  'lightGrid',
+  'lightTrellis',
+  'gray125',
+  'gray0625',
+] as const satisfies readonly FillPatternType[];
+
+/**
+ * The two halves of the proof {@link FILL_PATTERNS_IN_SCHEMA_ORDER} owes, since a list -- unlike the
+ * `Record` shape every other token guard here is built from -- can name fewer members than its union
+ * without the compiler minding. `satisfies` above covers "no invented name"; this covers "no
+ * omission".
+ */
+export type EveryFillPatternIsOrdered = AssertNever<
+  Exclude<FillPatternType, (typeof FILL_PATTERNS_IN_SCHEMA_ORDER)[number]>
+>;
 
 /** Narrow a raw `<patternFill patternType>` token to a known {@link FillPatternType}. */
-export const isFillPatternType = tokenSet<FillPatternType>({
-  none: true,
-  solid: true,
-  gray125: true,
-  darkGray: true,
-  mediumGray: true,
-  lightGray: true,
-  gray0625: true,
-  darkHorizontal: true,
-  darkVertical: true,
-  darkDown: true,
-  darkUp: true,
-  darkGrid: true,
-  darkTrellis: true,
-  lightHorizontal: true,
-  lightVertical: true,
-  lightDown: true,
-  lightUp: true,
-  lightGrid: true,
-  lightTrellis: true,
-});
+export const isFillPatternType = tokenSetOf<FillPatternType>(FILL_PATTERNS_IN_SCHEMA_ORDER);
 
 /**
  * A pattern fill. For a `solid` fill the visible colour is the pattern *foreground*
@@ -411,7 +439,11 @@ export interface Alignment {
  * Format-blind on purpose. `Alignment` is a core type and the layering gate forbids core importing a
  * serialisation, so the table states what a facet *is* and each codec supplies the reading and the
  * writing off the `kind`. That is where {@link SHEET_PROTECTION_FLAGS} sits and how it is consumed,
- * and it is the shape the BIFF12 codec would want if alignment ever reaches it.
+ * and it is the shape the BIFF12 codec drives off too: `io/xlsb/read-styles.ts` walks this list and
+ * looks each facet up in a `Record` keyed by {@link Alignment}, so the bit layout stays a BIFF12 fact
+ * in the BIFF12 codec while the *set* of facets is decided here, once, for both. (That sentence used
+ * to read "if alignment ever reaches it". Alignment had reached it; the comment had not noticed, and
+ * the binary reader was restating all seven facets and their default-omission rules by hand.)
  *
  * The OOXML attribute name is the model key for all seven facets, so it is not restated here: a
  * second list that is always identical is a second list to keep in step. A future facet whose

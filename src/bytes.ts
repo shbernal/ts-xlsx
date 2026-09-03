@@ -61,3 +61,54 @@ export function toBase64(bytes: Uint8Array): string {
   }
   return out;
 }
+
+// UTF-16LE, both directions, because three directories each had an encoder and two had a decoder.
+//
+// The semantics are identical everywhere it is used and were stated three times in three different
+// ways: little-endian code units, and a lone surrogate carried through as the code unit it is rather
+// than substituted. That last part is load-bearing in every one of the callers and for a different
+// reason each time -- a sheet-protection password is a credential, not text to be displayed, so
+// U+FFFD would silently change it; a `.csv` written as UTF-16 loses nothing by passing the unit
+// through; an [MS-OVBA] name field is bytes the format defines. One rule, three reasons, one
+// implementation.
+//
+// The little-endian *integer* readers stay where they are: `vba/bytes.ts`'s per-call `DataView` and
+// `xlsb/primitives.ts`'s per-record one are each right for their own access pattern, and both say so.
+
+/** A string's UTF-16LE bytes, code unit by code unit, with lone surrogates carried through. */
+export function utf16leBytes(text: string): Uint8Array {
+  const bytes = new Uint8Array(text.length * 2);
+  for (let i = 0; i < text.length; i++) {
+    const unit = text.charCodeAt(i);
+    bytes[i * 2] = unit & 0xff;
+    bytes[i * 2 + 1] = unit >>> 8;
+  }
+  return bytes;
+}
+
+// A decode runs in code-unit batches rather than one `String.fromCharCode` call per character
+// (quadratic concatenation) or one spread of every unit (which blows the argument limit on a long
+// string). 4096 is comfortably under every engine's limit and makes the batching invisible.
+//
+// It is not a micro-optimisation here: the [MS-OVBA] copy used the per-character technique this
+// comment names as wrong, and was bounded only by the fields it happened to be pointed at (a
+// [MS-CFB] directory-entry name is at most 31 code units). The bound is the caller's accident, and a
+// field of file-chosen length is one edit away.
+const CHARS_PER_BATCH = 4096;
+
+/**
+ * Decode UTF-16LE code units. A trailing odd byte is dropped: these fields are length-prefixed by
+ * their producer, and half a code unit carries nothing to decode.
+ */
+export function decodeUtf16le(bytes: Uint8Array): string {
+  let text = '';
+  let batch: number[] = [];
+  for (let i = 0; i + 1 < bytes.length; i += 2) {
+    batch.push((bytes[i] as number) | ((bytes[i + 1] as number) << 8));
+    if (batch.length === CHARS_PER_BATCH) {
+      text += String.fromCharCode(...batch);
+      batch = [];
+    }
+  }
+  return batch.length > 0 ? text + String.fromCharCode(...batch) : text;
+}

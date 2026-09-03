@@ -10,8 +10,10 @@
 // Structures decoded here (RkNumber, XLWideString, BrtColor, Cell, UncheckedRfX, BErr) are shared
 // across the workbook, worksheet, styles, and shared-string parsers; nothing part-specific lives here.
 
+import {decodeUtf16le} from '../../bytes.ts';
 import type {Color} from '../../core/style.ts';
 import {type ErrorCode, isErrorCode} from '../../core/value.ts';
+import {hex} from '../../hex.ts';
 import {XlsbParseError} from './errors.ts';
 
 /** The `Cell` structure ([MS-XLSB] 2.5.10) every cell record opens with. */
@@ -29,11 +31,6 @@ export interface RangeBounds {
   readonly colFirst: number;
   readonly colLast: number;
 }
-
-// A length-prefixed string is decoded in code-unit batches rather than one `String.fromCharCode` call
-// per character (quadratic concatenation) or one spread of every unit (which blows the argument limit
-// on a long string). 4096 is comfortably under every engine's limit and makes the batching invisible.
-const CHARS_PER_BATCH = 4096;
 
 // `XLNullableWideString` marks "no string" with a character count of 0xFFFFFFFF rather than 0: an
 // empty string and an absent one are different values (a sheet's relationship id is nullable; its
@@ -202,16 +199,10 @@ export class RecordReader {
     // Check the byte count against the record *before* building anything: this is the guard that
     // makes a forged character count a cheap failure rather than an allocation the file chose.
     const start = this.#take(count * 2);
-    let text = '';
-    let batch: number[] = [];
-    for (let index = 0; index < count; index++) {
-      batch.push(this.#view.getUint16(start + index * 2, true));
-      if (batch.length === CHARS_PER_BATCH) {
-        text += String.fromCharCode(...batch);
-        batch = [];
-      }
-    }
-    return batch.length > 0 ? text + String.fromCharCode(...batch) : text;
+    // A view, not a copy: `subarray` shares the record's buffer, so the shared decoder reads the same
+    // bytes this reader was already pointed at. The batching that makes a long string decode in
+    // linear time lives there now, beside the [MS-OVBA] decoder that used to do it per character.
+    return decodeUtf16le(this.#data.subarray(start, start + count * 2));
   }
 
   // The single choke point every read passes through. Returns the offset the caller may read from,
@@ -282,5 +273,5 @@ function colorByType(
 }
 
 function hexByte(value: number): string {
-  return value.toString(16).toUpperCase().padStart(2, '0');
+  return hex(value, 2);
 }

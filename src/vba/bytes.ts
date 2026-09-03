@@ -12,8 +12,10 @@
 // is indistinguishable from the unchecked read: V8 already bounds-checks the load, so the branch is
 // free. `ms-ovba.ts` calls `readU16` once per copy token, so that difference is not academic.
 
-// Joining chunks is not a VBA concern; the CFB reader is simply one of three callers.
-export {concat} from '../bytes.ts';
+// Neither joining chunks nor decoding UTF-16LE is a VBA concern; this subsystem is simply one of
+// several callers of each, and `src/bytes.ts` is where both live. Re-exported rather than imported
+// through, so a parser here reaches for one module and gets the whole vocabulary.
+export {concat, decodeUtf16le} from '../bytes.ts';
 
 import {VbaParseError} from './errors.ts';
 
@@ -41,19 +43,6 @@ export function readU32(buf: Uint8Array, at: number): number {
     throw truncated(at, 4, buf.length);
   }
   return (b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)) >>> 0;
-}
-
-/**
- * Decode UTF-16LE code units: the encoding [MS-CFB] uses for directory-entry names and [MS-OVBA] for
- * every "Unicode" name field. A trailing odd byte is dropped: these fields are length-prefixed by the
- * producer and a half code unit carries nothing to decode.
- */
-export function decodeUtf16le(bytes: Uint8Array): string {
-  let s = '';
-  for (let i = 0; i + 1 < bytes.length; i += 2) {
-    s += String.fromCharCode(readU16(bytes, i));
-  }
-  return s;
 }
 
 /**

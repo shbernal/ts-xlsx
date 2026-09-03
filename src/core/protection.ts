@@ -9,7 +9,7 @@
 // attribute defaults differ; that encoding table is {@link SHEET_PROTECTION_FLAGS} below,
 // shared by the writer and reader, while the translation that consumes it lives in the io layer.
 
-import {concat, toBase64} from '../bytes.ts';
+import {concat, toBase64, utf16leBytes} from '../bytes.ts';
 import {sha512} from '../sha512.ts';
 
 /**
@@ -119,7 +119,7 @@ export function deriveCredential(
   spinCount: number = DEFAULT_SPIN_COUNT,
 ): SheetProtectionCredential {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
-  let hash = sha512(concat([salt, utf16le(password)]));
+  let hash = sha512(concat([salt, utf16leBytes(password)]));
   // One buffer for the whole loop, holding the previous digest followed by the counter: at the
   // default spin count the alternative is a hundred thousand throwaway 68-byte allocations.
   const spun = new Uint8Array(hash.length + 4);
@@ -135,17 +135,4 @@ export function deriveCredential(
     saltValue: toBase64(salt),
     spinCount,
   };
-}
-
-// The password's UTF-16LE bytes, code unit by code unit. A lone surrogate is carried through as
-// the code unit it is, which is what the scheme hashes and what Excel would have hashed: this is a
-// credential, not text to be displayed, so substituting U+FFFD would silently change the password.
-function utf16le(text: string): Uint8Array {
-  const bytes = new Uint8Array(text.length * 2);
-  for (let i = 0; i < text.length; i++) {
-    const unit = text.charCodeAt(i);
-    bytes[i * 2] = unit & 0xff;
-    bytes[i * 2 + 1] = unit >>> 8;
-  }
-  return bytes;
 }

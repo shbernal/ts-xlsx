@@ -47,6 +47,7 @@ import {
   NO_PRESERVED_STYLE_TABLES,
   numFmtCodeFor,
   type PreservedStyleTables,
+  protectionFrom,
   resolveStyleTable,
   type StyleLabel,
   type StyleTable,
@@ -596,15 +597,12 @@ function assignAlignmentToken<K extends 'horizontal' | 'vertical'>(
   out[key] = raw as Alignment[K];
 }
 
-// Read a <protection> element into a Protection, keeping only facets that differ from the OOXML
-// default. `locked` defaults to TRUE, so only an explicit `locked="0"` carries information (an
-// unlocked cell): a default or explicit-true cell must not read back as { locked: true }. `hidden`
-// defaults to false, so only `hidden="1"` is carried. An element with only defaults yields undefined.
+// Read a <protection> element into a Protection. The attributes are this codec's; which of their
+// readings carry information is `protectionFrom`'s, shared with the binary reader. `locked` is read
+// tri-state because an explicit `locked="1"` must read back as *nothing* rather than as a set flag,
+// which is a distinction the boolean the binary reader has cannot make and the attribute can.
 function parseProtection(attrs: XmlAttributes): Protection | undefined {
-  const out: {-readonly [K in keyof Protection]?: Protection[K]} = {};
-  if (boolTristate(attrs.locked) === false) out.locked = false;
-  if (boolStrict(attrs.hidden)) out.hidden = true;
-  return Object.keys(out).length > 0 ? out : undefined;
+  return protectionFrom({locked: boolTristate(attrs.locked), hidden: boolStrict(attrs.hidden)});
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -23,6 +23,22 @@
 export function tokenSet<T extends string>(
   members: Record<T, true>,
 ): (value: string) => value is T {
-  const set = new Set<string>(Object.keys(members));
+  return tokenSetOf(Object.keys(members) as T[]);
+}
+
+/**
+ * {@link tokenSet} for a union whose members are also needed as an ordered *list*, because a binary
+ * serialisation indexes one.
+ *
+ * The record form's whole guarantee is that a member cannot be omitted, and a list gives that up: it
+ * can name only members of the union, but it can name fewer. So a caller here owes an explicit proof
+ * of set equality in both directions, which is what `FILL_PATTERNS_IN_SCHEMA_ORDER` carries beside
+ * itself. That is a worse guarantee than the record's, taken deliberately: the alternative is the
+ * arrangement it replaced, where the union, the guard's table and the binary codec's index list were
+ * three hand-maintained copies of one enumeration and only two of them were checked against each
+ * other.
+ */
+export function tokenSetOf<T extends string>(members: readonly T[]): (value: string) => value is T {
+  const set = new Set<string>(members);
   return (value): value is T => set.has(value);
 }

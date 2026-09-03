@@ -10,23 +10,25 @@
 // or a General number format is written explicitly in BIFF12 and omitted in XML, so the binary side
 // has to drop exactly what the XML side never had.
 
-import type {
-  Alignment,
-  Border,
-  BorderEdge,
-  BorderStyle,
-  Color,
-  Fill,
-  FillPatternType,
-  Font,
-  HorizontalAlignment,
-  Protection,
-  UnderlineStyle,
-  VerticalAlignment,
+import {
+  type Alignment,
+  ALIGNMENT_FACETS,
+  type Border,
+  type BorderEdge,
+  type BorderStyle,
+  type Color,
+  type Fill,
+  FILL_PATTERNS_IN_SCHEMA_ORDER,
+  type Font,
+  type HorizontalAlignment,
+  type Protection,
+  type UnderlineStyle,
+  type VerticalAlignment,
 } from '../../core/style.ts';
 import {
   numFmtCodeFor,
   NO_PRESERVED_STYLE_TABLES,
+  protectionFrom,
   resolveStyleTable,
   type StyleLabel,
   type StyleTable,
@@ -153,31 +155,67 @@ function readXf(reader: RecordReader, deps: XfDeps, isDirect: boolean): XfStyle 
 // The `ixfeParent` value a cell *style* XF carries in place of a link, since it is itself the base.
 const NOT_A_CELL_XF = 0xffff;
 
-// BIFF12 states every alignment field on every xf, where XML omits the ones at their default. Keep
-// only what the XML reader would have seen, so the two readings of one workbook agree: `general`
-// horizontal, `bottom` vertical, and zero rotation/indent/reading-order are absences, not values.
+/** The three fields of a BIFF12 xf record that carry alignment between them. */
+interface AlignmentBits {
+  /** `grbitAtr`-adjacent flag word: the two enumerations, the two booleans and the reading order. */
+  readonly flags: number;
+  /** `trot`, a byte of its own. */
+  readonly rotation: number;
+  /** `cIndent`, likewise. */
+  readonly indent: number;
+}
+
+/**
+ * Where each {@link Alignment} facet lives in a BIFF12 xf record, and what counts as its absence.
+ *
+ * A `Record` keyed by the facet name, so an eighth facet added to `Alignment` is a compile error
+ * *here* as well as in `ALIGNMENT_FACETS`. That was the gap: `EveryAlignmentFacetIsDeclared` proves
+ * the core table covers the type, and both XML directions walk that table, so a new facet lit up on
+ * three of the four paths and was silently dropped by the binary reader -- which is precisely the
+ * "facet added to the model, invisible in a file we read back" failure the table exists to prevent.
+ *
+ * The bit layout stays here rather than joining the core table, and that is the deliberate half of
+ * the fix: `ALIGNMENT_FACETS` is format-blind on purpose (the layering gate forbids `core/` importing
+ * a serialisation), so giving it masks and shifts would have made the model carry a BIFF12 fact to
+ * spare this file a `Record`. The *set* of facets is decided once, in core; each format supplies its
+ * own reading.
+ *
+ * BIFF12 states every field on every xf where XML omits the ones at their default, so each entry
+ * answers `{}` for the value the XML reader would not have seen: `general` horizontal, `bottom`
+ * vertical, and a zero rotation, indent or reading order are absences rather than values.
+ */
+const BIFF12_ALIGNMENT: Record<keyof Alignment, (bits: AlignmentBits) => Alignment> = {
+  horizontal: ({flags}) => {
+    const value = HORIZONTAL_ALIGNMENTS[flags & 0b111];
+    return value === undefined ? {} : {horizontal: value};
+  },
+  vertical: ({flags}) => {
+    const value = VERTICAL_ALIGNMENTS[(flags >> 3) & 0b111];
+    return value === undefined ? {} : {vertical: value};
+  },
+  textRotation: ({rotation}) => (rotation === 0 ? {} : {textRotation: rotation}),
+  wrapText: ({flags}) => ((flags & 0x0040) === 0 ? {} : {wrapText: true}),
+  indent: ({indent}) => (indent === 0 ? {} : {indent}),
+  shrinkToFit: ({flags}) => ((flags & 0x0100) === 0 ? {} : {shrinkToFit: true}),
+  readingOrder: ({flags}) => {
+    const value = (flags >> 10) & 0b11;
+    return value === 0 ? {} : {readingOrder: value};
+  },
+};
+
 function readAlignment(flags: number, rotation: number, indent: number): Alignment | undefined {
-  const out: {-readonly [K in keyof Alignment]?: Alignment[K]} = {};
-  const horizontal = HORIZONTAL_ALIGNMENTS[flags & 0b111];
-  if (horizontal !== undefined) out.horizontal = horizontal;
-  const vertical = VERTICAL_ALIGNMENTS[(flags >> 3) & 0b111];
-  if (vertical !== undefined) out.vertical = vertical;
-  if (rotation !== 0) out.textRotation = rotation;
-  if ((flags & 0x0040) !== 0) out.wrapText = true;
-  if (indent !== 0) out.indent = indent;
-  if ((flags & 0x0100) !== 0) out.shrinkToFit = true;
-  const readingOrder = (flags >> 10) & 0b11;
-  if (readingOrder !== 0) out.readingOrder = readingOrder;
+  const bits: AlignmentBits = {flags, rotation, indent};
+  // Walking the core list rather than this file's own `Record` keys, so the *order* of facets is
+  // decided in one place too and this reader cannot fall out of step with the writer on it.
+  const out: Alignment = {};
+  for (const facet of ALIGNMENT_FACETS) Object.assign(out, BIFF12_ALIGNMENT[facet.key](bits));
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-// `locked` defaults to TRUE in OOXML, so an *unlocked* cell is the state that carries information;
-// `hidden` defaults to false, so only a set flag does. A default xf yields no protection at all.
+// The two protection bits, read through the rule both codecs share (`protectionFrom`): which of the
+// two flags carries information is an OOXML default question, not a BIFF12 one.
 function readProtection(flags: number): Protection | undefined {
-  const out: {-readonly [K in keyof Protection]?: Protection[K]} = {};
-  if ((flags & 0x1000) === 0) out.locked = false;
-  if ((flags & 0x2000) !== 0) out.hidden = true;
-  return Object.keys(out).length > 0 ? out : undefined;
+  return protectionFrom({locked: (flags & 0x1000) !== 0, hidden: (flags & 0x2000) !== 0});
 }
 
 // `alc` ([MS-XLSB] 2.4.876), indexed by its stored value. `general` is index 0 and is left out
@@ -250,12 +288,15 @@ const UNDERLINE_STYLES: ReadonlyMap<number, UnderlineStyle> = new Map<number, Un
   [0x22, 'doubleAccounting'],
 ]);
 
-// `BrtFill` ([MS-XLSB] 2.4.681). The pattern code and OOXML's `ST_PatternType` enumerate the same
-// patterns in the same order, so the code indexes the name list directly.
+// `BrtFill` ([MS-XLSB] 2.4.681). `fls` is an index into `ST_PatternType`, so the enumeration itself
+// is the table: `FILL_PATTERNS_IN_SCHEMA_ORDER` is where it lives, beside the union it names, and
+// this codec indexes it rather than carrying a third copy of the nineteen names. Index 0 is `none`,
+// which the model spells as no fill at all, and an unmodelled pattern (a gradient, `fls` 0x28, whose
+// stop-array layout this reader has no Excel-authored sample to check against) is dropped rather
+// than guessed, so an unfilled cell reads back unfilled either way.
 function readFill(reader: RecordReader): Fill | undefined {
-  const pattern = FILL_PATTERNS[reader.u32()];
-  // `none` is the absence of a fill, and an unmodelled pattern (a gradient; see below) is dropped
-  // rather than guessed, so an unfilled cell reads back unfilled either way.
+  const raw = FILL_PATTERNS_IN_SCHEMA_ORDER[reader.u32()];
+  const pattern = raw === 'none' ? undefined : raw;
   if (pattern === undefined) return undefined;
   // BIFF12 always states both colours; XML states only the ones the fill actually has, using the two
   // legacy-palette sentinels for the rest: 64 is "automatic foreground", 65 "automatic background".
@@ -278,32 +319,6 @@ const AUTOMATIC_BACKGROUND = 65;
 function notSentinel(color: Color | undefined, sentinel: number): Color | undefined {
   return color?.indexed === sentinel ? undefined : color;
 }
-
-// Indexed by the stored `fls` value. Index 0 (`none`) is deliberately absent: an unfilled cell
-// carries no fill. Gradient fills (`fls` 0x28) are not decoded in this cut: the stop array's layout
-// is the one piece of BrtFill this reader has no Excel-authored sample to check against, and a
-// silently wrong gradient is worse than none.
-const FILL_PATTERNS: ReadonlyArray<FillPatternType | undefined> = [
-  undefined,
-  'solid',
-  'mediumGray',
-  'darkGray',
-  'lightGray',
-  'darkHorizontal',
-  'darkVertical',
-  'darkDown',
-  'darkUp',
-  'darkGrid',
-  'darkTrellis',
-  'lightHorizontal',
-  'lightVertical',
-  'lightDown',
-  'lightUp',
-  'lightGrid',
-  'lightTrellis',
-  'gray125',
-  'gray0625',
-];
 
 // `BrtBorder` ([MS-XLSB] 2.4.314): the two diagonal-direction bits, then five `Blxf` edges in the
 // order top, bottom, left, right, diagonal, which is *not* the model's or the schema's order, so

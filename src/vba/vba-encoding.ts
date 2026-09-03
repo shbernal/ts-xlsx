@@ -6,6 +6,7 @@
 // the offline `tools/vba-compiler` (VBIDE), which produces genuinely compiled p-code. This module holds
 // only what the pure-TS structural edits (remove module, add reference) still need (ADR 0019).
 
+import {utf16leBytes} from '../bytes.ts';
 import {quoted} from '../errors.ts';
 import {MAX_NAME_CHARS} from './cfb-format.ts';
 import {VbaAuthorError} from './errors.ts';
@@ -39,7 +40,5 @@ export function u32(n: number): number[] {
 }
 /** A name as NUL-free UTF-16LE code units: the encoding [MS-OVBA] uses for every "Unicode" name field. */
 export function utf16le(s: string): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < s.length; i++) out.push(...u16(s.charCodeAt(i)));
-  return out;
+  return [...utf16leBytes(s)];
 }
