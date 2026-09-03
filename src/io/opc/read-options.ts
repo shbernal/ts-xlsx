@@ -12,6 +12,10 @@
 // its disjointness rule *forbids* publishing one name from two subpaths. The old name was wrong on its
 // face too: this bounds the OPC container, which all three readers share, not the XML codec.
 
+/**
+ * How a reader is allowed to open an OPC package. One knob today: the ceiling on what inflating it
+ * may produce, which every reader shares because every reader inflates the same container.
+ */
 export interface ReadPackageOptions {
   /**
    * Maximum total uncompressed output, in bytes, produced while inflating the package.

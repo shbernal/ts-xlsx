@@ -29,11 +29,33 @@ export function partsOf(pkg: Uint8Array): Record<string, string> {
   return out;
 }
 
+/**
+ * Every part of the package a workbook writes to, decoded to text: {@link partsOf} for the many tests
+ * that start from a `Workbook` rather than from bytes.
+ *
+ * Two test files declared this locally, byte-identical down to the comment, each shadowing the
+ * imported `partsOf` it wrapped, which is the drift this module exists to stop.
+ */
+export function partsWritten(workbook: Workbook): Record<string, string> {
+  return partsOf(writeXlsx(workbook));
+}
+
 /** One named part's text. Fails the test, naming the part, when it is absent. */
 export function partText(pkg: Uint8Array, name: string): string {
   const bytes = unzipSync(pkg)[name];
   assert.ok(bytes, `expected part ${name}`);
   return strFromU8(bytes);
+}
+
+/**
+ * One named part's text out of an already-decoded {@link partsOf}/{@link partsWritten} record. Fails
+ * the test naming the part when it is absent, which {@link partText} does for a package's bytes: a
+ * test that already has the whole record should not have to unzip again to get the assertion.
+ */
+export function partIn(parts: Record<string, string>, name: string): string {
+  const xml = parts[name];
+  assert.ok(xml !== undefined, `expected part ${name}`);
+  return xml;
 }
 
 /** One named part's text, or undefined: for a test asserting a part was *not* written. */
@@ -50,6 +72,29 @@ export function sheetXml(pkg: Uint8Array): string {
 /** Write a workbook and read it straight back: the round-trip under test. */
 export function roundtrip(workbook: Workbook): Workbook {
   return readXlsx(writeXlsx(workbook));
+}
+
+/**
+ * Rewrite named parts of a package and return the new bytes, asserting each named part exists first.
+ *
+ * The other half of what {@link readPatched} does, for a test that patches a package it built itself
+ * rather than the stock one, or that wants the bytes rather than the model. Every site doing this by
+ * hand read the part it was about to patch through a cast or a `?? new Uint8Array()`, which is the
+ * failure this module exists to remove: the first spelling throws a `TypeError` naming nothing when
+ * the writer renames a part, and the second silently patches an empty string, after which every
+ * negative assertion built on the result passes for the wrong reason.
+ */
+export function patchParts(
+  pkg: Uint8Array,
+  edits: Record<string, (xml: string) => string>,
+): Uint8Array {
+  const files = unzipSync(pkg);
+  for (const [name, edit] of Object.entries(edits)) {
+    const bytes = files[name];
+    assert.ok(bytes, `expected part ${name}`);
+    files[name] = strToU8(edit(strFromU8(bytes)));
+  }
+  return zipSync(files);
 }
 
 /**

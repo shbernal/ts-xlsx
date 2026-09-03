@@ -5,7 +5,7 @@ import {strFromU8, unzipSync} from 'fflate';
 
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
-import {type PartMap, partMapOf} from './package-facts.ts';
+import {type PartMap, partMapOf, roundtrip} from './package-facts.ts';
 import {fixtureBytes, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {anchorSpecImage, buildFrom, ONE_PX_PNG} from './spec-model.ts';
 import {attrsOf, hexBytes, imageXmlWellFormed, parseAnchorSide} from './xml-probes.ts';
@@ -97,7 +97,7 @@ export const images = {
       tl: {col: 5, row: 5},
       ext: {width: 50, height: 50},
     });
-    const reread = readXlsx(writeXlsx(wb));
+    const reread = roundtrip(wb);
     const images = (reread.getWorksheet('S')?.images || []).map((im) => {
       const from = im.anchor.from;
       return {
@@ -231,7 +231,7 @@ export const images = {
   addImageToLoadedWorksheetReport(range = 'B2:C4') {
     const base = new Workbook();
     base.addWorksheet('S').getCell('A1').value = 'x';
-    const loaded = readXlsx(writeXlsx(base));
+    const loaded = roundtrip(base);
     anchorSpecImage(
       loaded.getWorksheet('S'),
       loaded.addImage({buffer: ONE_PX_PNG, extension: 'png'}),

@@ -59,6 +59,7 @@ import {
   readWorkbookPersons,
   readWorkbookPreservedReferences,
   readWorkbookTheme,
+  worksheetReferencePass,
 } from './read-parts.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {parseStyleTable} from './read-styles.ts';
@@ -229,13 +230,14 @@ function readSheet(sheet: Worksheet, path: string | undefined, context: SheetRea
   const {partText} = pkg;
   const sheetXml = path === undefined ? undefined : partText(path);
 
-  // Five readers want the worksheet part, and it is the largest in the package by a wide margin, so
+  // Six readers want the worksheet part, and it is the largest in the package by a wide margin, so
   // they share one parse of it rather than scanning it once each. Only the body commits as it goes;
-  // the other four gather, and are applied below in the order they were always applied.
+  // the other five gather, and are applied below in the order they were always applied.
   const hyperlinks = sheetHyperlinkPass();
   const validations = dataValidationPass();
   const extendedValidations = extendedDataValidationPass();
   const formattings = conditionalFormattingPass();
+  const references = worksheetReferencePass();
   if (sheetXml !== undefined) {
     parseXmlPasses(sheetXml, [
       worksheetPass(sheet, sharedStrings, xfStyles),
@@ -243,6 +245,7 @@ function readSheet(sheet: Worksheet, path: string | undefined, context: SheetRea
       validations,
       extendedValidations,
       formattings,
+      references,
     ]);
   }
   if (path === undefined) return;
@@ -264,7 +267,7 @@ function readSheet(sheet: Worksheet, path: string | undefined, context: SheetRea
   readSheetImages(sheetRels, pkg, workbook, sheet, imageIdByMediaPath);
   readSheetBackground(sheetRels, pkg, workbook, sheet, imageIdByMediaPath);
   if (sheetXml !== undefined) {
-    readSheetPreservedReferences(sheetRels, sheetXml, pkg, contentTypeOf, sheet);
+    readSheetPreservedReferences(sheetRels, references.result(), pkg, contentTypeOf, sheet);
   }
 
   readSheetTables(sheetRels, pkg, sheet);

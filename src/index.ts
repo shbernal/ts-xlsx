@@ -3,8 +3,9 @@
 // It is a union of the subpath entry barrels in `src/entries/`, which are the real public faces:
 // `@shbernal/ts-xlsx/core`, `/xlsx`, `/xlsb`, `/csv`, `/vba`, `/customui`, `/errors`. Each symbol
 // is listed in exactly one of them, so there is no second list to keep in step here and a star
-// re-export cannot silently drop a name to an ambiguity. `scripts/check-layering.ts` holds the
-// entries disjoint and keeps this file's composition honest.
+// re-export cannot silently drop a name to an ambiguity. `scripts/check-entries.ts` is what holds
+// the entries disjoint, which is the check that matters here because the failure it prevents is the
+// silent one; `scripts/check-layering.ts` separately keeps this file the only composer of them.
 //
 // One entry is deliberately absent: `/node`, the streaming writer, which imports `node:fs` and
 // `node:stream`. Unioning it here would put those on the graph of every consumer who wrote

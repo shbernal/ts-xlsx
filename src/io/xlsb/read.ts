@@ -21,6 +21,7 @@ import type {WorksheetState} from '../../core/worksheet.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
 import {openSpreadsheetPackage, packageAccessors, readPartRelationships} from '../opc/read-opc.ts';
 import type {ReadPackageOptions} from '../opc/read-options.ts';
+import {XlsbParseError} from './errors.ts';
 import {decodeFormula, type ExternSheetRef, type FormulaScope} from './formula.ts';
 import {RecordReader} from './primitives.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
@@ -181,10 +182,18 @@ function readSheet(data: Uint8Array): SheetDeclaration {
 function readExternSheets(data: Uint8Array): ExternSheetRef[] {
   const reader = new RecordReader(data);
   const count = reader.u32();
+  // Each entry is three 4-byte fields, so a count the record cannot hold is a lie about the record and
+  // is refused, the way every other length in this reader is. It used to return an empty table
+  // instead, which reads as "this workbook declares no external sheets": every 3-D reference in it
+  // then decodes to nothing and every formula carrying one silently falls back to its cached value,
+  // across the whole workbook, with nothing reported.
+  if (count * XTI_BYTES > reader.remaining) {
+    throw new XlsbParseError(
+      `BIFF12 externSheet table declares ${count} entries needing ${count * XTI_BYTES} bytes but ` +
+        `only ${reader.remaining} remain in the record`,
+    );
+  }
   const entries: ExternSheetRef[] = [];
-  // Each entry is three 4-byte fields; checking the count against what the record holds keeps a forged
-  // one from driving the loop rather than the record's own length.
-  if (count * XTI_BYTES > reader.remaining) return entries;
   for (let index = 0; index < count; index++) {
     entries.push({supBook: reader.u32(), firstSheet: reader.i32(), lastSheet: reader.i32()});
   }

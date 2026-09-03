@@ -5,15 +5,10 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {INTERNAL, NAMED_STYLE_ID} from '../../core/internal.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {partsOf as packageParts} from './package.test-support.ts';
+import {partsWritten as partsOf} from './package.test-support.ts';
 import {STYLES_PART} from './part-names.ts';
 import {readXlsx} from './read.ts';
 import {buildPackageParts, writeXlsx, writeXlsxAsync} from './write.ts';
-
-// Shorthand for the shared accessor: every case here starts from a workbook, not from bytes.
-function partsOf(workbook: Workbook): Record<string, string> {
-  return packageParts(writeXlsx(workbook));
-}
 
 test('a one-sheet workbook writes the full set of OPC parts', () => {
   const wb = new Workbook();

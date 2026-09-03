@@ -11,7 +11,7 @@ import {
   isImageEditAs,
   isOneCellAnchor,
 } from '../../core/image.ts';
-import {parseXml, TextCapture} from '../../xml/xml-read.ts';
+import {openElements, parseXml, TextCapture} from '../../xml/xml-read.ts';
 import {enumToken, localName, numFinite} from '../../xml/xml-scan.ts';
 import {checkedToken, numAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {relAttr, RELATIONSHIPS_NS} from '../opc/namespaces.ts';
@@ -265,13 +265,14 @@ const UNMODELED_DRAWING_CONTENT = new Set<string>(['graphicFrame', 'sp', 'cxnSp'
  * picture and a chart yields a mixed drawing; modeling only its pictures and re-serialising from them
  * would drop the chart. The reader uses this to fall back to whole-drawing byte-preservation instead. */
 export function drawingHasUnmodeledContent(xml: string): boolean {
-  let found = false;
-  parseXml(xml, {
-    onOpen(name) {
-      if (!found && UNMODELED_DRAWING_CONTENT.has(localName(name))) found = true;
-    },
-  });
-  return found;
+  // Pulled rather than pushed, so the answer stops the scan. The push adapter runs a parse to
+  // completion whatever a handler learns, so this walked every element of the part to reach a verdict
+  // its first match already decided; a drawing is scanned twice on read (here and by `parseDrawing`),
+  // and this half now stops at the first shape.
+  for (const {local} of openElements(xml)) {
+    if (UNMODELED_DRAWING_CONTENT.has(local)) return true;
+  }
+  return false;
 }
 
 const COORDINATES = new Set<string>(['col', 'colOff', 'row', 'rowOff']);

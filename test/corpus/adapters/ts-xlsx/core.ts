@@ -5,7 +5,7 @@ import {canonicalJson} from '../../canonical-json.ts';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {packageFacts} from '../ooxml-facts.ts';
-import {packagePartFacts, partMapOf} from './package-facts.ts';
+import {packagePartFacts, partMapOf, roundtrip} from './package-facts.ts';
 import {
   type CellInstance,
   decodeAddress,
@@ -89,7 +89,7 @@ export const core = {
       ],
     });
 
-    const back = readXlsx(writeXlsx(workbook)).getWorksheet('S')!;
+    const back = roundtrip(workbook).getWorksheet('S')!;
     const value = back.getCell('A1').value as Untyped;
     const validations = back.dataValidations as Untyped[];
     const rules = (back.conditionalFormattings as Untyped[]).flatMap(
@@ -127,7 +127,7 @@ export const core = {
   // writer materializes (e.g. a table's totals row) survives a round-trip unchanged, neither dropped
   // on read nor duplicated/clobbered when the reloaded model is written again.
   roundtripInspectPackage(spec: Untyped) {
-    return packageFacts(spec, partMapOf(writeXlsx(readXlsx(writeXlsx(buildFrom(spec))))));
+    return packageFacts(spec, partMapOf(writeXlsx(roundtrip(buildFrom(spec)))));
   },
 
   // Author a pivot table over source data containing XML-special characters (& < > " ') and a
@@ -339,7 +339,7 @@ export const core = {
     return {
       eager: eagerOf(readFixture(rel)),
       streaming,
-      roundtrip: eagerOf(readXlsx(writeXlsx(readFixture(rel)))),
+      roundtrip: eagerOf(roundtrip(readFixture(rel))),
     };
   },
 
@@ -416,9 +416,9 @@ export const core = {
       addThrew = true;
       addError = messageOf(e);
     }
-    const roundtrip = readXlsx(writeXlsx(wb));
+    const reloaded = roundtrip(wb);
     const roundtripName =
-      roundtrip.worksheets.map((s) => s.name).find((n) => n === 'History') ?? null;
+      reloaded.worksheets.map((sheet) => sheet.name).find((name) => name === 'History') ?? null;
     let invalidRejected = false;
     try {
       wb.addWorksheet('a/b');
@@ -509,7 +509,7 @@ export const core = {
   // custom width, so "has a width" is exactly "is a custom width".
   roundtripFixture(rel: string) {
     const before = readFixture(rel);
-    const after = readXlsx(writeXlsx(before));
+    const after = roundtrip(before);
 
     const hasStyle = (cell: CellInstance) =>
       !!(cell.numFmt || cell.fill?.type || cell.font || cell.alignment || cell.border);
@@ -576,7 +576,7 @@ export const core = {
   // unchanged. Facets the writer/reader do not materialize yet come back empty/null;
   // the writer's feature-gate keeps a case whose spec needs those from ever running here.
   roundtripWorkbook(spec: Untyped) {
-    const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
+    const reloaded = roundtrip(buildFrom(spec));
     const sheets: Record<string, Untyped> = {};
     for (const s of spec.sheets || []) {
       const sheet = reloaded.getWorksheet(s.name);

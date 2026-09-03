@@ -11,7 +11,7 @@ import {test} from 'node:test';
 
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import {AuthoringError} from '../../errors.ts';
-import {partsOf} from './package.test-support.ts';
+import {partsWritten} from './package.test-support.ts';
 import {writeXlsx} from './write.ts';
 
 const UNWRITABLE = [Number.NaN, Infinity, -Infinity] as const;
@@ -144,7 +144,7 @@ test('a pivot cache blanks a non-finite source value rather than spelling it', (
     .addWorksheet('P')
     .addPivotTable({source, rows: ['Region'], columns: ['Quarter'], values: ['Amount']});
 
-  const parts = partsOf(writeXlsx(workbook));
+  const parts = partsWritten(workbook);
   for (const [path, xml] of Object.entries(parts)) {
     assert.ok(!/NaN|Infinity/.test(xml), `${path} carries an unwritable number`);
   }
@@ -174,6 +174,6 @@ test('a scope matching its sheet only in case still resolves to that sheet', () 
   workbook.addWorksheet('Data').getCell('A1').value = 1;
   workbook.defineName({name: 'Local', refersTo: 'Data!$A$1', scope: 'dAtA'});
 
-  const workbookPart = partsOf(writeXlsx(workbook))['xl/workbook.xml'] ?? '';
+  const workbookPart = partsWritten(workbook)['xl/workbook.xml'] ?? '';
   assert.match(workbookPart, /<definedName name="Local" localSheetId="1">/);
 });

@@ -12,7 +12,8 @@ import {INTERNAL} from '../../core/internal.ts';
 import type {PreservedWorksheetReference} from '../../core/preserved.ts';
 import {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {openElements} from '../../xml/xml-read.ts';
+import {type CollectingPass, openElements} from '../../xml/xml-read.ts';
+import {localName} from '../../xml/xml-scan.ts';
 import {relAttr} from '../opc/namespaces.ts';
 import {extensionOf, resolveRelativePart} from '../opc/part-paths.ts';
 import {
@@ -194,7 +195,7 @@ export function readSheetBackground(
 // drawing's media) are captured with their bytes, content types, and relationships.
 export function readSheetPreservedReferences(
   sheetRels: PartRelationships,
-  sheetXml: string,
+  referenceRelIds: WorksheetReferenceRelIds,
   pkg: PackageAccessors,
   contentTypeOf: (path: string) => string,
   sheet: Worksheet,
@@ -219,7 +220,7 @@ export function readSheetPreservedReferences(
   const referenceElements: Array<'drawing' | 'legacyDrawingHF'> =
     sheet.images.length === 0 ? ['drawing', 'legacyDrawingHF'] : ['legacyDrawingHF'];
   for (const element of referenceElements) {
-    const relId = worksheetReferenceRelId(sheetXml, element);
+    const relId = referenceRelIds[element];
     const record = relId === undefined ? undefined : sheetRels.byId(relId);
     if (record !== undefined && !record.external) capture(element, record.type, record.target);
   }
@@ -350,19 +351,39 @@ function parseExternalReferenceRegistrations(workbookXml: string): Map<string, n
   return byRelId;
 }
 
-// The `r:id` of the first `<drawing>` / `<legacyDrawingHF>` element in a worksheet, or undefined when
-// the sheet declares none. The reference lives in the worksheet XML (not distinguishable by
-// relationship Type, since a header/footer VML and a comment VML share the `vmlDrawing` type), so the
-// specific relationship is found by reading the element's `r:id` here.
-function worksheetReferenceRelId(
-  sheetXml: string,
-  element: 'drawing' | 'legacyDrawingHF',
-): string | undefined {
-  for (const {attrs, scope} of openElements(sheetXml, element)) {
-    const relId = relAttr(scope, attrs, 'id');
-    if (relId !== undefined) return relId;
-  }
-  return undefined;
+/** The `r:id` each of the two element-wired references carries, or `undefined` where absent. */
+export type WorksheetReferenceRelIds = Readonly<
+  Partial<Record<'drawing' | 'legacyDrawingHF', string>>
+>;
+
+/**
+ * A pass gathering the `r:id` of the first `<drawing>` and `<legacyDrawingHF>` in a worksheet.
+ *
+ * These two references live in the worksheet body rather than being distinguishable by relationship
+ * Type, since a header/footer VML and a comment VML share the `vmlDrawing` type, so the specific
+ * relationship is found by reading the element's own `r:id`.
+ *
+ * A pass rather than its own scan, because the sheet part is the largest in a package by a wide
+ * margin and this ran a full extra scan of it, once or twice per sheet, for two attributes.
+ * `readSheet` already builds a multi-pass single parse of it whose own comment records that five
+ * separate scans "spent 45% of a large file's read on four scans that matched no element"; this was
+ * the sixth scan, added later, that the same argument covers.
+ */
+export function worksheetReferencePass(): CollectingPass<WorksheetReferenceRelIds> {
+  const relIds: {-readonly [K in keyof WorksheetReferenceRelIds]: string} = {};
+  return {
+    handlers: {
+      onOpen(name, attrs, _selfClosing, scope) {
+        const local = localName(name);
+        if (local !== 'drawing' && local !== 'legacyDrawingHF') return;
+        // The FIRST one wins, matching what a scan returning on its first hit did.
+        if (relIds[local] !== undefined) return;
+        const relId = relAttr(scope, attrs, 'id');
+        if (relId !== undefined) relIds[local] = relId;
+      },
+    },
+    result: () => relIds,
+  };
 }
 
 // A sheet's tables live in `xl/tables/table{n}.xml` parts, each reached through a relationship of

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+import {strToU8, unzipSync, zipSync} from 'fflate';
 
 import type {Fill} from '../../core/style.ts';
 import {isFormulaValue} from '../../core/value.ts';
@@ -12,7 +12,14 @@ import {UnsupportedFormatError} from '../opc/errors.ts';
 import {conditionalFormattingPass} from './conditional-formatting.ts';
 import {dataValidationPass, extendedDataValidationPass} from './data-validation.ts';
 import {sheetHyperlinkPass} from './hyperlinks.ts';
-import {partText, roundtrip, sheetXml} from './package.test-support.ts';
+import {
+  optionalPartText,
+  partText,
+  patchParts,
+  roundtrip,
+  SHEET1,
+  sheetXml,
+} from './package.test-support.ts';
 import {worksheetPass} from './read-worksheet.ts';
 import {applyWorkbookView, readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
@@ -314,8 +321,7 @@ test('many identically-filled cells collapse to one shared style entry in the pa
     sheet.getCell(`A${r}`).value = r;
     sheet.getCell(`A${r}`).fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFDDEEFF'}};
   }
-  const files = unzipSync(writeXlsx(wb));
-  const stylesXml = strFromU8(files['xl/styles.xml'] as Uint8Array);
+  const stylesXml = partText(writeXlsx(wb), 'xl/styles.xml');
   // Default xf + the single shared fill = two entries, never ~40.
   assert.match(stylesXml, /<cellXfs count="2">/);
 });
@@ -1372,19 +1378,19 @@ test('a printer-settings blob wires up the r:id, the .bin part, its rel, and a c
   const wb = new Workbook();
   wb.addWorksheet('S').pageSetup.printerSettings = new Uint8Array([1, 2, 3]);
 
-  const files = unzipSync(writeXlsx(wb));
-  const sheetXml = strFromU8(files['xl/worksheets/sheet1.xml']!);
+  const pkg = writeXlsx(wb);
   // The blob is the only reason the element exists, so <pageSetup> emits carrying just the r:id.
-  assert.match(sheetXml, /<pageSetup r:id="rId1"\/>/);
+  assert.match(sheetXml(pkg), /<pageSetup r:id="rId1"\/>/);
 
-  assert.ok(files['xl/printerSettings/printerSettings1.bin'], 'the binary part is written');
-  assert.deepEqual(files['xl/printerSettings/printerSettings1.bin'], new Uint8Array([1, 2, 3]));
+  const printerSettings = unzipSync(pkg)['xl/printerSettings/printerSettings1.bin'];
+  assert.ok(printerSettings, 'the binary part is written');
+  assert.deepEqual(printerSettings, new Uint8Array([1, 2, 3]));
 
-  const rels = strFromU8(files['xl/worksheets/_rels/sheet1.xml.rels']!);
+  const rels = partText(pkg, 'xl/worksheets/_rels/sheet1.xml.rels');
   assert.match(rels, /Id="rId1"[^>]*Target="\.\.\/printerSettings\/printerSettings1\.bin"/);
   assert.match(rels, /Type="[^"]*\/printerSettings"/);
 
-  const contentTypes = strFromU8(files['[Content_Types].xml']!);
+  const contentTypes = partText(pkg, '[Content_Types].xml');
   assert.match(contentTypes, /<Default Extension="bin" ContentType="[^"]*printerSettings"\/>/);
 });
 
@@ -1396,35 +1402,31 @@ test('a printer-settings blob rides alongside a table without stealing its rel i
   sheet.addTable({name: 'T', ref: 'A1', columns: [{name: 'h'}], rowCount: 1});
   sheet.pageSetup.printerSettings = new Uint8Array([9]);
 
-  const files = unzipSync(writeXlsx(wb));
-  const rels = strFromU8(files['xl/worksheets/_rels/sheet1.xml.rels']!);
+  const pkg = writeXlsx(wb);
+  const rels = partText(pkg, 'xl/worksheets/_rels/sheet1.xml.rels');
   // The table keeps rId1; the printer-settings blob follows it at rId2, so neither reference collides.
   assert.match(rels, /Id="rId1"[^>]*Target="\.\.\/tables\/table1\.xml"/);
   assert.match(rels, /Id="rId2"[^>]*Target="\.\.\/printerSettings\/printerSettings1\.bin"/);
-  assert.match(strFromU8(files['xl/worksheets/sheet1.xml']!), /<pageSetup r:id="rId2"\/>/);
+  assert.match(sheetXml(pkg), /<pageSetup r:id="rId2"\/>/);
 });
 
 test('a sheet with no printer settings writes no .bin part and no r:id', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').pageSetup.scale = 90;
 
-  const files = unzipSync(writeXlsx(wb));
-  assert.doesNotMatch(strFromU8(files['xl/worksheets/sheet1.xml']!), /r:id=/);
-  assert.equal(files['xl/printerSettings/printerSettings1.bin'], undefined);
-  assert.doesNotMatch(strFromU8(files['[Content_Types].xml']!), /Extension="bin"/);
+  const pkg = writeXlsx(wb);
+  assert.doesNotMatch(sheetXml(pkg), /r:id=/);
+  assert.equal(optionalPartText(pkg, 'xl/printerSettings/printerSettings1.bin'), undefined);
+  assert.doesNotMatch(partText(pkg, '[Content_Types].xml'), /Extension="bin"/);
 });
 
 test('a non-numeric paperSize is dropped on read, not stored as NaN', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').pageSetup.scale = 96;
-  const files = unzipSync(writeXlsx(wb));
-  files['xl/worksheets/sheet1.xml'] = strToU8(
-    strFromU8(files['xl/worksheets/sheet1.xml']!).replace(
-      '<pageSetup ',
-      '<pageSetup paperSize="A4" ',
-    ),
-  );
-  const back = readXlsx(zipSync(files)).getWorksheet('S');
+  const patched = patchParts(writeXlsx(wb), {
+    [SHEET1]: (xml) => xml.replace('<pageSetup ', '<pageSetup paperSize="A4" '),
+  });
+  const back = readXlsx(patched).getWorksheet('S');
   assert.equal(back?.pageSetup.paperSize, undefined);
   assert.equal(back?.pageSetup.scale, 96);
 });
@@ -1444,14 +1446,11 @@ test('a sheet with no page setup emits neither <pageSetUpPr> nor <pageSetup>', (
 test('a <pageSetUpPr> present only for other reasons leaves fitToPage unset', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'y';
-  const files = unzipSync(writeXlsx(wb));
-  files['xl/worksheets/sheet1.xml'] = strToU8(
-    strFromU8(files['xl/worksheets/sheet1.xml']!).replace(
-      '<dimension',
-      '<sheetPr><pageSetUpPr autoPageBreaks="0"/></sheetPr><dimension',
-    ),
-  );
-  const back = readXlsx(zipSync(files)).getWorksheet('S');
+  const patched = patchParts(writeXlsx(wb), {
+    [SHEET1]: (xml) =>
+      xml.replace('<dimension', '<sheetPr><pageSetUpPr autoPageBreaks="0"/></sheetPr><dimension'),
+  });
+  const back = readXlsx(patched).getWorksheet('S');
   assert.equal(back?.pageSetup.fitToPage, undefined);
 });
 
@@ -1496,8 +1495,7 @@ test('workbook structure protection survives a read→write round-trip', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'x';
   wb.protection = {lockStructure: true, lockWindows: false};
-  const files = unzipSync(writeXlsx(wb));
-  const wbXml = strFromU8(files['xl/workbook.xml']!);
+  const wbXml = partText(writeXlsx(wb), 'xl/workbook.xml');
   assert.match(wbXml, /<workbookProtection lockStructure="1"\/>/);
   // The element precedes <sheets> in CT_Workbook order.
   assert.ok(wbXml.indexOf('<workbookProtection') < wbXml.indexOf('<sheets>'));
@@ -1588,15 +1586,11 @@ test('a foreign non-Calibri font 0 survives a round-trip without gaining a dupli
   // consumer reading font 0 as "the workbook default") silently got Calibri.
   const seed = new Workbook();
   seed.addWorksheet('S').getCell('A1').value = 'plain';
-  const pkg = unzipSync(writeXlsx(seed));
-  pkg['xl/styles.xml'] = strToU8(
-    strFromU8(pkg['xl/styles.xml'] ?? new Uint8Array()).replace(
-      '<name val="Calibri"/>',
-      '<name val="Aptos"/>',
-    ),
-  );
+  const patched = patchParts(writeXlsx(seed), {
+    'xl/styles.xml': (xml) => xml.replace('<name val="Calibri"/>', '<name val="Aptos"/>'),
+  });
 
-  const back = readXlsx(zipSync(pkg));
+  const back = readXlsx(patched);
   assert.equal(
     back.declaredDefaultFont?.name,
     'Aptos',

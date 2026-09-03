@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, unzipSync} from 'fflate';
-
 import {isOneCellAnchor} from '../../core/image.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {imageContentType} from './images.ts';
-import {partText} from './package.test-support.ts';
+import {partIn, partsWritten, partText} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -40,14 +38,14 @@ test('an anchored image survives the write/read round-trip with its bytes intact
 });
 
 test('a noted-free workbook with an image emits a drawing, a media part, and a <drawing> reference', () => {
-  const files = unzipSync(writeXlsx(anchored()));
-  assert.ok(files['xl/drawings/drawing1.xml'], 'a drawing part is written');
-  assert.ok(files['xl/media/image1.png'], 'the media bytes are written');
-  const sheetXml = strFromU8(files['xl/worksheets/sheet1.xml'] as Uint8Array);
+  const parts = partsWritten(anchored());
+  assert.ok(parts['xl/drawings/drawing1.xml'], 'a drawing part is written');
+  assert.ok(parts['xl/media/image1.png'], 'the media bytes are written');
+  const sheetXml = partIn(parts, 'xl/worksheets/sheet1.xml');
   assert.match(sheetXml, /<drawing r:id="[^"]+"\/>/);
-  const drawingXml = strFromU8(files['xl/drawings/drawing1.xml']);
+  const drawingXml = partIn(parts, 'xl/drawings/drawing1.xml');
   assert.match(drawingXml, /<xdr:from>[\s\S]*?<xdr:row>5<\/xdr:row>/);
-  const contentTypes = strFromU8(files['[Content_Types].xml'] as Uint8Array);
+  const contentTypes = partIn(parts, '[Content_Types].xml');
   assert.match(contentTypes, /Extension="png" ContentType="image\/png"/);
   assert.match(contentTypes, /PartName="\/xl\/drawings\/drawing1\.xml"/);
 });
@@ -55,7 +53,7 @@ test('a noted-free workbook with an image emits a drawing, a media part, and a <
 test('an image-free workbook writes no drawing or media parts', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'plain';
-  const names = Object.keys(unzipSync(writeXlsx(wb)));
+  const names = Object.keys(partsWritten(wb));
   assert.ok(!names.some((n) => /drawing\d+\.xml$/.test(n)));
   assert.ok(!names.some((n) => n.startsWith('xl/media/')));
 });
@@ -76,8 +74,8 @@ test('a one-cell anchor emits a oneCellAnchor with a pixel extent converted to E
   const ws = wb.addWorksheet('S');
   const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
   ws.addImage(id, {tl: {col: 2, row: 3}, ext: {width: 191, height: 47}});
-  const files = unzipSync(writeXlsx(wb));
-  const drawing = strFromU8(files['xl/drawings/drawing1.xml'] as Uint8Array);
+  const parts = partsWritten(wb);
+  const drawing = partIn(parts, 'xl/drawings/drawing1.xml');
   assert.match(drawing, /<xdr:oneCellAnchor>/);
   assert.doesNotMatch(drawing, /<xdr:to>/, 'a one-cell anchor has no bottom-right point');
   assert.match(drawing, new RegExp(`<xdr:ext cx="${191 * 9525}" cy="${47 * 9525}"/>`));
@@ -92,20 +90,14 @@ test('a two-cell anchor honors its editAs mode and defaults to oneCell', () => {
     editAs: 'absolute',
   });
   wb.addWorksheet('B').addImage(id, {tl: {col: 1, row: 1}, br: {col: 4, row: 6}});
-  const files = unzipSync(writeXlsx(wb));
-  assert.match(
-    strFromU8(files['xl/drawings/drawing1.xml'] as Uint8Array),
-    /<xdr:twoCellAnchor editAs="absolute">/,
-  );
-  assert.match(
-    strFromU8(files['xl/drawings/drawing2.xml'] as Uint8Array),
-    /<xdr:twoCellAnchor editAs="oneCell">/,
-  );
+  const parts = partsWritten(wb);
+  assert.match(partIn(parts, 'xl/drawings/drawing1.xml'), /<xdr:twoCellAnchor editAs="absolute">/);
+  assert.match(partIn(parts, 'xl/drawings/drawing2.xml'), /<xdr:twoCellAnchor editAs="oneCell">/);
 });
 
 test('an anchored picture carries no absolute spPr transform that would override the anchor', () => {
-  const files = unzipSync(writeXlsx(anchored()));
-  const drawing = strFromU8(files['xl/drawings/drawing1.xml'] as Uint8Array);
+  const parts = partsWritten(anchored());
+  const drawing = partIn(parts, 'xl/drawings/drawing1.xml');
   assert.doesNotMatch(drawing, /<a:xfrm/, 'the geometry is the anchor, not a zeroed transform');
 });
 
@@ -127,10 +119,10 @@ test('a dirty or missing image extension is sanitised to a well-formed media nam
   const missing = wb.addImage({buffer: ONE_PX_PNG});
   ws.addImage(dirty, {tl: {col: 0, row: 0}, br: {col: 1, row: 1}});
   ws.addImage(missing, {tl: {col: 2, row: 2}, br: {col: 3, row: 3}});
-  const files = unzipSync(writeXlsx(wb));
-  const media = Object.keys(files).filter((n) => n.startsWith('xl/media/'));
+  const parts = partsWritten(wb);
+  const media = Object.keys(parts).filter((n) => n.startsWith('xl/media/'));
   assert.deepStrictEqual(media.sort(), ['xl/media/image1.png', 'xl/media/image2.png']);
-  const contentTypes = strFromU8(files['[Content_Types].xml'] as Uint8Array);
+  const contentTypes = partIn(parts, '[Content_Types].xml');
   const defaults = [...contentTypes.matchAll(/<Default Extension="([^"]*)"/g)].map((m) => m[1]);
   assert.ok(
     defaults.every((e) => /^[A-Za-z0-9]+$/.test(e as string)),
@@ -152,7 +144,7 @@ test('removeImage drops exactly the targeted anchor and omits its now-orphaned m
     ws.images.map((i) => i.imageId),
     [id2],
   );
-  const media = Object.keys(unzipSync(writeXlsx(wb))).filter((n) => n.startsWith('xl/media/'));
+  const media = Object.keys(partsWritten(wb)).filter((n) => n.startsWith('xl/media/'));
   assert.strictEqual(media.length, 1, 'the orphaned image is not written');
 });
 
@@ -195,18 +187,18 @@ test('a sheet background image writes a <picture>, an image relationship, and it
   const ws = wb.addWorksheet('S');
   const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
   ws.addBackgroundImage(id);
-  const files = unzipSync(writeXlsx(wb));
-  const sheetXml = strFromU8(files['xl/worksheets/sheet1.xml'] as Uint8Array);
+  const parts = partsWritten(wb);
+  const sheetXml = partIn(parts, 'xl/worksheets/sheet1.xml');
   const picture = sheetXml.match(/<picture r:id="([^"]+)"\/>/);
   assert.ok(picture, 'the sheet references a background picture');
-  const relsXml = strFromU8(files['xl/worksheets/_rels/sheet1.xml.rels'] as Uint8Array);
+  const relsXml = partIn(parts, 'xl/worksheets/_rels/sheet1.xml.rels');
   assert.match(
     relsXml,
     new RegExp(
       `<Relationship Id="${picture[1]}"[^>]*Type="[^"]*/image"[^>]*Target="\\.\\./media/image1\\.png"`,
     ),
   );
-  assert.ok(files['xl/media/image1.png'], 'the background bytes are written once');
+  assert.ok(parts['xl/media/image1.png'], 'the background bytes are written once');
   const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
   assert.strictEqual(
     back?.backgroundImageId !== undefined,
@@ -227,8 +219,8 @@ test('a background image, a note, and an anchored image on one sheet keep unique
   ws.addImage(anchoredId, {tl: {col: 0, row: 0}, br: {col: 1, row: 1}});
   const bgId = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
   ws.addBackgroundImage(bgId);
-  const files = unzipSync(writeXlsx(wb));
-  const relsXml = strFromU8(files['xl/worksheets/_rels/sheet1.xml.rels'] as Uint8Array);
+  const parts = partsWritten(wb);
+  const relsXml = partIn(parts, 'xl/worksheets/_rels/sheet1.xml.rels');
   const ids = [...relsXml.matchAll(/<Relationship Id="([^"]+)"/g)].map((m) => m[1]);
   assert.strictEqual(new Set(ids).size, ids.length, 'no two worksheet relationships share an id');
   // The note (comments + VML), the drawing, and the background all resolve to distinct part classes.
@@ -262,12 +254,12 @@ test('removeBackgroundImage clears the background and omits its now-orphaned med
   ws.addBackgroundImage(id);
   ws.removeBackgroundImage();
   assert.strictEqual(ws.backgroundImageId, undefined);
-  const files = unzipSync(writeXlsx(wb));
+  const parts = partsWritten(wb);
   assert.ok(
-    !Object.keys(files).some((n) => n.startsWith('xl/media/')),
+    !Object.keys(parts).some((n) => n.startsWith('xl/media/')),
     'the orphaned background is not written',
   );
-  assert.doesNotMatch(strFromU8(files['xl/worksheets/sheet1.xml'] as Uint8Array), /<picture\b/);
+  assert.doesNotMatch(partIn(parts, 'xl/worksheets/sheet1.xml'), /<picture\b/);
 });
 
 test('one image anchored on two sheets is stored as a single media part', () => {
@@ -275,8 +267,8 @@ test('one image anchored on two sheets is stored as a single media part', () => 
   const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
   wb.addWorksheet('A').addImage(id, {tl: {col: 0, row: 0}, br: {col: 1, row: 1}});
   wb.addWorksheet('B').addImage(id, {tl: {col: 3, row: 3}, br: {col: 4, row: 4}});
-  const files = unzipSync(writeXlsx(wb));
-  const mediaParts = Object.keys(files).filter((n) => n.startsWith('xl/media/'));
+  const parts = partsWritten(wb);
+  const mediaParts = Object.keys(parts).filter((n) => n.startsWith('xl/media/'));
   assert.strictEqual(mediaParts.length, 1, 'the shared image is written once');
 });
 

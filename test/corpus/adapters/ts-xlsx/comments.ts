@@ -5,7 +5,7 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 import {canonicalJson} from '../../canonical-json.ts';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
-import {commentThreadFacts, packagePartFacts, partMapOf} from './package-facts.ts';
+import {commentThreadFacts, packagePartFacts, partMapOf, roundtrip} from './package-facts.ts';
 import {
   isRichTextValue,
   readFixture,
@@ -26,7 +26,7 @@ export const comments = {
     sheet.getCell('A1').value = 'x';
     sheet.getCell('A1').note = text;
     sheet.getCell('A2').value = {richText: [{text}, {text: `${text}!`, font: {bold: true}}]};
-    const reloaded = readXlsx(writeXlsx(workbook)).worksheets[0];
+    const reloaded = roundtrip(workbook).worksheets[0];
     const richValue = reloaded?.getCell('A2').value;
     return {
       note: reloaded?.getCell('A1').note ?? null,
@@ -49,7 +49,7 @@ export const comments = {
       );
     };
     const source = readFixture(rel);
-    return {eager: textAt(source), roundtrip: textAt(readXlsx(writeXlsx(source)))};
+    return {eager: textAt(source), roundtrip: textAt(roundtrip(source))};
   },
 
   // Author `text` into a threaded comment, write, and read back → { emittedText, readText, rawInPart }.
@@ -134,7 +134,7 @@ export const comments = {
     const soloParts = partNames(solo);
     const commentPartPresent = soloParts.some((f) => /comments\d*\.xml$/.test(f));
     const vmlPartPresent = soloParts.some((f) => /vmlDrawing\d*\.vml$/.test(f));
-    const readNoteAfter = readXlsx(writeXlsx(solo)).worksheets[0]!.getCell('A1').note ?? null;
+    const readNoteAfter = roundtrip(solo).worksheets[0]!.getCell('A1').note ?? null;
 
     // Clearing one note must not disturb another cell's note.
     const pair = new Workbook();
@@ -144,7 +144,7 @@ export const comments = {
     pairSheet.getCell('B1').value = 'y';
     pairSheet.getCell('B1').note = 'keep me';
     pairSheet.getCell('A1').note = undefined;
-    const reloaded = readXlsx(writeXlsx(pair)).worksheets[0]!;
+    const reloaded = roundtrip(pair).worksheets[0]!;
     const neighborNoteIntact = !!reloaded.getCell('B1').note;
 
     const clean = new Workbook();

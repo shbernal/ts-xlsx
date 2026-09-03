@@ -1,15 +1,11 @@
 // Worksheet tables: their columns, styles, display names, and what editing one does to the
 // cells underneath it.
 
-import fs from 'node:fs';
-import path from 'node:path';
-
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
-import {type PartMap, partMapOf} from './package-facts.ts';
+import {type PartMap, partMapOf, roundtrip} from './package-facts.ts';
 import {
   fixtureBytes,
-  FIXTURES_ROOT,
   readFixture,
   readXlsx,
   Workbook,
@@ -80,15 +76,14 @@ export const tables = {
     const write = tableFacts(partMapOf(writeXlsx(buildFrom(spec))));
     let loadOk = true;
     let loadError = null;
-    let roundtrip: Untyped[] = [];
+    let rewritten: Untyped[] = [];
     try {
-      const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
-      roundtrip = tableFacts(partMapOf(writeXlsx(reloaded)));
+      rewritten = tableFacts(partMapOf(writeXlsx(roundtrip(buildFrom(spec)))));
     } catch (e) {
       loadOk = false;
       loadError = messageOf(e);
     }
-    return {write, roundtrip, loadOk, loadError};
+    return {write, roundtrip: rewritten, loadOk, loadError};
   },
 
   // Author a five-column table, round-trip it, and report the loaded column count and names: the
@@ -101,7 +96,7 @@ export const tables = {
       columns: [{name: 'C1'}, {name: 'C2'}, {name: 'C3'}, {name: 'C4'}, {name: 'C5'}],
       rowCount: 2,
     });
-    const table = readXlsx(writeXlsx(wb)).getWorksheet('S')!.tables[0]!;
+    const table = roundtrip(wb).getWorksheet('S')!.tables[0]!;
     return {colCount: table.columns.length, colNames: table.columns.map((c) => c.name)};
   },
 
@@ -270,7 +265,7 @@ export const tables = {
   // count. A table read from a file must expose its data rows and accept appends exactly like a
   // freshly-created one → { hasTable, loadedRowCount, addError, committed, finalRowCount }.
   roundtripTableAppend(spec: Untyped, {tableName, appendRows}: Untyped) {
-    const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
+    const reloaded = roundtrip(buildFrom(spec));
     let table: Untyped = null;
     for (const s of reloaded.worksheets) {
       const found = s.getTable(tableName);
@@ -432,7 +427,7 @@ export const tables = {
         .filter((n) => /^xl\/tables\/table\d+\.xml$/.test(n))
         .sort((a, b) => Number(a.match(/\d+/)![0]) - Number(b.match(/\d+/)![0]))
         .map((n) => parts[n] ?? '');
-    const buffer = fs.readFileSync(path.join(FIXTURES_ROOT, rel));
+    const buffer = fixtureBytes(rel);
     const source = tablePartsInOrder(partMapOf(buffer));
     const rewritten = tablePartsInOrder(partMapOf(writeXlsx(readXlsx(buffer))));
     return {

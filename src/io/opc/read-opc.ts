@@ -222,9 +222,12 @@ export function capturePartClosure(
 ): readonly PreservedPart[] | undefined {
   const parts: PreservedPart[] = [];
   const visited = new Set<string>();
+  // Walked with a cursor rather than `shift()`, which is O(n) per dequeue and made the walk quadratic
+  // in reachable parts. Bounded by the inflate cap either way, so it never mattered for an ordinary
+  // file, but this walks an untrusted package's relationship graph and a hostile one chooses the n.
   const queue: string[] = [entryPath];
-  while (queue.length > 0) {
-    const path = queue.shift();
+  for (let next = 0; next < queue.length; next++) {
+    const path = queue[next];
     if (path === undefined || visited.has(path)) continue;
     visited.add(path);
     const bytes = partBytes(path);

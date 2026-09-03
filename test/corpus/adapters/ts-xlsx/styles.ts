@@ -4,7 +4,7 @@
 import {canonicalJson} from '../../canonical-json.ts';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
-import {partMapOf} from './package-facts.ts';
+import {partMapOf, roundtrip} from './package-facts.ts';
 import {
   type CellInstance,
   fixtureBytes,
@@ -151,7 +151,7 @@ export const styles = {
     // A caller wrongly assigns the structured numFmt object Excel parses a cell's format into.
     bad.numFmt = {id: 164, formatCode: '0.00'} as Untyped;
     const stylesXml = partMapOf(writeXlsx(wb))['xl/styles.xml'] || '';
-    const back = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+    const back = roundtrip(wb).getWorksheet('S')!;
     return {
       controlNumFmtReload: back.getCell('A1').numFmt ?? null,
       stylesHasObjectObject: stylesXml.includes('[object Object]'),
@@ -333,7 +333,7 @@ export const styles = {
   unstyledCellFontReport() {
     const wb = new Workbook();
     wb.addWorksheet('S').getCell('A1').value = 'hello';
-    const cell = readXlsx(writeXlsx(wb)).getWorksheet('S')!.getCell('A1');
+    const cell = roundtrip(wb).getWorksheet('S')!.getCell('A1');
     const font = cell.font || null;
     return {
       hasFont: !!font,
@@ -517,7 +517,7 @@ export const styles = {
     let writeError: string | null = null;
     let readBackVertical: string | null = null;
     try {
-      const back = readXlsx(writeXlsx(wb)).getWorksheet('S')!.getCell('A1').alignment;
+      const back = roundtrip(wb).getWorksheet('S')!.getCell('A1').alignment;
       readBackVertical = back?.vertical ?? null;
     } catch (e) {
       writeThrew = true;
@@ -537,7 +537,7 @@ export const styles = {
     sheet.getCell('B2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
     sheet.getCell('C3').border = {top: {style: 'thin', color: {argb: 'FF000000'}}};
     sheet.getCell('D4'); // materialised but never given a value or style
-    const back = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+    const back = roundtrip(wb).getWorksheet('S')!;
     const filled = back.getCell('B2');
     const bordered = back.getCell('C3');
     // fgColor lives on the pattern-fill variant, past the general Fill union surface.
@@ -575,7 +575,7 @@ export const styles = {
   // pure open-then-save. Colour comparison is key-order-insensitive.
   roundtripFixtureColorFidelity(rel: string) {
     const before = readFixture(rel);
-    const after = readXlsx(writeXlsx(before));
+    const after = roundtrip(before);
 
     const realFill = (cell: CellInstance) =>
       cell.fill && cell.fill.type === 'pattern' && cell.fill.pattern !== 'none' ? cell.fill : null;
@@ -637,7 +637,7 @@ export const styles = {
     sheet.getCell('A1').value = 'a';
     sheet.getCell('B1').value = 'b';
     sheet.getCell('C1').value = 'c';
-    const s = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+    const s = roundtrip(wb).getWorksheet('S')!;
     const rightBorder = (ref: string) => {
       const b = s.getCell(ref).border;
       return !!b?.right?.style;
@@ -1024,7 +1024,7 @@ export const styles = {
     applyStyle(sheet.getCell('A1'), base);
     applyStyle(sheet.getCell('A2'), base);
     sheet.getCell('A1').font = {...sheet.getCell('A1').font, color: {argb: 'FF00FF00'}};
-    const s = readXlsx(writeXlsx(workbook)).getWorksheet('S')!;
+    const s = roundtrip(workbook).getWorksheet('S')!;
     const colorOf = (ref: string) => {
       const f = s.getCell(ref).font;
       return f?.color ? (f.color.argb ?? null) : null;
@@ -1044,14 +1044,14 @@ export const styles = {
       c.value = 'x';
       c.font = {bold: true};
     }
-    const loaded = readXlsx(writeXlsx(workbook));
+    const loaded = roundtrip(workbook);
     loaded.getWorksheet('S')!.getCell('A1').border = {
       top: {style: 'thin'},
       left: {style: 'thin'},
       bottom: {style: 'thin'},
       right: {style: 'thin'},
     };
-    const s = readXlsx(writeXlsx(loaded)).getWorksheet('S')!;
+    const s = roundtrip(loaded).getWorksheet('S')!;
     const hasBorder = (ref: string) => {
       const b = s.getCell(ref).border;
       return !!b?.top?.style;
@@ -1078,7 +1078,7 @@ export const styles = {
     const fgOf = (cell: CellInstance) =>
       (cell.fill as Untyped)?.fgColor ? ((cell.fill as Untyped).fgColor.argb ?? null) : null;
 
-    const wb2 = readXlsx(writeXlsx(wb));
+    const wb2 = roundtrip(wb);
     const s2 = wb2.getWorksheet('S')!;
     s2.getCell('A1').fill = {
       type: 'pattern',
@@ -1087,7 +1087,7 @@ export const styles = {
     } as Untyped;
     const sibling = fgOf(s2.getCell('B1'));
 
-    const diskSibling = fgOf(readXlsx(writeXlsx(wb2)).getWorksheet('S')!.getCell('B1'));
+    const diskSibling = fgOf(roundtrip(wb2).getWorksheet('S')!.getCell('B1'));
     return {
       sibling,
       mutatedTo: mutateTo,
@@ -1109,7 +1109,7 @@ export const styles = {
     s.getCell('B1').value = 'b';
     s.getCell('B1').font = font; // identical formatting → one shared style index on disk
 
-    const s2 = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+    const s2 = roundtrip(wb).getWorksheet('S')!;
     s2.getCell('A1').font = {...s2.getCell('A1').font, color: {argb: mutateTo}};
     const colorOf = (cell: CellInstance) =>
       cell.font?.color ? (cell.font.color.argb ?? null) : null;
@@ -1159,14 +1159,14 @@ export const styles = {
     applyStyle(s.getCell('A1'), base);
     applyStyle(s.getCell('B1'), base);
 
-    const wb2 = readXlsx(writeXlsx(wb));
+    const wb2 = roundtrip(wb);
     const s2 = wb2.getWorksheet('S')!;
     const original = readFacet(s2.getCell('B1'));
     apply(s2.getCell('A1'));
     const target = readFacet(s2.getCell('A1'));
     const sibling = readFacet(s2.getCell('B1'));
 
-    const diskSibling = readFacet(readXlsx(writeXlsx(wb2)).getWorksheet('S')!.getCell('B1'));
+    const diskSibling = readFacet(roundtrip(wb2).getWorksheet('S')!.getCell('B1'));
     return {
       facet,
       target,

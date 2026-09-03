@@ -339,24 +339,27 @@ declared, which trades a surface the compiler checks for one it merely believes.
 `AssertNever` proof above spending its own guarantee. A slice that is not one costs more than the
 lines it removes, and so does an abstraction.
 
-The plumbing *underneath* those accessors was costed separately and also declined, which is worth
-stating because it looks like the cheaper half of the same idea. Four members are byte-identical
-between the two handles modulo which coordinate they name: the private read and write helpers, and
-the `values` getter and setter. Lifting them into a shared module needs the pair of stores the
-handle reads through, `peek` (which never fabricates) and `ensure` (which materialises on first
-write), as an object the handle holds. That object and its two closures are then allocated per handle, and a
-handle is constructed on every `getRow`/`getColumn` and once per step of `rows()`/`columns()`, so
-iterating twenty thousand rows and reading one property measured about 17% slower. Formatting is
-created on write and never on read precisely so a handle costs nothing; paying three allocations to
-build one contradicts that.
+The plumbing *underneath* those accessors was costed separately, and the answer split. Four members
+were byte-identical between the two handles modulo which coordinate they name: the private read and
+write helpers, and the `values` getter and setter. The first pair moved; the second did not.
 
-The allocation-free shape is a base class, and it fails the other constraint: `gen-docs.ts` reads
-class members, so `values` moving to a base would drop out of the reference unless `Row` and
-`Column` redeclare it, at which point nothing is shared. Written out, the free-function version came
-to thirty-two lines inserted against thirty-two removed, plus a sixty-line module. The read and
-write helpers became pass-throughs that exist only to spell the store's name, and the `values`
-setter became a closure forwarding to the call it replaced. The repetition is four small methods;
-the abstraction was four small functions behind an interface, and it did not read better.
+The read and write pair is `AxisHandle` (`core/axis-handle.ts`), which `Row` and `Column` both
+extend. What made it worth having is not the lines it saves but the rule it states: writing
+`undefined` clears the field, and clearing the *last* field takes the record with it, because the
+used extent derives its bounds from which lines have a record. That rule is subtle enough that
+stating it twice is how it drifts, and it did: an emptied record used to pin `rowCount` at a row
+nothing formatted any more. A base class is also the allocation-free shape, which the free-function
+alternative was not: that needs the pair of stores the handle reads through, `peek` (which never
+fabricates) and `ensure` (which materialises on first write), as an object the handle holds, and a
+handle is constructed on every `getRow`/`getColumn` and once per step of `rows()`/`columns()`, so
+iterating twenty thousand rows and reading one property measured about 17% slower.
+
+`values` stayed duplicated, and that is where the `gen-docs.ts` constraint bites: it reads class
+members, so `values` moving to a base would drop out of the reference unless `Row` and `Column`
+redeclare it, at which point nothing is shared. Sharing it would also need an abstract
+cell-by-position accessor and an abstract position-of-cell reader to bridge `cell.col` against
+`cell.row`, which is more indirection than the six lines it would replace. `axis-handle.ts` says so
+from its own side.
 
 The same test was applied to `DataValidationOverlay` and `ConditionalFormattingOverlay` and reached
 the same answer for a different reason. About fifteen lines are byte-identical between them: an

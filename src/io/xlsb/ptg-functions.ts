@@ -39,7 +39,8 @@ export function fixedArityFor(name: string): number | undefined {
 
 // Keyed by name rather than index: an arity belongs to the function, and a name is checkable at a
 // glance where a hex index is not.
-const FIXED_ARITY: ReadonlyMap<string, number> = new Map<string, number>(
+/** Exported for the transcription test: every key must name a function the table actually carries. */
+export const FIXED_ARITY: ReadonlyMap<string, number> = new Map<string, number>(
   Object.entries({
     // "This function takes no parameters."
     NA: 0,
@@ -663,7 +664,13 @@ const RUNS: ReadonlyArray<readonly [number, readonly string[]]> = [
 ];
 
 // Indexed by `iftab`; a hole is an index the specification does not define.
-const FTAB: readonly (string | undefined)[] = RUNS.reduce<(string | undefined)[]>(
+//
+// Exported for the transcription test beside this file, and for nothing else. Six hundred names typed
+// out of a normative table have exactly one failure mode, a slip in the typing, and it is invisible at
+// runtime: a name in the wrong slot still decodes, just to a different function, for every formula
+// citing that index. Nothing checked the transcription, so the test asserts what the specification
+// says about the table's shape rather than recomputing it from the runs it is written as.
+export const FTAB: readonly (string | undefined)[] = RUNS.reduce<(string | undefined)[]>(
   (table, [start, names]) => {
     names.forEach((name, offset) => {
       table[start + offset] = name;

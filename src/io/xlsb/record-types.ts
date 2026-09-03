@@ -29,7 +29,6 @@ export const BRT = {
 
   // Shared-string table.
   SSTItem: 19,
-  BeginSst: 159,
   EndSst: 160,
 
   // Style sheet: each collection is a Begin/End pair around its entries, and `XF` appears inside two
@@ -70,10 +69,6 @@ export const BRT = {
   ExternSheet: 362,
 
   // Worksheet structure.
-  WsProp: 147,
-  WsDim: 148,
   WsFmtInfo: 485,
-  BeginSheetData: 145,
-  EndSheetData: 146,
   ArrFmla: 426,
 } as const;

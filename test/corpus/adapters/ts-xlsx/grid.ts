@@ -7,7 +7,7 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 import type {RowInput} from '../../../../src/core/worksheet.ts';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
-import {type PartMap, partMapOf} from './package-facts.ts';
+import {type PartMap, partMapOf, roundtrip} from './package-facts.ts';
 import {
   decodeRange,
   encodeAddress,
@@ -40,12 +40,12 @@ export const grid = {
     const sheet = workbook.addWorksheet('S');
     for (const row of initial) sheet.addRow(row);
 
-    const loaded = readXlsx(writeXlsx(workbook));
+    const loaded = roundtrip(workbook);
     const s = loaded.getWorksheet('S');
     const loadedRowCount = s!.rowCount;
     for (const row of append) s!.addRow(row);
 
-    const final = readXlsx(writeXlsx(loaded));
+    const final = roundtrip(loaded);
     const f = final.getWorksheet('S');
     // Mirror the oracle's `row.values.slice(1)` per-row array: each row is sized to its own populated
     // extent, holes are null, and an empty row is an empty array, indexed by row number so a gap shows.
@@ -68,7 +68,7 @@ export const grid = {
     const source = readXlsx(fixtureBytes(rel));
     const readPrintArea = printAreaOf(source);
     const sourceRangeCount = readPrintArea.split(',').filter(Boolean).length;
-    const rewritten = readXlsx(writeXlsx(source));
+    const rewritten = roundtrip(source);
     const rewrittenRangeCount = printAreaOf(rewritten).split(',').filter(Boolean).length;
     return {sourceRangeCount, readPrintArea, rewrittenRangeCount};
   },
@@ -84,7 +84,7 @@ export const grid = {
       scope: sheet.name,
       refersTo: printAreaRefersTo(sheet.name, area),
     });
-    const back = readXlsx(writeXlsx(workbook));
+    const back = roundtrip(workbook);
     const refersTo = back.definedNames.find((n) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
     const ranges = refersTo.split(',').map((r) => r.split('!').pop());
     return {ranges};
@@ -106,7 +106,7 @@ export const grid = {
     // path, and `any` let the declaration stay silent about the state that makes it so.
     let back: WorkbookInstance | null = null;
     try {
-      back = readXlsx(writeXlsx(workbook));
+      back = roundtrip(workbook);
     } catch {
       reloadOk = false;
     }
@@ -220,7 +220,7 @@ export const grid = {
     const parts = partMapOf(writeXlsx(workbook));
     const paneOf = (xml: string): boolean =>
       /<pane\b[^>]*xSplit="1"[^>]*ySplit="2"[^>]*state="frozen"/.test(xml);
-    const view = readXlsx(writeXlsx(workbook)).getWorksheet('Dst')!.view;
+    const view = roundtrip(workbook).getWorksheet('Dst')!.view;
     return {
       dstPaneEmitted: paneOf(parts['xl/worksheets/sheet2.xml'] || ''),
       dstState: view.state ?? 'normal',
@@ -373,7 +373,7 @@ export const grid = {
     sheet.getCell('A1').value = 'x';
     sheet.getRow(2).outlineLevel = 1;
     sheet.getColumn(3).outlineLevel = 1;
-    const back = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+    const back = roundtrip(wb).getWorksheet('S')!;
     return {
       rowOutline: back.getRow(2).outlineLevel ?? 0,
       colOutline: back.getColumn(3).outlineLevel ?? 0,
@@ -424,7 +424,7 @@ export const grid = {
     sheet.addRow([7, new Date(Date.UTC(2021, 0, 2))]); // row 5: number + date
     sheet.addRows([['m1', 'm2'], {k1: 'n1'}]); // rows 6, 7: mixed batch
 
-    const loaded = readXlsx(writeXlsx(workbook));
+    const loaded = roundtrip(workbook);
     const s = loaded.getWorksheet('S');
     const rows: Record<string, Record<string, Untyped>> = {};
     for (const {number, cells} of s!.rows()) {
@@ -459,7 +459,7 @@ export const grid = {
     const columnCountBeforeAppend = ws.columnCount;
     ws.addColumn(['appended-col']);
 
-    const rt = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+    const rt = roundtrip(wb).getWorksheet('S')!;
     return {
       rowCountBeforeAppend,
       appendedRowValue: ws.getCell('A3').value ?? null,
@@ -504,7 +504,7 @@ export const grid = {
     ws.getRow(4).height = 25;
     ws.getRow(5).hidden = true;
     ws.getRow(5).outlineLevel = 1;
-    const rt = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+    const rt = roundtrip(wb).getWorksheet('S')!;
     return {
       row3Hidden: rt.getRow(3).hidden ?? false,
       row4Hidden: rt.getRow(4).hidden ?? false,
@@ -532,7 +532,7 @@ export const grid = {
     const sourceBreaks = rowBreakIds(sheet1(partMapOf(fixtureBytes(rel))));
     const loaded = readFixture(rel);
     const loadedBreaks = modelBreaks(loaded);
-    const rewrittenBreaks = modelBreaks(readXlsx(writeXlsx(loaded)));
+    const rewrittenBreaks = modelBreaks(roundtrip(loaded));
     return {sourceBreaks, loadedBreaks, rewrittenBreaks};
   },
 
@@ -546,7 +546,7 @@ export const grid = {
     s.getCell('A1').value = 'top';
     s.getCell('A2').value = 'data';
     s.mergeCells('A1:B3');
-    const rs = readXlsx(writeXlsx(wb)).worksheets[0]!;
+    const rs = roundtrip(wb).worksheets[0]!;
     const rects = rs.merges.map((range: Untyped) => {
       const {top, left, bottom, right} = decodeRange(range);
       return {top, left, bottom, right, masterRef: encodeAddress(left!, top!)};
@@ -574,7 +574,7 @@ export const grid = {
   // walks 1..columnCount (the sheet's declared width), so interior *and* trailing empties are surfaced
   // and every row reconstructs to the header width, the alignment invariant a positional consumer needs.
   async readRowCellPresence(spec: Untyped, rowNumbers: number[] = []) {
-    const sheet = readXlsx(writeXlsx(buildFrom(spec))).worksheets[0]!;
+    const sheet = roundtrip(buildFrom(spec)).worksheets[0]!;
     const columnCount = sheet.columnCount;
     const rows: Record<string, Untyped> = {};
     for (const rn of rowNumbers) {
@@ -700,7 +700,7 @@ export const grid = {
     cell.numFmt = '0.00';
     cell.font = {bold: true};
     sheet.mergeCells('A1:B2');
-    const reread = readXlsx(writeXlsx(workbook)).getWorksheet('S')!;
+    const reread = roundtrip(workbook).getWorksheet('S')!;
     const m = reread.getCell('A1');
     const b = m.border || {};
     return {
@@ -803,7 +803,7 @@ export const grid = {
     ws.getCell('A2').note = 'mynote';
     ws.getRow(2).outlineLevel = 1;
     ws.insertRow(1, ['new']); // r1 -> row 2, r2 (noted, outlined) -> row 3
-    const s = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+    const s = roundtrip(wb).getWorksheet('S')!;
     return {
       dataShifted: s.getCell('A2').value === 'r1' && s.getCell('A3').value === 'r2',
       noteFollowsRow: !!s.getCell('A3').note,
@@ -839,7 +839,7 @@ export const grid = {
     cols.spliceColumns(2, 0, ['inserted']);
 
     const reread = (wb: WorkbookInstance) => {
-      const s = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+      const s = roundtrip(wb).getWorksheet('S')!;
       return {
         validationRefs: s.dataValidations.map((entry) => entry.sqref),
         formattingRefs: s.conditionalFormattings.map((entry) => entry.ref),
@@ -880,7 +880,7 @@ export const grid = {
       return wb;
     };
     const report = (wb: WorkbookInstance, movedTo: string) => {
-      const s = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+      const s = roundtrip(wb).getWorksheet('S')!;
       return {
         movedValue: s.getCell(movedTo).value,
         validationRefs: s.dataValidations.map((entry) => entry.sqref),
@@ -978,7 +978,7 @@ export const grid = {
       return Object.fromEntries(HEADER_FOOTER_SLOTS.map((slot) => [slot, hf?.[slot] ?? null]));
     };
     const source = readFixture(rel);
-    return {eager: textOf(source), roundtrip: textOf(readXlsx(writeXlsx(source)))};
+    return {eager: textOf(source), roundtrip: textOf(roundtrip(source))};
   },
 
   // Author `text` as a sheet's odd header, write, and read back → { emitted, rawInPart, read }.

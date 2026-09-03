@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {Workbook} from '../../core/workbook.ts';
-import {partsOf} from './package.test-support.ts';
+import {partsWritten} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -37,7 +37,7 @@ test('a pivot over source data with XML-special characters and a null value writ
 
 test('the pivot cache serialises special characters entity-escaped into well-formed XML', () => {
   const cache =
-    partsOf(writeXlsx(specialCharsWorkbook()))['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
+    partsWritten(specialCharsWorkbook())['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
   assert.doesNotMatch(cache, RAW_AMP, 'no raw unescaped "&" may leak into the cache');
   assert.match(cache, /<s v="Smith &amp; Co"\/>/);
   assert.match(cache, /<s v="&lt;West&gt;"\/>/);
@@ -46,14 +46,14 @@ test('the pivot cache serialises special characters entity-escaped into well-for
 
 test('a missing axis value becomes a blank shared item, not an empty string', () => {
   const cache =
-    partsOf(writeXlsx(specialCharsWorkbook()))['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
+    partsWritten(specialCharsWorkbook())['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
   // The Name field carries a blank shared item and is flagged as containing one.
   assert.match(cache, /name="Name"[^>]*>\s*<sharedItems containsBlank="1"[^>]*>.*<m\/>/s);
   assert.doesNotMatch(cache, /<s v=""\/>/, 'a missing value must be <m/>, never an empty <s>');
 });
 
 test('a numeric value field is described as numeric and stored inline in the records', () => {
-  const parts = partsOf(writeXlsx(specialCharsWorkbook()));
+  const parts = partsWritten(specialCharsWorkbook());
   const cache = parts['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
   assert.match(
     cache,
@@ -83,7 +83,7 @@ test('an inline string field escapes its values in the records', () => {
     values: ['Amount'],
   });
 
-  const parts = partsOf(writeXlsx(wb));
+  const parts = partsWritten(wb);
   const records = parts['xl/pivotCache/pivotCacheRecords1.xml'] ?? '';
   // Note is neither an axis nor the value field, so it rides inline as an escaped <s>.
   assert.match(records, /<s v="see &lt;this&gt; &amp; that"\/>/);
@@ -91,7 +91,7 @@ test('an inline string field escapes its values in the records', () => {
 });
 
 test('the pivot is wired end to end: content types, workbook cache, sheet link, and the rel chain', () => {
-  const parts = partsOf(writeXlsx(specialCharsWorkbook()));
+  const parts = partsWritten(specialCharsWorkbook());
 
   // Content types declare all three generated parts.
   const types = parts['[Content_Types].xml'] ?? '';
@@ -127,7 +127,7 @@ test('the pivot is wired end to end: content types, workbook cache, sheet link, 
 });
 
 test('the pivot table binds the cache and sums the value field', () => {
-  const table = partsOf(writeXlsx(specialCharsWorkbook()))['xl/pivotTables/pivotTable1.xml'] ?? '';
+  const table = partsWritten(specialCharsWorkbook())['xl/pivotTables/pivotTable1.xml'] ?? '';
   assert.match(table, /cacheId="1"/);
   assert.match(table, /<pivotField axis="axisRow"/);
   assert.match(table, /<pivotField axis="axisCol"/);
@@ -152,12 +152,12 @@ test('a non-sum metric carries its subtotal function and an Excel-style caption'
     metric: 'average',
   });
 
-  const table = partsOf(writeXlsx(wb))['xl/pivotTables/pivotTable1.xml'] ?? '';
+  const table = partsWritten(wb)['xl/pivotTables/pivotTable1.xml'] ?? '';
   assert.match(table, /<dataField name="Average of Amount" fld="2" subtotal="average"/);
 });
 
 test("sum omits the subtotal attribute: it is Excel's implicit default", () => {
-  const table = partsOf(writeXlsx(specialCharsWorkbook()))['xl/pivotTables/pivotTable1.xml'] ?? '';
+  const table = partsWritten(specialCharsWorkbook())['xl/pivotTables/pivotTable1.xml'] ?? '';
   assert.doesNotMatch(
     table,
     /subtotal=/,
@@ -182,7 +182,7 @@ test('a count aggregates a non-numeric value field, describing it as a plain sha
     metric: 'count',
   });
 
-  const parts = partsOf(writeXlsx(wb));
+  const parts = partsWritten(wb);
   const table = parts['xl/pivotTables/pivotTable1.xml'] ?? '';
   assert.match(table, /<dataField name="Count of Status" fld="2" subtotal="count"/);
   // A text value field is not summarised as numeric: it carries a bare <sharedItems/> and rides
@@ -277,7 +277,7 @@ test('two pivot tables number their parts and caches independently', () => {
     values: ['Amount'],
   });
 
-  const parts = partsOf(writeXlsx(wb));
+  const parts = partsWritten(wb);
   assert.ok(parts['xl/pivotCache/pivotCacheDefinition1.xml']);
   assert.ok(parts['xl/pivotCache/pivotCacheDefinition2.xml']);
   const workbook = parts['xl/workbook.xml'] ?? '';

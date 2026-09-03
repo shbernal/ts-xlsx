@@ -13,7 +13,7 @@ import {
   vmlDrawingXml,
 } from './comments.ts';
 import {liveCells} from './hyperlinks.ts';
-import {partsOf, partText, roundtrip, sheetXml} from './package.test-support.ts';
+import {partsOf, partsWritten, partText, roundtrip, sheetXml} from './package.test-support.ts';
 import {writeXlsx} from './write.ts';
 
 test('a cell note survives the write/read round-trip', () => {
@@ -179,7 +179,7 @@ test('a conversation is never written half-emitted: the fallback and its thread 
   const ws = wb.addWorksheet('S');
   ws.getCell('B1').value = 12;
   ws.addCommentThread(threadOn('B1', ['Is this gross or net of tax?']));
-  const names = Object.keys(partsOf(writeXlsx(wb)));
+  const names = Object.keys(partsWritten(wb));
   assert.ok(names.includes('xl/threadedComments/threadedComment1.xml'), 'the conversation itself');
   assert.ok(names.includes('xl/comments1.xml'), 'the fallback a pre-2018 reader renders');
   assert.ok(names.includes('xl/drawings/vmlDrawing1.vml'), 'and a box for it to render into');
@@ -197,7 +197,7 @@ test('each sheet numbers its own thread part, leaving a gap where a sheet has no
   const both = wb.addWorksheet('Both');
   both.getCell('A1').note = 'note here';
   both.addCommentThread(threadOn('B2', ['third sheet'], OTHER_HEAD));
-  const names = Object.keys(partsOf(writeXlsx(wb)));
+  const names = Object.keys(partsWritten(wb));
   assert.deepStrictEqual(names.filter((n) => n.startsWith('xl/threadedComments/')).sort(), [
     'xl/threadedComments/threadedComment2.xml',
     'xl/threadedComments/threadedComment3.xml',

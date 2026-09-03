@@ -4,6 +4,7 @@
 // a worksheet then anchors that image to a rectangle of cells. Storing the bytes centrally means the
 // same picture used on two sheets (a logo in a header band, say) is one media part, not two.
 
+import {sha512} from '../sha512.ts';
 import {tokenSet} from '../token-set.ts';
 
 /** A point in the drawing grid: a 0-based column and row, plus an EMU offset into that cell.
@@ -174,26 +175,23 @@ export interface WorksheetImages {
 }
 
 /**
- * The id under which `image` is already registered in `media`, or `undefined` if it is not.
+ * A picture's content identity as a map key: its kind, its length, and a digest of its bytes.
  *
- * Content-addressed rather than reference-addressed: two byte-identical pictures are one picture,
- * however they reached the registry. This is what keeps repeated imports from growing the media
- * list without bound (the same logo carried onto twenty sheets registers once), and it is why the
- * comparison is over bytes rather than object identity, which a picture arriving from another
- * workbook would never satisfy.
+ * **Content-addressed, not reference-addressed.** Two byte-identical pictures are one picture,
+ * however they reached the registry. That is what keeps repeated imports from growing the media list
+ * without bound, so the same logo carried onto twenty sheets registers once, and it is why identity
+ * cannot be object identity: a picture arriving from another workbook would never satisfy that.
  *
- * The length check comes first and short-circuits, so pictures of different sizes never reach the
- * byte loop; only same-extension, same-length candidates are compared in full.
+ * **A key rather than a scan**, which is the part that changed. The comparison used to walk the whole
+ * media list byte by byte per candidate, and importing a sheet's pictures asks it once per anchored
+ * image, so merging a workbook of fifty distinct megabyte images compared bytes fifty times over
+ * fifty candidates. The workbook indexes each picture as it is registered instead.
+ *
+ * SHA-512 rather than a cheap checksum because a collision here silently substitutes one picture for
+ * another; the length is in the key as well, so a collision would have to match that too.
  */
-export function findRegisteredImage(
-  media: readonly WorkbookImage[],
-  image: WorkbookImage,
-): number | undefined {
-  const index = media.findIndex(
-    (held) =>
-      held.extension === image.extension &&
-      held.data.length === image.data.length &&
-      held.data.every((byte, i) => byte === image.data[i]),
-  );
-  return index === -1 ? undefined : index;
+export function imageContentKey(image: WorkbookImage): string {
+  let digest = '';
+  for (const byte of sha512(image.data)) digest += byte.toString(16).padStart(2, '0');
+  return `${image.extension}:${image.data.length}:${digest}`;
 }

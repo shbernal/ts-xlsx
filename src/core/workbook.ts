@@ -26,7 +26,7 @@ import {
 } from '../vba/index.ts';
 import {commentThreadGuid, type Person} from './comment-thread.ts';
 import {
-  findRegisteredImage,
+  imageContentKey,
   normalizeImageExtension,
   type WorkbookImage,
   type WorksheetImages,
@@ -220,6 +220,11 @@ export class Workbook {
   // Media is shared workbook-wide: a worksheet anchors an image by its registry index, so one
   // picture used on several sheets is stored once.
   readonly #media: WorkbookImage[] = [];
+  // Content key → the id of the first picture registered under it: what makes re-registering an
+  // identical picture a hash rather than a walk of every picture already held. Built on the first
+  // import that needs it and kept in step by `addImage` thereafter, so a workbook nobody merges into
+  // never digests a byte.
+  #mediaByContent: Map<string, number> | undefined;
 
   readonly #definedNames: DefinedName[] = [];
 
@@ -683,11 +688,20 @@ export class Workbook {
    * number of sheets and positions, and the bytes are still stored only once.
    */
   addImage(options: AddImageOptions): number {
-    this.#media.push({
+    const image: WorkbookImage = {
       extension: normalizeImageExtension(options.extension, options.buffer),
       data: options.buffer,
-    });
-    return this.#media.length - 1;
+    };
+    this.#media.push(image);
+    const id = this.#media.length - 1;
+    // Kept in step only once an import has built it. The first id wins on a repeat, which is the
+    // answer the scan this replaced gave.
+    const index = this.#mediaByContent;
+    if (index !== undefined) {
+      const key = imageContentKey(image);
+      if (!index.has(key)) index.set(key, id);
+    }
+    return id;
   }
 
   /** The registered images, indexed by the id {@link addImage} returned. */
@@ -776,8 +790,17 @@ export class Workbook {
       extension: normalizeImageExtension(image.extension, image.data),
       data: image.data,
     };
+    // Through the content index rather than a scan of the media list. Comparing byte-by-byte against
+    // every held picture made importing n distinct images cost n² byte comparisons: fifty 1 MB
+    // pictures carried between workbooks compared about 2.5 GB. The *rule* is unchanged, and
+    // `imageContentKey` states why identity here is content and never object identity.
+    //
+    // Built in reverse so the FIRST id registered under a key wins, which is the answer the scan gave.
+    this.#mediaByContent ??= new Map(
+      this.#media.map((held, id): [string, number] => [imageContentKey(held), id]).reverse(),
+    );
     return (
-      findRegisteredImage(this.#media, candidate) ??
+      this.#mediaByContent.get(imageContentKey(candidate)) ??
       this.addImage({buffer: candidate.data, extension: candidate.extension})
     );
   }

@@ -83,13 +83,16 @@ function dataBarExtGuid(index: number): string {
   return `{00000000-0000-0000-0000-${String(index + 1).padStart(12, '0')}}`;
 }
 
+/** Each extended data bar's link id, keyed by rule identity: the one map both passes are handed. */
+export type DataBarExtLinks = ReadonlyMap<ConditionalFormattingRule, string>;
+
 // Assign every extended data bar its link id once, keyed by rule identity. The classic pass (which
 // emits the `<extLst>` link on the cfRule) and the extension pass (which emits the `<x14:cfRule id>`)
-// both read the id from this map, so the two ends of a link agree by construction, not by the two
-// passes happening to walk the rules in the same order. A rule absent from the map needs no extension.
-function dataBarExtLinks(
-  formattings: readonly ConditionalFormatting[],
-): ReadonlyMap<ConditionalFormattingRule, string> {
+// are handed the SAME map, which is what makes the two ends of a link agree by construction rather
+// than by the two passes happening to walk the rules in the same order. Each used to build its own,
+// so the agreement was really by determinism, and the comment claiming otherwise described an
+// invariant the code did not have. A rule absent from the map needs no extension.
+export function dataBarExtLinks(formattings: readonly ConditionalFormatting[]): DataBarExtLinks {
   const links = new Map<ConditionalFormattingRule, string>();
   let index = 0;
   for (const cf of formattings) {
@@ -115,10 +118,10 @@ const SCALE_TYPES = new Set<string>(SCALE_KINDS);
 export function conditionalFormattingsXml(
   formattings: readonly ConditionalFormatting[],
   styles: StyleRegistry,
+  extLinks: DataBarExtLinks,
 ): string {
   if (formattings.length === 0) return '';
   const priority = {next: 1};
-  const extLinks = dataBarExtLinks(formattings);
   return formattings.map((cf) => blockXml(cf, styles, priority, extLinks)).join('');
 }
 
@@ -131,8 +134,8 @@ export function conditionalFormattingsXml(
  */
 export function conditionalFormattingsExtXml(
   formattings: readonly ConditionalFormatting[],
+  extLinks: DataBarExtLinks,
 ): string {
-  const extLinks = dataBarExtLinks(formattings);
   const items: string[] = [];
   for (const cf of formattings) {
     for (const rule of cf.rules) {
@@ -184,7 +187,7 @@ function blockXml(
   cf: ConditionalFormatting,
   styles: StyleRegistry,
   priority: {next: number},
-  extLinks: ReadonlyMap<ConditionalFormattingRule, string>,
+  extLinks: DataBarExtLinks,
 ): string {
   const rules = cf.rules.map((rule) => ruleXml(rule, styles, priority, extLinks)).join('');
   // `CT_ConditionalFormatting` requires at least one `<cfRule>`, so a block with none is omitted
@@ -198,7 +201,7 @@ function ruleXml(
   rule: ConditionalFormattingRule,
   styles: StyleRegistry,
   priority: {next: number},
-  extLinks: ReadonlyMap<ConditionalFormattingRule, string>,
+  extLinks: DataBarExtLinks,
 ): string {
   const p = rule.priority ?? priority.next;
   // Keep the running counter ahead of any explicit priority so later auto-assigned ones stay unique.

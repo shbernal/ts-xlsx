@@ -1,12 +1,9 @@
 // Conditional formatting rules and their evaluation order.
 
-import fs from 'node:fs';
-import path from 'node:path';
-
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
-import {FIXTURES_ROOT, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
+import {fixtureBytes, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {attrsOf} from './xml-probes.ts';
 
 export const conditionalFormatting = {
@@ -99,7 +96,7 @@ export const conditionalFormatting = {
         return {type: a.type ?? null, dxfId: a.dxfId ?? null, priority: a.priority ?? null};
       }),
     });
-    const srcParts = partMapOf(fs.readFileSync(path.join(FIXTURES_ROOT, rel)));
+    const srcParts = partMapOf(fixtureBytes(rel));
     const srcName = Object.keys(srcParts).find((n) => n.endsWith('sheet1.xml'));
     const source = cfFacts(srcName === undefined ? '' : (srcParts[srcName] ?? ''));
     const outXml = partMapOf(writeXlsx(readFixture(rel)))['xl/worksheets/sheet1.xml'] || '';

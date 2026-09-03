@@ -5,7 +5,7 @@ import {strToU8, zipSync} from 'fflate';
 
 import {isHyperlinkValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {partsOf} from './package.test-support.ts';
+import {partsWritten} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -54,7 +54,7 @@ test('an internal "#"-target is written as a location with no external relations
   wb.addWorksheet('Main').getCell('A1').value = {hyperlink: "#'Target'!A1", text: 'go'};
   wb.addWorksheet('Target');
 
-  const parts = partsOf(writeXlsx(wb));
+  const parts = partsWritten(wb);
   const sheetXml = parts['xl/worksheets/sheet1.xml'] ?? '';
   const link = sheetXml.match(/<hyperlink\b[^>]*\/?>/)?.[0] ?? '';
   assert.match(link, /location="[^"]*Target[^"]*A1[^"]*"/, 'the internal target rides in location');
@@ -77,7 +77,7 @@ test('an external link produces exactly one External relationship of hyperlink t
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {hyperlink: 'https://example.com', text: 'x'};
 
-  const parts = partsOf(writeXlsx(wb));
+  const parts = partsWritten(wb);
   const rels = parts['xl/worksheets/_rels/sheet1.xml.rels'] ?? '';
   const external = [...rels.matchAll(/<Relationship\b[^>]*TargetMode="External"[^>]*\/>/g)];
   assert.equal(external.length, 1);
@@ -92,7 +92,7 @@ test('the <hyperlinks> element sits after <mergeCells> and before <pageMargins>'
   sheet.mergeCells('B1:C1');
   sheet.pageMargins.left = 0.5;
 
-  const sheetXml = partsOf(writeXlsx(wb))['xl/worksheets/sheet1.xml'] ?? '';
+  const sheetXml = partsWritten(wb)['xl/worksheets/sheet1.xml'] ?? '';
   const merge = sheetXml.indexOf('<mergeCells');
   const links = sheetXml.indexOf('<hyperlinks>');
   const margins = sheetXml.indexOf('<pageMargins');
@@ -136,7 +136,7 @@ test('a hyperlink relationship id does not collide with a table on the same shee
   sheet.addTable({name: 'T', ref: 'A3', columns: [{name: 'c'}], rowCount: 1});
   sheet.getCell('A1').value = {hyperlink: 'https://example.com', text: 'h'};
 
-  const parts = partsOf(writeXlsx(wb));
+  const parts = partsWritten(wb);
   const rels = parts['xl/worksheets/_rels/sheet1.xml.rels'] ?? '';
   const ids = [...rels.matchAll(/Id="(rId\d+)"/g)].map((m) => m[1]);
   assert.equal(

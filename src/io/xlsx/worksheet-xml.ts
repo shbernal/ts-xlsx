@@ -16,7 +16,12 @@ import type {ColumnProperties, Worksheet, WorksheetProperties} from '../../core/
 import {AuthoringError} from '../../errors.ts';
 import {assertWritableNumber, escapeAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
-import {conditionalFormattingsExtXml, conditionalFormattingsXml} from './conditional-formatting.ts';
+import {
+  conditionalFormattingsExtXml,
+  conditionalFormattingsXml,
+  type DataBarExtLinks,
+  dataBarExtLinks,
+} from './conditional-formatting.ts';
 import {dataValidationsExtXml, dataValidationsXml} from './data-validation.ts';
 import {type HyperlinkPlan, hyperlinksXml, isExternalHyperlink} from './hyperlinks.ts';
 import {SLICER_LIST_EXT_URI} from './namespaces.ts';
@@ -91,6 +96,10 @@ export function worksheetXml(
   // how to serialise its `<f>`. This also validates the master/clone geometry, throwing if a clone
   // precedes its master or its master carries no formula.
   const sharedRoles = planSharedFormulas(sheet);
+  // One link map for the whole sheet, handed to both conditional-formatting passes. Built here beside
+  // the shared-formula plan for the same reason: it is a fact about the sheet that two serialisers
+  // must agree on, and two of them deriving it separately is agreement by coincidence.
+  const extLinks = dataBarExtLinks(sheet.conditionalFormattings);
 
   // A fully-hidden outline group's collapse toggle belongs on its summary row; derive that set once
   // so the row loop can stamp it even onto a summary row that carries no properties of its own. The
@@ -153,7 +162,7 @@ export function worksheetXml(
     mergeCellsXml(sheet.merges) +
     // CT_Worksheet order: <conditionalFormatting> blocks follow <mergeCells>, then <dataValidations>,
     // then <hyperlinks>, all of which precede the print settings.
-    conditionalFormattingsXml(sheet.conditionalFormattings, styles) +
+    conditionalFormattingsXml(sheet.conditionalFormattings, styles, extLinks) +
     dataValidationsXml(sheet.dataValidations) +
     hyperlinksXml(hyperlinks) +
     // CT_Worksheet order: <printOptions> precedes <pageMargins>, which precedes <pageSetup>.
@@ -177,16 +186,20 @@ export function worksheetXml(
     // x14 conditional-formatting extensions (data-bar gradient/negative-fill/axis) and the extended
     // (x14) data validations ride inside it as sibling `<ext>` blocks, so they are gathered here into
     // a single `<extLst>` rather than each emitting its own.
-    worksheetExtLstXml(sheet, references.slicerRelIds) +
+    worksheetExtLstXml(sheet, references.slicerRelIds, extLinks) +
     '</worksheet>'
   );
 }
 
 // Assemble the worksheet's single `<extLst>` from every x14 extension the sheet carries, or '' when it
 // carries none. Each producer returns a bare `<ext>` so they compose without nesting an `<extLst>`.
-function worksheetExtLstXml(sheet: Worksheet, slicerRelIds: readonly string[]): string {
+function worksheetExtLstXml(
+  sheet: Worksheet,
+  slicerRelIds: readonly string[],
+  extLinks: DataBarExtLinks,
+): string {
   const exts = [
-    conditionalFormattingsExtXml(sheet.conditionalFormattings),
+    conditionalFormattingsExtXml(sheet.conditionalFormattings, extLinks),
     dataValidationsExtXml(sheet.dataValidations),
     slicerListExtXml(slicerRelIds),
   ].filter((ext) => ext !== '');

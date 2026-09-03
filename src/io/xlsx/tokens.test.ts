@@ -13,7 +13,7 @@ import {zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
 import {AuthoringError} from '../../errors.ts';
-import {partsOf as packageParts, sheetXml} from './package.test-support.ts';
+import {partsWritten as partsOf, sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -30,11 +30,6 @@ function refuses(mutate: (workbook: Workbook) => void): void {
   const workbook = sheeted();
   mutate(workbook);
   assert.throws(() => writeXlsx(workbook), AuthoringError);
-}
-
-// Shorthand for the shared accessor: every case here starts from a workbook, not from bytes.
-function partsOf(workbook: Workbook): Record<string, string> {
-  return packageParts(writeXlsx(workbook));
 }
 
 test('<pageSetup> refuses a foreign orientation or page order', () => {

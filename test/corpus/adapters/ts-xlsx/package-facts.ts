@@ -4,12 +4,39 @@
 // without going through our own reader, so a case can assert on the bytes rather than on a
 // round-trip through the code that produced them.
 
+import assert from 'node:assert/strict';
+
 import {strFromU8, unzipSync} from 'fflate';
 
-import type {WorkbookInstance, WorksheetInstance} from './runtime.ts';
+import {readXlsx, type WorkbookInstance, type WorksheetInstance, writeXlsx} from './runtime.ts';
 
 /** A package flattened to part name → part text: what every XML-level probe here reads from. */
 export type PartMap = Record<string, string>;
+
+/**
+ * A written workbook read back: the write→read cycle that fifty capability bodies across seven adapter
+ * modules spell out by hand.
+ *
+ * The src side has had this in its own support module for as long as there has been one, and named it
+ * for the same reason: what a capability is asking is "does this survive a round-trip", and spelling
+ * that as a nested call each time hides the question inside the plumbing.
+ */
+export function roundtrip(workbook: WorkbookInstance): WorkbookInstance {
+  return readXlsx(writeXlsx(workbook));
+}
+
+/**
+ * One named part's text, failing the case (naming the part) when it is absent.
+ *
+ * {@link partMapOf} hands back a bare record, so every caller reaching one part off it writes
+ * `?? ''` or a non-null assertion. The empty-string spelling is the dangerous one: a negative
+ * assertion built on it goes on passing if the writer ever renames the part it reads.
+ */
+export function partOf(buffer: Uint8Array, name: string): string {
+  const text = partMapOf(buffer)[name];
+  assert.ok(text !== undefined, `expected part ${name}`);
+  return text;
+}
 
 export function partMapOf(buffer: Uint8Array): PartMap {
   const unzipped = unzipSync(buffer);

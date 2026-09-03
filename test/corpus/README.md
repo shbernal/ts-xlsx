@@ -324,6 +324,12 @@ nothing closes over anything, so a capability can move between modules without a
 noticing. `runtime.ts` is the single place the implementation under test is loaded, and that is
 what makes the `CORPUS_TARGET` switch one decision rather than fourteen.
 
+`package-facts.ts` holds the plumbing every module needs rather than each growing its own:
+`partMapOf` (a package as part path → text), `partOf` (one part, asserting rather than
+`?? ''`, so a negative assertion cannot go on passing after the writer renames a part) and
+`roundtrip` (write then read, which fifty capability bodies used to spell out by hand). The
+src side keeps the same three in `src/io/xlsx/package.test-support.ts` for the same reason.
+
 There is one adapter and no `--adapter` flag. There were two while the library was being
 rebuilt, and the corpus existed to measure the new one against the old; that comparison is
 finished, and a flag whose only value is its default is optionality nobody can use.

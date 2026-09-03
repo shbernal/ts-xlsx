@@ -4,6 +4,7 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
+import {roundtrip} from './package-facts.ts';
 import {readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {buildFrom, isoOrNull} from './spec-model.ts';
 
@@ -59,7 +60,7 @@ export const formulas = {
     sheet.getCell('A2').value = {formula: 'B1-B1', result: 0};
     sheet.getCell('A3').value = {formula: 'FALSE()', result: false};
     sheet.getCell('A4').value = {formula: 'T("")', result: ''};
-    const back = readXlsx(writeXlsx(workbook)).getWorksheet('S')!;
+    const back = roundtrip(workbook).getWorksheet('S')!;
     const probe = (ref: string) => {
       const value = back.getCell(ref).value;
       const hasResult = !!value && typeof value === 'object' && 'result' in value;
@@ -80,7 +81,7 @@ export const formulas = {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     sheet.getCell('A1').value = {formula: 'TODAY()', result: new Date(Date.UTC(2021, 0, 2))};
-    const value = readXlsx(writeXlsx(workbook)).getWorksheet('S')!.getCell('A1').value;
+    const value = roundtrip(workbook).getWorksheet('S')!.getCell('A1').value;
     const result = value && typeof value === 'object' ? (value as Untyped).result : undefined;
     const isValidDate = result instanceof Date && !Number.isNaN(result.getTime());
     return {
@@ -96,7 +97,7 @@ export const formulas = {
   // concrete formula (the master's, translated to the clone's address) while retaining its master
   // reference under `sharedFormula`; a plain formula master carries no `sharedFormula`.
   roundtripFormulas(spec: Untyped) {
-    const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
+    const reloaded = roundtrip(buildFrom(spec));
     const out: Record<string, Untyped> = {};
     for (const s of spec.sheets || []) {
       const sheet = reloaded.getWorksheet(s.name);

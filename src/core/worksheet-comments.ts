@@ -19,6 +19,10 @@ export class WorksheetComments {
   readonly #sheetName: () => string;
 
   readonly #threads: CommentThread[] = [];
+  // Every comment id this sheet holds, so `add` tests against a set rather than rebuilding one from
+  // every message on the sheet. Rebuilt from scratch by `restore`, which replaces the threads whole;
+  // `shift` only re-anchors, and an id does not move with its cell.
+  readonly #takenIds = new Set<string>();
 
   constructor(sheetName: () => string) {
     this.#sheetName = sheetName;
@@ -29,20 +33,19 @@ export class WorksheetComments {
   }
 
   add(thread: CommentThread): void {
-    const taken = new Set(
-      this.#threads.flatMap((held) => held.comments.map((comment) => comment.id)),
-    );
-    // Every message is validated before any of it is stored, so a rejection leaves the sheet untouched
-    // rather than half-carrying a conversation whose remaining messages were refused.
+    // The ids this thread claims, kept apart from the sheet's until the whole thread validates: every
+    // message is checked before any of it is stored, so a rejection leaves the sheet untouched rather
+    // than half-carrying a conversation whose remaining messages were refused.
+    const claimed = new Set<string>();
     const comments = thread.comments.map((comment) => {
       const id = commentThreadGuid(comment.id, 'a comment id');
-      if (taken.has(id)) {
+      if (this.#takenIds.has(id) || claimed.has(id)) {
         throw new SyntaxError(
           `a comment id must be unique within a sheet, but "${id}" is already used on "${this.#sheetName()}": ` +
             'a reply and the legacy fallback comment both find their thread by it',
         );
       }
-      taken.add(id);
+      claimed.add(id);
       return {
         ...comment,
         id,
@@ -61,6 +64,7 @@ export class WorksheetComments {
       };
     });
     this.#threads.push({...thread, ref: anchorRef(thread.ref), comments});
+    for (const id of claimed) this.#takenIds.add(id);
   }
 
   at(reference: string): CommentThread | undefined {
@@ -96,6 +100,10 @@ export class WorksheetComments {
   // the codec that parsed them, so they replace rather than re-enter `add`.
   restore(threads: readonly CommentThread[]): void {
     replaceContents(this.#threads, threads);
+    this.#takenIds.clear();
+    for (const thread of threads) {
+      for (const comment of thread.comments) this.#takenIds.add(comment.id);
+    }
   }
 }
 
