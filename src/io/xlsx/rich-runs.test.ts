@@ -73,6 +73,15 @@ test('a truncated container does not bleed its unterminated run into the next', 
   assert.strictEqual(runs.isRich, false);
 });
 
+test('a self-closing container leaves no text latched onto the next element', () => {
+  // `<si/>` is legal and fires no close, so a machine that only unlatched on `</si>` would still
+  // believe it was inside a container. The stray `<t>` that follows would then be absorbed as that
+  // container plain text and surface as a pooled string nobody wrote.
+  const runs = read('si', '<si/><t>stray</t>');
+  assert.strictEqual(runs.plainText, '', 'text outside every container belongs to no container');
+  assert.strictEqual(runs.isRich, false);
+});
+
 test('a run keeps only the font facets its own rPr set', () => {
   const runs = read('si', '<si><r><rPr><b/></rPr><t>bold</t></r><r><t>plain</t></r></si>');
   assert.deepStrictEqual(runs.runs, [{text: 'bold', font: {bold: true}}, {text: 'plain'}]);

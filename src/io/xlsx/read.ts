@@ -19,6 +19,7 @@
 
 import {decodeRange} from '../../core/address.ts';
 import type {CommentThread} from '../../core/comment-thread.ts';
+import {parseDateText} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import {INTERNAL} from '../../core/internal.ts';
 import type {PreservedWorksheetReference} from '../../core/preserved.ts';
@@ -815,10 +816,8 @@ function applyCoreProperties(workbook: Workbook, xml: string): void {
     else if (local === 'creator') workbook.properties.creator = text;
     else if (local === 'lastModifiedBy') workbook.properties.lastModifiedBy = text;
     else {
-      // An unparseable date is dropped rather than stored as an Invalid Date, which would write
-      // back as the string `Invalid Date` and lose the property for good.
-      const date = new Date(text);
-      if (!Number.isNaN(date.getTime())) {
+      const date = parseDateText(text);
+      if (date !== null) {
         if (local === 'created') workbook.properties.created = date;
         else workbook.properties.modified = date;
       }

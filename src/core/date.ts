@@ -49,6 +49,21 @@ export function serialToDate(serial: number): Date {
 }
 
 /**
+ * Parse a date-bearing text field (a Strict-mode `t="d"` cell value, a core-property timestamp) to a
+ * `Date`, or `null` when it carries nothing parseable.
+ *
+ * The `null` is the point. `new Date('not-a-date')` is a `Date` whose time is `NaN`: it satisfies
+ * `instanceof Date` and every guard downstream, survives into the model, and reaches serialisation,
+ * where it writes back as the literal string `Invalid Date` and loses the value for good. Dropping it
+ * at the boundary is the only reading that cannot lie.
+ */
+export function parseDateText(text: string): Date | null {
+  if (text === '') return null;
+  const date = new Date(text);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
  * Whether a number-format code renders its value as a date or time. A format is a date
  * format when, once its non-formatting sections are removed (bracketed color/locale/
  * condition directives, quoted literals, and escaped characters) any of the date/time

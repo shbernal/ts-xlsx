@@ -104,14 +104,20 @@ export class RunAccumulator {
     this.#plain = '';
     this.#inRun = false;
     this.#isRich = false;
+    // Every field the container owns, this one included, so a caller opening a container of its own
+    // (a `<c>` around an `<is>`) cannot inherit a latch left behind by truncated markup.
+    this.#inContainer = false;
   }
 
   /** Drive one element open, and return whether it was one of this machine's own. */
   open(local: string, attrs: XmlAttributes, selfClosing: boolean): boolean {
     switch (local) {
       case this.#container:
-        this.#inContainer = true;
         this.beginContainer();
+        // A self-closing `<si/>` (or `<is/>`) opens and ends in one event and fires no close, so
+        // latching here would leave the machine believing it is inside a container that has already
+        // ended, and the next `<t>` in the document would be absorbed as that container text.
+        this.#inContainer = !selfClosing;
         return true;
       case 'r':
         if (!this.#readRuns || !this.#inContainer) return false;

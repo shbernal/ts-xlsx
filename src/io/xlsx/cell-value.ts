@@ -5,7 +5,7 @@
 // what guarantees a cell read one row at a time decodes identically to the same cell read as
 // part of a whole workbook. A divergence here would be a silent data bug in exactly one path.
 
-import {isDateFormat, serialToDate} from '../../core/date.ts';
+import {isDateFormat, parseDateText, serialToDate} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import {
   type CellValue,
@@ -14,7 +14,7 @@ import {
   type RichTextRun,
   type RichTextValue,
 } from '../../core/value.ts';
-import {boolStrict, decodeSpreadsheetText, numFinite} from '../../xml/xml-scan.ts';
+import {boolStrict, decodeSpreadsheetText, numFinite, numInteger} from '../../xml/xml-scan.ts';
 
 /**
  * One entry of the shared-strings pool. A `<si>` built from a bare `<t>` is a plain string; a `<si>`
@@ -84,12 +84,16 @@ function decodeValue(
       // A Strict-mode (ISO/IEC 29500 Strict) date cell stores an ISO 8601 value directly, not a
       // serial. Parse it literally, since an ISO date is UTC, so it reads as the date it states rather
       // than a 1900-epoch serial the transitional decoder would fabricate from the text.
-      return valueText === '' ? null : new Date(valueText);
+      return parseDateText(valueText);
     case 's': {
       // A `t="s"` cell indexes the shared pool; the entry is a plain string or, when Excel pooled a
       // rich value, a {@link RichTextValue} whose runs surface here rather than being flattened.
-      const index = Number(valueText);
-      return Number.isInteger(index) ? (sharedStrings[index] ?? '') : '';
+      //
+      // Read through the integer grammar rather than a bare `Number()`, for the reason the numeric
+      // default branch below spells out: `Number('')` is 0 and 0 is an integer, so a present-but-empty
+      // `<v/>` would resolve to the *first* pooled string: a wrong value, not a missing one.
+      const index = numInteger(valueText, 0);
+      return index === undefined ? '' : (sharedStrings[index] ?? '');
     }
     case 'b':
       return boolStrict(valueText);

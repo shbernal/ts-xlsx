@@ -89,7 +89,18 @@ function parseCsvRows(text: string, delimiter: string): string[][] {
       rows.push(row);
       row = [];
       field = '';
-    } else if (ch !== '\r') {
+    } else if (ch === '\r') {
+      // A CR before an LF is the first half of a CRLF pair and the LF ends the row. A CR alone
+      // is a classic-Mac line ending and ends the row on its own: dropping it would splice the
+      // next row's first field onto this row's last and lose every row boundary in the file,
+      // which is silent corruption rather than the lossless read this module promises.
+      if (text[i + 1] !== '\n') {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+      }
+    } else {
       field += ch;
     }
   }

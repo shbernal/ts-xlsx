@@ -782,6 +782,69 @@ export const core = {
     }
     return {ok: true, byteLength: buffer.byteLength ?? buffer.length, survivingCells};
   },
+  // Replace a written package's shared-string pool with one whose empty entries are spelled the two
+  // legal ways (`<si/>` and `<si><t/></si>`), and point a row of `t="s"` cells at every slot plus one
+  // whose `<v>` is present and empty -> { pooled, emptyValueCell }. Both halves are about a *wrong*
+  // value rather than a missing one: an empty entry that commits no slot shifts every later index, so
+  // a cell resolves to its neighbour string, and an empty `<v/>` read as a number is index 0, so the
+  // cell resolves to the first pooled string. Neither is visible to anything downstream.
+  pooledStringIndexReport() {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    // Four distinct strings so the writer emits a pool part at all; its content is replaced below.
+    for (const [index, ref] of ['A1', 'B1', 'C1', 'D1'].entries()) {
+      sheet.getCell(ref).value = `seed${index}`;
+    }
+    const cells = ['A1', 'B1', 'C1', 'D1'].map(
+      (ref, index) => `<c r="${ref}" t="s"><v>${index}</v></c>`,
+    );
+    const back = reloadPatched(writeXlsx(wb), {
+      'xl/sharedStrings.xml': () =>
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="5" uniqueCount="4">' +
+        '<si><t>first</t></si><si/><si><t/></si><si><t>fourth</t></si></sst>',
+      'xl/worksheets/sheet1.xml': (xml) =>
+        xml.replace(
+          /<sheetData>[\s\S]*<\/sheetData>/,
+          `<sheetData><row r="1">${cells.join('')}<c r="E1" t="s"><v/></c></row></sheetData>`,
+        ),
+    });
+    const s1 = back.getWorksheet('S')!;
+    return {
+      pooled: ['A1', 'B1', 'C1', 'D1'].map((ref) => s1.getCell(ref).value),
+      emptyValueCell: s1.getCell('E1').value,
+    };
+  },
+
+  // Point a Strict-mode (`t="d"`) date cell at text that is not a date, beside one that is
+  // -> { unparseable, unparseableIsDate, parsed }. An unguarded `new Date(text)` yields a Date whose
+  // time is NaN: it satisfies every guard, reaches the writer, and serialises as the literal string
+  // `Invalid Date`, so the cell reads back as a value nobody stored.
+  strictModeDateCellReport() {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    sheet.getCell('A1').value = 'a';
+    sheet.getCell('B1').value = 'b';
+    const back = reloadPatched(writeXlsx(wb), {
+      'xl/worksheets/sheet1.xml': (xml) =>
+        xml.replace(
+          /<sheetData>[\s\S]*<\/sheetData>/,
+          '<sheetData><row r="1">' +
+            '<c r="A1" t="d"><v>not-a-date</v></c>' +
+            '<c r="B1" t="d"><v>2024-03-04T05:06:07Z</v></c>' +
+            '</row></sheetData>',
+        ),
+    });
+    const s1 = back.getWorksheet('S')!;
+    const unparseable = s1.getCell('A1').value;
+    const parsed = s1.getCell('B1').value;
+    return {
+      unparseable,
+      unparseableIsDate: unparseable instanceof Date,
+      parsed: parsed instanceof Date ? parsed.toISOString() : null,
+    };
+  },
+
   // Patch one reference-bearing attribute of a written package with a value no cell, area or region
   // can have, then read the result back -> one row per mutation
   // { mutation, threw, isXlsxError, errorName, keptSiblingCell, sheetsRead }. A `.xlsx` the library
