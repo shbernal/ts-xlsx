@@ -6,7 +6,7 @@ import {Workbook} from './core/workbook.ts';
 import type {Worksheet} from './core/worksheet.ts';
 import {CustomUiParseError} from './customui/errors.ts';
 import {parseCustomUi} from './customui/ribbon.ts';
-import {AuthoringError, InternalError, XlsxError, type XlsxErrorCode} from './errors.ts';
+import {AuthoringError, InternalError, quoted, XlsxError, type XlsxErrorCode} from './errors.ts';
 import {PackageReadError, UnsupportedFormatError} from './io/opc/errors.ts';
 import {XlsbParseError} from './io/xlsb/errors.ts';
 import {XlsxParseError} from './io/xlsx/errors.ts';
@@ -144,4 +144,14 @@ test('a value the model does not admit never reaches the writer', () => {
   assert.throws(() => {
     sheet.getCell('A1').value = {nonsense: true} as unknown as CellValue;
   }, TypeError);
+});
+
+// One spelling for a name inside a message, and the one that survives a name a spreadsheet permits.
+// The double-quoted and single-quoted literals this replaced both rendered the first case as a
+// message whose reader cannot tell where the name ends.
+test('quoted sets a name off from the prose without becoming ambiguous', () => {
+  assert.equal(quoted('Sheet1'), '"Sheet1"');
+  assert.equal(quoted('Q1 "draft"'), '"Q1 \\"draft\\""');
+  assert.equal(quoted('two\nlines'), '"two\\nlines"');
+  assert.equal(quoted('C:\\book.xlsx'), '"C:\\\\book.xlsx"');
 });

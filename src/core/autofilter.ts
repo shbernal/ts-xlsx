@@ -1,4 +1,4 @@
-import {AuthoringError} from '../errors.ts';
+import {AuthoringError, quoted} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
 import {boundedRect, decodeRange, encodeAddress} from './address.ts';
 import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
@@ -83,7 +83,7 @@ export function canonicalizeAutoFilter(input: string | AutoFilter): AutoFilter {
   const decoded = decodeRange(ref);
   const rect = boundedRect(decoded);
   if (rect === undefined) {
-    throw new AuthoringError(`autofilter range "${ref}" must be a bounded rectangle`);
+    throw new AuthoringError(`autofilter range ${quoted(ref)} must be a bounded rectangle`);
   }
   if (typeof input === 'string') return {ref: decoded.dimensions, columns: []};
   const width = rect.right - rect.left + 1;

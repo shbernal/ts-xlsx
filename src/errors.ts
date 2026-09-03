@@ -114,3 +114,25 @@ export class InternalError extends XlsxError {
     super(message === undefined ? REPORT_NOTICE : `${message}\n\n${REPORT_NOTICE}`, options);
   }
 }
+
+/**
+ * A name as it should appear inside an error message: quoted, and unambiguous whatever it contains.
+ *
+ * Almost every message this library throws names something the caller or the file chose - a sheet, a
+ * table, a defined name, a module stream, a part path - and the tree had grown three ways of setting
+ * that name off from the prose, split by directory rather than by intent: `"..."`, `'...'`, and
+ * `JSON.stringify`. Only the third survives a name that itself contains a quote, which is exactly the
+ * class of name a spreadsheet permits: a sheet called `Q1 "draft"` renders under either literal
+ * spelling as a message whose reader cannot tell where the name ends. It also renders a name
+ * containing a newline or a zero-width character as one that looks identical to a name that does not,
+ * which for a library whose input is untrusted is the difference between a diagnostic and a decoy.
+ *
+ * So: one spelling, and the one that escapes. `JSON.stringify` is the whole implementation - the
+ * point is not the algorithm but that every throw site reaches the same one.
+ *
+ * Not exported from the `/errors` entry: this is how messages are written, not part of the taxonomy
+ * a caller catches.
+ */
+export function quoted(name: string): string {
+  return JSON.stringify(name);
+}

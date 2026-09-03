@@ -13,7 +13,7 @@
 import {decodeRange, encodeAddress} from '../../core/address.ts';
 import {pickStyleFacets} from '../../core/style.ts';
 import type {ColumnProperties, Worksheet, WorksheetProperties} from '../../core/worksheet.ts';
-import {AuthoringError} from '../../errors.ts';
+import {AuthoringError, quoted} from '../../errors.ts';
 import {assertWritableNumber, escapeAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {
@@ -232,7 +232,7 @@ function validateMerges(sheet: Worksheet): void {
         bottom >= region.top;
       if (overlaps) {
         throw new AuthoringError(
-          `merged range ${merge} overlaps table "${table.name}" (${table.range}): Excel forbids a merge inside a table`,
+          `merged range ${merge} overlaps table ${quoted(table.name)} (${table.range}): Excel forbids a merge inside a table`,
         );
       }
     }

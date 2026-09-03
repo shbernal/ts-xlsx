@@ -10,6 +10,7 @@
 // is what `getColumn`/`getRow` already write, in constant space. Refusing them is what lets a range
 // materialise its cells eagerly without a cost cliff hiding behind an innocuous-looking call.
 
+import {quoted} from '../errors.ts';
 import {decodeRange, encodeAddress, type GridRect, MAX_COLUMN, MAX_ROW} from './address.ts';
 import {applyCellStyle, type Cell} from './cell.ts';
 import {INTERNAL} from './internal.ts';
@@ -321,18 +322,18 @@ export function rangeFrom(sheet: Worksheet, reference: string): Range {
   const {top, left, bottom, right, sheetName, dimensions} = decodeRange(reference);
   if (sheetName !== undefined && sheetName.toLowerCase() !== sheet.name.toLowerCase()) {
     throw new SyntaxError(
-      `"${reference}" names worksheet "${sheetName}", not "${sheet.name}": a range belongs to the sheet it came from`,
+      `${quoted(reference)} names worksheet ${quoted(sheetName)}, not ${quoted(sheet.name)}: a range belongs to the sheet it came from`,
     );
   }
   // An unbounded *row* axis is what `A:A` has: it names whole columns, every row of them.
   if (top === undefined || bottom === undefined) {
     throw new SyntaxError(
-      `"${reference}" spans whole columns (${dimensions}): style them through getColumn(n), which says the same thing in one attribute instead of ${MAX_ROW} cells`,
+      `${quoted(reference)} spans whole columns (${dimensions}): style them through getColumn(n), which says the same thing in one attribute instead of ${MAX_ROW} cells`,
     );
   }
   if (left === undefined || right === undefined) {
     throw new SyntaxError(
-      `"${reference}" spans whole rows (${dimensions}): style them through getRow(n), which says the same thing in one attribute instead of ${MAX_COLUMN} cells`,
+      `${quoted(reference)} spans whole rows (${dimensions}): style them through getRow(n), which says the same thing in one attribute instead of ${MAX_COLUMN} cells`,
     );
   }
   return new Range(sheet, top, left, bottom, right);

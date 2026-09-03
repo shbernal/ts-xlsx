@@ -6,6 +6,7 @@
 // the offline `tools/vba-compiler` (VBIDE), which produces genuinely compiled p-code. This module holds
 // only what the pure-TS structural edits (remove module, add reference) still need (ADR 0019).
 
+import {quoted} from '../errors.ts';
 import {MAX_NAME_CHARS} from './cfb-format.ts';
 import {VbaAuthorError} from './errors.ts';
 
@@ -21,7 +22,7 @@ const IDENTIFIER = /^[A-Za-z][A-Za-z0-9_]*$/;
 export function validateVbaName(name: string, what: 'project' | 'module' | 'reference'): void {
   if (!IDENTIFIER.test(name) || name.length > MAX_NAME_CHARS) {
     throw new VbaAuthorError(
-      `invalid ${what} name '${name}' (must be a VBA identifier ≤ 31 chars)`,
+      `invalid ${what} name ${quoted(name)} (must be a VBA identifier ≤ 31 chars)`,
     );
   }
 }

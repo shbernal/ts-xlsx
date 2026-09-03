@@ -10,7 +10,7 @@
 // The source data is captured when the pivot is added: the model reads the source sheet's cells
 // once, here, so the pivot is a stable snapshot independent of later edits to the source.
 
-import {AuthoringError, InternalError} from '../errors.ts';
+import {AuthoringError, InternalError, quoted} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
 import {encodeAddress} from './address.ts';
 import {INTERNAL} from './internal.ts';
@@ -186,7 +186,7 @@ export class PivotTable {
     // untyped callers, for whom the declared `PivotMetric` is not a check at all.
     if (!Object.hasOwn(PIVOT_METRICS, metric)) {
       throw new AuthoringError(
-        `unsupported pivot metric "${metric}": expected one of ${Object.keys(PIVOT_METRICS).join(', ')}`,
+        `unsupported pivot metric ${quoted(metric)}: expected one of ${Object.keys(PIVOT_METRICS).join(', ')}`,
       );
     }
     this.metric = metric;
@@ -220,7 +220,7 @@ export class PivotTable {
       const index = fields.findIndex((field) => field.name === name);
       if (index < 0) {
         throw new AuthoringError(
-          `pivot ${role} field "${name}" is not a column header in the source sheet`,
+          `pivot ${role} field ${quoted(name)} is not a column header in the source sheet`,
         );
       }
       return index;

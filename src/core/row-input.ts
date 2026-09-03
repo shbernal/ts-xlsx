@@ -12,7 +12,7 @@
 // never drift on the answer. A row that placed values differently depending on which method received
 // it would be the kind of bug no single call site looks wrong for.
 
-import {AuthoringError} from '../errors.ts';
+import {AuthoringError, quoted} from '../errors.ts';
 import {Cell} from './cell.ts';
 import type {CellValue} from './value.ts';
 import type {ColumnProperties, RowInput} from './worksheet.ts';
@@ -77,5 +77,5 @@ function columnIndexByKey(columns: ReadonlyMap<number, ColumnProperties>, key: s
   for (const [index, properties] of columns) {
     if (properties.key === key) return index;
   }
-  throw new AuthoringError(`no column is keyed ${JSON.stringify(key)}: set getColumn(n).key first`);
+  throw new AuthoringError(`no column is keyed ${quoted(key)}: set getColumn(n).key first`);
 }

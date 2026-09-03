@@ -9,6 +9,8 @@
 // authors and mentioned people are {@link Person} entries resolved through
 // {@link Workbook.getPerson}, not names duplicated onto every message.
 
+import {quoted} from '../errors.ts';
+
 /**
  * A registered identity a threaded comment can point at: an author, or someone `@mentioned` in a
  * message. One `<person>` of the workbook's `xl/persons/person.xml` registry.
@@ -110,7 +112,7 @@ export function commentThreadGuid(value: string, what: string): string {
   if (match === null) {
     throw new SyntaxError(
       `${what} must be a GUID: Excel writes threaded-comment ids as ` +
-        `"{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}", but got "${value}"`,
+        `"{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}", but got ${quoted(value)}`,
     );
   }
   return `{${match.slice(1).join('-').toUpperCase()}}`;

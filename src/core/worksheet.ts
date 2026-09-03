@@ -6,7 +6,7 @@
 // the cell grid, because a column or row can carry formatting while holding no cells.
 // Merges and views layer on in later slices.
 
-import {AuthoringError} from '../errors.ts';
+import {AuthoringError, quoted} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
 import {
   boundedRect,
@@ -738,7 +738,9 @@ export class Worksheet {
     const rect: MergeRect | undefined = boundedRect(decodeRange(range));
     if (rect !== undefined) {
       if (this.#mergeIndex.overlapping(rect) !== undefined) {
-        throw new AuthoringError(`merged range "${range}" overlaps an existing merged region`);
+        throw new AuthoringError(
+          `merged range ${quoted(range)} overlaps an existing merged region`,
+        );
       }
       this.#mergeRects.push(rect);
       this.#mergeIndex.note(rect);

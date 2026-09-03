@@ -39,12 +39,6 @@ export interface SaxHandlers {
 }
 
 /**
- * One parse event from {@link xmlEvents}. The payloads match {@link SaxHandlers} exactly: `text`
- * is already entity-decoded (or verbatim CDATA), and a `<x/>` yields one `open` with
- * `selfClosing: true` and no matching `close`. The discriminated `kind` lets a *pull* consumer
- * drive the parse: the shape the streaming reader needs, where a push callback cannot `yield`.
-
-/**
  * What {@link elementSubtrees} is to capture: for each container element's local name, the local name
  * of the children to take verbatim inside it (`'dxfs' -> 'dxf'`). Scoping the child to a container is
  * what keeps a `<color>` in `<mruColors>` from being confused with the many other `<color>` elements
@@ -369,6 +363,20 @@ export class TextCapture {
     if (this.#capturing !== local) return undefined;
     this.#capturing = undefined;
     return this.#text;
+  }
+
+  /**
+   * Abandon any capture in progress, for a caller whose own container has just ended or begun.
+   *
+   * {@link close} unlatches only for the element that opened the capture, which is the right answer
+   * within one element but not across a boundary the caller owns: markup that opens a `<t>` and is
+   * then truncated leaves the capture armed, and the next container's text lands in the abandoned
+   * buffer instead of where that container wanted it. A caller that resets its own per-container
+   * state resets this with it.
+   */
+  reset(): void {
+    this.#capturing = undefined;
+    this.#text = '';
   }
 }
 

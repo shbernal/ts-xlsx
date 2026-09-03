@@ -9,6 +9,7 @@
 // See the delegation rule in `docs/architecture.md`: the public accessors stay on `Worksheet` with
 // their doc comments and become one-line calls into this.
 
+import {quoted} from '../errors.ts';
 import {decodeCellRef, encodeAddress} from './address.ts';
 import {type CommentThread, commentThreadGuid, commentThreadOffset} from './comment-thread.ts';
 import {replaceContents} from './containers.ts';
@@ -41,7 +42,7 @@ export class WorksheetComments {
       const id = commentThreadGuid(comment.id, 'a comment id');
       if (this.#takenIds.has(id) || claimed.has(id)) {
         throw new SyntaxError(
-          `a comment id must be unique within a sheet, but "${id}" is already used on "${this.#sheetName()}": ` +
+          `a comment id must be unique within a sheet, but ${quoted(id)} is already used on ${quoted(this.#sheetName())}: ` +
             'a reply and the legacy fallback comment both find their thread by it',
         );
       }

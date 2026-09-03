@@ -73,6 +73,14 @@ test('a truncated container does not bleed its unterminated run into the next', 
   assert.strictEqual(runs.isRich, false);
 });
 
+test('a t left open by truncation does not carry its text into the next container', () => {
+  // One layer under the case above: the `<t>` itself is what never closes, so the capture stays armed
+  // across the container boundary. The stray `</t>` in the second container is then answered with the
+  // first container's buffer, and one cell's text surfaces as another's.
+  const runs = read('is', '<is><t>orphan</is><is>loose</t></is>');
+  assert.strictEqual(runs.plainText, '');
+});
+
 test('a self-closing container leaves no text latched onto the next element', () => {
   // `<si/>` is legal and fires no close, so a machine that only unlatched on `</si>` would still
   // believe it was inside a container. The stray `<t>` that follows would then be absorbed as that

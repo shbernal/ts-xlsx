@@ -57,12 +57,13 @@
 import {spawn} from 'node:child_process';
 import {mkdir, readFile, rm, writeFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
-import {dirname, join, relative, resolve} from 'node:path';
+import {join, relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import {NODE, ROOT} from './repo.ts';
+import {reportCrash, UsageError} from './verdict.ts';
+
 const RAW = join(ROOT, '.tmp', 'coverage');
-const NODE = process.execPath;
 const SELF = fileURLToPath(import.meta.url);
 
 /** Set on the re-executed child so a node that no longer exposes the internals fails instead of forking forever. */
@@ -93,9 +94,6 @@ const SUITES: readonly Suite[] = [
   {name: 'unit', args: ['--test', 'src/**/*.test.ts']},
   {name: 'corpus', args: ['test/corpus/run.ts']},
 ];
-
-/** A bad invocation, not a failing check: one legible line, no stack. */
-class UsageError extends Error {}
 
 /** The internals are gone or renamed: the one failure this tool must never paper over. */
 class InternalsUnavailableError extends Error {}
@@ -398,11 +396,12 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  if (err instanceof UsageError) console.error(`coverage: ${err.message}`);
-  else if (err instanceof InternalsUnavailableError) console.error(`coverage: ${err.message}`);
-  else
-    console.error(
-      `coverage failed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
-    );
-  process.exitCode = 1;
+  // The one local addition to the shared tail: an unavailable internal is a legible refusal, not a
+  // crash, even though nothing the caller typed provoked it.
+  if (err instanceof InternalsUnavailableError) {
+    console.error(`coverage: ${err.message}`);
+    process.exitCode = 1;
+    return;
+  }
+  reportCrash('coverage', err);
 });

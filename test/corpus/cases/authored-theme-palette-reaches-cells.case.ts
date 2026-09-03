@@ -106,8 +106,10 @@ export default {
       async expect(api: CorpusApi, assert: Assert) {
         // Excel does not report a malformed colour value: it renders the slot as flat black, so the
         // library has to, and at the setter rather than at write time far from the cause.
-        assert.match(await api.authorInvalidThemeColor('not-a-colour')!, /Invalid theme colour/);
-        assert.match(await api.authorInvalidThemeColor('#12345')!, /Invalid theme colour/);
+        // Case-insensitive: what is locked is that the setter refuses and names the reason, not how
+        // an adapter capitalises its first word.
+        assert.match(await api.authorInvalidThemeColor('not-a-colour')!, /invalid theme colour/i);
+        assert.match(await api.authorInvalidThemeColor('#12345')!, /invalid theme colour/i);
         // The two conveniences the rest of the library accepts are accepted here too.
         assert.strictEqual(await api.authorInvalidThemeColor('#BB2649'), null);
         assert.strictEqual(await api.authorInvalidThemeColor('FFBB2649'), null);

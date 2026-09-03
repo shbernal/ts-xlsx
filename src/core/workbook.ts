@@ -6,7 +6,7 @@
 // first place, rather than failing only at write time.
 
 import {type CustomUiDocument, isCustomUiRelType, parseCustomUi} from '../customui/index.ts';
-import {AuthoringError} from '../errors.ts';
+import {AuthoringError, quoted} from '../errors.ts';
 import {
   // Imported for the `{@link}` targets in the accessor docs below: the doc comments explain the
   // structural splices by pointing at the functions that perform them. tsc counts a `{@link}` as a
@@ -742,7 +742,7 @@ export class Workbook {
       const image = this.#media[id];
       if (image === undefined) {
         throw new AuthoringError(
-          `worksheet "${sheet.name}" shows image id ${id}, which is not registered on this ` +
+          `worksheet ${quoted(sheet.name)} shows image id ${id}, which is not registered on this ` +
             "workbook: a sheet's images can only be exported by the workbook that holds them",
         );
       }
@@ -822,7 +822,7 @@ export class Workbook {
     }
     if (definedName.scope !== undefined && this.getWorksheet(definedName.scope) === undefined) {
       throw new AuthoringError(
-        `defined name "${definedName.name}" is scoped to unknown worksheet "${definedName.scope}"`,
+        `defined name ${quoted(definedName.name)} is scoped to unknown worksheet ${quoted(definedName.scope)}`,
       );
     }
     this.#definedNames.push(definedName);
@@ -879,20 +879,22 @@ export class Workbook {
     }
     if (name.length > MAX_SHEET_NAME_LENGTH) {
       throw new AuthoringError(
-        `worksheet name "${name}" exceeds the ${MAX_SHEET_NAME_LENGTH}-character limit`,
+        `worksheet name ${quoted(name)} exceeds the ${MAX_SHEET_NAME_LENGTH}-character limit`,
       );
     }
     if (INVALID_SHEET_NAME_CHARS.test(name)) {
       throw new AuthoringError(
-        `worksheet name "${name}" contains a character Excel forbids (* ? : \\ / [ ])`,
+        `worksheet name ${quoted(name)} contains a character Excel forbids (* ? : \\ / [ ])`,
       );
     }
     if (name.startsWith("'") || name.endsWith("'")) {
-      throw new AuthoringError(`worksheet name "${name}" cannot start or end with an apostrophe`);
+      throw new AuthoringError(
+        `worksheet name ${quoted(name)} cannot start or end with an apostrophe`,
+      );
     }
     if (this.getWorksheet(name) !== undefined) {
       throw new AuthoringError(
-        `a worksheet named "${name}" already exists (names are case-insensitive)`,
+        `a worksheet named ${quoted(name)} already exists (names are case-insensitive)`,
       );
     }
   }

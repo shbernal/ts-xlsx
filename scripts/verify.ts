@@ -24,20 +24,20 @@
 
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {mkdir, readFile, writeFile} from 'node:fs/promises';
+import {open, mkdir, readFile, writeFile} from 'node:fs/promises';
 import {dirname, join, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import {CHARCHECK, NODE, OXLINT, ROOT, TSC} from './repo.ts';
+import {reportCrash, UsageError} from './verdict.ts';
+
 const STAMP = join(ROOT, '.tmp', 'verify-stamp.json');
-
-// Tools are invoked as node scripts against their package entrypoints rather than via
-// node_modules/.bin, because a .bin entry on Windows is a .cmd shim that would force
-// `shell: true`, and with it quoting rules that differ per platform.
-const NODE = process.execPath;
-const OXLINT = resolve(ROOT, 'node_modules/oxlint/bin/oxlint');
-const TSC = resolve(ROOT, 'node_modules/typescript/bin/tsc');
-const CHARCHECK = resolve(ROOT, 'node_modules/charcheck/dist/cli.js');
+// The one gate binary verify does not spawn itself: oxlint runs tsgolint for the type-aware rules,
+// and `node_modules/.bin` is the only place it looks, so the package being present under `.pnpm/` is
+// not enough. See preflight for why that distinction is worth a check of its own.
+const TSGOLINT = resolve(
+  ROOT,
+  `node_modules/.bin/tsgolint${process.platform === 'win32' ? '.exe' : ''}`,
+);
 
 /** What `lint` covers; must stay in step with the `lint` package script. */
 const LINT_TARGETS = ['src', 'scripts', 'test', 'tools', 'www', 'charcheck.config.ts'];
@@ -85,9 +85,6 @@ interface Result {
   exit: number | null;
   output: string;
 }
-
-/** A bad invocation, not a failing gate: one legible line, no stack. */
-class UsageError extends Error {}
 
 interface Args {
   mode: Mode;
@@ -283,6 +280,53 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
 }
 
 /**
+ * Every executable the gate set will reach for that is not on disk, or is there but cannot be read.
+ *
+ * A gate that cannot start reads, from a distance, exactly like a gate that passed: the diagnostic
+ * is a spawn error or a tool's own startup message, buried in gate output that a reader skims for
+ * lint findings. This directory has already been bitten. `node_modules/.bin/tsgolint.exe` went
+ * missing from a tree whose last commit recorded `verify --full` green, with the package and the
+ * 22 MB binary both still present under `.pnpm/` and `pnpm install --frozen-lockfile` answering
+ * "Already up to date"; the whole type-aware half of `lint` was unrunnable and the message saying
+ * so arrived as a lint failure. Naming the missing file, before any gate claims a result, is the
+ * difference between a five-minute repair and an afternoon.
+ *
+ * "Runnable" is approximated by "openable for reading". Windows answers no execute question through
+ * `fs.access`, and probing by actually spawning each tool would cost more than the gates save; a
+ * binary this account cannot read is one it cannot run either, which is the failure actually seen
+ * here (a `.pnpm/` executable with correct mode bits that the shell refused with `Permission
+ * denied`).
+ */
+async function missingExecutables(
+  gates: readonly Gate[],
+): Promise<{path: string; reason: string}[]> {
+  const required = new Set<string>();
+  for (const gate of gates) {
+    for (const step of gate.steps) {
+      // Only what verify hands to `node`. `git` is the other command here, and it is found on PATH
+      // rather than at a path this script could check; it is also already exercised, before any gate
+      // runs, by --cached and by the scoped-lint file listing.
+      if (step.command !== NODE) continue;
+      // The script or tool entry: the first argument that is neither a flag nor a glob for `--test`.
+      const entry = step.args.find((arg) => !arg.startsWith('-') && !arg.includes('*'));
+      if (entry !== undefined) required.add(resolve(ROOT, entry));
+      if (step.args.includes(TYPE_AWARE)) required.add(TSGOLINT);
+    }
+  }
+  const missing: {path: string; reason: string}[] = [];
+  await Promise.all(
+    [...required].sort().map(async (path) => {
+      const handle = await open(path, 'r').catch((err: unknown) => {
+        missing.push({path, reason: err instanceof Error ? err.message : String(err)});
+        return undefined;
+      });
+      await handle?.close();
+    }),
+  );
+  return missing.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/**
  * Run gates concurrently, but only `jobs` at a time. An unbounded fan-out is measurably
  * *slower*: the gates are not competing for cores (14 of them here) but for filesystem
  * throughput. `node --test` already spawns a worker per core, oxlint is parallel across
@@ -432,6 +476,20 @@ async function main() {
     return;
   }
 
+  // Before any gate claims a result, and after --list so a listing still works on a broken checkout.
+  const missing = await missingExecutables(gates);
+  if (missing.length > 0) {
+    console.error(`\nverify: ${missing.length} gate executable(s) missing or unreadable.\n`);
+    for (const {path, reason} of missing) console.error(`  ${path}\n    ${reason}`);
+    console.error(
+      '\nNo gate ran: one that cannot start is indistinguishable from one that passed.\n' +
+        '`pnpm install --force` recreates node_modules/.bin, which --frozen-lockfile will not.\n' +
+        'A binary that is on disk but unreadable is a machine problem, not a repo one.',
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const width = Math.max(...gates.map((gate) => gate.name.length));
   console.log(`verify --${mode}: ${gates.length} gates, ${jobs} at a time\n`);
 
@@ -471,11 +529,5 @@ async function main() {
 }
 
 main().catch((err: unknown) => {
-  if (err instanceof UsageError) console.error(`verify: ${err.message}`);
-  else {
-    console.error(
-      `verify failed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
-    );
-  }
-  process.exitCode = 1;
+  reportCrash('verify', err);
 });

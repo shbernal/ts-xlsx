@@ -4,7 +4,7 @@
 // on Worksheet, since a validation's storage (a rule plus its decoded ranges) is a self-contained unit
 // Worksheet only ever adds to, reads, or clears wholesale.
 
-import {AuthoringError} from '../errors.ts';
+import {AuthoringError, quoted} from '../errors.ts';
 import {replaceContents} from './containers.ts';
 import {
   cloneDataValidation,
@@ -36,7 +36,7 @@ export class DataValidationOverlay {
   add(sqref: string, rule: DataValidation, options: {extended?: boolean} = {}): void {
     const rects = decodeSqrefRects(sqref);
     if (rects.length === 0) {
-      throw new AuthoringError(`data validation range "${sqref}" names no cells`);
+      throw new AuthoringError(`data validation range ${quoted(sqref)} names no cells`);
     }
     // One defensive copy, shared by the serialisable entry and the lookup index, so the getter never
     // hands back a reference into the caller's object.

@@ -6,6 +6,7 @@
 // read those facts, then decompress each module stream from its text offset and decode with the
 // project code page. The p-code is version-specific and deliberately not exposed; a reader wants source.
 
+import {quoted} from '../errors.ts';
 import {readU16, readU32} from './bytes.ts';
 import {CompoundFile} from './cfb.ts';
 import {type Decoder, decoderForCodePage} from './codepage.ts';
@@ -183,7 +184,8 @@ function readModuleSource(
   budget: DecompressionBudget,
 ): string {
   const stream = cfb.readStream(streamName);
-  if (!stream) throw new VbaParseError(`module stream '${streamName}' not found in container`);
+  if (!stream)
+    throw new VbaParseError(`module stream ${quoted(streamName)} not found in container`);
   return decoder.decode(budget.spend(stream, textOffset));
 }
 

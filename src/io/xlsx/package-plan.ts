@@ -8,7 +8,7 @@ import type {PivotTable} from '../../core/pivot-table.ts';
 import type {Table} from '../../core/table.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {AuthoringError, InternalError} from '../../errors.ts';
+import {AuthoringError, InternalError, quoted} from '../../errors.ts';
 import {extensionOf, relativePartPath, relsPathFor, THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relsPartXml} from '../opc/rels.ts';
 import type {CommentCell} from './comments.ts';
@@ -254,7 +254,7 @@ export function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): Med
       const reference =
         role === 'anchor' ? `anchors image id ${id}` : `sets background image id ${id}`;
       throw new AuthoringError(
-        `sheet "${sheetName}" ${reference}, which is not registered on the workbook`,
+        `sheet ${quoted(sheetName)} ${reference}, which is not registered on the workbook`,
       );
     }
     const number = i + 1;
@@ -413,7 +413,7 @@ export function planPreservedParts(
 function resolveRemapped(remap: ReadonlyMap<string, string>, path: string): string {
   const resolved = remap.get(path);
   if (resolved === undefined) {
-    throw new InternalError(`preserved part ${JSON.stringify(path)} was never assigned a new path`);
+    throw new InternalError(`preserved part ${quoted(path)} was never assigned a new path`);
   }
   return resolved;
 }

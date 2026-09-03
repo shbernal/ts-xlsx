@@ -20,11 +20,8 @@
 // more than the work.
 
 import {spawn} from 'node:child_process';
-import {dirname, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const OXFMT = resolve(ROOT, 'node_modules/oxfmt/bin/oxfmt');
+import {OXFMT, ROOT} from './repo.ts';
 
 /** Must stay in step with the `include` list tsconfig.json and tsconfig.test.json span. */
 const TARGETS = [

@@ -24,12 +24,11 @@
 //   node scripts/size-budget.ts
 
 import {readFileSync, statSync} from 'node:fs';
-import {dirname, join, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {join, resolve} from 'node:path';
 
 import {closure, importedPaths, sourceFiles} from './module-graph.ts';
+import {ROOT} from './repo.ts';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
 const TOTAL_BUDGET_BYTES = 560 * 1024;
 

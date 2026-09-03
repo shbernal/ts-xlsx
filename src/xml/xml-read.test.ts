@@ -257,6 +257,16 @@ test('TextCapture answers only for the element that started the capture', () => 
   assert.equal(capture.close('f'), undefined, 'and it unlatches');
 });
 
+test('TextCapture reset abandons a capture that truncated markup left armed', () => {
+  const capture = new TextCapture('t');
+  capture.open('t', false);
+  capture.text('orphan');
+  capture.reset();
+  assert.equal(capture.capturing, false);
+  capture.text('loose');
+  assert.equal(capture.close('t'), undefined, 'neither text belongs to whoever closes next');
+});
+
 test('TextCapture over a set tells the caller which element it captured, by the close it answers', () => {
   assert.deepEqual(
     captured('<cp><title>T</title><ignored>X</ignored><creator>C</creator></cp>', [

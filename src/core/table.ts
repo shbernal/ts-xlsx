@@ -7,7 +7,7 @@
 // the OOXML gatekeeper for serialization; this model owns the invariants Excel enforces
 // on the *shape* itself: a legal name, at least one column, and at least one row.
 
-import {AuthoringError} from '../errors.ts';
+import {AuthoringError, quoted} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
 import {type CellPosition, decodeCellRef, encodeAddress, type GridRect} from './address.ts';
 import {type ClonePlan, cloneWith} from './clone.ts';
@@ -273,11 +273,11 @@ export class Table {
   constructor(options: TableOptions, grid?: TableGrid) {
     validateTableName(options.name);
     if (options.columns.length === 0) {
-      throw new AuthoringError(`table "${options.name}" must declare at least one column`);
+      throw new AuthoringError(`table ${quoted(options.name)} must declare at least one column`);
     }
     if (!Number.isInteger(options.rowCount) || options.rowCount < 0) {
       throw new RangeError(
-        `table "${options.name}" has an invalid data-row count (${options.rowCount})`,
+        `table ${quoted(options.name)} has an invalid data-row count (${options.rowCount})`,
       );
     }
     let anchor: CellPosition;
@@ -286,9 +286,12 @@ export class Table {
     } catch (cause) {
       // The generic "not a single-cell reference" says less than naming the table, so it becomes
       // the cause of a message that does.
-      throw new SyntaxError(`table ref "${options.ref}" must anchor at a single cell (e.g. "A1")`, {
-        cause,
-      });
+      throw new SyntaxError(
+        `table ref ${quoted(options.ref)} must anchor at a single cell (e.g. "A1")`,
+        {
+          cause,
+        },
+      );
     }
     const {col, row} = anchor;
 
@@ -309,7 +312,7 @@ export class Table {
 
     if (this.#rowSpan < 1) {
       throw new AuthoringError(
-        `table "${this.name}" has no rows: it needs a header row or at least one data row`,
+        `table ${quoted(this.name)} has no rows: it needs a header row or at least one data row`,
       );
     }
 
@@ -339,7 +342,7 @@ export class Table {
   addRow(values: readonly CellValue[] = []): void {
     if (values.length > this.columnCount) {
       throw new RangeError(
-        `row has ${values.length} values but table "${this.name}" has ${this.columnCount} columns`,
+        `row has ${values.length} values but table ${quoted(this.name)} has ${this.columnCount} columns`,
       );
     }
 
@@ -351,7 +354,7 @@ export class Table {
     if (this.totalsRow) {
       if (grid === undefined) {
         throw new AuthoringError(
-          `table "${this.name}" is not attached to a worksheet: cannot relocate its totals row to append a data row`,
+          `table ${quoted(this.name)} is not attached to a worksheet: cannot relocate its totals row to append a data row`,
         );
       }
       // Opening a grid slot at the totals row shifts the totals down and grows this table by one
@@ -364,7 +367,7 @@ export class Table {
     if (values.length > 0) {
       if (grid === undefined) {
         throw new AuthoringError(
-          `table "${this.name}" is not attached to a worksheet: cannot write appended row values`,
+          `table ${quoted(this.name)} is not attached to a worksheet: cannot write appended row values`,
         );
       }
       this.#writeRow(grid, target, values);

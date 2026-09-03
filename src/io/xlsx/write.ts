@@ -18,7 +18,7 @@ import {strToU8, zip, zipSync} from 'fflate';
 
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {AuthoringError, InternalError} from '../../errors.ts';
+import {AuthoringError, InternalError, quoted} from '../../errors.ts';
 import {relativePartPath, relsPathFor, THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relsPartXml} from '../opc/rels.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
@@ -675,7 +675,7 @@ class PackageFiles {
    */
   add(path: string, bytes: Uint8Array): void {
     if (path in this.#files) {
-      throw new InternalError(`two package parts claim the path ${JSON.stringify(path)}`);
+      throw new InternalError(`two package parts claim the path ${quoted(path)}`);
     }
     this.#files[path] = bytes;
   }

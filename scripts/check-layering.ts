@@ -13,12 +13,13 @@
 //
 //   node scripts/check-layering.ts
 
-import {dirname, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
-
 import {importedPaths, sourceFiles, toPosix} from './module-graph.ts';
+import {ROOT as REPO_ROOT} from './repo.ts';
+import {verdict} from './verdict.ts';
 
-const ROOT = toPosix(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
+// `/`-separated, because every path this gate reports is a graph key rather than a filesystem
+// argument; see module-graph.ts.
+const ROOT = toPosix(REPO_ROOT);
 
 // Every path this gate reports and every path a rule matches is repo-relative, so the graph walker's
 // absolute answers are brought back to that spelling here rather than at each of the two uses.
@@ -118,10 +119,9 @@ for (const file of sourceFiles(`${ROOT}/src`, '.ts').map(repoRelative)) {
   }
 }
 
-if (violations.length === 0) {
-  console.log(`layering: ${RULES.length} rules + the entry-barrel rule hold across src/`);
-} else {
-  console.error(`\nlayering: ${violations.length} import(s) cross a layer boundary.\n`);
-  console.error(`${violations.join('\n\n')}\n`);
-  process.exit(1);
-}
+verdict({
+  gate: 'layering',
+  problems: violations,
+  ok: `${RULES.length} rules + the entry-barrel rule hold across src/`,
+  failure: 'import(s) cross a layer boundary',
+});

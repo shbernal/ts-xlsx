@@ -7,6 +7,7 @@
 // lives with the codec that carries it (`io/xlsx/theme-xml.ts`). The part itself rides through the
 // model opaquely (see `Workbook.restoreThemePart`); nothing here parses it.
 
+import {quoted} from '../errors.ts';
 import {parseArgb} from './style.ts';
 
 /**
@@ -124,7 +125,7 @@ export function normalizeThemeColor(value: string): string {
   const argb = parseArgb(value);
   if (argb === undefined) {
     throw new SyntaxError(
-      `Invalid theme colour ${JSON.stringify(value)}: expected 6 hexadecimal digits (RRGGBB)`,
+      `invalid theme colour ${quoted(value)}: expected 6 hexadecimal digits (RRGGBB)`,
     );
   }
   // DrawingML's `<a:srgbClr val>` has no alpha channel, so the two leading digits `parseArgb` adds

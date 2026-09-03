@@ -6,7 +6,7 @@
 // its own joins the gallery for that file, and a table reaches it by name through
 // `TableStyleInfo.name`.
 
-import {AuthoringError} from '../errors.ts';
+import {AuthoringError, quoted} from '../errors.ts';
 import type {DifferentialStyle} from './workbook-styles.ts';
 
 /**
@@ -131,13 +131,13 @@ export function checkTableStyle(style: TableStyle): void {
     if (size === undefined) continue;
     if (!STRIPE_ELEMENT_TYPES.has(type)) {
       throw new AuthoringError(
-        `table style element "${type}" cannot carry a size: band width applies only to ` +
+        `table style element ${quoted(type)} cannot carry a size: band width applies only to ` +
           `${[...STRIPE_ELEMENT_TYPES].join(', ')}`,
       );
     }
     if (!Number.isInteger(size) || size < 1) {
       // One number out of range, unlike the element/size mismatch above, which is a composite claim.
-      throw new RangeError(`Invalid table style band size ${size}: expected a positive integer`);
+      throw new RangeError(`invalid table style band size ${size}: expected a positive integer`);
     }
   }
 }

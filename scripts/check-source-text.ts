@@ -38,10 +38,10 @@
 
 import {spawnSync} from 'node:child_process';
 import {existsSync, readFileSync} from 'node:fs';
-import {dirname, extname, join, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {extname, join} from 'node:path';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import {ROOT} from './repo.ts';
+import {verdict} from './verdict.ts';
 
 /** The trees we author by hand or generate into. `skills` is published, so it is source too. */
 const ROOTS = ['src', 'scripts', 'test', 'tools', 'docs', 'skills', 'www'];
@@ -147,13 +147,12 @@ const files = collect();
 const problems: Problem[] = [];
 for (const file of files) scan(file, problems);
 
-if (problems.length === 0) {
-  console.log(`source-text: ${files.length} files, no control characters or bidi overrides`);
-} else {
-  console.error(`\nsource-text: ${problems.length} problem(s) in authored text.\n`);
-  for (const problem of problems) {
-    console.error(`  ${problem.file}:${problem.line}:${problem.column}  ${problem.label}`);
-    console.error(`      ${problem.hint}\n`);
-  }
-  process.exitCode = 1;
-}
+verdict({
+  gate: 'source-text',
+  problems: problems.map(
+    (problem) =>
+      `  ${problem.file}:${problem.line}:${problem.column}  ${problem.label}\n      ${problem.hint}`,
+  ),
+  ok: `${files.length} files, no control characters or bidi overrides`,
+  failure: 'problem(s) in authored text',
+});

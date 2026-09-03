@@ -10,6 +10,7 @@
 // pure-TS path (ADR 0019). These splices are safe precisely because they leave every module's p-code
 // exactly as its own compiler wrote it.
 
+import {quoted} from '../errors.ts';
 import {readU16, spliceBytes} from './bytes.ts';
 import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
 import {CompoundFile} from './cfb.ts';
@@ -57,10 +58,10 @@ export function removeVbaModule(bin: Uint8Array, name: string): Uint8Array {
   const project = parseVbaProjectIn(cfb);
   const nameKey = name.toUpperCase(); // VBA names are case-insensitive
   const module = project.modules.find((m) => m.name.toUpperCase() === nameKey);
-  if (!module) throw new VbaAuthorError(`module '${name}' is not in the VBA project`);
+  if (!module) throw new VbaAuthorError(`module ${quoted(name)} is not in the VBA project`);
   if (module.kind !== 'procedural' && module.kind !== 'class') {
     throw new VbaAuthorError(
-      `cannot remove module '${name}': its kind '${module.kind}' is tied to host linkage this ` +
+      `cannot remove module ${quoted(name)}: its kind ${quoted(module.kind)} is tied to host linkage this ` +
         'primitive cannot verify',
     );
   }
@@ -106,7 +107,7 @@ export function removeVbaModule(bin: Uint8Array, name: string): Uint8Array {
   const newTree = removeFromStorage(withReplacements, VBA_STORAGE, module.streamName, removed);
   if (!removed.has(VBA_STORAGE)) {
     throw new VbaParseError(
-      `module stream '${module.streamName}' is not in the '${VBA_STORAGE}' storage`,
+      `module stream ${quoted(module.streamName)} is not in the ${quoted(VBA_STORAGE)} storage`,
     );
   }
 
@@ -168,7 +169,7 @@ function normalizeReference(ref: VbaLibraryReference): NormalizedReference {
   validateVbaName(ref.name, 'reference');
 
   const guidMatch = GUID_PATTERN.exec(ref.guid.trim());
-  if (!guidMatch) throw new VbaAuthorError(`invalid reference GUID '${ref.guid}'`);
+  if (!guidMatch) throw new VbaAuthorError(`invalid reference GUID ${quoted(ref.guid)}`);
   const guid = `{${guidMatch.slice(1, 6).join('-').toUpperCase()}}`;
 
   for (const [field, value] of [
@@ -188,7 +189,7 @@ function normalizeReference(ref: VbaLibraryReference): NormalizedReference {
 
   if (ref.path.length === 0 || ref.path.includes('\0') || ref.path.includes('#')) {
     throw new VbaAuthorError(
-      `invalid reference path '${ref.path}' (must be non-empty and contain no NUL or '#')`,
+      `invalid reference path ${quoted(ref.path)} (must be non-empty and contain no NUL or '#')`,
     );
   }
   const displayName = ref.displayName ?? ref.name;
@@ -197,7 +198,7 @@ function normalizeReference(ref: VbaLibraryReference): NormalizedReference {
     displayName.length > MAX_DISPLAY_NAME_CHARS ||
     displayName.includes('\0')
   ) {
-    throw new VbaAuthorError(`invalid reference display name '${displayName}'`);
+    throw new VbaAuthorError(`invalid reference display name ${quoted(displayName)}`);
   }
 
   const libid =
@@ -314,7 +315,7 @@ function removeModuleDirRecord(dir: Uint8Array, streamName: string, codePage: nu
   }
   if (countAt < 0) throw new VbaParseError('dir stream is missing MODULES_COUNT');
   if (removeStart < 0 || removeEnd < 0) {
-    throw new VbaParseError(`module stream '${streamName}' not found in the dir stream`);
+    throw new VbaParseError(`module stream ${quoted(streamName)} not found in the dir stream`);
   }
 
   // MODULES_COUNT always precedes every module block, so countAt is unaffected by removing bytes after it.
@@ -385,7 +386,7 @@ function removeProjectwmRecord(
     }
   }
   if (removeStart < 0 || removeEnd < 0) {
-    throw new VbaParseError(`module '${name}' not found in the PROJECTwm stream`);
+    throw new VbaParseError(`module ${quoted(name)} not found in the PROJECTwm stream`);
   }
 
   return spliceBytes(wm, removeStart, removeEnd);

@@ -20,6 +20,7 @@
 // through the public entry point instead (`cfb-writer.test.ts` sweeps the sector-boundary crossings),
 // which is the coverage the split would have bought, without the seam.
 
+import {quoted} from '../errors.ts';
 import {
   DIFSECT,
   DIR_ENTRY_SIZE,
@@ -287,12 +288,12 @@ function validateSiblingNames(storageName: string, siblings: readonly CfbNode[])
     if (node.name.length === 0) throw new VbaAuthorError('entry name must not be empty');
     if (node.name.length > MAX_NAME_CHARS) {
       throw new VbaAuthorError(
-        `entry name '${node.name}' exceeds the ${MAX_NAME_CHARS}-character CFB limit`,
+        `entry name ${quoted(node.name)} exceeds the ${MAX_NAME_CHARS}-character CFB limit`,
       );
     }
     if (seen.has(node.name)) {
       throw new VbaAuthorError(
-        `duplicate entry name '${node.name}' under storage '${storageName}'`,
+        `duplicate entry name ${quoted(node.name)} under storage ${quoted(storageName)}`,
       );
     }
     seen.add(node.name);

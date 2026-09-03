@@ -11,8 +11,7 @@
 // See docs/decisions/0006-docs-from-types.md.
 
 import {mkdirSync, rmSync, writeFileSync} from 'node:fs';
-import {dirname, join, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
 
 import * as ast from 'typescript/unstable/ast';
 import {
@@ -23,7 +22,8 @@ import {
   type Symbol as TypeSymbol,
 } from 'typescript/unstable/sync';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import {ROOT} from './repo.ts';
+
 // Two barrels, because the root one is not the whole public surface: `/node` is deliberately left
 // out of `src/index.ts` so no Node built-in reaches a browser consumer's graph (ADR 0040), and a
 // reference generated from the root alone would silently stop documenting the streaming writer.

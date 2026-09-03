@@ -32,13 +32,14 @@
 //   node scripts/check-entries.ts
 
 import {readdirSync, readFileSync} from 'node:fs';
-import {dirname, join, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
 
 import * as ast from 'typescript/unstable/ast';
 import {API, type Project} from 'typescript/unstable/sync';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import {ROOT} from './repo.ts';
+import {verdict} from './verdict.ts';
+
 const CONFIG = join(ROOT, 'tsconfig.json');
 const ENTRY_DIR = 'src/entries';
 const BARREL = 'src/index.ts';
@@ -185,16 +186,14 @@ function main(project: Project): void {
     }
   }
 
-  if (problems.length === 0) {
-    console.log(
-      `entries: ${onDisk.length} public faces, ${total} disjoint exports, all published; ` +
-        `${onDisk.length - 1} unioned into the root barrel and /node held out of it`,
-    );
-  } else {
-    console.error(`\nentries: ${problems.length} problem(s) with the public entry points.\n`);
-    console.error(`${problems.join('\n\n')}\n`);
-    process.exitCode = 1;
-  }
+  verdict({
+    gate: 'entries',
+    problems,
+    ok:
+      `${onDisk.length} public faces, ${total} disjoint exports, all published; ` +
+      `${onDisk.length - 1} unioned into the root barrel and /node held out of it`,
+    failure: 'problem(s) with the public entry points',
+  });
 }
 
 // The compiler is a separate process; the snapshot and the server both have to be handed back, or a

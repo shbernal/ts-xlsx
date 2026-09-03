@@ -25,8 +25,7 @@
 //   node scripts/check-browser-safe.ts
 
 import {readFileSync} from 'node:fs';
-import {dirname, join, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
 
 import {
   closure,
@@ -35,8 +34,8 @@ import {
   specifiers,
   withoutComments,
 } from './module-graph.ts';
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import {ROOT} from './repo.ts';
+import {verdict} from './verdict.ts';
 
 // The root barrel is the entry most consumers name, and each browser-facing subpath is checked in
 // its own right: a subpath's closure is a subset of the root's today, and nothing guarantees that
@@ -175,13 +174,11 @@ for (const file of unclassified) {
   );
 }
 
-if (problems.length === 0) {
-  console.log(
-    `browser-safe: ${reachable.size} modules reachable from ${BROWSER_ENTRIES.length} entries, ` +
-      `no Node built-in and no Node global; ${NODE_ENTRY} carries ${[...new Set(carried)].sort().join(', ')}`,
-  );
-} else {
-  console.error(`\nbrowser-safe: ${problems.length} break(s) in the browser boundary.\n`);
-  console.error(`${problems.join('\n\n')}\n`);
-  process.exit(1);
-}
+verdict({
+  gate: 'browser-safe',
+  problems,
+  ok:
+    `${reachable.size} modules reachable from ${BROWSER_ENTRIES.length} entries, no Node built-in ` +
+    `and no Node global; ${NODE_ENTRY} carries ${[...new Set(carried)].sort().join(', ')}`,
+  failure: 'break(s) in the browser boundary',
+});

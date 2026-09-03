@@ -104,9 +104,12 @@ export class RunAccumulator {
     this.#plain = '';
     this.#inRun = false;
     this.#isRich = false;
-    // Every field the container owns, this one included, so a caller opening a container of its own
-    // (a `<c>` around an `<is>`) cannot inherit a latch left behind by truncated markup.
+    // Every field the container owns, these two included, so a caller opening a container of its own
+    // (a `<c>` around an `<is>`) cannot inherit a latch left behind by truncated markup. The capture
+    // is one of them: markup that opens a `<t>` and never closes it leaves it armed, and without this
+    // the next container's text would land in that abandoned buffer instead of in `#plain`.
     this.#inContainer = false;
+    this.#capture.reset();
   }
 
   /** Drive one element open, and return whether it was one of this machine's own. */

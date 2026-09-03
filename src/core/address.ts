@@ -17,6 +17,8 @@
 // library did not write is allowed to be wrong and losing one attribute beats losing the sheet.
 // Read-side code uses the second pair and nothing else; the rule and the reasoning are `xml-scan.ts`'s.
 
+import {quoted} from '../errors.ts';
+
 /** Excel's column bounds: `A` (1) through `XFD` (16384). */
 export const MAX_COLUMN = 16384;
 
@@ -120,19 +122,19 @@ export function numberToColumn(n: number): string {
 /** Convert column letters to a 1-based number (`"A" → 1`, `"AA" → 27`). */
 export function columnToNumber(letters: string): number {
   if (letters.length === 0 || letters.length > 3) {
-    throw new RangeError(`invalid column letters: "${letters}"`);
+    throw new RangeError(`invalid column letters: ${quoted(letters)}`);
   }
   let n = 0;
   for (let i = 0; i < letters.length; i++) {
     const code = letters.charCodeAt(i);
     if (code < 65 || code > 90) {
-      throw new RangeError(`invalid column letters: "${letters}"`);
+      throw new RangeError(`invalid column letters: ${quoted(letters)}`);
     }
     n = n * 26 + (code - 64);
   }
   if (n > MAX_COLUMN) {
     throw new RangeError(
-      `column "${letters}" is out of bounds: Excel supports up to ${MAX_COLUMN} (XFD)`,
+      `column ${quoted(letters)} is out of bounds: Excel supports up to ${MAX_COLUMN} (XFD)`,
     );
   }
   return n;
@@ -166,12 +168,12 @@ function makeCellAddress(col: number | undefined, row: number | undefined): Cell
 export function decodeAddress(reference: string): CellAddress {
   const match = SINGLE_REF.exec(reference);
   if (!match) {
-    throw new SyntaxError(`invalid cell reference: "${reference}"`);
+    throw new SyntaxError(`invalid cell reference: ${quoted(reference)}`);
   }
   const letters = match[1] ?? '';
   const digits = match[2] ?? '';
   if (letters.length === 0 && digits.length === 0) {
-    throw new SyntaxError(`invalid cell reference: "${reference}"`);
+    throw new SyntaxError(`invalid cell reference: ${quoted(reference)}`);
   }
   const col = letters.length > 0 ? columnToNumber(letters) : undefined;
   const row = digits.length > 0 ? Number.parseInt(digits, 10) : undefined;
@@ -198,7 +200,7 @@ export function decodeCellRef(reference: string): CellPosition {
   const {col, row} = decodeAddress(reference);
   if (col === undefined || row === undefined) {
     throw new SyntaxError(
-      `"${reference}" is not a single-cell reference: it omits a column or row`,
+      `${quoted(reference)} is not a single-cell reference: it omits a column or row`,
     );
   }
   return {col, row};

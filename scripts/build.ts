@@ -16,11 +16,9 @@
 
 import {spawnSync} from 'node:child_process';
 import {rmSync} from 'node:fs';
-import {dirname, join, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const TSC = resolve(ROOT, 'node_modules/typescript/bin/tsc');
+import {ROOT, TSC} from './repo.ts';
 
 rmSync(join(ROOT, 'dist'), {recursive: true, force: true});
 

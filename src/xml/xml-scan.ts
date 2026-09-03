@@ -24,6 +24,13 @@ export interface XmlAttributes {
   readonly [name: string]: string;
 }
 
+/**
+ * One parse event from {@link xmlEvents}. The payloads are what the push adapter in `xml-read.ts`
+ * hands a handler triple, unchanged: `text` is already entity-decoded (or verbatim CDATA), and a
+ * `<x/>` yields one `open` with `selfClosing: true` and no matching `close`. The discriminated
+ * `kind` lets a *pull* consumer drive the parse: the shape the streaming reader needs, where a push
+ * callback cannot `yield`.
+ */
 export type XmlEvent =
   | {
       readonly kind: 'open';

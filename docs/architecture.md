@@ -745,6 +745,13 @@ The stack is deliberately small and each choice is recorded as an ADR under
 - **Security- and correctness-first.** Every parser path is hostile-input-facing: no
   unbounded allocation, no zip-bomb naïveté. Entities are decoded but never expanded;
   inflation is bounded by a running output counter, not any declared size.
+- **A name inside an error message goes through `quoted()`.** `src/errors.ts` exports it, every
+  layer may import it, and it is the only spelling: the tree had grown three (`"…"`, `'…'`,
+  `JSON.stringify`), split by directory rather than by intent, and only the last survives a name that
+  itself contains a quote. A sheet may be called `Q1 "draft"` and a part path may hold a newline; under
+  either literal spelling the message that reports it is one whose reader cannot tell where the name
+  ends, which on a library reading untrusted input is a decoy rather than a diagnostic. Messages stay
+  lowercase throughout, sentence punctuation and all.
 - **A lookup table on a parser path is a `Map`, or an object with no prototype.** A plain object
   literal indexed by a string the file supplies answers about a dozen attacker-chosen keys with a
   *function*: `constructor`, `toString`, `valueOf`, `hasOwnProperty` and the rest of

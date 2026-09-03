@@ -20,7 +20,7 @@
 
 import {MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
 import type {CellValue} from '../../core/value.ts';
-import {AuthoringError} from '../../errors.ts';
+import {AuthoringError, quoted} from '../../errors.ts';
 import {closeEmptyElements} from '../../xml/xml-read.ts';
 import {boolStrict, localName, numInteger, xmlEvents} from '../../xml/xml-scan.ts';
 import {openSpreadsheetPackage, readPartRelationships} from '../opc/read-opc.ts';
@@ -208,8 +208,7 @@ function pickSheet(
     return sheet;
   }
   const sheet = sheets.find((candidate) => candidate.name === selector);
-  if (sheet === undefined)
-    throw new AuthoringError(`no worksheet named ${JSON.stringify(selector)}`);
+  if (sheet === undefined) throw new AuthoringError(`no worksheet named ${quoted(selector)}`);
   return sheet;
 }
 

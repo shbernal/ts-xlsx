@@ -65,7 +65,7 @@ import type {SheetProtectionOptions} from '../../core/protection.ts';
 import {type CellValue, isSharedFormulaValue} from '../../core/value.ts';
 import {type AddImageOptions, type AddWorksheetOptions, Workbook} from '../../core/workbook.ts';
 import type {ColumnProperties, Worksheet} from '../../core/worksheet.ts';
-import {AuthoringError} from '../../errors.ts';
+import {AuthoringError, quoted} from '../../errors.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 import {type CommentCell, collectNotes} from './comments.ts';
 import {type CollectedHyperlink, collectHyperlinks} from './hyperlinks.ts';
@@ -238,7 +238,7 @@ export class WorksheetStreamWriter {
     for (const cell of cells) {
       if (isSharedFormulaValue(cell.value)) {
         throw new AuthoringError(
-          `row ${number} of streamed sheet "${this.#sheet.name}" carries a shared-formula cell; a ` +
+          `row ${number} of streamed sheet ${quoted(this.#sheet.name)} carries a shared-formula cell; a ` +
             'committed row is finalised before the sheet is planned, so author shared formulas through ' +
             'getCell (leaving the row uncommitted) instead',
         );
@@ -305,7 +305,7 @@ export class WorksheetStreamWriter {
     const target = tryDecodeCellRef(reference);
     if (target !== undefined && this.#flushedNumbers.has(target.row)) {
       throw new AuthoringError(
-        `cell ${reference} of streamed sheet "${this.#sheet.name}" is in row ${target.row}, which is ` +
+        `cell ${reference} of streamed sheet ${quoted(this.#sheet.name)} is in row ${target.row}, which is ` +
           'already committed: its bytes are written and its cells released, so this value could only ' +
           'be emitted as a second row with that number. Style a row before committing it.',
       );
@@ -386,7 +386,7 @@ export class WorksheetStreamWriter {
   #assertOpen(): void {
     if (this.#committed) {
       throw new AuthoringError(
-        `worksheet "${this.#sheet.name}" is already committed: its rows are finalised and no more can be added`,
+        `worksheet ${quoted(this.#sheet.name)} is already committed: its rows are finalised and no more can be added`,
       );
     }
   }
