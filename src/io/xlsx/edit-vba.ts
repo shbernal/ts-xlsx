@@ -14,7 +14,7 @@
 // so that needs the offline `tools/vba-compiler` (VBIDE), which can produce a whole edited `.xlsm`
 // directly (ADR 0019).
 
-import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+import {strFromU8, strToU8, zipSync} from 'fflate';
 
 import {VbaAuthorError} from '../../vba/errors.ts';
 import {
@@ -24,6 +24,8 @@ import {
 } from '../../vba/project-editor.ts';
 import {relsPathFor, resolveRelativePart} from '../opc/part-paths.ts';
 import {parseRelationshipRecords, relationshipTargetByType} from '../opc/read-opc.ts';
+import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-options.ts';
+import {inflateSpreadsheetPackage} from '../opc/sniff-format.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 
 const OFFICE_DOCUMENT_REL = 'officeDocument';
@@ -41,9 +43,15 @@ const VBA_SIGNATURE_REL_INFIX = 'vbaProjectSignature';
  * @throws {VbaAuthorError} if the package carries no VBA project, `name` is not in the project, or names
  *   a `document`/`designer` module.
  * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
+ * @throws {PackageReadError} if the input is not a readable ZIP, or exceeds the inflate bound
+ *   ({@link ReadXlsxOptions.maxUncompressedBytes}, defaulting as `readXlsx` does).
  */
-export function editXlsxVbaRemoveModule(xlsx: Uint8Array, name: string): Uint8Array {
-  return applyToVbaProjectPart(xlsx, (bin) => removeVbaModule(bin, name));
+export function editXlsxVbaRemoveModule(
+  xlsx: Uint8Array,
+  name: string,
+  options: ReadXlsxOptions = {},
+): Uint8Array {
+  return applyToVbaProjectPart(xlsx, options, (bin) => removeVbaModule(bin, name));
 }
 
 /**
@@ -55,9 +63,15 @@ export function editXlsxVbaRemoveModule(xlsx: Uint8Array, name: string): Uint8Ar
  * @throws {VbaAuthorError} if the package carries no VBA project, or any field of `ref` is invalid (see
  *   {@link VbaLibraryReference}).
  * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
+ * @throws {PackageReadError} if the input is not a readable ZIP, or exceeds the inflate bound
+ *   ({@link ReadXlsxOptions.maxUncompressedBytes}, defaulting as `readXlsx` does).
  */
-export function editXlsxVbaAddReference(xlsx: Uint8Array, ref: VbaLibraryReference): Uint8Array {
-  return applyToVbaProjectPart(xlsx, (bin) => addVbaReference(bin, ref));
+export function editXlsxVbaAddReference(
+  xlsx: Uint8Array,
+  ref: VbaLibraryReference,
+  options: ReadXlsxOptions = {},
+): Uint8Array {
+  return applyToVbaProjectPart(xlsx, options, (bin) => addVbaReference(bin, ref));
 }
 
 // Shared plumbing for every package-level VBA edit: unzip, locate `xl/vbaProject.bin`, replace it with
@@ -66,15 +80,17 @@ export function editXlsxVbaAddReference(xlsx: Uint8Array, ref: VbaLibraryReferen
 // touched.
 function applyToVbaProjectPart(
   xlsx: Uint8Array,
+  options: ReadXlsxOptions,
   apply: (bin: Uint8Array) => Uint8Array,
 ): Uint8Array {
-  // Widen off fflate's `Uint8Array<ArrayBuffer>` element type so spliced/re-serialised parts (whose
-  // buffers are `ArrayBufferLike`) assign back into the map. Copied onto a null prototype rather
-  // than used as handed over: entry names are attacker-chosen, so `fflate`'s plain object answers a
-  // part path of `constructor` with a function and takes an entry named `__proto__` as a prototype.
-  const files: Record<string, Uint8Array> = Object.assign(
-    Object.create(null) as Record<string, Uint8Array>,
-    unzipSync(xlsx),
+  // Through the shared inflater, not `unzipSync`. These two functions take raw caller-supplied bytes
+  // and are exported from the package entry, so they are readers, and `inflatePackage`'s header calls
+  // decompression "the reader's first hostile-input surface" for the reason that applies here too: an
+  // uncapped `unzipSync` believes whatever the archive expands to. It also hands back a null-prototype
+  // map already, which is why nothing re-copies one here.
+  const files = inflateSpreadsheetPackage(
+    xlsx,
+    options.maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED,
   );
 
   const binPath = locateVbaProjectPart(files);

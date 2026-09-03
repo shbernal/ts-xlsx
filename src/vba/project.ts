@@ -98,12 +98,16 @@ interface PendingModule {
   documentType?: boolean;
 }
 
-export function parseVbaProject(bin: Uint8Array): VbaProject {
+export function parseVbaProject(
+  bin: Uint8Array,
+  maxOutput = DEFAULT_MAX_PROJECT_OUTPUT,
+): VbaProject {
   const cfb = new CompoundFile(bin);
+  const budget = new DecompressionBudget(maxOutput);
 
   const dirCompressed = cfb.readStream('dir');
   if (!dirCompressed) throw new VbaParseError("VBA project has no 'dir' stream");
-  const dir = decompressContainer(dirCompressed);
+  const dir = budget.spend(dirCompressed, 0);
 
   let codePage = 1252; // Western-European default until PROJECTCODEPAGE says otherwise.
   const rawModules: PendingModule[] = [];
@@ -150,7 +154,7 @@ export function parseVbaProject(bin: Uint8Array): VbaProject {
       name,
       streamName,
       kind,
-      source: readModuleSource(cfb, streamName, m.offset as number, decoder),
+      source: readModuleSource(cfb, streamName, m.offset as number, decoder, budget),
     };
   });
 
@@ -162,10 +166,42 @@ function readModuleSource(
   streamName: string,
   textOffset: number,
   decoder: Decoder,
+  budget: DecompressionBudget,
 ): string {
   const stream = cfb.readStream(streamName);
   if (!stream) throw new VbaParseError(`module stream '${streamName}' not found in container`);
-  return decoder.decode(decompressContainer(stream, textOffset));
+  return decoder.decode(budget.spend(stream, textOffset));
+}
+
+/**
+ * The ceiling on everything one project decompresses, across its `dir` stream and every module.
+ *
+ * `decompressContainer`'s own ceiling is per call, which bounds a single bomb and nothing else: a
+ * project is one `dir` plus one stream per module, all retained at once, and neither the module count
+ * nor the total was bounded. Measured amplification is around 230:1, so a 30 MB `vbaProject.bin` with a
+ * hundred module streams reached roughly 6.4 GB of retained bytes, doubled again as JS strings, while
+ * every individual call stayed comfortably under its own limit.
+ *
+ * `io/opc/inflate.ts` answers the same question for the zip container with one running counter across
+ * all parts. This is that counter for the VBA subsystem, which had the guard but not the accounting.
+ * 64 MiB is far above any real project (a large one is a few hundred KB) and small enough that the
+ * worst case is a typed failure rather than an OOM.
+ */
+const DEFAULT_MAX_PROJECT_OUTPUT = 64 * 1024 * 1024;
+
+class DecompressionBudget {
+  #remaining: number;
+
+  constructor(total: number) {
+    this.#remaining = total;
+  }
+
+  /** Decompress one container against what is left, and charge the output to the budget. */
+  spend(stream: Uint8Array, start: number): Uint8Array {
+    const out = decompressContainer(stream, start, this.#remaining);
+    this.#remaining -= out.length;
+    return out;
+  }
 }
 
 // A Map, not an object literal: the keyword is whatever text precedes the `=` on a PROJECT line, so

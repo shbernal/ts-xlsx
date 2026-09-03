@@ -27,6 +27,7 @@ import {openSpreadsheetPackage, readPartRelationships} from '../opc/read-opc.ts'
 import {unsupportedWorkbookPart} from '../opc/sniff-format.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
 import type {SharedString} from './cell-value.ts';
+import {ColumnRecordBudget} from './column-budget.ts';
 import {XlsxParseError} from './errors.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {
@@ -301,6 +302,7 @@ function* scanSheet(
   let rowHidden = false;
   let rowInGrid = true;
   let cells: StreamedCell[] = [];
+  const columnBudget = new ColumnRecordBudget();
 
   // The in-flight `<c>`, gathered exactly as the buffered reader gathers it, then taken as the
   // cell's plain decoded value (via decode) rather than through the shared-formula / data-table
@@ -344,7 +346,7 @@ function* scanSheet(
           break;
         }
         case 'col':
-          collectHiddenColumn(event.attrs, hiddenColumns);
+          collectHiddenColumn(event.attrs, hiddenColumns, columnBudget);
           break;
         case 'mergeCell':
           if (event.attrs.ref !== undefined) merges.push(event.attrs.ref);
@@ -366,15 +368,19 @@ function* scanSheet(
 
 // Record the hidden columns a `<col min max hidden>` element declares. The span is clamped to the
 // format's column ceiling and gathered into a Set, so even a hostile file full of full-width hidden
-// spans can add at most MAX_COLUMN distinct entries, never an unbounded allocation.
+// spans can add at most MAX_COLUMN distinct entries, never an unbounded allocation. Memory was never
+// the whole question though: a Set bounded at 16,384 entries still costs one insertion per column per
+// element, and nothing bounds the element count, so the per-sheet budget bounds the time too.
 function collectHiddenColumn(
   attrs: {readonly [k: string]: string | undefined},
   hiddenColumns: Set<number>,
+  budget: ColumnRecordBudget,
 ): void {
   if (!boolStrict(attrs.hidden)) return;
   const min = numInteger(attrs.min, 1);
   const max = numInteger(attrs.max, 1);
   if (min === undefined || max === undefined) return;
-  const last = Math.min(max, MAX_COLUMN);
+  const last = budget.take(min, Math.min(max, MAX_COLUMN));
+  if (last === undefined) return;
   for (let index = min; index <= last; index++) hiddenColumns.add(index);
 }

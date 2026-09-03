@@ -2,6 +2,8 @@
 // levels, freeze panes, print areas and page breaks, and the print settings that ride alongside
 // them: page margins, and the header/footer definition text.
 
+import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+
 import type {RowInput} from '../../../../src/core/worksheet.ts';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
@@ -13,6 +15,7 @@ import {
   MAX_COLUMN,
   MAX_ROW,
   readFixture,
+  readWorkbookStream,
   readXlsx,
   Workbook,
   type WorkbookInstance,
@@ -309,6 +312,54 @@ export const grid = {
       beyondColumnCount: [...beyond.columns()].length,
       // The base sheet holds A1, so count what lies past the grid rather than what lies in it.
       beyondRowCount: [...beyond.rows()].filter((row) => row.number > MAX_ROW).length,
+      maxColumn: MAX_COLUMN,
+    };
+  },
+
+  // Patch a written sheet with many full-grid `<col>` spans, then time both readers over it →
+  // { xmlBytes, spans, bufferedMs, streamingMs, columnCount }. Clamping ONE span to the grid bounds
+  // that span's loop and nothing else: the number of `<col>` elements is unbounded and each may span
+  // the whole grid, so the cost is their product. 154 KB of worksheet XML holding 2,000 such spans cost
+  // the buffered reader 12.3 s, which against the 512 MiB inflate ceiling extrapolates to hours of CPU
+  // from a package compressing to a few hundred KB. The zip-bomb guard cannot see it, because after
+  // inflation the payload really is small. Use it to assert the per-sheet work budget bounds the time.
+  repeatedFullGridColumnSpanReport(spans = 4000) {
+    const wb = new Workbook();
+    wb.addWorksheet('S').getCell('A1').value = 'x';
+    const files = unzipSync(writeXlsx(wb));
+    const cols =
+      '<cols>' +
+      Array.from(
+        {length: spans},
+        () => '<col min="1" max="99999999" width="12" customWidth="1" hidden="1" style="0"/>',
+      ).join('') +
+      '</cols>';
+    const sheetXml = strFromU8(files['xl/worksheets/sheet1.xml']!).replace(
+      '<sheetData>',
+      `${cols}<sheetData>`,
+    );
+    files['xl/worksheets/sheet1.xml'] = strToU8(sheetXml);
+    const archive = zipSync(files);
+
+    const bufferedStart = performance.now();
+    const back = readXlsx(archive).getWorksheet('S')!;
+    const bufferedMs = performance.now() - bufferedStart;
+
+    const streamingStart = performance.now();
+    for (const streamed of readWorkbookStream(archive)) {
+      for (const _row of streamed.rows()) {
+        // Drained rather than sampled: the `<col>` handling runs inside the row scan.
+      }
+      void streamed.hiddenColumns;
+    }
+    const streamingMs = performance.now() - streamingStart;
+
+    return {
+      xmlBytes: sheetXml.length,
+      spans,
+      bufferedMs,
+      streamingMs,
+      columnCount: [...back.columns()].length,
       maxColumn: MAX_COLUMN,
     };
   },

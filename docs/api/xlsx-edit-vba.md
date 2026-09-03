@@ -12,12 +12,18 @@ returning new package bytes. Every part but `xl/vbaProject.bin` is preserved byt
 dropped because it cannot validate the new bytes.
 
 ```ts
-function editXlsxVbaAddReference(xlsx: Uint8Array, ref: VbaLibraryReference): Uint8Array;
+function editXlsxVbaAddReference(
+  xlsx: Uint8Array,
+  ref: VbaLibraryReference,
+  options: ReadXlsxOptions = {},
+): Uint8Array;
 ```
 
 **Throws:** [`VbaAuthorError`](./vba-errors.md#vbaauthorerror) if the package carries no VBA project, or any field of `ref` is invalid (see
 [`VbaLibraryReference`](./vba-project-editor.md#vbalibraryreference)).
 **Throws:** [`VbaParseError`](./vba-errors.md#vbaparseerror) if the attached `vbaProject.bin` is malformed.
+**Throws:** [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is not a readable ZIP, or exceeds the inflate bound
+([`ReadXlsxOptions.maxUncompressedBytes`](./opc-read-options.md#readxlsxoptions), defaulting as `readXlsx` does).
 
 ---
 
@@ -31,9 +37,15 @@ what changes within it), and any digital signature over the old project is dropp
 validate the new bytes.
 
 ```ts
-function editXlsxVbaRemoveModule(xlsx: Uint8Array, name: string): Uint8Array;
+function editXlsxVbaRemoveModule(
+  xlsx: Uint8Array,
+  name: string,
+  options: ReadXlsxOptions = {},
+): Uint8Array;
 ```
 
 **Throws:** [`VbaAuthorError`](./vba-errors.md#vbaauthorerror) if the package carries no VBA project, `name` is not in the project, or names
 a `document`/`designer` module.
 **Throws:** [`VbaParseError`](./vba-errors.md#vbaparseerror) if the attached `vbaProject.bin` is malformed.
+**Throws:** [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is not a readable ZIP, or exceeds the inflate bound
+([`ReadXlsxOptions.maxUncompressedBytes`](./opc-read-options.md#readxlsxoptions), defaulting as `readXlsx` does).

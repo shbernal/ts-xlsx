@@ -7,7 +7,10 @@
 <sub>function</sub>
 
 ```ts
-function parseVbaProject(bin: Uint8Array): VbaProject;
+function parseVbaProject(
+  bin: Uint8Array,
+  maxOutput = DEFAULT_MAX_PROJECT_OUTPUT,
+): VbaProject;
 ```
 
 ---

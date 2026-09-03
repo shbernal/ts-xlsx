@@ -44,6 +44,7 @@ import type {XfStyle} from '../style/xf-style.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
 import type {SharedString} from './cell-value.ts';
 import {parseColor} from './color-xml.ts';
+import {ColumnRecordBudget} from './column-budget.ts';
 
 // Membership, not order: the reader meets a `<headerFooter>` child by name and needs only to know
 // whether it is one, on both the open (start capturing) and the close (commit). The order the tuple
@@ -248,6 +249,7 @@ export function worksheetPass(
   // maps a column index to that style index so a bare cell can inherit it (as Excel does,
   // without stamping every cell). Columns are parsed before any cell references them.
   const columnStyle = new Map<number, number>();
+  const columnBudget = new ColumnRecordBudget();
 
   // Commit the cell held in the accumulator, resolving its style from its own `s`, then its row's
   // (when customFormat), then its column's default: the order Excel applies. Runs on `</c>` close,
@@ -276,7 +278,7 @@ export function worksheetPass(
       }
       switch (local) {
         case 'col':
-          applyColumn(sheet, attrs, xfStyles, columnStyle);
+          applyColumn(sheet, attrs, xfStyles, columnStyle, columnBudget);
           break;
         case 'row':
           applyRow(sheet, attrs);
@@ -445,6 +447,7 @@ function applyColumn(
   attrs: XmlAttributes,
   xfStyles: ReadonlyArray<XfStyle>,
   columnStyle: Map<number, number>,
+  budget: ColumnRecordBudget,
 ): void {
   const min = numInteger(attrs.min, 1);
   const max = numInteger(attrs.max, 1);
@@ -452,7 +455,8 @@ function applyColumn(
   // Clamp the span to the format's ceiling rather than letting `getColumn` throw through the read:
   // a `<col max="99999999">` is a file Excel opens, and an unclamped loop would materialise 16.7
   // million column records before dying. Same reading as the streaming reader's `collectHiddenColumn`.
-  const last = Math.min(max, MAX_COLUMN);
+  const last = budget.take(min, Math.min(max, MAX_COLUMN));
+  if (last === undefined) return;
   const width = numFinite(attrs.width);
   const hidden = boolStrict(attrs.hidden);
   const styleIndex = numInteger(attrs.style, 0) ?? -1;

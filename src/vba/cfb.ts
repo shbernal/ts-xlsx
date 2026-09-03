@@ -40,6 +40,13 @@ interface DirEntry {
 const CFB_SIGNATURE_LO = 0xe011cfd0;
 const CFB_SIGNATURE_HI = 0xe11ab1a1;
 
+// The sibling tree a storage navigates is red-black, so a container written by anything that follows
+// [MS-CFB] has depth logarithmic in its entry count: a project with a thousand streams nests around
+// ten. A hostile file is under no such obligation, and linking every entry as the left child of the one
+// before it makes depth equal to entry count, which the recursive walk turns into an uncatchable
+// `RangeError` instead of a `VbaParseError`. Same reasoning and same remedy as `customui/ribbon.ts`.
+const MAX_TREE_DEPTH = 256;
+
 export class CompoundFile {
   readonly #buf: Uint8Array;
   readonly #sectorSize: number;
@@ -116,24 +123,26 @@ export class CompoundFile {
     return this.#buildSiblings(root.child, new Set([rootIdx]));
   }
 
-  #buildSiblings(firstChild: number, seen: Set<number>): CfbNode[] {
+  #buildSiblings(firstChild: number, seen: Set<number>, depth = 0): CfbNode[] {
+    if (depth > MAX_TREE_DEPTH) throw new VbaParseError('directory tree nests too deep');
     const nodes: CfbNode[] = [];
-    const walk = (idx: number): void => {
+    const walk = (idx: number, siblingDepth: number): void => {
       if (idx >= MAX_REGULAR_SECTOR) return; // NOSTREAM / terminal marker → no such sibling
+      if (siblingDepth > MAX_TREE_DEPTH) throw new VbaParseError('directory tree nests too deep');
       if (idx >= this.#dir.length) throw new VbaParseError('directory sibling index out of range');
       if (seen.has(idx)) throw new VbaParseError('cycle in directory sibling tree');
       seen.add(idx);
       const e = this.#dir[idx] as DirEntry;
       if (e.type === TYPE_EMPTY) throw new VbaParseError('directory tree links an empty entry');
-      walk(e.left);
+      walk(e.left, siblingDepth + 1);
       if (e.type === TYPE_STORAGE) {
-        nodes.push({name: e.name, children: this.#buildSiblings(e.child, seen)});
+        nodes.push({name: e.name, children: this.#buildSiblings(e.child, seen, depth + 1)});
       } else {
         nodes.push({name: e.name, data: this.#readEntryData(e)});
       }
-      walk(e.right);
+      walk(e.right, siblingDepth + 1);
     };
-    walk(firstChild);
+    walk(firstChild, depth);
     return nodes;
   }
 
@@ -142,10 +151,21 @@ export class CompoundFile {
     return this.#readViaMiniFat(entry.startSector, entry.size);
   }
 
+  /**
+   * The FAT-sector ids, bounded by the file rather than by the header's claim about it.
+   *
+   * `numFatSectors` and `numDifat` are unvalidated `u32`s at header offsets 44 and 72, and each id
+   * costs a sector's worth of FAT entries downstream. Believing them let 1 MB of crafted container
+   * amplify into 272 MB of heap, linear in input size, so a 10 MB project was a fatal OOM rather than
+   * a typed failure. The file cannot hold more FAT sectors than it holds sectors, so `#maxSector` is
+   * the honest ceiling for both loops, and ids repeating freely is why the count must bound the
+   * DIFAT-sector loop too, not only the header one.
+   */
   #readDifat(numFatSectors: number, firstDifat: number, numDifat: number): number[] {
+    const wanted = Math.min(numFatSectors, this.#maxSector);
     const ids: number[] = [];
     // The first 109 FAT-sector pointers live in the header; the rest chain through DIFAT sectors.
-    for (let i = 0; i < 109 && ids.length < numFatSectors; i++) {
+    for (let i = 0; i < 109 && ids.length < wanted; i++) {
       const v = readU32(this.#buf, 76 + i * 4);
       if (v >= MAX_REGULAR_SECTOR) break;
       ids.push(v);
@@ -153,11 +173,11 @@ export class CompoundFile {
     const seen = new Set<number>();
     let sector = firstDifat;
     const perSector = this.#sectorSize / 4 - 1;
-    for (let s = 0; s < numDifat && sector < MAX_REGULAR_SECTOR; s++) {
+    for (let s = 0; s < numDifat && sector < MAX_REGULAR_SECTOR && ids.length < wanted; s++) {
       if (seen.has(sector)) throw new VbaParseError('cycle in DIFAT sector chain');
       seen.add(sector);
       const base = this.#dataSectorOffset(sector);
-      for (let i = 0; i < perSector; i++) {
+      for (let i = 0; i < perSector && ids.length < wanted; i++) {
         const v = readU32(this.#buf, base + i * 4);
         if (v < MAX_REGULAR_SECTOR) ids.push(v);
       }
@@ -166,27 +186,36 @@ export class CompoundFile {
     return ids;
   }
 
+  // A FAT entry past the sector count addresses a sector that is not in the file, so it can never be
+  // followed: reading more than `#maxSector` of them is work with no possible use.
   #readFat(fatSectorIds: number[]): number[] {
     const fat: number[] = [];
     const perSector = this.#sectorSize / 4;
     for (const sid of fatSectorIds) {
       const base = this.#dataSectorOffset(sid);
-      for (let i = 0; i < perSector; i++) fat.push(readU32(this.#buf, base + i * 4));
+      for (let i = 0; i < perSector && fat.length < this.#maxSector; i++) {
+        fat.push(readU32(this.#buf, base + i * 4));
+      }
+      if (fat.length >= this.#maxSector) break;
     }
     return fat;
   }
 
   #readChainValues(firstSector: number): number[] {
-    // Every uint32 in a sector chain (used for the mini-FAT), cycle-guarded.
+    // Every uint32 in a sector chain (used for the mini-FAT), cycle-guarded and capped on the same
+    // terms as {@link #readFat}: a mini-FAT entry beyond the mini stream's sector count is unusable.
     const values: number[] = [];
     const perSector = this.#sectorSize / 4;
+    const cap = this.#maxSector * (this.#sectorSize / this.#miniSectorSize);
     const seen = new Set<number>();
     let sector = firstSector;
-    while (sector < MAX_REGULAR_SECTOR) {
+    while (sector < MAX_REGULAR_SECTOR && values.length < cap) {
       if (seen.has(sector)) throw new VbaParseError('cycle in mini-FAT sector chain');
       seen.add(sector);
       const base = this.#dataSectorOffset(sector);
-      for (let i = 0; i < perSector; i++) values.push(readU32(this.#buf, base + i * 4));
+      for (let i = 0; i < perSector && values.length < cap; i++) {
+        values.push(readU32(this.#buf, base + i * 4));
+      }
       sector = this.#nextInFat(sector);
     }
     return values;

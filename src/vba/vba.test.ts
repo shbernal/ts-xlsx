@@ -4,6 +4,7 @@ import {test} from 'node:test';
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {Workbook} from '../core/workbook.ts';
+import {PackageReadError} from '../io/opc/errors.ts';
 import {editXlsxVbaAddReference, editXlsxVbaRemoveModule} from '../io/xlsx/edit-vba.ts';
 import {readXlsx} from '../io/xlsx/read.ts';
 import {writeXlsx} from '../io/xlsx/write.ts';
@@ -265,6 +266,38 @@ test('decompressContainer admits exactly the ceiling and refuses the byte after 
   const data = new Uint8Array(5000).map((_, i) => (i * 17 + 3) & 0xff);
   assert.deepEqual(decompressContainer(storeCompress(data), 0, 5000), data);
   assert.throws(() => decompressContainer(storeCompress(data), 0, 4999), VbaParseError);
+});
+
+test('decompressContainer refuses a chunk that decodes past the 4096-byte window MS-OVBA defines', () => {
+  // [MS-OVBA] 2.4.1.3.6 caps a chunk at 4096 decompressed bytes. Seven bytes reach past it: one literal
+  // to seed the window, then a single CopyToken whose length field is at its maximum, which run-length
+  // expands that one byte 4098 times. Past the window `copyTokenHelp` widens the offset field until the
+  // length mask is seven bits, so every later token in the chunk decodes under a bit split no producer
+  // emits, which is bytes nobody wrote rather than merely bytes nobody wanted.
+  const flags = 0b0000_0010; // the first token is a literal, the second a copy
+  const body = [flags, 0x41, 0xff, 0x0f]; // 'A', then CopyToken 0x0fff: offset 1, length 4098
+  const header = 0xb000 | (body.length - 1);
+  const container = Uint8Array.from([0x01, header & 0xff, (header >> 8) & 0xff, ...body]);
+
+  assert.throws(() => decompressContainer(container), VbaParseError);
+  assert.throws(() => decompressContainer(container), /4096/);
+});
+
+test('a project budget bounds what every module decompresses between them, not each call alone', () => {
+  // `decompressContainer`'s own ceiling is per call, which bounds one bomb and nothing else: a project
+  // is one `dir` plus one stream per module, all retained at once. A project whose modules each fit
+  // comfortably under the per-call ceiling must still be refused once they exceed the project's.
+  const sources = ['A', 'B', 'C'].map((name) => ({
+    name,
+    documentType: false,
+    sourceBytes: new Array(3000).fill(0x41),
+    pcodePrefixLen: 0,
+  }));
+  const bin = buildVbaProjectBin(CODE_PAGE, sources);
+
+  // Comfortably above any one stream, comfortably below their sum plus the dir stream.
+  assert.throws(() => parseVbaProject(bin, 4000), VbaParseError);
+  assert.ok(parseVbaProject(bin, 64 * 1024).modules.length === 3);
 });
 
 // ── Compressor (§2.3b): compressContainer ────────────────────────────────────────────────────────────
@@ -1172,6 +1205,36 @@ test('Workbook.addVbaReference rejects an invalid reference without disturbing t
 });
 
 // ── Package-preserving structural edits: editXlsxVbaRemoveModule / editXlsxVbaAddReference ─────────────
+
+test('the package-level edits enforce the same inflate ceiling every other reader does', () => {
+  // Both take raw caller-supplied bytes off the public entry, which makes them readers, and a reader
+  // that unzips without a bound believes whatever the archive expands to. They reach the shared
+  // inflater now, so the bomb guard fires here on the same terms and with the same message it does for
+  // `readXlsx`, and the ceiling is settable on the same option.
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
+
+  for (const edit of [
+    () => editXlsxVbaRemoveModule(pkg, 'Module1', {maxUncompressedBytes: 512}),
+    () =>
+      editXlsxVbaAddReference(
+        pkg,
+        {
+          name: 'Scripting',
+          guid: '{420B2830-E718-11CF-893D-00A0C9054228}',
+          majorVersion: 1,
+          minorVersion: 0,
+          path: 'C:\\Windows\\System32\\scrrun.dll',
+        },
+        {maxUncompressedBytes: 512},
+      ),
+  ]) {
+    assert.throws(edit, PackageReadError);
+    assert.throws(edit, /possible zip bomb/);
+  }
+
+  // And the default ceiling leaves a real package alone.
+  assert.ok(editXlsxVbaRemoveModule(pkg, 'Module1').length > 0);
+});
 
 test('editXlsxVbaRemoveModule removes a module and preserves every other package part byte-for-byte', () => {
   const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');

@@ -95,6 +95,16 @@ export function decompressContainer(
         // Byte-by-byte so overlapping runs (run-length expansion) grow correctly.
         for (let i = 0; i < length; i++) out.push(out.at(src + i));
       }
+      if (out.length - chunkStart > MAX_CHUNK_DECOMPRESSED) {
+        // [MS-OVBA] 2.4.1.3.6 caps a chunk at 4096 decompressed bytes, and the cap is load-bearing
+        // rather than advisory: past it `copyTokenHelp` returns a bit split no producer emits (13+
+        // offset bits, a length mask collapsed to 7), so every later token in the chunk decodes into
+        // bytes nobody wrote. Excel rejects such a container; accepting it would mean reading a
+        // module's source as something its author never compiled.
+        throw new VbaParseError(
+          `chunk decompressed to more than ${MAX_CHUNK_DECOMPRESSED} bytes, which [MS-OVBA] forbids`,
+        );
+      }
     }
     pos = chunkEnd;
   }
@@ -232,7 +242,14 @@ function compressChunk(chunk: Uint8Array): number[] {
  * ([MS-OVBA] 2.4.1.3.19.3): the offset field grows and the length field shrinks as the chunk fills.
  */
 function copyTokenHelp(decompressedSoFar: number): {lengthMask: number; bitCount: number} {
-  const bitCount = Math.max(Math.ceil(Math.log2(Math.max(decompressedSoFar, 1))), 4);
+  // Bounded at both ends: the floor of 4 is the spec's, and the ceiling of 12 follows from the 4096-byte
+  // chunk window, since `log2(4096)` is 12 and no legal chunk can have emitted more. Without it a
+  // decoder that has somehow run past the window keeps widening the offset field until the length mask
+  // is 7 bits wide, which decodes later tokens under a split the format never defines.
+  const bitCount = Math.min(
+    Math.max(Math.ceil(Math.log2(Math.max(decompressedSoFar, 1))), 4),
+    Math.log2(MAX_CHUNK_DECOMPRESSED),
+  );
   const lengthMask = 0xffff >> bitCount;
   return {lengthMask, bitCount};
 }
