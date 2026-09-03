@@ -11,8 +11,9 @@ import {
   isImageEditAs,
   isOneCellAnchor,
 } from '../../core/image.ts';
+import {enumToken, numFinite} from '../../xml/xml-attrs.ts';
 import {openElements, parseXml, TextCapture} from '../../xml/xml-read.ts';
-import {enumToken, localName, numFinite} from '../../xml/xml-scan.ts';
+import {localName} from '../../xml/xml-scan.ts';
 import {checkedToken, numAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {relAttr, RELATIONSHIPS_NS} from '../opc/namespaces.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';

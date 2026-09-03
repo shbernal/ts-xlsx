@@ -83,7 +83,14 @@ const ENTRY_BUDGETS_KB: Readonly<Record<string, number>> = {
   // corrupt package raised an `AuthoringError` blaming the caller, or a native `SyntaxError` the
   // taxonomy cannot see at all. This entry had 2.2 KB left in it, which is a rounding error and not
   // the headroom described above; the new figure restores it against today's measurement.
-  './node': 405,
+  //
+  // Raised again, from 405, by the module seams: `worksheet-merges.ts`, `workbook-media.ts`,
+  // `font-xml.ts` and `xml-attrs.ts` are four slices lifted out of files that had grown past what
+  // anyone can read, and the code inside them did not change. What a module costs that a block of a
+  // larger file does not is its import statements and its export keywords, which came to about
+  // 2.4 KB across the four. Paying that for four seams is the trade this project takes; noticing it
+  // is what the tripwire is for.
+  './node': 413,
   // Raised from 50 when the MS-OVBA encoder stopped rescanning its whole back-window for every
   // output byte. The hash chain that replaced the rescan is the cost, and it buys a time bound on a
   // path an untrusted `.xlsm` reaches through `removeVbaModule`; the CFB and `dir` guards landed

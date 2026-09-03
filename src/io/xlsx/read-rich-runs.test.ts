@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {RunAccumulator} from './rich-runs.ts';
+import {RunAccumulator} from './read-rich-runs.ts';
 
 // Drive the machine the way a parser does, so a test states a document rather than a call sequence.
 // `<t>` and `<r>` are written non-self-closing unless a case is about the self-closing form, since a

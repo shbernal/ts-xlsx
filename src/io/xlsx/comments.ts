@@ -23,8 +23,9 @@ import {tryDecodeCellRef} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
 import type {CommentThread} from '../../core/comment-thread.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import {decodeSpreadsheetText, numInteger} from '../../xml/xml-attrs.ts';
 import {parseXml, TextCapture} from '../../xml/xml-read.ts';
-import {decodeSpreadsheetText, localName, numInteger} from '../../xml/xml-scan.ts';
+import {localName} from '../../xml/xml-scan.ts';
 import {escapeText, textAttr, textElement, XML_DECLARATION} from '../../xml/xml.ts';
 import {MARKUP_COMPATIBILITY_NS, REVISION_NS, SPREADSHEETML_NS} from './namespaces.ts';
 

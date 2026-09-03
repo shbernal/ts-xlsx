@@ -25,9 +25,10 @@
 
 import type {Font} from '../../core/style.ts';
 import type {RichTextRun} from '../../core/value.ts';
+import {decodeSpreadsheetText} from '../../xml/xml-attrs.ts';
 import {TextCapture} from '../../xml/xml-read.ts';
-import {decodeSpreadsheetText, type XmlAttributes} from '../../xml/xml-scan.ts';
-import {applyFontChild, type FontDraft} from './read-styles.ts';
+import {type XmlAttributes} from '../../xml/xml-scan.ts';
+import {applyFontChild, type FontDraft} from './font-xml.ts';
 
 /**
  * What {@link RunAccumulator.close} did with an element: `'container'` means the `<si>`/`<is>` itself

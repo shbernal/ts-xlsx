@@ -10,13 +10,18 @@
 // entity-expansion (billion-laughs) and external-entity (XXE) attacks are structurally impossible
 // here, not merely mitigated.
 //
-// Everything here answers "what does this piece of markup say": the scan, and the readings of one
-// attribute's text that go with it. The ways of *driving* a scan live in `xml-read.ts` alongside it
-// - the pull generators, the push adapter and its multi-pass driver, the verbatim subtree capture,
-// the text gatherer - and nothing here holds a traversal. That seam is load-bearing rather than
-// tidiness: `/customui` is a ribbon reader that wants the scanner and none of the traversals, and
-// while the two lived in one module every helper added to the far half was charged to that entry's
-// bundle budget, which is how it drifted 3 KB over one.
+// Everything here answers "what does this piece of markup say", plus the three OOXML booleans, which
+// are readings of a value but are the ones every OOXML dialect asks for rather than only a
+// spreadsheet. Two neighbours hold the rest. `xml-read.ts` holds the ways of *driving* a scan (the
+// pull generators, the push adapter and its multi-pass driver, the verbatim subtree capture, the text
+// gatherer), and nothing here holds a traversal. `xml-attrs.ts` holds the spreadsheet-flavoured
+// readings of an attribute's value: the numbers with their floors, the numeric-literal coercion, the
+// enumerated token, the `_xHHHH_` cell-text escape.
+//
+// Both seams are load-bearing rather than tidiness. `/customui` is a ribbon reader that wants the
+// scan, an OOXML boolean, and nothing else; while its neighbours lived in one module every helper
+// added to any of them was charged to that entry's bundle budget, which is how it drifted 3 KB over
+// one before the first split and was left with 0.7 KB of headroom before the second.
 
 import {XmlParseError} from './errors.ts';
 import {isRepresentableCodePoint, stripUnrepresentable} from './xml-chars.ts';
@@ -99,34 +104,9 @@ function admitText(value: string): string {
   return stripUnrepresentable(decodeEntities(value));
 }
 
-/**
- * The SpreadsheetML `_xHHHH_` escape, in the only place it may appear: a complete cell-text value.
- *
- * The mirror of `escapeSpreadsheetText` in `./xml.ts`, and it sits here rather than beside it for
- * the same reason `decodeEntities` sits apart from `escapeText`: the write helpers carry an
- * `AuthoringError` and a whole serialisation vocabulary the reader has no business importing.
- *
- * **One left-to-right pass, and that is load-bearing.** `005F` maps to `_` like any other code
- * point, with no special case, because a single pass already gives the underscore escape its
- * meaning: in `_x005F_x0041_` the match at 0 yields `_` and scanning resumes at `x0041_`, which has
- * no leading underscore left to start an escape. So the value reads back as the literal seven
- * characters `_x0041_` the author wrote. Decoding `_x005F_` in a pass of its own, before or after
- * the rest, collapses that to `A` and loses the distinction the encoder went to trouble to keep.
- * Excel agrees: it reads that cell as `_x0041_`.
- *
- * The decode is unconditional, not a repair of characters XML cannot carry. Excel reads
- * `a_x0009_b` as a tab even though a literal tab would have been perfectly legal there, so a
- * decoder that only handled the illegal range would disagree with Excel on files Excel wrote.
- */
-export function decodeSpreadsheetText(value: string): string {
-  if (!value.includes('_')) return value;
-  return value.replace(/_x([0-9A-Fa-f]{4})_/g, (_match, hex: string) =>
-    String.fromCharCode(Number.parseInt(hex, 16)),
-  );
-}
-
-// so a delimiter-respecting scan finds a tag's end even when an attribute value holds a
-// `>` (legal but rare). Names may carry a namespace prefix (`r:id`, `xml:space`).
+// One attribute at a time: a name, then a value in either quote style. Matching the quotes is what
+// lets a delimiter-respecting scan find a tag's end even when an attribute value holds a `>` (legal
+// but rare). Names may carry a namespace prefix (`r:id`, `xml:space`).
 const ATTRIBUTE = /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
 export function parseAttributes(source: string): XmlAttributes {
@@ -348,68 +328,4 @@ export function boolTristate(val: string | undefined): boolean | undefined {
   if (val === '1' || val === 'true') return true;
   if (val === '0' || val === 'false') return false;
   return undefined;
-}
-
-// The numeric attributes need the same treatment, and for the same reason: a bare `Number(attr)`
-// turns a token it cannot parse into `NaN`, which is a number, so every guard downstream passes it
-// along until something far from the file throws about a value the caller never wrote. Two readings
-// cover the format. An ordinal - a count, an index, a row or a column - is an integer or it is
-// nothing (`numInteger`). A measurement - a width, a height, a tint, a margin - is any finite
-// number (`numFinite`). Both take the floor the attribute's kind implies, because nearly every call
-// site wants "at least 0" or "at least 1" and would otherwise spell it inline and sometimes forget.
-// Absent, unparseable and out-of-floor all read as `undefined`, so a caller stores only what the
-// source carried and a re-write stays byte-clean.
-
-/** An OOXML integer attribute at or above `min` (default: unbounded below); `undefined` when the
- * attribute is absent, blank, fractional, not a number, or below the floor. Integers past
- * `Number.MAX_SAFE_INTEGER` read as `undefined` too: no index or count is usable out there, and
- * arithmetic on one silently lies. */
-export function numInteger(
-  val: string | undefined,
-  min = -Number.MAX_SAFE_INTEGER,
-): number | undefined {
-  const n = parseAttrNumber(val);
-  if (n === undefined || !Number.isSafeInteger(n) || n < min) return undefined;
-  return n;
-}
-
-/** An OOXML decimal attribute at or above `min` (default: unbounded below); `undefined` when the
- * attribute is absent, blank, not a number, or below the floor. Infinities are not finite numbers
- * and read as `undefined`. */
-export function numFinite(val: string | undefined, min = -Infinity): number | undefined {
-  const n = parseAttrNumber(val);
-  if (n === undefined || n < min) return undefined;
-  return n;
-}
-
-// `Number("")` and `Number(" ")` are both 0, which would turn an empty attribute into a real value.
-function parseAttrNumber(val: string | undefined): number | undefined {
-  if (val === undefined || val.trim() === '') return undefined;
-  const n = Number(val);
-  return Number.isFinite(n) ? n : undefined;
-}
-
-/** Read an operand's text as a number only when it is a canonical decimal literal (optional sign,
- * digits, optional fraction). A cell reference, defined name, expression, or exotically-spelled
- * number (`1E5`, hex) keeps its verbatim text, so it is neither coerced to `NaN` and lost nor
- * re-spelled into a number that would not re-write byte-clean. Callers layer their own type rules
- * (a data-validation `list`/`custom` operand stays a string regardless of what it looks like). */
-export function coerceNumericLiteral(text: string): string | number {
-  const trimmed = text.trim();
-  return /^-?\d+(?:\.\d+)?$/.test(trimmed) ? Number(trimmed) : text;
-}
-
-// The third kind of attribute, after the booleans and the numbers, and dropped on the same terms: a
-// token from a closed OOXML enumeration. `checkedToken` in `./xml.ts` is the write-side half of the
-// same grammar, and the pair is deliberately asymmetric in what it does when the token is foreign.
-// The reader drops it, because a file it did not write is allowed to be wrong and losing one
-// attribute beats losing the sheet. The writer throws, because a value an author supplied is a
-// mistake at the call and the file it would produce is one Excel refuses to open.
-
-/** Narrow an enumerated attribute through its guard; `undefined` when absent or not a member. */
-export function enumToken<T extends string>(
-  val: string | undefined,
-  isMember: (candidate: string) => candidate is T,
-): T | undefined {
-  return val !== undefined && isMember(val) ? val : undefined;
 }

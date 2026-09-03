@@ -26,12 +26,7 @@ import {
 } from '../vba/index.ts';
 import {commentThreadGuid, type Person} from './comment-thread.ts';
 import type {DateEpoch} from './date.ts';
-import {
-  imageContentKey,
-  normalizeImageExtension,
-  type WorkbookImage,
-  type WorksheetImages,
-} from './image.ts';
+import type {WorkbookImage, WorksheetImages} from './image.ts';
 import {INTERNAL} from './internal.ts';
 import {INVALID_SHEET_NAME_CHARS, MAX_SHEET_NAME_LENGTH} from './limits.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
@@ -46,6 +41,7 @@ import {
   type ThemeFontScheme,
   type ThemeOverrides,
 } from './theme.ts';
+import {WorkbookMedia} from './workbook-media.ts';
 import type {WorkbookProtection} from './workbook-protection.ts';
 import {type NamedCellStyle, type TableStyleTable, WorkbookStyleTables} from './workbook-styles.ts';
 import {type DeclaredThemeSchemes, WorkbookTheme} from './workbook-theme.ts';
@@ -239,14 +235,8 @@ export class Workbook {
   readonly #worksheets: Worksheet[] = [];
   #nextSheetId = 1;
 
-  // Media is shared workbook-wide: a worksheet anchors an image by its registry index, so one
-  // picture used on several sheets is stored once.
-  readonly #media: WorkbookImage[] = [];
-  // Content key → the id of the first picture registered under it: what makes re-registering an
-  // identical picture a hash rather than a walk of every picture already held. Built on the first
-  // import that needs it and kept in step by `addImage` thereafter, so a workbook nobody merges into
-  // never digests a byte.
-  #mediaByContent: Map<string, number> | undefined;
+  // The picture registry and its content index. See WorkbookMedia.
+  readonly #media = new WorkbookMedia();
 
   readonly #definedNames: DefinedName[] = [];
 
@@ -710,30 +700,17 @@ export class Workbook {
    * number of sheets and positions, and the bytes are still stored only once.
    */
   addImage(options: AddImageOptions): number {
-    const image: WorkbookImage = {
-      extension: normalizeImageExtension(options.extension, options.buffer),
-      data: options.buffer,
-    };
-    this.#media.push(image);
-    const id = this.#media.length - 1;
-    // Kept in step only once an import has built it. The first id wins on a repeat, which is the
-    // answer the scan this replaced gave.
-    const index = this.#mediaByContent;
-    if (index !== undefined) {
-      const key = imageContentKey(image);
-      if (!index.has(key)) index.set(key, id);
-    }
-    return id;
+    return this.#media.register(options.extension, options.buffer);
   }
 
   /** The registered images, indexed by the id {@link addImage} returned. */
   get media(): readonly WorkbookImage[] {
-    return this.#media;
+    return this.#media.all;
   }
 
   /** Look up a registered image by its id, or `undefined` if no image carries that id. */
   getImage(id: number): WorkbookImage | undefined {
-    return this.#media[id];
+    return this.#media.get(id);
   }
 
   /**
@@ -760,20 +737,14 @@ export class Workbook {
    *   refuses to start.
    */
   exportImages(sheet: Worksheet): WorksheetImages {
-    const resolve = (id: number): WorkbookImage => {
-      const image = this.#media[id];
-      if (image === undefined) {
-        throw new AuthoringError(
-          `worksheet ${quoted(sheet.name)} shows image id ${id}, which is not registered on this ` +
-            "workbook: a sheet's images can only be exported by the workbook that holds them",
-        );
-      }
-      return image;
-    };
     const background = sheet.backgroundImageId;
     return {
-      anchored: sheet.images.map(({imageId, anchor}) => ({image: resolve(imageId), anchor})),
-      background: background === undefined ? undefined : resolve(background),
+      anchored: sheet.images.map(({imageId, anchor}) => ({
+        image: this.#media.require(imageId, sheet.name),
+        anchor,
+      })),
+      background:
+        background === undefined ? undefined : this.#media.require(background, sheet.name),
     };
   }
 
@@ -797,34 +768,11 @@ export class Workbook {
     for (const id of new Set(sheet.images.map((image) => image.imageId))) sheet.removeImage(id);
     sheet.removeBackgroundImage();
     for (const {image, anchor} of images.anchored) {
-      sheet.addImageAnchor(this.#registerImage(image), anchor);
+      sheet.addImageAnchor(this.#media.registerExisting(image), anchor);
     }
     if (images.background !== undefined) {
-      sheet.addBackgroundImage(this.#registerImage(images.background));
+      sheet.addBackgroundImage(this.#media.registerExisting(images.background));
     }
-  }
-
-  // Register a picture arriving from elsewhere, re-using an identical one already held. The
-  // extension is re-normalised rather than trusted: a hand-built WorkbookImage may carry `".PNG"`
-  // where the registry holds `"png"`, and two spellings of one kind must not read as two pictures.
-  #registerImage(image: WorkbookImage): number {
-    const candidate: WorkbookImage = {
-      extension: normalizeImageExtension(image.extension, image.data),
-      data: image.data,
-    };
-    // Through the content index rather than a scan of the media list. Comparing byte-by-byte against
-    // every held picture made importing n distinct images cost n² byte comparisons: fifty 1 MB
-    // pictures carried between workbooks compared about 2.5 GB. The *rule* is unchanged, and
-    // `imageContentKey` states why identity here is content and never object identity.
-    //
-    // Built in reverse so the FIRST id registered under a key wins, which is the answer the scan gave.
-    this.#mediaByContent ??= new Map(
-      this.#media.map((held, id): [string, number] => [imageContentKey(held), id]).reverse(),
-    );
-    return (
-      this.#mediaByContent.get(imageContentKey(candidate)) ??
-      this.addImage({buffer: candidate.data, extension: candidate.extension})
-    );
   }
 
   /** The workbook's defined names, in the order they were registered. */

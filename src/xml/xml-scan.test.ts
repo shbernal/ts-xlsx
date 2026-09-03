@@ -1,15 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {
-  decodeEntities,
-  decodeSpreadsheetText,
-  localName,
-  numFinite,
-  numInteger,
-  type XmlAttributes,
-  xmlEvents,
-} from './xml-scan.ts';
+import {decodeSpreadsheetText, numFinite, numInteger} from './xml-attrs.ts';
+import {decodeEntities, localName, type XmlAttributes, xmlEvents} from './xml-scan.ts';
 import {escapeSpreadsheetText} from './xml.ts';
 
 interface Event {

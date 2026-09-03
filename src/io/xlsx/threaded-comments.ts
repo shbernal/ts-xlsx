@@ -42,14 +42,9 @@ import {
   type MentionRef,
   type Person,
 } from '../../core/comment-thread.ts';
+import {decodeSpreadsheetText, numInteger} from '../../xml/xml-attrs.ts';
 import {parseXml, TextCapture} from '../../xml/xml-read.ts';
-import {
-  boolStrict,
-  decodeSpreadsheetText,
-  localName,
-  numInteger,
-  type XmlAttributes,
-} from '../../xml/xml-scan.ts';
+import {boolStrict, localName, type XmlAttributes} from '../../xml/xml-scan.ts';
 import {escapeAttr, escapeSpreadsheetText, textAttr, XML_DECLARATION} from '../../xml/xml.ts';
 import {THREADED_COMMENTS_NS} from './namespaces.ts';
 

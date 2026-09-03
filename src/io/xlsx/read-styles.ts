@@ -20,12 +20,10 @@ import {
   type GradientStop,
   isBorderStyle,
   isFillPatternType,
-  isFontScheme,
-  isFontVerticalAlignment,
-  isNamedUnderlineStyle,
   type Protection,
 } from '../../core/style.ts';
 import type {TableStyleNamespace, TableStyleTable} from '../../core/workbook-styles.ts';
+import {numFinite, numInteger} from '../../xml/xml-attrs.ts';
 import {
   closeEmptyElements,
   elementSubtrees,
@@ -33,12 +31,9 @@ import {
   type SubtreeSelection,
 } from '../../xml/xml-read.ts';
 import {
-  boolPresent,
   boolStrict,
   boolTristate,
   localName,
-  numFinite,
-  numInteger,
   type XmlAttributes,
   type XmlEvent,
   xmlEvents,
@@ -55,15 +50,12 @@ import {
   type XfStyle,
 } from '../style/xf-style.ts';
 import {parseColor} from './color-xml.ts';
+import {applyFontChild, type FontDraft} from './font-xml.ts';
 
 // A mutable xf accumulator while an <xf> element streams in: its facet ids resolve on open, but
 // the <alignment>/<protection> children (when present) arrive before the element closes, so the
 // xf is held here and pushed on close rather than on open.
 type XfDraft = {-readonly [K in keyof XfStyle]?: XfStyle[K]};
-
-// A mutable font accumulator while a <font> element's children stream in; frozen into a
-// Font on close.
-export type FontDraft = {-readonly [K in keyof Font]?: Font[K]};
 
 // A mutable border accumulator while a <border> element's edges stream in; frozen into a
 // Border on close. The five edges match Border's; a bare styleless edge is simply never set.
@@ -442,72 +434,6 @@ function parseCellStyles(events: Iterator<XmlEvent>): ReadonlyArray<StyleLabel> 
     }
   }
   return names;
-}
-
-// A <font> child element sets one facet on the draft. Boolean flags honour their `val`: a
-// bare tag or val="1"/"true" is on, val="0"/"false" is off (an explicit-false flag is not
-// truthy merely because the tag is present). An unrecognised child is ignored.
-export function applyFontChild(draft: FontDraft, local: string, attrs: XmlAttributes): void {
-  switch (local) {
-    case 'b':
-      draft.bold = boolPresent(attrs.val);
-      break;
-    case 'i':
-      draft.italic = boolPresent(attrs.val);
-      break;
-    case 'strike':
-      draft.strike = boolPresent(attrs.val);
-      break;
-    case 'outline':
-      draft.outline = boolPresent(attrs.val);
-      break;
-    case 'u':
-      // A bare <u/> is a single underline; a named style (single/double/…) carries through; but
-      // val="none" is the explicit ABSENCE of an underline, so it must read back falsy, not the
-      // truthy string "none" that a consumer's `if (font.underline)` would mistake for underlined. An
-      // unrecognised token keeps the "is underlined" fact but drops the unknown style (a plain true).
-      draft.underline =
-        attrs.val === undefined
-          ? true
-          : attrs.val === 'none'
-            ? false
-            : isNamedUnderlineStyle(attrs.val)
-              ? attrs.val
-              : true;
-      break;
-    case 'vertAlign':
-      if (attrs.val !== undefined && isFontVerticalAlignment(attrs.val))
-        draft.vertAlign = attrs.val;
-      break;
-    case 'sz': {
-      const size = numFinite(attrs.val);
-      if (size !== undefined) draft.size = size;
-      break;
-    }
-    case 'color':
-      draft.color = parseColor(attrs);
-      break;
-    // `<name>` in a styles `<font>`, `<rFont>` in a rich-text run's `<rPr>`: the same font face.
-    case 'name':
-    case 'rFont':
-      if (attrs.val !== undefined) draft.name = attrs.val;
-      break;
-    case 'family': {
-      const family = numInteger(attrs.val);
-      if (family !== undefined) draft.family = family;
-      break;
-    }
-    case 'charset': {
-      const charset = numInteger(attrs.val);
-      if (charset !== undefined) draft.charset = charset;
-      break;
-    }
-    case 'scheme':
-      if (attrs.val !== undefined && isFontScheme(attrs.val)) draft.scheme = attrs.val;
-      break;
-    default:
-      break;
-  }
 }
 
 // An xf's numFmtId resolves against the custom codes first, then the built-in table; the

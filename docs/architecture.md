@@ -128,10 +128,11 @@ file, and there is no point at which you can see what the object *is*.
 
 Both push cohesive slices of state into their own objects and keep the public accessors in front of
 them. `Worksheet` holds `DataValidationOverlay`, `ConditionalFormattingOverlay`, `GridEdits`,
-`UsedExtent` (`core/used-extent.ts`), `MergeIndex` (`core/merge-index.ts`), `WorksheetPictures`
-(`core/worksheet-pictures.ts`) and `WorksheetComments` (`core/worksheet-comments.ts`);
-`Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`),
-`WorkbookTheme` (`core/workbook-theme.ts`) and `WorkbookStyleTables` (`core/workbook-styles.ts`).
+`UsedExtent` (`core/used-extent.ts`), `WorksheetMerges` (`core/worksheet-merges.ts`, which owns the
+`MergeIndex` in turn), `WorksheetPictures` (`core/worksheet-pictures.ts`) and `WorksheetComments`
+(`core/worksheet-comments.ts`); `Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`),
+`WorkbookTheme` (`core/workbook-theme.ts`), `WorkbookStyleTables` (`core/workbook-styles.ts`) and
+`WorkbookMedia` (`core/workbook-media.ts`).
 The public surface does not move: an accessor stays on the model class, keeps its name, its type
 and its full doc comment, and becomes a one-line delegation. The doc comment staying put is not
 incidental, since it is what `scripts/gen-docs.ts` reads and what a consumer sees; the slice
@@ -149,9 +150,17 @@ palette as well as the theme scheme, but that palette is also the writer's sourc
 with the theme. It is passed in as a narrow accessor over that slice. Had the palette moved *into*
 the theme, the rest of the styles-table state would have followed it and the result would be a
 colour-and-styles overlay, which is not a slice of anything. When a candidate slice has more than one
-or two such edges, that is the signal it is not one. The media block on `Workbook` is the standing
-example of a candidate that fails it: `exportImages`/`importImages` reach five different things on
-`Worksheet`, so grouping them would move the coupling rather than remove it.
+or two such edges, that is the signal it is not one.
+
+The media block is the case where that test cut a candidate in half rather than rejecting it. The
+*registry* (the images, and the content index that makes re-registering an identical picture a hash
+rather than a walk) reaches nothing, and is `WorkbookMedia`. `exportImages`/`importImages` reach five
+different things on `Worksheet` and stayed on `Workbook`, reading through the slice: moving them would
+have relocated that coupling rather than removed it. The same cut runs through `WorksheetMerges`,
+which owns the regions and hands back the rectangle a new merge covers, while the two things a merge
+does to the *grid* (collapsing the values it covers, widening the used extent) stay on the class that
+owns the grid. A slice that had to be handed the row storage to buy one line at the call site would
+have been paying two edges for it.
 
 A collection accessor on either class hands back the *live* array, not a copy, and that is a
 decision rather than an omission. These are views onto a document that is still being edited: a
@@ -247,14 +256,19 @@ obvious tidy-up into `read/`, `write/` and `shared/` is wrong here. The modules 
 kinds, and the split would cut across the most cohesive of them:
 
 - **Feature modules, both directions in one file.** `comments.ts`, `tables.ts`, `images.ts`,
-  `hyperlinks.ts`, `data-validation.ts`, `conditional-formatting.ts`, `threaded-comments.ts` each
-  export a `parseX` for the reader beside an `xXml` for the writer. That pairing is the point: the
-  two halves share one feature's element names and must agree with each other, and a round-trip is
-  exactly the claim that they do. Splitting each into two files would double the count while moving
-  the two functions that have to stay in step into different directories.
+  `hyperlinks.ts`, `data-validation.ts`, `conditional-formatting.ts`, `threaded-comments.ts`,
+  `sheet-properties.ts` and `font-xml.ts` each export a `parseX` for the reader beside an `xXml` for
+  the writer. That pairing is the point: the two halves share one feature's element names and must
+  agree with each other, and a round-trip is exactly the claim that they do. Splitting each into two
+  files would double the count while moving the two functions that have to stay in step into different
+  directories. The pull is the other way, and it is the pull to leave a reader in whichever module
+  happened to call it first: `<pageSetup>` was written in one file and read in another, and
+  `<font>` was written in the stylesheet writer and read inside the 744-line style-table reader,
+  which charged every consumer of a rich-text run for that whole reader.
 - **The read pipeline.** `read.ts` and everything prefixed `read-*`, plus its private helpers
-  (`cell-accumulator.ts`, `cell-value.ts`, `rich-runs.ts`). The `read-` prefix is the convention;
-  `pivot-read.ts` and `shared-strings-read.ts` were the two files spelling it the other way round.
+  (`cell-accumulator.ts`, `cell-value.ts`, `read-rich-runs.ts`). The `read-` prefix is the convention;
+  `pivot-read.ts` and `shared-strings-read.ts` were the two files spelling it the other way round, and
+  `rich-runs.ts` was one spelling it neither way.
 - **The write pipeline.** `write.ts`, `write-stream.ts`, the `*-xml.ts` serialisers, and the
   write-side services (`styles.ts`'s interning registry, `shared-strings.ts`, `package-plan.ts`).
 
@@ -424,7 +438,7 @@ The xlsx reader and writer, the two largest pieces here, are each a cluster rath
 monolith, split along the OOXML package's own divisions so a change touches one part:
 
 - **read** (`src/io/xlsx/`): `read-styles.ts` (`styles.xml`), `read-worksheet.ts` (one sheet),
-  with `read.ts` keeping `readXlsx` and the workbook-level wiring. `rich-runs.ts` owns the
+  with `read.ts` keeping `readXlsx` and the workbook-level wiring. `read-rich-runs.ts` owns the
   `<r>`/`<rPr>`/`<t>` element machine the worksheet and shared-strings parsers share, taking the
   container name (`is` or `si`) as a constructor argument, since that is the only thing that differs
   between a rich string Excel pooled and the same string written inline; `cell-accumulator.ts` owns

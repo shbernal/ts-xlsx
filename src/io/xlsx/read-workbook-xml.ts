@@ -3,9 +3,9 @@
 //
 // Beside its inverse. `workbook-xml.ts` writes exactly these elements, and this tree's stated
 // preference is to keep both directions of one wire form in one place, where the two can be read
-// against each other: `color-xml.ts`, `theme-xml.ts`, `tables.ts` and `rels.ts` all do. The workbook
-// part was the last place that rule was not followed, because its reader was living inside the
-// orchestrator that happened to call it first.
+// against each other: `color-xml.ts`, `theme-xml.ts`, `tables.ts`, `rels.ts` and `font-xml.ts` all do.
+// This part's reader had been living inside the orchestrator that happened to call it first, and the
+// worksheet's layout blocks were doing the same until `sheet-properties.ts` took its half back.
 
 import {parseDateText} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
@@ -16,8 +16,9 @@ import {
 } from '../../core/workbook-protection.ts';
 import type {DefinedName, Workbook, WorkbookView} from '../../core/workbook.ts';
 import {isVisibility, type WorksheetState} from '../../core/worksheet.ts';
+import {enumToken, numInteger} from '../../xml/xml-attrs.ts';
 import {capturedText, openElements, parseXml, TextCapture} from '../../xml/xml-read.ts';
-import {boolStrict, enumToken, localName, numInteger} from '../../xml/xml-scan.ts';
+import {boolStrict, localName} from '../../xml/xml-scan.ts';
 import {relAttr} from '../opc/namespaces.ts';
 
 // One `<sheet>` entry from `xl/workbook.xml`: its display name, the rel id linking to the sheet part,

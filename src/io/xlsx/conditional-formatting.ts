@@ -29,21 +29,14 @@ import {
 } from '../../core/conditional-formatting.ts';
 import {stripFormulaEquals} from '../../core/formula.ts';
 import type {Color} from '../../core/style.ts';
+import {coerceNumericLiteral, enumToken, numFinite, numInteger} from '../../xml/xml-attrs.ts';
 import {
   type CollectingPass,
   elementSubtrees,
   type SaxHandlers,
   TextCapture,
 } from '../../xml/xml-read.ts';
-import {
-  boolPresent,
-  boolStrict,
-  coerceNumericLiteral,
-  enumToken,
-  localName,
-  numFinite,
-  numInteger,
-} from '../../xml/xml-scan.ts';
+import {boolPresent, boolStrict, localName} from '../../xml/xml-scan.ts';
 import {
   boolAttr,
   checkedToken,

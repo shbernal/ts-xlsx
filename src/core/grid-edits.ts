@@ -19,6 +19,7 @@ import {positionalPlacements} from './row-input.ts';
 import type {Table} from './table.ts';
 import {type CellValue, isSharedFormulaValue, type SharedFormulaValue} from './value.ts';
 import type {WorksheetComments} from './worksheet-comments.ts';
+import type {WorksheetMerges} from './worksheet-merges.ts';
 import type {ColumnProperties, RowProperties} from './worksheet.ts';
 
 /**
@@ -36,8 +37,7 @@ interface GridStorage {
   readonly rows: Map<number, Map<number, Cell>>;
   readonly rowProperties: Map<number, RowProperties>;
   readonly columns: Map<number, ColumnProperties>;
-  readonly merges: string[];
-  readonly mergeRects: MergeRect[];
+  readonly merges: WorksheetMerges;
   readonly tables: Table[];
   readonly images: AnchoredImage[];
   readonly dataValidations: DataValidationOverlay;
@@ -50,8 +50,7 @@ export class GridEdits {
   readonly #rows: Map<number, Map<number, Cell>>;
   readonly #rowProperties: Map<number, RowProperties>;
   readonly #columns: Map<number, ColumnProperties>;
-  readonly #merges: string[];
-  readonly #mergeRects: MergeRect[];
+  readonly #merges: WorksheetMerges;
   readonly #tables: Table[];
   readonly #images: AnchoredImage[];
   readonly #dataValidations: DataValidationOverlay;
@@ -64,7 +63,6 @@ export class GridEdits {
     this.#rowProperties = storage.rowProperties;
     this.#columns = storage.columns;
     this.#merges = storage.merges;
-    this.#mergeRects = storage.mergeRects;
     this.#tables = storage.tables;
     this.#images = storage.images;
     this.#dataValidations = storage.dataValidations;
@@ -251,7 +249,7 @@ export class GridEdits {
     const shift = (v: number): number => shiftIndex(v, start, count, delta, axis);
     const merges: string[] = [];
     const rects: MergeRect[] = [];
-    for (const range of this.#merges) {
+    for (const range of this.#merges.ranges) {
       const decoded = boundedRect(decodeRange(range));
       if (decoded === undefined) {
         merges.push(range);
@@ -267,8 +265,7 @@ export class GridEdits {
       rects.push(rect);
       merges.push(encodeRect(rect));
     }
-    replaceContents(this.#merges, merges);
-    replaceContents(this.#mergeRects, rects);
+    this.#merges.replaceAll(merges, rects);
   }
 
   // Re-pin the sheet's tables through a splice on the given axis, dropping any table a delete leaves

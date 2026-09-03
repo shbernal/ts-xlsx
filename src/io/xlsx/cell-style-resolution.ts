@@ -12,7 +12,8 @@
 // exactly one of the two paths, silently. The rule now lives here and both drive it, which is the
 // only arrangement under which that promise is checkable rather than merely stated.
 
-import {boolStrict, numInteger} from '../../xml/xml-scan.ts';
+import {numInteger} from '../../xml/xml-attrs.ts';
+import {boolStrict} from '../../xml/xml-scan.ts';
 
 /** The attributes this resolver reads, the subset both readers' scanners already hand it. */
 interface StyleAttributes {

@@ -14,7 +14,8 @@ import {
   type RichTextRun,
   type RichTextValue,
 } from '../../core/value.ts';
-import {boolStrict, decodeSpreadsheetText, numFinite, numInteger} from '../../xml/xml-scan.ts';
+import {decodeSpreadsheetText, numFinite, numInteger} from '../../xml/xml-attrs.ts';
+import {boolStrict} from '../../xml/xml-scan.ts';
 
 /**
  * One entry of the shared-strings pool. A `<si>` built from a bare `<t>` is a plain string; a `<si>`

@@ -20,7 +20,7 @@
 // It is driven by the reader's own `onOpen`/`onClose`, not by a change to the scanner: the handlers
 // already receive every element's attributes, which is where `xmlns` declarations are.
 
-import type {XmlAttributes} from './xml-scan.ts';
+import {type XmlAttributes} from './xml-scan.ts';
 
 const XMLNS = 'xmlns';
 const XMLNS_PREFIX = 'xmlns:';

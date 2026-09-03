@@ -125,7 +125,7 @@ one `xmlEvents` pass, each section's sub-parser draining its own container's sli
 The earlier update shared value *decoding* across the buffered and streaming readers. Cell
 *gathering*, the per-cell `<c>`/`<f>`/`<v>`/`<is>` state each reader accumulated, was still
 re-implemented twice and free to drift. It is now one class, `CellAccumulator`
-(`src/io/xlsx/cell-accumulator.ts`, modelled on the `rich-runs.ts` run accumulator): both readers
+(`src/io/xlsx/cell-accumulator.ts`, modelled on the `read-rich-runs.ts` run accumulator): both readers
 drive the same `beginCell`/`beginFormula`/`setFormula`/`setValue`/`appendText` calls, so a cell
 can never be *gathered* differently depending on which reader saw it.
 
@@ -159,3 +159,14 @@ exist to surface, and the honest fix was the module boundary rather than the num
 is why the scanner exports `markupAt` and `tagAt` rather than keeping them private: the two scanners
 must agree to the character about where an element ends, which is the property the shared
 classification was introduced to guarantee.
+
+The split stopped one module short. The scanner kept the readings of an attribute's *value* as well
+as the events, and half of those are spreadsheet-flavoured rather than XML: `numInteger` and
+`numFinite` with their floors, `coerceNumericLiteral`, `enumToken`, and the `_xHHHH_` cell-text
+escape. They are now `src/xml/xml-attrs.ts`. The three OOXML booleans stayed with the scanner, and
+that is where the line falls rather than at "everything that reads a value": a `<button enabled="0">`
+in a ribbon part is the same boolean a `<sheetPr>` attribute is, so the booleans are not a
+spreadsheet's question. It is also the only line that pays. With `boolStrict` on the far side,
+`/customui` would have gone on loading the new module for that one import and the split would have
+moved bytes without removing any, which is what the first measurement said. As drawn, `/customui`
+dropped a kilobyte and went from 0.7 KB of headroom to 2.5 KB.

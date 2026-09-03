@@ -1,11 +1,11 @@
 // Parser for the shared-string table (`xl/sharedStrings.xml`), the pool that `t="s"` cells index into.
-// Split out of read.ts beside its sibling parsers (read-styles.ts, rich-runs.ts) so read.ts stays
+// Split out of read.ts beside its sibling parsers (read-styles.ts, read-rich-runs.ts) so read.ts stays
 // orchestration; the run structure it decodes is owned by RunAccumulator, shared with inline strings.
 
 import {parseXml} from '../../xml/xml-read.ts';
 import {localName} from '../../xml/xml-scan.ts';
 import type {SharedString} from './cell-value.ts';
-import {RunAccumulator} from './rich-runs.ts';
+import {RunAccumulator} from './read-rich-runs.ts';
 
 const SHARED_STRING_EMPTY_CLOSES: ReadonlySet<string> = new Set(['si']);
 

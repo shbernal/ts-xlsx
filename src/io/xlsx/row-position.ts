@@ -13,7 +13,8 @@
 // structurally impossible, and this is the third decision that belongs beside them.
 
 import {MAX_ROW} from '../../core/address.ts';
-import {numInteger, type XmlAttributes} from '../../xml/xml-scan.ts';
+import {numInteger} from '../../xml/xml-attrs.ts';
+import {type XmlAttributes} from '../../xml/xml-scan.ts';
 
 /** One `<row>`, as the reader that opened it needs to see it. */
 export interface RowPosition {

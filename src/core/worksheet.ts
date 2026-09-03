@@ -6,16 +6,9 @@
 // the cell grid, because a column or row can carry formatting while holding no cells.
 // Merges and views layer on in later slices.
 
-import {AuthoringError, quoted} from '../errors.ts';
+import {AuthoringError} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
-import {
-  assertAxisInBounds,
-  boundedRect,
-  decodeCellRef,
-  decodeRange,
-  encodeAddress,
-  tryDecodeCellRef,
-} from './address.ts';
+import {assertAxisInBounds, decodeCellRef, encodeAddress, tryDecodeCellRef} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, copyCellContent} from './cell.ts';
 import {Column} from './column.ts';
@@ -27,8 +20,7 @@ import type {DataValidation, DataValidationEntry} from './data-validation.ts';
 import {GridEdits} from './grid-edits.ts';
 import type {AnchoredImage, AnchorPoint, ImageAnchor, ImageEditAs} from './image.ts';
 import {INTERNAL} from './internal.ts';
-import {MergeIndex} from './merge-index.ts';
-import {clearCoveredValues, type MergeRect} from './merge.ts';
+import {clearCoveredValues} from './merge.ts';
 import type {HeaderFooter, PageBreak, PageMargins, PageSetup, PrintOptions} from './page-setup.ts';
 import {type ParsedPivotTable, PivotTable, type PivotTableOptions} from './pivot-table.ts';
 import type {PreservedWorksheetReference} from './preserved.ts';
@@ -46,6 +38,7 @@ import {Table, type TableOptions} from './table.ts';
 import {UsedExtent} from './used-extent.ts';
 import type {CellValue} from './value.ts';
 import {WorksheetComments} from './worksheet-comments.ts';
+import {WorksheetMerges} from './worksheet-merges.ts';
 import {WORKSHEET_MODEL_FACETS} from './worksheet-model.ts';
 import {WorksheetPictures} from './worksheet-pictures.ts';
 
@@ -304,7 +297,9 @@ export class Worksheet {
   // comment that binds each cell to its conversation are derived from this list. Empty for a sheet with no
   // threaded comments.
   readonly #comments = new WorksheetComments(() => this.name);
-  readonly #merges: string[] = [];
+  // The merged regions: the declared ranges, the rectangles the bounded ones cover, and the index
+  // that keeps overlap-checking and covered-address resolution off a linear scan.
+  readonly #merges = new WorksheetMerges();
   readonly #images = new WorksheetPictures({
     // A size a column or row does not set defers to the sheet default, then to Excel's own.
     columnWidth: (col) => this.#columns.get(col + 1)?.width ?? this.properties.defaultColWidth,
@@ -317,12 +312,6 @@ export class Worksheet {
   // drawing, a header/footer image), captured verbatim on read so a round-trip re-emits them rather
   // than dropping them. Empty for a sheet authored from scratch.
   readonly #preservedReferences: PreservedWorksheetReference[] = [];
-  // Decoded rectangles parallel to #merges, kept so that addressing a covered cell can
-  // resolve to its region's master without re-parsing the range string on every access, and
-  // so that a new merge can be checked for overlap against the existing ones. Only fully-bounded
-  // merges (a real cell block) get a rect; an unbounded whole-row/column merge is still declared
-  // but participates in neither slave resolution nor overlap checking.
-  readonly #mergeRects: MergeRect[] = [];
   // Data validations and conditional formattings are sheet-level overlays keyed by range, each owning
   // its own storage/cloning/lookup. See DataValidationOverlay and ConditionalFormattingOverlay.
   readonly #dataValidations = new DataValidationOverlay();
@@ -346,27 +335,21 @@ export class Worksheet {
   // in the constructor body for the same reason #edits is: it holds the storage maps by reference.
   readonly #extent: UsedExtent;
 
-  // The merged regions, indexed by row band so that overlap-checking a new region and resolving a
-  // covered address to its master are not scans of every region on the sheet.
-  readonly #mergeIndex: MergeIndex;
-
   constructor(name: string, id: number, state: WorksheetState['state'] = 'visible') {
     this.name = name;
     this.id = id;
     this.state = state;
-    this.#mergeIndex = new MergeIndex(this.#mergeRects);
     this.#extent = new UsedExtent({
       rows: this.#rows,
       rowProperties: this.#rowProperties,
       columns: this.#columns,
-      mergeRects: this.#mergeRects,
+      mergeRects: this.#merges.rects,
     });
     this.#edits = new GridEdits({
       rows: this.#rows,
       rowProperties: this.#rowProperties,
       columns: this.#columns,
       merges: this.#merges,
-      mergeRects: this.#mergeRects,
       tables: this.#tables,
       images: this.#images.anchors,
       dataValidations: this.#dataValidations,
@@ -396,7 +379,7 @@ export class Worksheet {
    */
   getCell(reference: string): Cell {
     const {col, row} = decodeCellRef(reference);
-    const master = this.#mergeIndex.masterOf(row, col);
+    const master = this.#merges.masterOf(row, col);
     return this.#cellAt(master.row, master.col);
   }
 
@@ -757,26 +740,18 @@ export class Worksheet {
    * survive (a border spanning the merge is legal), so only the conflicting value is cleared.
    */
   mergeCells(range: string): void {
-    // `MergeRect` and the narrowed rectangle are the same four inclusive bounds, so the decode is
-    // already the record this needs.
-    const rect: MergeRect | undefined = boundedRect(decodeRange(range));
+    // What the merge does to the *grid* stays here, because the grid is this class's: the region
+    // slice hands back the rectangle and knows nothing about cells or extents.
+    const rect = this.#merges.add(range);
     if (rect !== undefined) {
-      if (this.#mergeIndex.overlapping(rect) !== undefined) {
-        throw new AuthoringError(
-          `merged range ${quoted(range)} overlaps an existing merged region`,
-        );
-      }
-      this.#mergeRects.push(rect);
-      this.#mergeIndex.note(rect);
       this.#extent.noteMerge(rect);
       clearCoveredValues(this.#rows, rect);
     }
-    this.#merges.push(range);
   }
 
   /** The merged ranges on this sheet, in the order they were added. */
   get merges(): readonly string[] {
-    return this.#merges;
+    return this.#merges.ranges;
   }
 
   /**
@@ -805,22 +780,10 @@ export class Worksheet {
    * merge had masked addresses independently again. The inverse of {@link mergeCells}.
    */
   unmergeCells(range: string): boolean {
-    const index = this.#merges.indexOf(range);
-    if (index === -1) return false;
-    this.#merges.splice(index, 1);
-    const rect = boundedRect(decodeRange(range));
-    if (rect !== undefined) {
-      const {top, left, bottom, right} = rect;
-      const rectIndex = this.#mergeRects.findIndex(
-        (r) => r.top === top && r.left === left && r.bottom === bottom && r.right === right,
-      );
-      if (rectIndex !== -1) {
-        this.#mergeRects.splice(rectIndex, 1);
-        this.#mergeIndex.invalidate();
-        this.#extent.invalidate();
-      }
-    }
-    return true;
+    const {existed, rectsChanged} = this.#merges.remove(range);
+    // The extent is derived from the rectangles, so an unbounded merge going away leaves it correct.
+    if (rectsChanged) this.#extent.invalidate();
+    return existed;
   }
 
   /**
@@ -882,7 +845,7 @@ export class Worksheet {
     assertStartAndCount('splice', 'row', start, count);
     const inserted = inserts.map((values, i) => buildRowCells(start + i, values, this.#columns));
     this.#edits.spliceRows(start, count, inserted);
-    this.#mergeIndex.invalidate();
+    this.#merges.invalidate();
     this.#extent.invalidate();
   }
 
@@ -1003,7 +966,7 @@ export class Worksheet {
     if (insert) {
       const copies = Array.from({length: count}, () => snapshot(start));
       this.#edits.spliceRows(start + 1, 0, copies);
-      this.#mergeIndex.invalidate();
+      this.#merges.invalidate();
     } else {
       for (let i = 1; i <= count; i++) this.#rows.set(start + i, snapshot(start + i));
     }
@@ -1023,7 +986,7 @@ export class Worksheet {
   spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void {
     assertStartAndCount('splice', 'column', start, count);
     this.#edits.spliceColumns(start, count, inserts);
-    this.#mergeIndex.invalidate();
+    this.#merges.invalidate();
     this.#extent.invalidate();
   }
 
@@ -1097,12 +1060,10 @@ export class Worksheet {
     this.#rows.clear();
     this.#columns.clear();
     this.#rowProperties.clear();
-    this.#merges.length = 0;
-    this.#mergeRects.length = 0;
+    this.#merges.clear();
     this.#dataValidations.clear();
     this.#conditionalFormattings.clear();
     this.#tables.length = 0;
-    this.#mergeIndex.invalidate();
     this.#extent.reset();
   }
 

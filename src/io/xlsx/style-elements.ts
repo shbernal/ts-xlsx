@@ -3,8 +3,10 @@
 //
 // Split from `styles.ts`, which keeps the interning tables and the registry that assembles the part.
 // The line between them is exactly that: nothing here touches a `StyleRegistry`, and the registry
-// calls in here for every fragment it interns. `fontXml` was already exported for `rich-runs.ts`,
-// which is that seam noticed once and not generalised.
+// calls in here for every fragment it interns.
+//
+// The `<font>` element is not here. It is one wire form shared with a rich-text run's `<rPr>`, and it
+// lives in `font-xml.ts` with the reader that consumes it.
 
 import {
   ALIGNMENT_FACETS,
@@ -13,20 +15,16 @@ import {
   type BorderEdge,
   type Color,
   type Fill,
-  type Font,
   type GradientFill,
   isBorderStyle,
   isFillPatternType,
-  isFontScheme,
-  isFontVerticalAlignment,
-  isNamedUnderlineStyle,
   type Protection,
-  type UnderlineStyle,
 } from '../../core/style.ts';
 import type {DifferentialStyle} from '../../core/workbook-styles.ts';
 import {decodeEntities} from '../../xml/xml-scan.ts';
 import {checkedToken, escapeAttr, escapeFormatCode, numberText} from '../../xml/xml.ts';
 import {colorAttrs} from './color-xml.ts';
+import {fontXml} from './font-xml.ts';
 
 // numFmt ids below 164 are reserved by ECMA-376 for the built-in formats every consumer
 // knows implicitly; custom format codes are numbered from 164 up. Id 0 is General (no code).
@@ -175,34 +173,6 @@ export function tableStyleName(fragment: string): string {
   return decodeEntities(/<tableStyle\b[^>]*\bname="([^"]*)"/.exec(fragment)?.[1] ?? '');
 }
 
-// Serialise the facets a font overrides, in ECMA-376 child order. A boolean flag is emitted only
-// when true (its absence is the default false); an empty result means the font differs from the
-// default in nothing and needs no entry at all. The face element differs by context: a styles
-// `<font>` names it `<name>` (CT_Font) and a rich-text run's `<rPr>` names it `<rFont>` (CT_RPrElt).
-// Otherwise the two share every child, so `nameTag` selects the face element and the rest is common.
-export function fontXml(font: Font, nameTag: 'name' | 'rFont' = 'name'): string {
-  const parts: string[] = [];
-  if (font.bold) parts.push('<b/>');
-  if (font.italic) parts.push('<i/>');
-  if (font.strike) parts.push('<strike/>');
-  if (font.outline) parts.push('<outline/>');
-  const underline = underlineXml(font.underline);
-  if (underline !== '') parts.push(underline);
-  if (font.vertAlign !== undefined) {
-    parts.push(
-      `<vertAlign val="${checkedToken(font.vertAlign, isFontVerticalAlignment, 'font vertical alignment')}"/>`,
-    );
-  }
-  if (font.size !== undefined) parts.push(`<sz val="${numberText(font.size)}"/>`);
-  if (font.color !== undefined) parts.push(`<color ${colorAttrs(font.color)}/>`);
-  if (font.name !== undefined) parts.push(`<${nameTag} val="${escapeAttr(font.name)}"/>`);
-  if (font.family !== undefined) parts.push(`<family val="${numberText(font.family)}"/>`);
-  if (font.charset !== undefined) parts.push(`<charset val="${numberText(font.charset)}"/>`);
-  if (font.scheme !== undefined && font.scheme !== 'none')
-    parts.push(`<scheme val="${checkedToken(font.scheme, isFontScheme, 'font scheme')}"/>`);
-  return parts.join('');
-}
-
 // Serialise a differential style (CT_Dxf) in schema child order: font, numFmt, fill, border. Only the
 // facets present are emitted: a dxf overrides exactly what it names and lets the cell's own style show
 // through the rest. A dxf's pattern fill states the highlight through `bgColor`, matching how Excel
@@ -246,14 +216,6 @@ function gradientFillXml(fill: GradientFill): string {
 
 function insetAttr(name: string, value: number | undefined): string {
   return value ? ` ${name}="${numberText(value)}"` : '';
-}
-
-// `<u/>` is single underline (the same as an explicit "single"); the named variants carry a
-// val; false and "none" are the default no-underline and emit nothing.
-function underlineXml(underline: UnderlineStyle | undefined): string {
-  if (underline === undefined || underline === false || underline === 'none') return '';
-  if (underline === true || underline === 'single') return '<u/>';
-  return `<u val="${checkedToken(underline, isNamedUnderlineStyle, 'underline style')}"/>`;
 }
 
 // Serialise a border in ECMA-376 CT_Border child order (left, right, top, bottom, diagonal).

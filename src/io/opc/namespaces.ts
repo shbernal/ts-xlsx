@@ -8,7 +8,7 @@
  */
 
 import type {NamespaceScope} from '../../xml/xml-namespaces.ts';
-import type {XmlAttributes} from '../../xml/xml-scan.ts';
+import {type XmlAttributes} from '../../xml/xml-scan.ts';
 
 /** The `xmlns` of every `.rels` package relationships part. */
 export const PKG_RELS_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';

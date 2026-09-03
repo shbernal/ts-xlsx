@@ -24,7 +24,8 @@ import type {
   SharedFormulaValue,
 } from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {boolStrict, numInteger, type XmlAttributes} from '../../xml/xml-scan.ts';
+import {numInteger} from '../../xml/xml-attrs.ts';
+import {boolStrict, type XmlAttributes} from '../../xml/xml-scan.ts';
 import {applyXfToCell, type XfStyle} from '../style/xf-style.ts';
 import {
   decodeCellContent,
@@ -32,7 +33,7 @@ import {
   type RawCell,
   type SharedString,
 } from './cell-value.ts';
-import {RunAccumulator} from './rich-runs.ts';
+import {RunAccumulator} from './read-rich-runs.ts';
 
 // The declaration attributes of a `<f t="dataTable">`, held from the `<f>` open until the cell
 // finalises. A data-table formula is preserved by declaration, not evaluated.

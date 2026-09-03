@@ -11,7 +11,8 @@
 // the number they agree on is the contract.
 
 import {MAX_COLUMN} from '../../core/address.ts';
-import {numInteger, type XmlAttributes} from '../../xml/xml-scan.ts';
+import {numInteger} from '../../xml/xml-attrs.ts';
+import {type XmlAttributes} from '../../xml/xml-scan.ts';
 
 // Four times the whole grid. Excel writes disjoint spans covering at most `MAX_COLUMN` columns in
 // total, so no legitimate file comes near this, while the worst case stays a fraction of a second.

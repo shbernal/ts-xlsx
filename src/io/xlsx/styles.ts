@@ -26,6 +26,7 @@ import type {
 } from '../../core/workbook-styles.ts';
 import {escapeAttr, escapeFormatCode, numAttr, XML_DECLARATION} from '../../xml/xml.ts';
 import type {XfStyle} from '../style/xf-style.ts';
+import {fontXml} from './font-xml.ts';
 import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
 import {
   alignmentAttrs,
@@ -38,7 +39,6 @@ import {
   DEFAULT_FORMAT,
   dxfXml,
   fillSignature,
-  fontXml,
   formatSignature,
   isDefaultFormat,
   patternFillXml,

@@ -1,7 +1,10 @@
-// The worksheet's non-cell property blocks: `<sheetPr>`, `<sheetViews>`, `<sheetProtection>`,
-// `<autoFilter>`, and the print settings (`<printOptions>`, `<pageMargins>`, `<pageSetup>`,
-// `<headerFooter>`, `<rowBreaks>`/`<colBreaks>`). Each renders one CT_Worksheet child (or child
-// group) independently of the row/cell body `worksheet-xml.ts` orchestrates them alongside.
+// The worksheet's non-cell property blocks, both directions: `<sheetPr>`, `<sheetViews>`,
+// `<sheetProtection>`, `<autoFilter>`, and the print settings (`<printOptions>`, `<pageMargins>`,
+// `<pageSetup>`, `<headerFooter>`, `<rowBreaks>`/`<colBreaks>`).
+//
+// The writing half renders one CT_Worksheet child (or child group) at a time, independently of the
+// row/cell body `worksheet-xml.ts` orchestrates them alongside. The reading half sits below it and
+// says why it is here rather than in the reader.
 
 import {encodeAddress} from '../../core/address.ts';
 import {
@@ -21,8 +24,15 @@ import {
   PRINT_OPTION_FLAGS,
   type PrintOptions,
 } from '../../core/page-setup.ts';
-import {SHEET_PROTECTION_FLAGS, type SheetProtection} from '../../core/protection.ts';
+import {
+  SHEET_PROTECTION_FLAGS,
+  type SheetProtection,
+  type SheetProtectionCredential,
+  type SheetProtectionFlags,
+} from '../../core/protection.ts';
 import type {OutlineProperties, SheetView, Worksheet} from '../../core/worksheet.ts';
+import {numFinite, numInteger} from '../../xml/xml-attrs.ts';
+import {boolPresent, boolStrict, boolTristate, type XmlAttributes} from '../../xml/xml-scan.ts';
 import {
   boolAttr,
   checkedToken,
@@ -31,7 +41,7 @@ import {
   numAttr,
   numberText,
 } from '../../xml/xml.ts';
-import {colorAttrs} from './color-xml.ts';
+import {colorAttrs, parseColor} from './color-xml.ts';
 
 // `<sheetViews>` holds the sheet's single view. A frozen view adds a `<pane>` recording the split
 // and a `<selection>` naming the pane the split activates, exactly as Excel writes it. A normal
@@ -260,4 +270,196 @@ export function pageBreaksXml(
     })
     .join('');
   return `<${element} count="${breaks.length}" manualBreakCount="${breaks.length}">${brks}</${element}>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The reading half of the same blocks.
+//
+// It lived in `read-worksheet.ts`, which meant a `<pageSetup>` change was an edit to two files that
+// never saw each other, and left that module 548 lines of cell state machine, autofilter draft,
+// page-break accumulator and six layout readers. Every other wire form in this tree keeps both
+// directions together (`color-xml.ts`, `theme-xml.ts`, `tables.ts`, `hyperlinks.ts`,
+// `data-validation.ts`, `conditional-formatting.ts`); `read-workbook-xml.ts` states the rule and
+// claimed the workbook part was the last exception. It was not.
+//
+// The facet tables the two halves drive off (`PAGE_SETUP_FACETS`, `MARGIN_SIDES`,
+// `PRINT_OPTION_FLAGS`, `SHEET_PROTECTION_FLAGS`) already live in `core/`, so what changes here is
+// only which file the readings sit in.
+// ---------------------------------------------------------------------------------------------
+
+// Read a <sheetProtection> element back into a SheetProtection: the deserialization mirror of the
+// writer. `sheet="0"` (or "false") means the element records an *un*protected sheet, so nothing is
+// restored. Each flag attribute is the INVERSE of the author's allow-flag ("1" forbids, "0" permits),
+// and only attributes actually present are carried, so an omitted (default-valued) flag stays absent,
+// exactly what the writer emitted. A password credential is preserved verbatim in its agile form
+// (algorithm, hash, salt, spin count); there is no plaintext password to recover, so it is not re-hashed.
+export function parseSheetProtection(attrs: XmlAttributes): SheetProtection | undefined {
+  if (boolTristate(attrs.sheet) === false) return undefined;
+  const flags: {-readonly [K in keyof SheetProtectionFlags]?: boolean} = {};
+  for (const {key} of SHEET_PROTECTION_FLAGS) {
+    const raw = attrs[key];
+    if (raw !== undefined) flags[key] = !boolStrict(raw);
+  }
+  const {algorithmName, hashValue, saltValue, spinCount} = attrs;
+  const spin = numInteger(spinCount, 0);
+  if (
+    algorithmName !== undefined &&
+    hashValue !== undefined &&
+    saltValue !== undefined &&
+    spin !== undefined
+  ) {
+    const credential: SheetProtectionCredential = {
+      algorithmName,
+      hashValue,
+      saltValue,
+      spinCount: spin,
+    };
+    return {flags, credential};
+  }
+  return {flags};
+}
+
+// Page-break accumulation. `<brk>` elements appear under both `<rowBreaks>` and `<colBreaks>`; a break
+// container's open points the accumulator at that axis's list (null outside any container), so a
+// `<brk>` lands on the right axis, and the matching close clears it. A self-closing
+// `<rowBreaks/>`/`<colBreaks/>` fires no close, so a new open simply reassigns the target.
+export class PageBreakAccumulator {
+  #target: PageBreak[] | null = null;
+
+  begin(target: PageBreak[]): void {
+    this.#target = target;
+  }
+
+  end(): void {
+    this.#target = null;
+  }
+
+  // `id` is the row/column the layout splits before; a non-positive or non-integer id is hostile input
+  // and dropped rather than trusted. A `<brk>` outside any break container has no axis and is ignored.
+  add(attrs: XmlAttributes): void {
+    if (this.#target === null) return;
+    const id = numInteger(attrs.id, 1);
+    if (id === undefined) return;
+    const brk: {id: number; max?: number; man?: boolean} = {id};
+    const max = numInteger(attrs.max, 0);
+    if (max !== undefined) brk.max = max;
+    if (boolStrict(attrs.man)) brk.man = true;
+    this.#target.push(brk);
+  }
+}
+
+// Apply one `<sheetPr>` / `<sheetView>` / print-setup child to the sheet. These are the worksheet's
+// layout and print metadata; grouping them here keeps the cell-reading switch a pure dispatch. Each
+// records only what the source carried, so a file missing a facet leaves it unset and a re-write
+// stays byte-clean. Each is read on open, from its attributes alone, which is why `<sheetView>`
+// belongs here despite wrapping children: what this reads of it is attributes, and its `<pane>`
+// child arrives as its own dispatch.
+export function applySheetProperties(local: string, attrs: XmlAttributes, sheet: Worksheet): void {
+  switch (local) {
+    case 'sheetPr':
+      // The element itself, for the one thing it carries as an attribute rather than a child: the
+      // sheet's VBA identity. Nothing here reads it, but writing a `.xlsm` back without it leaves the
+      // macros bound to a sheet name the project no longer finds.
+      if (attrs.codeName !== undefined) sheet.codeName = attrs.codeName;
+      break;
+    case 'tabColor':
+      // A `<sheetPr>` child.
+      sheet.tabColor = parseColor(attrs);
+      break;
+    case 'outlinePr':
+      // A `<sheetPr>` child.
+      if (attrs.summaryBelow !== undefined)
+        sheet.outline.summaryBelow = boolPresent(attrs.summaryBelow);
+      if (attrs.summaryRight !== undefined)
+        sheet.outline.summaryRight = boolPresent(attrs.summaryRight);
+      break;
+    case 'sheetView':
+      // Excel omits `showGridLines` when the grid is on, so only a present-and-false attribute is
+      // recorded. Leaving it unset otherwise is what keeps a re-write from fabricating the
+      // attribute on every sheet that never mentioned it.
+      if (attrs.showGridLines !== undefined && !boolPresent(attrs.showGridLines)) {
+        sheet.view.showGridLines = false;
+      }
+      break;
+    case 'pane':
+      // A `<sheetView>` child recording a frozen (or split) pane. Only a frozen pane maps onto the
+      // model's view; a source without one leaves `view` empty, so a re-write emits no pane.
+      if (attrs.state === 'frozen' || attrs.state === 'frozenSplit') {
+        sheet.view.state = 'frozen';
+        // A split that is not a non-negative integer is dropped, not stored: `Worksheet.freeze()`
+        // refuses the same value, and storing it here only defers the failure to the writer, which
+        // adds the split to a cell ordinal and throws about a column the caller never named.
+        const xSplit = numInteger(attrs.xSplit, 0);
+        const ySplit = numInteger(attrs.ySplit, 0);
+        if (xSplit !== undefined) sheet.view.xSplit = xSplit;
+        if (ySplit !== undefined) sheet.view.ySplit = ySplit;
+        if (attrs.topLeftCell !== undefined) sheet.view.topLeftCell = attrs.topLeftCell;
+      }
+      break;
+    case 'pageSetUpPr':
+      // The fit-to-page flag, a `<sheetPr>` child. Recorded only when the attribute is present, so a
+      // `<pageSetUpPr>` present for other reasons (e.g. `autoPageBreaks`) leaves `fitToPage` unset.
+      if (attrs.fitToPage !== undefined) sheet.pageSetup.fitToPage = boolPresent(attrs.fitToPage);
+      break;
+    case 'printOptions':
+      applyPrintOptions(sheet.printOptions, attrs);
+      break;
+    case 'pageMargins':
+      applyMargins(sheet.pageMargins, attrs);
+      break;
+    case 'pageSetup':
+      applyPageSetup(sheet.pageSetup, attrs);
+      break;
+  }
+}
+
+// Read the `<printOptions>` boolean toggles back onto the model, storing only the ones the source
+// carried so a re-write stays byte-clean. An OOXML boolean is `1`/`true` for on and `0`/`false` for
+// off; a present-but-unrecognised token is dropped rather than coerced.
+function applyPrintOptions(printOptions: PrintOptions, attrs: XmlAttributes): void {
+  for (const flag of PRINT_OPTION_FLAGS) {
+    const value = boolTristate(attrs[flag]);
+    if (value !== undefined) printOptions[flag] = value;
+  }
+}
+
+function applyMargins(margins: PageMargins, attrs: XmlAttributes): void {
+  for (const side of MARGIN_SIDES) {
+    const value = numFinite(attrs[side]);
+    if (value !== undefined) margins[side] = value;
+  }
+}
+
+// Read the `<pageSetup>` print-scaling attributes back onto the model, setting only those the
+// source carried so a re-write stays byte-clean. Each of the four is a count or an enumeration id,
+// so a fractional or negative one carries no meaning and is dropped; the enumerated string
+// attributes are trusted verbatim (an unexpected token round-trips harmlessly as an unknown string).
+function applyPageSetup(pageSetup: PageSetup, attrs: XmlAttributes): void {
+  for (const facet of PAGE_SETUP_FACETS) {
+    const raw = attrs[facet.key];
+    switch (facet.kind) {
+      case 'count': {
+        const value = numInteger(raw, 0);
+        if (value !== undefined) pageSetup[facet.key] = value;
+        break;
+      }
+      case 'token':
+        if (raw !== undefined && facet.isValid(raw))
+          assignPageSetupToken(pageSetup, facet.key, raw);
+        break;
+    }
+  }
+}
+
+// One token attribute at a time, so the write's key type is a single member rather than the whole
+// union and `pageSetup[key] = value` typechecks: the correlated-key access TypeScript cannot verify
+// when the key is a union, the same shape `assignAlignmentToken` takes in read-styles.ts. The cast
+// restates the guard's own proof: `isValid` has already accepted `raw` for this facet's
+// enumeration, which the table cannot say in a type because both token entries share one shape.
+function assignPageSetupToken<K extends 'pageOrder' | 'orientation'>(
+  pageSetup: PageSetup,
+  key: K,
+  raw: string,
+): void {
+  pageSetup[key] = raw as PageSetup[K];
 }

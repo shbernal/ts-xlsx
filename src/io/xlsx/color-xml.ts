@@ -13,7 +13,7 @@
 
 import {type Color, parseArgb} from '../../core/style.ts';
 import {quoted} from '../../errors.ts';
-import {numFinite, numInteger} from '../../xml/xml-scan.ts';
+import {numFinite, numInteger} from '../../xml/xml-attrs.ts';
 import {numberText} from '../../xml/xml.ts';
 
 // The write side of the ARGB grammar `parseArgb` states: this is the single choke point through
