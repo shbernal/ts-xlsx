@@ -9,8 +9,9 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {Workbook} from '../../core/workbook.ts';
+import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import {AuthoringError} from '../../errors.ts';
+import {partsOf} from './package.test-support.ts';
 import {writeXlsx} from './write.ts';
 
 const UNWRITABLE = [Number.NaN, Infinity, -Infinity] as const;
@@ -122,4 +123,57 @@ test('an outline level is refused rather than dropped when it is not a number', 
       wb.getWorksheet('S')!.getRow(2).outlineLevel = value;
     });
   }
+});
+
+test('a pivot cache blanks a non-finite source value rather than spelling it', () => {
+  // `scalarOf` blanks a non-finite cell before it can reach the cache, so this asserts that guard
+  // holds from the outside: the write succeeds, and neither the shared item nor the field's
+  // min/max carries the token `NaN` into an attribute OOXML has no lexical form for.
+  const workbook = sheeted();
+  const source = workbook.getWorksheet('S')!;
+  source.getCell('A1').value = 'Region';
+  source.getCell('B1').value = 'Quarter';
+  source.getCell('C1').value = 'Amount';
+  source.getCell('A2').value = 'West';
+  source.getCell('B2').value = 'Q1';
+  source.getCell('C2').value = Number.NaN;
+  source.getCell('A3').value = 'East';
+  source.getCell('B3').value = 'Q2';
+  source.getCell('C3').value = 4;
+  workbook
+    .addWorksheet('P')
+    .addPivotTable({source, rows: ['Region'], columns: ['Quarter'], values: ['Amount']});
+
+  const parts = partsOf(writeXlsx(workbook));
+  for (const [path, xml] of Object.entries(parts)) {
+    assert.ok(!/NaN|Infinity/.test(xml), `${path} carries an unwritable number`);
+  }
+});
+
+test('a defined name scoped to a sheet the workbook does not have is refused', () => {
+  const workbook = sheeted();
+  // `definedNames` is live, so this is the route a name reaches the writer without passing
+  // `defineName`'s scope check. `localSheetId` is an `xsd:unsignedInt`; the `-1` an unguarded lookup
+  // miss produces is a package Excel offers to repair.
+  (workbook.definedNames as DefinedName[]).push({
+    name: 'Local',
+    refersTo: 'Gone!$A$1',
+    scope: 'Gone',
+  });
+
+  assert.throws(() => writeXlsx(workbook), {
+    name: 'AuthoringError',
+    message: /"Local".*"Gone"/,
+  });
+});
+
+test('a scope matching its sheet only in case still resolves to that sheet', () => {
+  // `defineName` accepts the scope case-insensitively, the way sheet names are identified
+  // everywhere else, so the writer must resolve it the same way rather than refuse it.
+  const workbook = sheeted();
+  workbook.addWorksheet('Data').getCell('A1').value = 1;
+  workbook.defineName({name: 'Local', refersTo: 'Data!$A$1', scope: 'dAtA'});
+
+  const workbookPart = partsOf(writeXlsx(workbook))['xl/workbook.xml'] ?? '';
+  assert.match(workbookPart, /<definedName name="Local" localSheetId="1">/);
 });

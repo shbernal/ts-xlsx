@@ -515,11 +515,7 @@ export function worksheetRelsXml(
     // A preserved reference targets its entry part's new (package-absolute) path, made relative the
     // same way every generated target above is.
     ...preservedReferences.map((reference) =>
-      relationship(
-        reference.relId,
-        reference.relType,
-        escapeAttr(targetFromWorksheet(reference.entryPath)),
-      ),
+      relationship(reference.relId, reference.relType, targetFromWorksheet(reference.entryPath)),
     ),
     // An external hyperlink's target is a URL outside the package, so its relationship carries
     // TargetMode="External". Internal links have no relId and contribute nothing here.

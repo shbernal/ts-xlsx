@@ -18,7 +18,7 @@ import {
 } from '../../core/table.ts';
 import {parseXml, TextCapture} from '../../xml/xml-read.ts';
 import {boolPresent, localName, numInteger} from '../../xml/xml-scan.ts';
-import {boolAttr, escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
+import {boolAttr, checkedToken, escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
 import {NS} from './relationships.ts';
 
 export function tableXml(table: Table, id: number): string {
@@ -78,7 +78,7 @@ function tableColumnXml(column: TableColumn, id: number): string {
     attrs += ` totalsRowLabel="${escapeAttr(column.totalsRowLabel)}"`;
   }
   if (column.totalsRowFunction !== undefined) {
-    attrs += ` totalsRowFunction="${escapeAttr(column.totalsRowFunction)}"`;
+    attrs += ` totalsRowFunction="${checkedToken(column.totalsRowFunction, isTotalsRowFunction, 'totals row function')}"`;
   }
   // A `custom` total is carried by a `<totalsRowFormula>` child rather than a built-in function, so
   // the element is non-self-closing when one is present. The formula is stored without a leading `=`,

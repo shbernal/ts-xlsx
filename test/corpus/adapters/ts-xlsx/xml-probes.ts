@@ -26,8 +26,21 @@ export const parseAnchorSide = (block: string | null | undefined) =>
         rowOff: intAt(block, 'xdr:rowOff'),
       }
     : null;
-export const imageXmlWellFormed = (xml: string) =>
+// An `&` that opens no entity reference is the one escaping mistake a writer can make that renders a
+// whole part unparseable, so it is the well-formedness question every XML-level probe here asks.
+export const xmlWellFormed = (xml: string) =>
   !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml);
+export const imageXmlWellFormed = xmlWellFormed;
+
+// The inverse of the writer's attribute escaping, so a probe can compare what came back out against
+// what went in. Escaping applied twice survives this and shows up as a value still carrying `&amp;`.
+export const decodeXmlEntities = (text: string) =>
+  text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
 
 // Expand an OOXML sqref (space-separated ranges) into its covered cell references, bounded by a cap so
 // a whole-column range never balloons, used to check that a range-form validation is reported on

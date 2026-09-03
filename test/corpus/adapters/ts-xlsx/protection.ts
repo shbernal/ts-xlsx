@@ -6,7 +6,11 @@ import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {decodeAddress, readXlsx, Workbook, writeXlsx} from './runtime.ts';
-import {attrsOf} from './xml-probes.ts';
+import {attrsOf, decodeXmlEntities, xmlWellFormed} from './xml-probes.ts';
+
+// An attribute's value as the author wrote it, or null when the element or attribute is missing.
+const decode = (raw: string | null | undefined) =>
+  raw === null || raw === undefined ? null : decodeXmlEntities(raw);
 
 export const protection = {
   // Build a workbook, inject workbook-level structure protection into its workbook.xml (reproducing a
@@ -160,4 +164,70 @@ export const protection = {
   // the field (the readonly facet types forbid in-place mutation of a shared record), so mutating
   // one cell's facet, even a cell that shared a style with siblings on disk, cannot bleed onto a
   // sibling. These methods prove that end-to-end through the real write→read path.
+
+  // Inject an XML special into each of the three foreign values a package can carry into a place the
+  // writer re-emits verbatim: a <sheetProtection> agile-hash credential, a preserved part's path and
+  // content type, and a preserved workbook relationship's target. Then read the package and write it
+  // back → { source: {...the values put in}, rewritten: {wellFormed, algorithmName, spinCount,
+  // overridePartName, overrideContentType, relTarget} }. Use it to assert a value taken off an
+  // untrusted package survives the round-trip as itself: escaped once on the way out (so the part
+  // still parses), never twice (so a preserved relationship still resolves to the part it names).
+  foreignValueRewriteReport() {
+    const wb = new Workbook();
+    wb.addWorksheet('S').getCell('A1').value = 'x';
+    const parts = partMapOf(writeXlsx(wb));
+
+    // A slicer cache is preserved wholesale by relationship type, which is what carries an arbitrary
+    // foreign path and content type through the model and back out again.
+    const relType = 'http://schemas.microsoft.com/office/2007/relationships/slicerCache';
+    const algorithmName = 'SHA-512 & "friends"';
+    const slicerPath = 'xl/slicerCaches/s&1.xml';
+    const slicerContentType = 'application/vnd.ms-excel.slicerCache+xml; q="1" & p=<2>';
+
+    // `<sheetProtection>` follows `<sheetData>` in CT_Worksheet order.
+    parts['xl/worksheets/sheet1.xml'] = parts['xl/worksheets/sheet1.xml']!.replace(
+      '</sheetData>',
+      `</sheetData><sheetProtection algorithmName="${algorithmName.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"` +
+        ' hashValue="aGFzaA==" saltValue="c2FsdA==" spinCount="100000" sheet="1"/>',
+    );
+    parts['xl/_rels/workbook.xml.rels'] = parts['xl/_rels/workbook.xml.rels']!.replace(
+      '</Relationships>',
+      `<Relationship Id="rIdSlicer" Type="${relType}" Target="slicerCaches/s&amp;1.xml"/></Relationships>`,
+    );
+    parts['[Content_Types].xml'] = parts['[Content_Types].xml']!.replace(
+      '</Types>',
+      `<Override PartName="/${slicerPath.replace(/&/g, '&amp;')}" ContentType="${slicerContentType
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;')}"/></Types>`,
+    );
+    parts[slicerPath] = '<slicerCacheDefinition/>';
+
+    const zipFiles: Record<string, Untyped> = {};
+    for (const [name, text] of Object.entries(parts)) zipFiles[name] = strToU8(text);
+
+    const rewritten = partMapOf(writeXlsx(readXlsx(zipSync(zipFiles))));
+    const contentTypes = rewritten['[Content_Types].xml'] ?? '';
+    const override = (contentTypes.match(/<Override PartName="[^"]*slicerCache[^"]*"[^>]*>/) ??
+      [])[0];
+    const overrideAttrs = override === undefined ? null : attrsOf(override);
+    const sheetXml = rewritten['xl/worksheets/sheet1.xml'] ?? '';
+    const protectionEl = (sheetXml.match(/<sheetProtection\b[^>]*\/?>/) ?? [])[0];
+    const workbookRels = rewritten['xl/_rels/workbook.xml.rels'] ?? '';
+    const relEl = (workbookRels.match(/<Relationship[^>]*slicerCache[^>]*>/) ?? [])[0];
+
+    return {
+      source: {algorithmName, slicerPath, slicerContentType},
+      rewritten: {
+        wellFormed: [contentTypes, sheetXml, workbookRels].every((xml) => xmlWellFormed(xml)),
+        algorithmName: decode(
+          protectionEl === undefined ? null : attrsOf(protectionEl).algorithmName,
+        ),
+        spinCount: protectionEl === undefined ? null : (attrsOf(protectionEl).spinCount ?? null),
+        overridePartName: decode(overrideAttrs?.PartName),
+        overrideContentType: decode(overrideAttrs?.ContentType),
+        relTarget: decode(relEl === undefined ? null : attrsOf(relEl).Target),
+      },
+    };
+  },
 };

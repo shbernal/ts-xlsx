@@ -92,6 +92,35 @@ test('a two-cell image anchor refuses a foreign edit mode', () => {
   });
 });
 
+test('<tableColumn> refuses a foreign totals-row function', () => {
+  refuses((wb) => {
+    const sheet = wb.getWorksheet('S')!;
+    sheet.getCell('A1').value = 'h';
+    sheet.getCell('A2').value = 1;
+    sheet.addTable({
+      name: 'T',
+      ref: 'A1',
+      columns: [{name: 'h', totalsRowFunction: ESCAPE}],
+      rowCount: 1,
+      totalsRow: true,
+    } as never);
+  });
+});
+
+test('<customFilter> refuses a foreign comparison operator', () => {
+  refuses((wb) => {
+    wb.getWorksheet('S')!.autoFilter = {
+      ref: 'A1:A5',
+      columns: [
+        {
+          colId: 0,
+          criteria: {kind: 'custom', predicates: [{operator: ESCAPE, val: 'x'}]},
+        },
+      ],
+    } as never;
+  });
+});
+
 test('the tokens the enumerations do allow still round-trip', () => {
   const wb = sheeted();
   const sheet = wb.getWorksheet('S')!;

@@ -2,13 +2,17 @@
 // (field catalogue), the cache records (a copy of the source rows), and the pivot table definition
 // (the layout). The semantic computation lives in `core/pivot-table.ts`; this file only serialises.
 //
-// Every value that reaches an attribute is run through `escapeAttr`, so source strings carrying XML
+// Every string that reaches an attribute is run through `escapeAttr`, so source strings carrying XML
 // specials (`Smith & Co`, `<West>`, `It's "best"`) become well-formed markup rather than corrupting
-// the package, which is the whole point of the shared-item escaping this module guarantees.
+// the package, which is the whole point of the shared-item escaping this module guarantees. Every
+// number reaching an attribute goes through `numberText`, which is the other half of that boundary:
+// the source-derived values (a shared item, a cache field's min/max) can only be finite because
+// `core/pivot-table.ts` blanks a non-finite cell first, and this makes the writer say so itself
+// rather than lean on an invariant three modules away.
 
 import {encodeAddress} from '../../core/address.ts';
 import type {PivotItem, PivotMetric, PivotRecordCell, PivotTable} from '../../core/pivot-table.ts';
-import {escapeAttr, XML_DECLARATION} from '../../xml/xml.ts';
+import {escapeAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {RELATIONSHIPS_NS} from '../opc/namespaces.ts';
 import {SPREADSHEETML_NS} from './namespaces.ts';
 
@@ -52,7 +56,7 @@ export function pivotCacheDefinitionXml(table: PivotTable): string {
           ? `<sharedItems${blank}/>`
           : `<sharedItems containsSemiMixedTypes="0" containsString="0" containsNumber="1" ` +
             `containsInteger="${numeric.allInteger ? 1 : 0}"${blank} ` +
-            `minValue="${numeric.min}" maxValue="${numeric.max}"/>`;
+            `minValue="${numberText(numeric.min)}" maxValue="${numberText(numeric.max)}"/>`;
       return `<cacheField name="${escapeAttr(field.name)}" numFmtId="0">${descriptor}</cacheField>`;
     })
     .join('');
@@ -150,7 +154,7 @@ function sharedItemXml(item: PivotItem): string {
     case 'string':
       return `<s v="${escapeAttr(item.value)}"/>`;
     case 'number':
-      return `<n v="${item.value}"/>`;
+      return `<n v="${numberText(item.value)}"/>`;
     case 'blank':
       return '<m/>';
   }

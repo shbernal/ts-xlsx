@@ -4,7 +4,12 @@
 // group) independently of the row/cell body `worksheet-xml.ts` orchestrates them alongside.
 
 import {encodeAddress} from '../../core/address.ts';
-import type {AutoFilter, FilterColumn, FilterCriteria} from '../../core/autofilter.ts';
+import {
+  type AutoFilter,
+  type FilterColumn,
+  type FilterCriteria,
+  isCustomFilterOperator,
+} from '../../core/autofilter.ts';
 import {
   type HeaderFooter,
   HEADER_FOOTER_ELEMENTS,
@@ -97,17 +102,19 @@ function outlinePrXml(outline: OutlineProperties): string {
 //
 // <sheetProtection> is what makes the per-cell locked/hidden flags bite. `sheet="1"` marks the
 // sheet protected; the password credential (when present) guards lifting it; the flag attributes
-// carve out the operations that stay available. base64 salt/hash use only XML-safe characters.
+// carve out the operations that stay available. Every credential string is escaped: they arrive
+// verbatim from a foreign package or straight from a caller-supplied `SheetProtectionCredential`,
+// and `algorithmName` is prose even where the base64 salt and hash would not need it.
 export function sheetProtectionXml(protection: SheetProtection | undefined): string {
   if (protection === undefined) return '';
   const {flags, credential} = protection;
   let attrs = '';
   if (credential !== undefined) {
     attrs +=
-      ` algorithmName="${credential.algorithmName}"` +
-      ` hashValue="${credential.hashValue}"` +
-      ` saltValue="${credential.saltValue}"` +
-      ` spinCount="${credential.spinCount}"`;
+      ` algorithmName="${escapeAttr(credential.algorithmName)}"` +
+      ` hashValue="${escapeAttr(credential.hashValue)}"` +
+      ` saltValue="${escapeAttr(credential.saltValue)}"` +
+      numAttr('spinCount', credential.spinCount);
   }
   attrs += ' sheet="1"';
   for (const {key, defaultForbidden} of SHEET_PROTECTION_FLAGS) {
@@ -132,7 +139,7 @@ export function autoFilterXml(filter: AutoFilter | undefined): string {
 }
 
 function filterColumnXml(column: FilterColumn): string {
-  return `<filterColumn colId="${column.colId}">${filterCriteriaXml(column.criteria)}</filterColumn>`;
+  return `<filterColumn colId="${numberText(column.colId)}">${filterCriteriaXml(column.criteria)}</filterColumn>`;
 }
 
 // A values filter is `<filters>` with a `<filter val>` per allowed value (and `blank="1"` to admit
@@ -146,7 +153,10 @@ function filterCriteriaXml(criteria: FilterCriteria): string {
   }
   const andAttr = criteria.and ? ' and="1"' : '';
   const predicates = criteria.predicates
-    .map((p) => `<customFilter operator="${p.operator}" val="${escapeAttr(p.val)}"/>`)
+    .map(
+      (p) =>
+        `<customFilter operator="${checkedToken(p.operator, isCustomFilterOperator, 'custom filter operator')}" val="${escapeAttr(p.val)}"/>`,
+    )
     .join('');
   return `<customFilters${andAttr}>${predicates}</customFilters>`;
 }

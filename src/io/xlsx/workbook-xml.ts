@@ -4,8 +4,9 @@
 
 import {mangleFormula, quoteSheetName} from '../../core/formula.ts';
 import {WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} from '../../core/workbook-protection.ts';
-import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
-import {isVisibility} from '../../core/worksheet.ts';
+import type {DefinedName, Workbook, WorkbookProperties} from '../../core/workbook.ts';
+import {isVisibility, type Worksheet} from '../../core/worksheet.ts';
+import {AuthoringError} from '../../errors.ts';
 import {
   checkedToken,
   escapeAttr,
@@ -233,13 +234,13 @@ function override(partPath: string, contentType: string): string {
   // everywhere else in the writer the same part is a bare path. Prefixing here rather than at the
   // twenty call sites is what lets those call sites hand over the very string the part is emitted
   // under, so the declaration and the part cannot drift apart by one character.
-  return `<Override PartName="/${partPath}" ContentType="${contentType}"/>`;
+  return `<Override PartName="/${escapeAttr(partPath)}" ContentType="${escapeAttr(contentType)}"/>`;
 }
 
 // A `<Default>` content-type declaration binding a file extension to the type every part with that
 // extension carries: the extension-level counterpart to {@link override}'s per-part declaration.
 function defaultType(extension: string, contentType: string): string {
-  return `<Default Extension="${extension}" ContentType="${contentType}"/>`;
+  return `<Default Extension="${escapeAttr(extension)}" ContentType="${escapeAttr(contentType)}"/>`;
 }
 
 // The package root relationships: the three the writer regenerates from the model (the office
@@ -395,13 +396,32 @@ function calcPrXml(workbook: Workbook): string {
 // cell formula so a name defined as a modern function (a LAMBDA, an XLOOKUP-based name) is stored
 // under the prefix Excel requires; a plain reference has no function call and passes through
 // untouched. Only names that are actually set emit anything.
+// The 0-based position of a scoped name's sheet among the `<sheet>` entries.
+//
+// Matched case-insensitively, because that is how a sheet name is identified everywhere else: sheet
+// names are unique case-insensitively, `Workbook.getWorksheet` resolves that way, and so does
+// `defineName`'s own scope check. An exact match here made `defineName` accept a scope this then
+// could not resolve.
+//
+// A scope with no sheet at all is refused rather than written. `definedNames` is a live collection, so
+// a name can be pushed onto it without passing `defineName`'s check, and `localSheetId` is an
+// `xsd:unsignedInt` for which the `-1` a lookup miss returns is a package Excel offers to repair.
+function localSheetId(sheets: readonly Worksheet[], name: DefinedName): number {
+  const scope = name.scope?.toLowerCase();
+  const index = sheets.findIndex((sheet) => sheet.name.toLowerCase() === scope);
+  if (index === -1) {
+    throw new AuthoringError(
+      `defined name ${JSON.stringify(name.name)} is scoped to worksheet ${JSON.stringify(name.scope)}, which this workbook does not contain`,
+    );
+  }
+  return index;
+}
+
 function definedNamesXml(workbook: Workbook): string {
   const sheets = workbook.worksheets;
   const userEntries = workbook.definedNames.map((name) => {
     const scopeAttr =
-      name.scope === undefined
-        ? ''
-        : ` localSheetId="${sheets.findIndex((sheet) => sheet.name === name.scope)}"`;
+      name.scope === undefined ? '' : ` localSheetId="${localSheetId(sheets, name)}"`;
     const commentAttr = textAttr('comment', name.comment);
     const hiddenAttr = name.hidden ? ' hidden="1"' : '';
     return (
@@ -474,7 +494,7 @@ export function workbookRelsXml(
       : [relationship(personsRelId, REL.person, targetFromWorkbook(PERSONS_PART))]),
     // A preserved cache's target is package-absolute; express it relative to the workbook part.
     ...preservedRels.map((ref) =>
-      relationship(ref.relId, ref.relType, escapeAttr(targetFromWorkbook(ref.entryPath))),
+      relationship(ref.relId, ref.relType, targetFromWorkbook(ref.entryPath)),
     ),
     // A generated pivot cache's workbook relationship reaches its cache definition part.
     ...pivots.map((pivot) =>
