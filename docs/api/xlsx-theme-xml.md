@@ -27,8 +27,8 @@ Extract the colour scheme from a theme part. Returns only the slots the part act
 colour model this reader understands; an unrecognised one is dropped rather than guessed at, so a
 caller can tell "the theme says nothing here" from "the theme says black".
 
-Reads the `<a:clrScheme>` block alone. A theme carries a font scheme and a format scheme too, but
-neither participates in resolving a colour, and scanning the whole part would let a `<a:srgbClr>`
+Reads the `<clrScheme>` block alone. A theme carries a font scheme and a format scheme too, but
+neither participates in resolving a colour, and scanning the whole part would let an `<srgbClr>`
 buried in a gradient stop masquerade as a scheme slot.
 
 ```ts
@@ -41,7 +41,7 @@ function parseThemeColorScheme(themeXml: string): ThemeColorScheme;
 
 <sub>function</sub>
 
-Extract the major/minor latin typefaces from a theme part's `<a:fontScheme>`.
+Extract the major/minor latin typefaces from a theme part's `<fontScheme>`.
 
 ```ts
 function parseThemeFontScheme(themeXml: string): ThemeFontScheme;

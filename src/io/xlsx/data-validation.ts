@@ -29,7 +29,12 @@ import {checkedToken, escapeAttr, escapeText, stripFormulaEquals, textAttr} from
 // The x14/xm extension namespaces and `DATA_VALIDATION_EXT_URI` are declared inline on the elements
 // that need them, exactly as Excel writes them, so the block is self-contained and the worksheet root
 // needs no extra namespace declaration.
-import {DATA_VALIDATION_EXT_URI, XM_NS} from './namespaces.ts';
+import {
+  DATA_VALIDATION_EXT_URI,
+  isExtensionElement,
+  isMainNamespaceElement,
+  XM_NS,
+} from './namespaces.ts';
 import {x14Ext} from './x14-ext.ts';
 
 // The typed validations whose literal operands are numbers; `list`/`custom` operands stay strings.
@@ -127,10 +132,13 @@ export function dataValidationPass(): CollectingPass<DataValidationEntry[]> {
   let slot: number | undefined;
 
   const handlers: SaxHandlers = {
-    onOpen(name, attrs) {
+    onOpen(name, attrs, _selfClosing, scope) {
       const ln = localName(name);
-      // Only the standard, unprefixed element: an `x14:dataValidation` is left for the extended path.
-      if (ln === 'dataValidation' && !name.includes(':')) {
+      // Only the one in the MAIN namespace: an `x14:dataValidation` is left for the extended path.
+      // Tested by namespace, not by whether the name has a prefix: a worksheet that binds the main
+      // namespace to a prefix, which is legal and which real toolchains emit, has a colon in every
+      // element name, so the prefix test discarded every standard validation in such a file.
+      if (ln === 'dataValidation' && isMainNamespaceElement(scope, name)) {
         current = {attrs, formulae: []};
       } else if (current !== undefined && ln === 'formula1') {
         slot = 0;
@@ -228,15 +236,18 @@ export function extendedDataValidationPass(): CollectingPass<DataValidationEntry
   const capture = new TextCapture(['f', 'sqref']);
 
   const handlers: SaxHandlers = {
-    onOpen(name, attrs, selfClosing) {
+    onOpen(name, attrs, selfClosing, scope) {
       const ln = localName(name);
-      const prefixed = name.includes(':');
+      // In the x14 extension namespace, rather than merely carrying a prefix: the prefix test was true
+      // of every element in a worksheet that prefixes the main namespace, so such a file had its
+      // standard validations read as extended ones and dropped by both passes.
+      const extension = isExtensionElement(scope, name);
       // A `<x14:dataValidation>`; its attributes (type, flags, messages) build the rule.
-      if (ln === 'dataValidation' && prefixed) {
+      if (ln === 'dataValidation' && extension) {
         current = {attrs, formulae: [], sqref: ''};
-      } else if (current !== undefined && prefixed && ln === 'formula1') {
+      } else if (current !== undefined && extension && ln === 'formula1') {
         slot = 0;
-      } else if (current !== undefined && prefixed && ln === 'formula2') {
+      } else if (current !== undefined && extension && ln === 'formula2') {
         slot = 1;
       } else if (current !== undefined) {
         capture.open(ln, selfClosing);
@@ -245,8 +256,9 @@ export function extendedDataValidationPass(): CollectingPass<DataValidationEntry
     onText(chunk) {
       capture.text(chunk);
     },
-    onClose(name) {
+    onClose(name, scope) {
       const ln = localName(name);
+      const extension = isExtensionElement(scope, name);
       const text = capture.close(ln);
       if (text !== undefined) {
         if (ln === 'f') {
@@ -254,9 +266,9 @@ export function extendedDataValidationPass(): CollectingPass<DataValidationEntry
         } else if (current !== undefined) {
           current.sqref = text;
         }
-      } else if ((ln === 'formula1' || ln === 'formula2') && name.includes(':')) {
+      } else if ((ln === 'formula1' || ln === 'formula2') && extension) {
         slot = undefined;
-      } else if (ln === 'dataValidation' && name.includes(':') && current !== undefined) {
+      } else if (ln === 'dataValidation' && extension && current !== undefined) {
         const built = buildExtendedEntry(current.attrs, current.formulae, current.sqref);
         if (built !== undefined) entries.push(built);
         current = undefined;

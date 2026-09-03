@@ -57,7 +57,7 @@ import {colorAttrs, parseColor} from './color-xml.ts';
 // exactly as Excel writes them, so no worksheet-root xmlns is needed. `CF_EXT_URI` scopes the
 // worksheet's x14 conditional formattings; `DATABAR_LINK_EXT_URI` scopes the `<x14:id>` link a
 // classic cfRule carries to name its extension.
-import {CF_EXT_URI, DATABAR_LINK_EXT_URI, XM_NS} from './namespaces.ts';
+import {CF_EXT_URI, DATABAR_LINK_EXT_URI, isExtensionElement, XM_NS} from './namespaces.ts';
 import type {StyleRegistry} from './styles.ts';
 import {x14Ext} from './x14-ext.ts';
 
@@ -364,9 +364,13 @@ export function conditionalFormattingPass(): CollectingPass<ConditionalFormattin
   const x14IdCapture = new TextCapture('id');
 
   const handlers: SaxHandlers = {
-    onOpen(name, attrs, selfClosing) {
+    onOpen(name, attrs, selfClosing, scope) {
       const ln = localName(name);
-      if (name.includes(':')) {
+      // In the x14 extension namespace, not merely prefixed. The prefix test was true of every
+      // element in a worksheet that binds the MAIN namespace to a prefix, which is legal and which
+      // real toolchains emit, so every conditional format in such a file was read as an extension
+      // element and dropped.
+      if (isExtensionElement(scope, name)) {
         // The `<x14:id>` a classic data bar carries to name its extension: capture its text into the
         // open draft. The rest are the worksheet extension's own elements.
         if (ln === 'id' && draft !== undefined) {
@@ -416,9 +420,9 @@ export function conditionalFormattingPass(): CollectingPass<ConditionalFormattin
       formulaCapture.text(chunk);
       x14IdCapture.text(chunk);
     },
-    onClose(name) {
+    onClose(name, scope) {
       const ln = localName(name);
-      if (name.includes(':')) {
+      if (isExtensionElement(scope, name)) {
         const id = x14IdCapture.close(ln);
         if (id !== undefined) {
           if (draft !== undefined) draft.x14Id = id;

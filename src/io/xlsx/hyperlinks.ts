@@ -17,6 +17,7 @@ import type {Worksheet} from '../../core/worksheet.ts';
 import {type CollectingPass} from '../../xml/xml-read.ts';
 import {localName} from '../../xml/xml-scan.ts';
 import {escapeAttr, textAttr} from '../../xml/xml.ts';
+import {relAttr} from '../opc/namespaces.ts';
 import type {RelIdAllocator} from './package-plan.ts';
 
 /** A hyperlink gathered from a sheet for serialisation: the cell it sits on, its target, and an
@@ -144,13 +145,14 @@ export function sheetHyperlinkPass(): CollectingPass<ParsedHyperlink[]> {
   const links: ParsedHyperlink[] = [];
   return {
     handlers: {
-      onOpen(name, attrs) {
+      onOpen(name, attrs, _selfClosing, scope) {
         if (localName(name) !== 'hyperlink') return;
         const ref = attrs.ref;
         if (ref === undefined) return;
+        const rid = relAttr(scope, attrs, 'id');
         links.push({
           ref,
-          ...(attrs['r:id'] !== undefined ? {rid: attrs['r:id']} : {}),
+          ...(rid !== undefined ? {rid} : {}),
           ...(attrs.location !== undefined ? {location: attrs.location} : {}),
           ...(attrs.tooltip !== undefined ? {tooltip: attrs.tooltip} : {}),
         });

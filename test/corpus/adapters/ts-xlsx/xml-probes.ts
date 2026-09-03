@@ -5,7 +5,14 @@
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import type {Untyped} from '../../untyped.ts';
-import {decodeRange, encodeAddress, readXlsx, writeCompoundFile, writeXlsx} from './runtime.ts';
+import {
+  decodeRange,
+  encodeAddress,
+  readXlsx,
+  Workbook,
+  writeCompoundFile,
+  writeXlsx,
+} from './runtime.ts';
 import {buildFrom} from './spec-model.ts';
 
 export const hexBytes = (hex: string) =>
@@ -167,4 +174,126 @@ export function classifyReadError(run: () => void): Untyped {
       leaksAbsolutePath: /[A-Za-z]:\\|\/(?:Users|home)\//.test(message),
     };
   }
+}
+
+// ── Namespace-prefix independence ─────────────────────────────────────────────────────────────────
+// A file is free to bind an OOXML namespace to any prefix it likes, and real toolchains do. The reader
+// is prefix-agnostic almost everywhere (`localName` strips whatever prefix a file chose), which is
+// what made the handful of places testing a prefix STRING dangerous: the rest of the file reads
+// perfectly and one whole feature disappears with no error.
+//
+// These craft the packages in-memory rather than committing binaries, because the whole point of each
+// is one namespace declaration and its consequence, and a diffable string says that where a zip cannot.
+
+const SPREADSHEETML = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+const DRAWINGML = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+
+/**
+ * Rebind the relationships namespace in `xl/workbook.xml` from `r` to another prefix, then read →
+ * `{sheetNames, a1}`. A workbook whose `<sheet>` elements carry a differently-prefixed relationship id
+ * used to resolve no relationship at all, so every sheet loaded permanently empty.
+ */
+export function relationshipPrefixReport(prefix: string) {
+  const wb = new Workbook();
+  wb.addWorksheet('S1').getCell('A1').value = 'hello';
+  const files = unzipSync(writeXlsx(wb));
+  files['xl/workbook.xml'] = strToU8(
+    strFromU8(files['xl/workbook.xml']!)
+      .replace('xmlns:r=', `xmlns:${prefix}=`)
+      .replaceAll('r:id=', `${prefix}:id=`),
+  );
+  const back = readXlsx(zipSync(files));
+  return {
+    sheetNames: back.worksheets.map((sheet) => sheet.name),
+    a1: back.getWorksheet('S1')?.getCell('A1').value ?? null,
+  };
+}
+
+/**
+ * Rewrite a worksheet part so the MAIN namespace is bound to a prefix and every element carries it,
+ * then read → `{a1, validations, conditionalFormats}`. Every element name then has a colon in it, so a
+ * reader using "has a prefix" to mean "is an extension element" discarded every data validation and
+ * every conditional format in the file.
+ */
+export function mainNamespacePrefixReport(prefix: string) {
+  const wb = new Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('A1').value = 1;
+  ws.addDataValidation('A1', {type: 'list', formulae: ['"a,b,c"']});
+  ws.addConditionalFormatting({ref: 'A1:A5', rules: [{type: 'duplicateValues', priority: 1}]});
+
+  const files = unzipSync(writeXlsx(wb));
+  const sheet = strFromU8(files['xl/worksheets/sheet1.xml']!)
+    .replace(
+      `<worksheet xmlns="${SPREADSHEETML}"`,
+      `<${prefix}:worksheet xmlns:${prefix}="${SPREADSHEETML}"`,
+    )
+    // Every remaining unprefixed element takes the same prefix; already-prefixed ones (the x14
+    // extension block) are left exactly as they are, which is the point of the comparison.
+    .replace(/<(\/?)([a-zA-Z][\w]*)(?=[ />])/g, (match, slash: string, tag: string) =>
+      tag === 'worksheet' ? match : `<${slash}${prefix}:${tag}`,
+    )
+    .replace(/<\/worksheet>/, `</${prefix}:worksheet>`);
+  files['xl/worksheets/sheet1.xml'] = strToU8(sheet);
+
+  const back = readXlsx(zipSync(files)).getWorksheet('S');
+  return {
+    a1: back?.getCell('A1').value ?? null,
+    validations: (back?.dataValidations ?? []).map((entry) => entry.sqref),
+    conditionalFormats: (back?.conditionalFormattings ?? []).flatMap((block) =>
+      block.rules.map((rule) => rule.type),
+    ),
+  };
+}
+
+/**
+ * Replace a package's theme with one written under `prefix` (`''` for the default DrawingML
+ * namespace), read it back and report the resolved scheme plus a theme-indexed cell colour →
+ * `{colors, fonts, cellColor}`. A theme under any prefix but `a` read as no theme at all, so the
+ * workbook fell back to the library's default and every theme-indexed colour in the file resolved to
+ * the wrong RGB: a whole-document visual divergence with nothing reported.
+ *
+ * The `lt1` slot carries an XML comment between it and its colour, which the old scanner's
+ * whitespace-only pattern also lost even under the conventional prefix.
+ */
+export function themePrefixReport(prefix: string) {
+  const q = prefix === '' ? '' : `${prefix}:`;
+  const ns = prefix === '' ? `xmlns="${DRAWINGML}"` : `xmlns:${prefix}="${DRAWINGML}"`;
+  const theme =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<${q}theme ${ns} name="Branded"><${q}themeElements>` +
+    `<${q}clrScheme name="Branded">` +
+    `<${q}dk1><${q}sysClr val="windowText" lastClr="111111"/></${q}dk1>` +
+    `<${q}lt1><!-- a comment the old scanner could not pass --><${q}srgbClr val="222222"/></${q}lt1>` +
+    `<${q}dk2><${q}srgbClr val="333333"/></${q}dk2>` +
+    `<${q}lt2><${q}srgbClr val="444444"/></${q}lt2>` +
+    `<${q}accent1><${q}srgbClr val="AABBCC"/></${q}accent1>` +
+    `<${q}accent2><${q}srgbClr val="555555"/></${q}accent2>` +
+    `<${q}accent3><${q}srgbClr val="666666"/></${q}accent3>` +
+    `<${q}accent4><${q}srgbClr val="777777"/></${q}accent4>` +
+    `<${q}accent5><${q}srgbClr val="888888"/></${q}accent5>` +
+    `<${q}accent6><${q}srgbClr val="999999"/></${q}accent6>` +
+    `<${q}hlink><${q}srgbClr val="0000FF"/></${q}hlink>` +
+    `<${q}folHlink><${q}srgbClr val="800080"/></${q}folHlink>` +
+    `</${q}clrScheme>` +
+    `<${q}fontScheme name="Branded">` +
+    `<${q}majorFont><${q}latin typeface="Major &amp; Co"/></${q}majorFont>` +
+    `<${q}minorFont><${q}latin typeface="Minor"/></${q}minorFont>` +
+    `</${q}fontScheme>` +
+    `</${q}themeElements></${q}theme>`;
+
+  const wb = new Workbook();
+  const ws = wb.addWorksheet('S');
+  // A cell whose font colour is theme slot 4 (accent1), so the resolved RGB says which theme won.
+  ws.getCell('A1').value = 'x';
+  ws.getCell('A1').font = {color: {theme: 4}};
+  const files = unzipSync(writeXlsx(wb));
+  files['xl/theme/theme1.xml'] = strToU8(theme);
+
+  const back = readXlsx(zipSync(files));
+  return {
+    colors: {...back.themeColors},
+    fonts: {...back.themeFonts},
+    cellColor: back.getWorksheet('S')?.getCell('A1').font?.color ?? null,
+  };
 }

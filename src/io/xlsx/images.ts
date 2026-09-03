@@ -14,7 +14,7 @@ import {
 import {parseXml, TextCapture} from '../../xml/xml-read.ts';
 import {enumToken, localName, numFinite} from '../../xml/xml-scan.ts';
 import {checkedToken, numAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
-import {RELATIONSHIPS_NS} from '../opc/namespaces.ts';
+import {relAttr, RELATIONSHIPS_NS} from '../opc/namespaces.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {DRAWINGML_NS, XDR_NS} from './namespaces.ts';
 
@@ -188,7 +188,7 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
   const coord = new TextCapture(COORDINATES);
 
   parseXml(xml, {
-    onOpen(name, attrs, selfClosing) {
+    onOpen(name, attrs, selfClosing, scope) {
       const local = localName(name);
       if (local === 'twoCellAnchor' || local === 'oneCellAnchor') {
         from = blankPoint();
@@ -212,7 +212,11 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
         const cy = numFinite(attrs.cy, 0);
         if (cx !== undefined && cy !== undefined) ext = {cx, cy};
       } else if (local === 'blip') {
-        const value = attrs['r:embed'] ?? attrs.embed;
+        // Resolved by namespace, so a drawing binding the relationships namespace to any prefix is
+        // read. This site used to hedge with `attrs['r:embed'] ?? attrs.embed`, which was the one
+        // place the problem had been noticed and the hedge caught only the unprefixed spelling, which
+        // is not in the namespace at all.
+        const value = relAttr(scope, attrs, 'embed');
         if (value !== undefined) embed = value;
       } else if (target !== null) {
         coord.open(local, selfClosing);

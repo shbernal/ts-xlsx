@@ -9,6 +9,7 @@
 // the two must agree to the character about where an element ends.
 
 import {XmlParseError} from './errors.ts';
+import {NamespaceScope} from './xml-namespaces.ts';
 import {
   localName,
   markupAt,
@@ -20,13 +21,21 @@ import {
 } from './xml-scan.ts';
 
 export interface SaxHandlers {
-  /** An element start. `selfClosing` is true for `<x/>`; no matching {@link onClose} fires for it. */
-  onOpen(name: string, attrs: XmlAttributes, selfClosing: boolean): void;
+  /**
+   * An element start. `selfClosing` is true for `<x/>`; no matching {@link onClose} fires for it.
+   *
+   * `scope` carries the namespace bindings in force here, for the handful of readings whose identity
+   * is a namespace rather than a prefix: an `r:id` under whatever prefix the file bound the
+   * relationships namespace to, or telling an extension element from a main-namespace one in a file
+   * that prefixes the main namespace. Most handlers match on {@link localName} and ignore it.
+   */
+  onOpen(name: string, attrs: XmlAttributes, selfClosing: boolean, scope: NamespaceScope): void;
   /** A run of character data (already entity-decoded; CDATA delivered verbatim). Omit to ignore text. */
   onText?(text: string): void;
   /** An element end (`</x>`); the synthetic end of a self-closing element is *not* reported here.
-   * Omit to ignore closes. */
-  onClose?(name: string): void;
+   * Omit to ignore closes. `scope` is the element's own bindings, still in force: it is popped after
+   * this returns, so a close handler resolves the same namespaces its open handler did. */
+  onClose?(name: string, scope: NamespaceScope): void;
 }
 
 /**
@@ -150,6 +159,13 @@ export interface OpenElement {
   readonly name: string;
   readonly local: string;
   readonly attrs: XmlAttributes;
+  /**
+   * The namespace bindings in force at this element, for the attributes and elements whose identity
+   * is a namespace rather than a prefix (`r:id`, the x14 extension elements). One shared, mutating
+   * instance rather than a snapshot: it is valid while this element is the current one, which is the
+   * whole of a `for..of` body, and copying it per element would cost every scan for the few that ask.
+   */
+  readonly scope: NamespaceScope;
 }
 
 /**
@@ -163,11 +179,19 @@ export interface OpenElement {
  */
 export function* openElements(source: string, ...localNames: string[]): Generator<OpenElement> {
   const filter = localNames.length > 0 ? new Set(localNames) : undefined;
+  const scope = new NamespaceScope();
   for (const event of xmlEvents(source)) {
+    if (event.kind === 'close') {
+      scope.close();
+      continue;
+    }
     if (event.kind !== 'open') continue;
+    scope.open(event.attrs);
     const local = localName(event.name);
-    if (filter !== undefined && !filter.has(local)) continue;
-    yield {name: event.name, local, attrs: event.attrs};
+    if (filter === undefined || filter.has(local)) {
+      yield {name: event.name, local, attrs: event.attrs, scope};
+    }
+    if (event.selfClosing) scope.close();
   }
 }
 
@@ -244,14 +268,14 @@ export function parseXmlPasses(source: string, passes: readonly SaxPass[]): void
   parseXml(
     source,
     {
-      onOpen(name, attrs, selfClosing) {
-        for (const handler of handlers) handler.onOpen(name, attrs, selfClosing);
+      onOpen(name, attrs, selfClosing, scope) {
+        for (const handler of handlers) handler.onOpen(name, attrs, selfClosing, scope);
       },
       onText(text) {
         for (const handler of handlers) handler.onText?.(text);
       },
-      onClose(name) {
-        for (const handler of handlers) handler.onClose?.(name);
+      onClose(name, scope) {
+        for (const handler of handlers) handler.onClose?.(name, scope);
       },
     },
     expanded.size > 0 ? {closeEmptyElements: expanded} : undefined,
@@ -267,16 +291,26 @@ export function parseXml(source: string, handlers: SaxHandlers, options?: ParseX
   const events = options?.closeEmptyElements
     ? closeEmptyElements(xmlEvents(source), options.closeEmptyElements)
     : xmlEvents(source);
+  // One scope for the whole parse, shared by every pass over it: namespace bindings are a property of
+  // the document, not of any one reader, and threading a scope per pass would have each of them
+  // re-deriving the same thing from the same attributes.
+  const scope = new NamespaceScope();
   for (const event of events) {
     switch (event.kind) {
       case 'open':
-        handlers.onOpen(event.name, event.attrs, event.selfClosing);
+        scope.open(event.attrs);
+        handlers.onOpen(event.name, event.attrs, event.selfClosing, scope);
+        // A self-closing element fires no close, unless `closeEmptyElements` expanded it into a pair,
+        // in which case the close below does the popping instead.
+        if (event.selfClosing) scope.close();
         break;
       case 'text':
         handlers.onText?.(event.text);
         break;
       case 'close':
-        handlers.onClose?.(event.name);
+        // Closed after the handler, so a close handler still sees the bindings its element declared.
+        handlers.onClose?.(event.name, scope);
+        scope.close();
         break;
     }
   }

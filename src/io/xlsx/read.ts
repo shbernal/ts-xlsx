@@ -33,6 +33,7 @@ import {isVisibility, type Worksheet, type WorksheetState} from '../../core/work
 import {capturedText, openElements, parseXml, parseXmlPasses} from '../../xml/xml-read.ts';
 import {boolStrict, enumToken, localName, numInteger} from '../../xml/xml-scan.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
+import {relAttr} from '../opc/namespaces.ts';
 import {extensionOf, resolveRelativePart} from '../opc/part-paths.ts';
 import {
   capturePartClosure,
@@ -577,10 +578,9 @@ function isPreservedWorkbookRelType(type: string): boolean {
 // reaches its cache definition, so a preserved cache carries the `cacheId` a pivot table refers to.
 function parsePivotCacheRegistrations(workbookXml: string): Map<string, string> {
   const byRelId = new Map<string, string>();
-  for (const {attrs} of openElements(workbookXml, 'pivotCache')) {
-    if (attrs['r:id'] !== undefined && attrs.cacheId !== undefined) {
-      byRelId.set(attrs['r:id'], attrs.cacheId);
-    }
+  for (const {attrs, scope} of openElements(workbookXml, 'pivotCache')) {
+    const relId = relAttr(scope, attrs, 'id');
+    if (relId !== undefined && attrs.cacheId !== undefined) byRelId.set(relId, attrs.cacheId);
   }
   return byRelId;
 }
@@ -592,8 +592,9 @@ function parsePivotCacheRegistrations(workbookXml: string): Map<string, string> 
 function parseExternalReferenceRegistrations(workbookXml: string): Map<string, number> {
   const byRelId = new Map<string, number>();
   let index = 0;
-  for (const {attrs} of openElements(workbookXml, 'externalReference')) {
-    if (attrs['r:id'] !== undefined) byRelId.set(attrs['r:id'], index++);
+  for (const {attrs, scope} of openElements(workbookXml, 'externalReference')) {
+    const relId = relAttr(scope, attrs, 'id');
+    if (relId !== undefined) byRelId.set(relId, index++);
   }
   return byRelId;
 }
@@ -606,8 +607,9 @@ function worksheetReferenceRelId(
   sheetXml: string,
   element: 'drawing' | 'legacyDrawingHF',
 ): string | undefined {
-  for (const {attrs} of openElements(sheetXml, element)) {
-    if (attrs['r:id'] !== undefined) return attrs['r:id'];
+  for (const {attrs, scope} of openElements(sheetXml, element)) {
+    const relId = relAttr(scope, attrs, 'id');
+    if (relId !== undefined) return relId;
   }
   return undefined;
 }
@@ -687,10 +689,10 @@ export interface SheetEntry {
 
 export function parseWorkbookSheets(xml: string): SheetEntry[] {
   const sheets: SheetEntry[] = [];
-  for (const {attrs} of openElements(xml, 'sheet')) {
+  for (const {attrs, scope} of openElements(xml, 'sheet')) {
     const entry: {name: string; relId: string; state?: WorksheetState['state']} = {
       name: attrs.name ?? '',
-      relId: attrs['r:id'] ?? '',
+      relId: relAttr(scope, attrs, 'id') ?? '',
     };
     // `visible` is the schema default and the model's, so it is dropped rather than stored: keeping
     // it would put a `state="visible"` attribute into a file Excel writes without one.

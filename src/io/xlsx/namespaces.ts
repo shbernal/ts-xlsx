@@ -10,6 +10,8 @@
  * container rather than the spreadsheet inside it, and live in `../opc/namespaces.ts`.
  */
 
+import type {NamespaceScope} from '../../xml/xml-namespaces.ts';
+
 /**
  * SpreadsheetML main namespace: the default `xmlns` of the workbook,
  * worksheet, styles, sharedStrings, comments, table and pivot parts.
@@ -64,3 +66,25 @@ export const DATABAR_LINK_EXT_URI = '{B025F937-C7B1-47D3-B67F-A62EFF666E3E}';
 export const DATA_VALIDATION_EXT_URI = '{CCE6A557-97BC-4b89-ADB6-D9C93CAAB3DF}';
 export const SLICER_LIST_EXT_URI = '{A8765BA9-456A-4dab-B4F3-ACF838C121DE}';
 export const SLICER_CACHES_EXT_URI = '{BBE1A952-AA13-448e-AADC-164F8A28A991}';
+
+/**
+ * Whether an element belongs to the standard SpreadsheetML vocabulary rather than to an extension.
+ *
+ * This used to be spelled `!name.includes(':')`, on the assumption that only extension elements carry
+ * a prefix. A worksheet may bind the *main* namespace to a prefix instead, which is legal and which
+ * real toolchains emit, and then every element has a colon in it: such a file had every one of its
+ * data validations and conditional formats read as an unknown extension and dropped, silently.
+ *
+ * An unprefixed element counts even when the part declares no default namespace. A part with no
+ * `xmlns` at all is not conforming OOXML, but this scanner does not reject it, such parts were read
+ * before, and a fix that gains files by resolving namespaces should not lose files that have none.
+ */
+export function isMainNamespaceElement(scope: NamespaceScope, name: string): boolean {
+  const namespace = scope.elementNamespace(name);
+  return namespace === SPREADSHEETML_NS || (namespace === undefined && !name.includes(':'));
+}
+
+/** The complement of {@link isMainNamespaceElement}: an element of one of the extension vocabularies. */
+export function isExtensionElement(scope: NamespaceScope, name: string): boolean {
+  return !isMainNamespaceElement(scope, name);
+}

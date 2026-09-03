@@ -29,9 +29,12 @@ import {
 import {
   buildReadInput,
   classifyReadError,
+  mainNamespacePrefixReport,
   type ReadInputKind,
+  relationshipPrefixReport,
   reloadPatched,
   reloadWithMarkupSubstituted,
+  themePrefixReport,
 } from './xml-probes.ts';
 
 export const core = {
@@ -944,4 +947,10 @@ export const core = {
       }
     });
   },
+  // Namespace-prefix independence: a file may bind an OOXML namespace to any prefix it likes, and the
+  // reader must read it the same either way. Built in `xml-probes.ts` beside the other crafted reader
+  // inputs; named here so a case can reach them.
+  relationshipPrefixReport,
+  mainNamespacePrefixReport,
+  themePrefixReport,
 };
