@@ -6,7 +6,7 @@ import {mangleFormula, quoteSheetName} from '../../core/formula.ts';
 import {WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} from '../../core/workbook-protection.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import {isVisibility, type Worksheet} from '../../core/worksheet.ts';
-import {AuthoringError, quoted} from '../../errors.ts';
+import {AuthoringError, InternalError, quoted} from '../../errors.ts';
 import {
   assertWritableDate,
   checkedToken,
@@ -75,6 +75,26 @@ const CT = {
 // A preserved workbook reference with the relationship id assigned for emission (see the body and
 // rels-part wiring in `buildPackageParts`).
 export type PreservedWorkbookRel = PreservedWorkbookReferencePlan & {readonly relId: string};
+
+/**
+ * The workbook part's relationship ids, drawn once by the writer's `assignWorkbookRelIds` and handed
+ * to every consumer rather than re-derived by any of them.
+ *
+ * Declared here because both consumers are here: the rels part wires the ids, and the workbook body
+ * *references* them from `<sheet r:id>`. The body used to spell that reference `rId${i + 1}`, which
+ * agreed with the allocator only because sheets happen to be the first ids it hands out. Anything
+ * laid ahead of them would have re-pointed every sheet at the wrong part, and the package would have
+ * stayed schema-valid while doing it -- a class of corruption no validator catches and no round-trip
+ * through this library notices, because the reader resolves the same wrong ids consistently.
+ */
+export interface WorkbookRelPlan {
+  readonly sheetRelIds: readonly string[];
+  readonly stylesRelId: string;
+  readonly themeRelId: string;
+  readonly sharedStringsRelId: string | null;
+  readonly personsRelId: string | null;
+  readonly preservedWorkbookRels: readonly PreservedWorkbookRel[];
+}
 
 /**
  * What `[Content_Types].xml` needs to know about a package: every part family it declares.
@@ -281,17 +301,25 @@ export function rootRelsXml(rootRefs: readonly PreservedRootReferencePlan[]): st
 
 export function workbookXml(
   workbook: Workbook,
-  preservedRels: readonly PreservedWorkbookRel[],
+  plan: WorkbookRelPlan,
   pivots: readonly PivotPlan[],
 ): string {
+  const preservedRels = plan.preservedWorkbookRels;
   const sheets = workbook.worksheets;
   const entries = sheets
     .map((sheet, i) => {
+      const relId = plan.sheetRelIds[i];
+      if (relId === undefined) {
+        throw new InternalError(
+          `worksheet ${i + 1} of ${sheets.length} has no relationship id: the plan was drawn for ` +
+            `${plan.sheetRelIds.length} sheet(s)`,
+        );
+      }
       const state =
         sheet.state === 'visible'
           ? ''
           : ` state="${checkedToken(sheet.state, isVisibility, 'sheet visibility')}"`;
-      return `<sheet name="${escapeAttr(sheet.name)}" sheetId="${sheet.id}"${state} r:id="rId${i + 1}"/>`;
+      return `<sheet name="${escapeAttr(sheet.name)}" sheetId="${sheet.id}"${state} r:id="${relId}"/>`;
     })
     .join('');
   return (
@@ -501,17 +529,7 @@ function filterDatabaseRefersTo(sheetName: string, range: string): string {
  * its fixed part was shared. The relationship *order* is still stated here, because that is what this
  * function is; the numbering is not, because two numberings of one sequence is how they drift apart.
  */
-export function workbookRelsXml(
-  plan: {
-    readonly sheetRelIds: readonly string[];
-    readonly stylesRelId: string;
-    readonly themeRelId: string;
-    readonly sharedStringsRelId: string | null;
-    readonly personsRelId: string | null;
-    readonly preservedWorkbookRels: readonly PreservedWorkbookRel[];
-  },
-  pivots: readonly PivotPlan[],
-): string {
+export function workbookRelsXml(plan: WorkbookRelPlan, pivots: readonly PivotPlan[]): string {
   const {personsRelId} = plan;
   const preservedRels = plan.preservedWorkbookRels;
   return relationshipsPart([

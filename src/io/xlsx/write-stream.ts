@@ -70,7 +70,13 @@ import {AuthoringError, quoted} from '../../errors.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 import {type CommentCell, collectNotes} from './comments.ts';
 import {type CollectedHyperlink, collectHyperlinks} from './hyperlinks.ts';
-import {buildColumnDefaults, Extent, type FlushedSheet, renderRow} from './row-xml.ts';
+import {
+  buildColumnDefaults,
+  Extent,
+  type FlushedRow,
+  type FlushedSheet,
+  renderRow,
+} from './row-xml.ts';
 import type {StyleRegistry} from './styles.ts';
 import {buildPackageParts, createStyleRegistry, type WriteOptions} from './write.ts';
 
@@ -171,7 +177,7 @@ export class WorksheetStreamWriter {
   // The column defaults an eagerly-rendered row inherits, frozen at the first flush so every flushed
   // row composes against the same columns even as later ones are defined.
   #columnDefaults: ReadonlyMap<number, ColumnProperties> | undefined;
-  readonly #flushedRows: {number: number; xml: string}[] = [];
+  readonly #flushedRows: FlushedRow[] = [];
   // Every row number this writer has flushed. A flushed row's `<row>` is already rendered and its
   // cells are gone from the model, so re-materialising one would emit a second element with the same
   // number; the set is what lets `getCell` refuse that rather than produce it.
@@ -273,7 +279,7 @@ export class WorksheetStreamWriter {
     // here for the same reason the outline level is.
     this.#hyperlinks.push(...collectHyperlinks(cells));
     this.#notes.push(...collectNotes(cells));
-    const {xml, minCol, maxCol} = renderRow(
+    const {xml, attrs, minCol, maxCol} = renderRow(
       {number, cells, properties},
       {
         columnDefaults: this.#columnDefaults,
@@ -285,7 +291,7 @@ export class WorksheetStreamWriter {
       },
     );
     if (xml !== '') {
-      this.#flushedRows.push({number, xml});
+      this.#flushedRows.push({number, xml, attrs});
       this.#extent.add(number, minCol, maxCol);
     }
     this.#flushedNumbers.add(number);
@@ -481,9 +487,18 @@ export class WorkbookStreamWriter {
   }
 
   /**
-   * Assemble the workbook into its package, stream the bytes through {@link stream}, and resolve with
-   * the same bytes. Every sheet is frozen first, so a row added after this rejects legibly. Idempotent
-   * only in that a second call throws rather than re-emitting.
+   * Assemble the workbook into its package and stream the bytes out. Every sheet is frozen first, so
+   * a row added after this rejects legibly. Idempotent only in that a second call throws rather than
+   * re-emitting.
+   *
+   * **What it resolves with, and why it can be `undefined`.** The archive is handed back only when
+   * somebody asked for it: when no sink was supplied, or when {@link stream} was touched, since a
+   * `PassThrough` nobody drained would otherwise be the only copy. A caller who passed `{filename}`
+   * or their own `stream` and never reached for {@link stream} gets `undefined`, and the package is
+   * never materialised as a whole: retaining every chunk to concatenate them at the end costs a
+   * second full-size buffer on top of the part map and the archive itself, which is exactly the
+   * memory the caller passed a sink to avoid. The type says so rather than the prose alone, because
+   * a promise that resolves with a value the caller was told to ignore is a promise they will use.
    *
    * If assembling or zipping the package fails, the returned promise rejects *and* every stream this
    * writer was given or handed out is destroyed with that error. A caller piping {@link stream}, or
@@ -491,7 +506,7 @@ export class WorkbookStreamWriter {
    * end; and it is an `error` rather than a clean `end` because the bytes written so far are a
    * truncated package that must not be read as a whole one.
    */
-  async commit(): Promise<Uint8Array> {
+  async commit(): Promise<Uint8Array | undefined> {
     this.#assertOpen('its package is already assembled and cannot be re-emitted');
     this.#committed = true;
     for (const sheet of this.#sheets) sheet.commit();
@@ -507,6 +522,10 @@ export class WorkbookStreamWriter {
     }
     const owned = this.#stream;
     const sink = this.#sink;
+    // Nobody is waiting for the whole archive when the caller supplied a sink and never reached for
+    // `stream`. Read here, beside `owned`, so the decision and the streams it is about are one
+    // statement rather than two that could be made at different moments.
+    const collect = sink === undefined || owned !== undefined;
     // Track the caller sink's terminal state before writing a byte, so an open failure that errors on a
     // later tick (a bad filename) is caught rather than lost, which is the whole point of the reject-not-hang
     // contract. Ahead of the serialisation too, which throws routinely: a rejection handler created
@@ -519,10 +538,14 @@ export class WorkbookStreamWriter {
         styles: this.#styles,
         flushed,
       });
-      const bytes = await streamZipPackage(parts, (chunk) => {
-        owned?.write(chunk);
-        sink?.write(chunk);
-      });
+      const bytes = await streamZipPackage(
+        parts,
+        (chunk) => {
+          owned?.write(chunk);
+          sink?.write(chunk);
+        },
+        collect,
+      );
       owned?.end();
       sink?.end();
 
@@ -563,10 +586,16 @@ function settleOnFinish(sink: Writable): Promise<void> {
 // as it is produced and resolving with the whole archive once the final chunk arrives. `ZipDeflate`
 // deflates synchronously, so the callback fires inline as each part is pushed, and the CRC-32 fflate
 // stamps into every entry's header therefore always matches the bytes it just compressed.
+//
+// `collect` is what makes this a streaming writer on the output side as well as the input side. Every
+// chunk used to be retained whatever the caller wanted, and `concat` then allocated a second
+// full-size buffer to join them, so a caller who passed a sink precisely to avoid holding the package
+// held two copies of it.
 function streamZipPackage(
   parts: Record<string, Uint8Array>,
   onChunk: (chunk: Uint8Array) => void,
-): Promise<Uint8Array> {
+  collect: boolean,
+): Promise<Uint8Array | undefined> {
   return new Promise((resolve, reject) => {
     const collected: Uint8Array[] = [];
     const zip = new Zip((err, chunk, final) => {
@@ -574,9 +603,9 @@ function streamZipPackage(
         reject(err);
         return;
       }
-      collected.push(chunk);
+      if (collect) collected.push(chunk);
       onChunk(chunk);
-      if (final) resolve(concat(collected));
+      if (final) resolve(collect ? concat(collected) : undefined);
     });
     for (const [name, data] of Object.entries(parts)) {
       const entry = new ZipDeflate(name, {level: 6});

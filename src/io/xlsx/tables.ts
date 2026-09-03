@@ -30,14 +30,9 @@ export function tableXml(table: Table, id: number): string {
   // model's tri-state totalsRowShown decides: emit the flag Excel recorded, or nothing when the
   // source omitted it. Injecting `totalsRowShown="0"` onto a table that lacked the attribute is
   // exactly the spurious change that makes Excel treat an otherwise-valid table as corrupt.
-  let totals: string;
-  if (table.totalsRow) {
-    totals = ' totalsRowCount="1"';
-  } else if (table.totalsRowShown !== undefined) {
-    totals = ` totalsRowShown="${table.totalsRowShown ? '1' : '0'}"`;
-  } else {
-    totals = '';
-  }
+  const totals = table.totalsRow
+    ? ' totalsRowCount="1"'
+    : boolAttr('totalsRowShown', table.totalsRowShown);
   const autoFilter =
     table.autoFilterRef !== undefined ? `<autoFilter ref="${table.autoFilterRef}"/>` : '';
   const columns = table.columns.map((column, i) => tableColumnXml(column, i + 1)).join('');

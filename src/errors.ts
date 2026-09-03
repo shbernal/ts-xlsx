@@ -152,6 +152,27 @@ export function invalidToken(kind: string, value: string): AuthoringError {
   );
 }
 
+/**
+ * Refuse a number OOXML cannot spell. Every numeric attribute in the format is `xsd:double`,
+ * `xsd:unsignedInt` or a bounded flavour of one, and none of those lexical spaces has a form for a
+ * NaN or an infinity, so a value that reaches the file as `NaN` is a package Excel reports as
+ * damaged. Neither has the formula grammar, which is why the guard is here rather than in the XML
+ * serialiser: the two spellings of a number this library writes -- an attribute's and a formula
+ * literal's -- sit on opposite sides of the `core`/`xml` boundary and refuse the same values.
+ *
+ * Exported for the callers that must refuse before they write. A number can be unwritable and still
+ * be read on the way to the bytes: compared, summed, walked. A comparison against `NaN` or an
+ * infinity silently takes the wrong branch long before the value would have been serialised.
+ *
+ * @throws {AuthoringError} naming the value.
+ */
+export function assertWritableNumber(value: number): void {
+  if (Number.isFinite(value)) return;
+  throw new AuthoringError(
+    `cannot write a non-finite number (${value}): it has no OOXML representation`,
+  );
+}
+
 /** `U+0001`-style spelling of a code point, for an escape body or an error message. */
 export function codePointHex(codePoint: number): string {
   return codePoint.toString(16).toUpperCase().padStart(4, '0');

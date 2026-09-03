@@ -147,6 +147,130 @@ export function elementSubtrees(source: string, selection: SubtreeSelection): Su
   return {fragments, attributes};
 }
 
+/**
+ * Where an element sits in the source: the offsets an editor splices at, and the parsed attributes of
+ * its opening tag.
+ *
+ * `contentStart`/`contentEnd` bound the element's children; for an empty element they are equal and
+ * both sit just past the `/>`, so replacing that range turns `<latin/>` into `<latin>…</latin>` and
+ * a caller that means to replace the *element* uses `start`/`end` instead.
+ */
+export interface ElementRange {
+  /** Offset of the element's `<`. */
+  readonly start: number;
+  /** One past the element's final `>`. */
+  readonly end: number;
+  /** One past the opening tag's `>`. */
+  readonly contentStart: number;
+  /** Offset of the closing tag's `<`, or `end` for an empty element. */
+  readonly contentEnd: number;
+  /** The name as written, namespace prefix included. */
+  readonly name: string;
+  readonly attrs: XmlAttributes;
+}
+
+/**
+ * Locate the first element reachable by a path of local names, as offsets into the source.
+ *
+ * The primitive for *editing* a part rather than reading one: everything outside the returned range
+ * is spliced through byte for byte, so an edit changes what it names and nothing else -- the
+ * whitespace, the comments, the attribute order, the prefix the source chose. That is a guarantee no
+ * re-serialisation can make, and it is why this returns offsets instead of text.
+ *
+ * The alternative it replaces is a `<container>[\s\S]*?</container>` regular expression, which is a
+ * regular expression parsing XML over untrusted input: it terminates on a `</container>` inside a
+ * comment or a CDATA section, it cannot see an element written `<x></x>` where it expected `<x/>`,
+ * and its container name is interpolated into a pattern where an NCName's legal `.` and `-` are
+ * metacharacters. This scan classifies markup with {@link markupAt}, so a comment is skipped rather
+ * than matched, and compares parsed names rather than raw text.
+ *
+ * Each step of `path` matches at any depth below the previous one, and the *first* match wins, which
+ * is the single block these documents declare. An element that never closes throws
+ * {@link XmlParseError}, on the same grounds as the other truncation cases here: an unterminated
+ * range is not a range.
+ */
+export function elementRange(source: string, path: readonly string[]): ElementRange | undefined {
+  // How much of `path` is currently satisfied, and where each satisfied step's element began. The
+  // last entry is the element whose range is being measured once `matched === path.length`.
+  const open: {local: string; depth: number}[] = [];
+  let pending:
+    | {start: number; contentStart: number; name: string; attrs: XmlAttributes}
+    | undefined;
+
+  const length = source.length;
+  let i = 0;
+  while (i < length) {
+    const lt = source.indexOf('<', i);
+    if (lt === -1) break;
+    const markup = markupAt(source, lt);
+    if (markup !== undefined) {
+      i = markup.next;
+      continue;
+    }
+    const tag = tagAt(source, lt);
+    const local = localName(tag.name);
+
+    if (tag.close) {
+      const innermost = open.at(-1);
+      if (innermost !== undefined && innermost.local === local) {
+        if (innermost.depth > 0) innermost.depth -= 1;
+        else {
+          open.pop();
+          if (pending !== undefined && open.length === path.length - 1) {
+            return {...pending, end: tag.next, contentEnd: lt};
+          }
+        }
+      }
+      i = tag.next;
+      continue;
+    }
+
+    const wanted = path[open.length];
+    if (pending !== undefined) {
+      // Inside the element being measured: only its own name nesting matters, and `open` already
+      // holds it, so count the depth there.
+      const innermost = open.at(-1);
+      if (innermost !== undefined && !tag.selfClosing && innermost.local === local) {
+        innermost.depth += 1;
+      }
+    } else if (local === wanted) {
+      const last = open.length === path.length - 1;
+      if (last) {
+        if (tag.selfClosing) {
+          return {
+            start: lt,
+            end: tag.next,
+            contentStart: tag.next,
+            contentEnd: tag.next,
+            name: tag.name,
+            attrs: parseAttributes(tag.attrSource),
+          };
+        }
+        pending = {
+          start: lt,
+          contentStart: tag.next,
+          name: tag.name,
+          attrs: parseAttributes(tag.attrSource),
+        };
+        open.push({local, depth: 0});
+      } else if (!tag.selfClosing) {
+        open.push({local, depth: 0});
+      }
+    } else {
+      const innermost = open.at(-1);
+      if (innermost !== undefined && !tag.selfClosing && innermost.local === local) {
+        innermost.depth += 1;
+      }
+    }
+    i = tag.next;
+  }
+
+  if (pending !== undefined) {
+    throw new XmlParseError(`unterminated <${pending.name}> element`);
+  }
+  return undefined;
+}
+
 /** An element start surfaced by {@link openElements}: its qualified `name`, the namespace-stripped
  * `local` name the filter matched on, and its already-decoded `attrs`. */
 export interface OpenElement {

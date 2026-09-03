@@ -25,6 +25,7 @@ import {
 import type {ColumnProperties, RowProperties, Worksheet} from '../../core/worksheet.ts';
 import {AuthoringError, InternalError} from '../../errors.ts';
 import {
+  boolAttr,
   escapeAttr,
   escapeSpreadsheetText,
   escapeText,
@@ -84,8 +85,26 @@ export class Extent {
  * into ascending order with the sheet's remaining live rows, whatever order it was committed in), plus
  * the used-cell {@link Extent} they span. The buffered pass folds that extent into the sheet's dimension.
  */
+/**
+ * A row the streaming writer already serialised, kept with the attribute string it was built from.
+ *
+ * The attributes are carried rather than re-read out of `xml`, and that is the whole point of the
+ * field. `collapsed="1"` is decided after the row is gone (see {@link FlushedSheet.rowOutline}), so
+ * the summary row has to be patched, and the patcher used to ask `xml.includes(' collapsed="1"')`
+ * whether the attribute was already there. The `<row>` tag's shape is known, but the *cell text*
+ * embedded in it is not: `escapeText` leaves a double quote verbatim, so a cell whose value was the
+ * literal string ` collapsed="1"` answered that question for the row and left the outline group
+ * rendering expanded. A file cannot forge a field.
+ */
+export interface FlushedRow {
+  readonly number: number;
+  readonly xml: string;
+  /** The `<row>` element's own attributes, exactly as {@link renderRow} emitted them. */
+  readonly attrs: string;
+}
+
 export interface FlushedSheet {
-  readonly rows: ReadonlyArray<{readonly number: number; readonly xml: string}>;
+  readonly rows: readonly FlushedRow[];
   readonly extent: Extent;
   /**
    * Each flushed row's outline level and hidden flag. Carried across the eviction because both feed
@@ -143,8 +162,10 @@ export interface RowRenderContext {
 /**
  * Serialise one row to its `<row>` element, or '' when the row has neither data nor its own
  * formatting. Returns the used-column bounds (`Infinity`/`-Infinity` when nothing was rendered) so a
- * caller can fold them into the sheet dimension. Shared by the buffered sheet pass and the streaming
- * writer's eager flush, so both emit byte-identical rows.
+ * caller can fold them into the sheet dimension, and the attribute string separately, so a later pass
+ * can ask what this row declared without reading it back out of markup that also holds cell text.
+ * Shared by the buffered sheet pass and the streaming writer's eager flush, so both emit
+ * byte-identical rows.
  */
 export function renderRow(
   entry: {
@@ -153,7 +174,7 @@ export function renderRow(
     readonly properties: RowProperties | undefined;
   },
   ctx: RowRenderContext,
-): {xml: string; minCol: number; maxCol: number} {
+): {xml: string; attrs: string; minCol: number; maxCol: number} {
   const {number, cells, properties} = entry;
   // A cell earns a <c> element if it holds a value OR carries its own style: a formatted-but-empty
   // cell (a fill/border on a null value) is a real cell to Excel, and dropping it would lose the
@@ -161,7 +182,9 @@ export function renderRow(
   const rendered = cells.filter((cell) => cell.value !== null || cellHasOwnStyle(cell));
   const attrs = rowAttrs(properties, ctx.styles, ctx.collapsedSummaries.has(number));
   // A row with neither data nor its own formatting has nothing to serialise.
-  if (rendered.length === 0 && attrs === '') return {xml: '', minCol: Infinity, maxCol: -Infinity};
+  if (rendered.length === 0 && attrs === '') {
+    return {xml: '', attrs: '', minCol: Infinity, maxCol: -Infinity};
+  }
   const rowFill = properties?.fill;
   const cellsXml = rendered
     .map((cell) => {
@@ -183,7 +206,16 @@ export function renderRow(
     if (cell.col < minCol) minCol = cell.col;
     if (cell.col > maxCol) maxCol = cell.col;
   }
-  return {xml: `<row r="${number}"${attrs}>${cellsXml}</row>`, minCol, maxCol};
+  return {xml: `${rowOpenTag(number)}${attrs}>${cellsXml}</row>`, attrs, minCol, maxCol};
+}
+
+/**
+ * The `<row>` element's opening tag up to its first attribute: the one thing a later pass may rely on
+ * about a rendered row's shape, spelled here so it is the emitter's own string rather than a
+ * re-parse of the emitter's output.
+ */
+export function rowOpenTag(number: number): string {
+  return `<row r="${number}"`;
 }
 
 // Compose a cell's full style by resolving each facet cell-over-row-over-column, so a cell that
@@ -362,8 +394,8 @@ function cellFormulaXml(
     // evaluates. The cached result travels as any formula result does.
     const attrs =
       `ref="${escapeAttr(value.ref)}"` +
-      ` dt2D="${value.dataTable2D ? 1 : 0}"` +
-      ` dtr="${value.dataTableRow ? 1 : 0}"` +
+      boolAttr('dt2D', value.dataTable2D) +
+      boolAttr('dtr', value.dataTableRow) +
       textAttr('r1', value.r1) +
       textAttr('r2', value.r2);
     return formulaBodyXml(ref, s, `<f t="dataTable" ${attrs}/>`, value.result, epoch);

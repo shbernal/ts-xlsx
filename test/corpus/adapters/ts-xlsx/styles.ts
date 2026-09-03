@@ -137,6 +137,28 @@ export const styles = {
   // structured OBJECT (a parsed `{id, formatCode}` shape) to another, write, and report the string's
   // survival plus whether the styles part was corrupted → { controlNumFmtReload, stylesHasObjectObject }.
   // The object must never serialize as `formatCode="[object Object]"`.
+  // Write a custom number format carrying every character an XML attribute has to escape, and report
+  // the emitted `formatCode` attribute alongside what reads back ->
+  // { attribute, readBack }. XML 1.0 3.3.3 makes a conforming parser normalise a raw tab, line feed
+  // or carriage return in *any* attribute value to a space, so a format code that carries one raw is
+  // a format code Excel reads back different from the one that was written. Our own reader preserves
+  // the raw character, which is exactly why the loss cannot be seen from a round-trip alone: the
+  // assertion has to be on the bytes.
+  formatCodeAttributeEscaping() {
+    const code = '0.0"a\tb\nc\rd"e&f<g>h\'i';
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.getCell('A1').value = 1;
+    sheet.getCell('A1').numFmt = code;
+    const bytes = writeXlsx(workbook);
+    const styles = partMapOf(bytes)['xl/styles.xml'] ?? '';
+    return {
+      attribute: /<numFmt numFmtId="\d+" formatCode="([^"]*)"\/>/.exec(styles)?.[1] ?? null,
+      readBack: readXlsx(bytes).getWorksheet('S')?.getCell('A1').numFmt ?? null,
+      authored: code,
+    };
+  },
+
   numFmtObjectCorruptionReport() {
     const wb = new Workbook();
     const sheet = wb.addWorksheet('S');

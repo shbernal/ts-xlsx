@@ -428,13 +428,20 @@ classes to catch a mistake would change the public surface of every one to guard
 not happened yet, and a `Color` that never reaches a file never had a problem. So the check belongs
 at the single point where the value becomes bytes, and `src/xml/xml.ts` states all three forms of it:
 
-- **A number is refused if the format cannot spell it.** `assertWritableNumber`, and the
-  `numberText` / `numAttr` pair that call it. Every numeric attribute in OOXML is `xsd:double`,
+- **A number is refused if the format cannot spell it.** `assertWritableNumber`, in `src/errors.ts`
+  rather than in the serialiser, because a number has two spellings here and they sit on opposite
+  sides of the `core`/`xml` boundary: `numberText` / `numAttr` write an attribute, and
+  `formulaNumberLiteral` in `core/formula.ts` writes a formula literal, which the BIFF12 codec
+  produces as readily as the XML one. Every numeric attribute in OOXML is `xsd:double`,
   `xsd:unsignedInt` or a bounded flavour, and no lexical space has a form for a NaN or an infinity,
   so writing one produces a package Excel reports as damaged. The refusal is also exported on its own
   because a value can be unwritable and still be *read* on the way to the bytes: the collapsed-row
   scan compares outline levels to walk a group, and against `-Infinity` every comparison holds and
   the walk never ends.
+- **A date is refused if `dcterms:W3CDTF` cannot spell it.** `assertWritableDate`, for the same
+  reason and with the same shape. An Invalid Date is truthy and is an instance of `Date`, so it
+  passes every guard short of this one; a year outside 0000-9999 does not throw at all and writes ISO
+  8601's expanded `+275760-09-13T…` notation, which no `xsd:dateTime` admits.
 - **A token from a closed enumeration is checked, not escaped.** `checkedToken`, against the
   `is*` guard in `src/core/` that owns that enumeration. Escaping a bogus token yields a well-formed
   document Excel still rejects, which buries the mistake in the file instead of raising it at the
@@ -452,6 +459,20 @@ the call. Both halves lean on one guard per enumeration, so what the reader acce
 something the writer can write back. Where that leaves a model fragment unwritable anyway, the
 reader drops the fragment: a `<cfRule>` whose type is not in `ST_CfType` is dropped whole rather than
 half-read, because `type` is the attribute every other field is read relative to.
+
+Two rules bind the *emitter* rather than the value it is handed, and both were learned the same way.
+**Content never decides how its container is serialised.** The one row attribute that cannot be known
+when a streamed row is rendered, `collapsed="1"`, is patched in afterwards; the patcher used to ask
+the rendered markup whether the attribute was already there, and that markup also carries cell text
+in which `escapeText` leaves a double quote verbatim, so a cell whose value was the literal string
+` collapsed="1"` suppressed the attribute on the row containing it. What a row declared is carried as
+a field beside its XML, never re-read out of it. **An edit to a part is made at offsets a scanner
+found, never by a pattern.** `elementRange` in `xml-read.ts` is that primitive: it returns source
+offsets, so everything outside the range it names is spliced through byte for byte -- the whitespace,
+the comments, the attribute order, the prefix the source chose -- which is a guarantee no
+re-serialisation can make. It replaced three `<container>[\s\S]*?</container>` regular expressions
+in `theme-xml.ts`, the one file whose own header condemns that pattern, on a path a preserved source
+theme's bytes reach.
 
 A **reference** is a foreign scalar like any other, and has its own tolerant pair in
 `core/address.ts`: `tryDecodeCellRef` and `tryDecodeRange`, returning `undefined` where

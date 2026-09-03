@@ -25,7 +25,7 @@ import {
 } from '../../core/style.ts';
 import type {DifferentialStyle} from '../../core/workbook-styles.ts';
 import {decodeEntities} from '../../xml/xml-scan.ts';
-import {assertRepresentable, checkedToken, escapeAttr, numberText} from '../../xml/xml.ts';
+import {checkedToken, escapeAttr, escapeFormatCode, numberText} from '../../xml/xml.ts';
 import {colorAttrs} from './color-xml.ts';
 
 // numFmt ids below 164 are reserved by ECMA-376 for the built-in formats every consumer
@@ -279,22 +279,6 @@ function edgeXml(tag: string, edge: BorderEdge | undefined): string {
   const style = checkedToken(edge.style, isBorderStyle, 'border style');
   if (edge.color === undefined) return `<${tag} style="${style}"/>`;
   return `<${tag} style="${style}"><color ${colorAttrs(edge.color)}/></${tag}>`;
-}
-
-// A format code sits in the `formatCode` attribute; only the markup-significant characters
-// need escaping. A code can legitimately contain `"` (quoted literals like `"$"`), `<`, `&`.
-// Unlike `escapeAttr`, a lone `'` is left untouched: it is not markup-significant inside a
-// double-quoted attribute, and Excel writes format codes with bare apostrophes, so leaving it
-// keeps the round-tripped code byte-identical to the source. That divergence is the whole reason
-// this exists; the representability guard is not part of it, so it runs here too rather than
-// letting a code carrying a character XML 1.0 cannot spell be written raw into the part.
-export function escapeFormatCode(code: string): string {
-  assertRepresentable(code);
-  return code
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 // A stable, collision-free key for a fill: identical fills share it, distinct ones don't.

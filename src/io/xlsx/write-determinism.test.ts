@@ -58,6 +58,7 @@ test('the streamed writer stamps its entries the same way', async () => {
   for (let row = 1; row <= 50; row++) sheet.addRow([`row ${row}`, row * 3]).commit();
   sheet.commit();
   const streamed = await writer.commit();
+  assert.ok(streamed !== undefined);
 
   const stamps = entryStamps(streamed);
   assert.ok(stamps.length >= 8, `expected the package to have entries, got ${stamps.length}`);

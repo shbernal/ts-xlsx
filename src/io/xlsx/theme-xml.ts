@@ -22,7 +22,7 @@ import {
   type ThemeFontScheme,
   type ThemeOverrides,
 } from '../../core/theme.ts';
-import {parseXml} from '../../xml/xml-read.ts';
+import {elementRange, parseXml} from '../../xml/xml-read.ts';
 import {localName, type XmlAttributes} from '../../xml/xml-scan.ts';
 import {escapeAttr} from '../../xml/xml.ts';
 
@@ -183,53 +183,62 @@ const SCHEME_ELEMENT_ORDER: readonly ThemeColorSlot[] = [
  * its value. That matters for `dk1`/`lt1`, which Excel writes as `<a:sysClr val="windowText"
  * lastClr="000000"/>`: rewriting those as `<a:srgbClr>` would pin them to one machine's resolved
  * window colours and break dark-mode following.
+ *
+ * The edit is made by *offset*, not by pattern. What it replaces was three container-scanning regular
+ * expressions in the one file whose own header condemns that pattern, on a path a preserved source
+ * theme's bytes reach: `[\s\S]*?` terminated on a `</clrScheme>` inside a comment, `[^>]*` missed a
+ * `<latin typeface="X"></latin>` and dropped the override silently, and the DrawingML prefix -- read
+ * out of the part's own root element, where an NCName may legally contain `.` and `-` -- was
+ * interpolated into the pattern unescaped. {@link elementRange} answers the same question with the
+ * scanner, and splicing at its offsets is what makes an unoverridden part come back byte for byte.
  */
 export function applyThemeOverrides(baseXml: string, overrides: ThemeOverrides): string {
-  let xml = baseXml;
   // The prefix the base part itself binds DrawingML to, so what is written back matches the part
-  // being edited rather than the one this library happens to ship. Under any prefix but `a`, every
-  // replacement below used to match nothing and the overrides were silently discarded.
+  // being edited rather than the one this library happens to ship.
   const {elements: sourceElements, prefix} = readThemeScheme(baseXml);
+  // Collected first, applied last-to-first, so an earlier edit cannot move a later edit's offsets.
+  const edits: {start: number; end: number; text: string}[] = [];
+
   const colors = overrides.colors ?? {};
   if (Object.keys(colors).length > 0) {
-    const body = SCHEME_ELEMENT_ORDER.map((slot) => {
-      const authored = colors[slot];
-      const inner =
-        authored !== undefined
-          ? `<${prefix}srgbClr val="${normalizeThemeColor(authored)}"/>`
-          : (sourceElements[slot] ??
-            `<${prefix}srgbClr val="${DEFAULT_THEME_COLOR_SCHEME[slot]}"/>`);
-      return `<${prefix}${slot}>${inner}</${prefix}${slot}>`;
-    }).join('');
-    xml = replaceBlockBody(xml, prefix, 'clrScheme', body);
+    // A base that declares no colour scheme is left alone: this authors an existing theme, and a
+    // theme with no `<clrScheme>` is not one an override can repair.
+    const scheme = elementRange(baseXml, ['clrScheme']);
+    if (scheme !== undefined) {
+      const body = SCHEME_ELEMENT_ORDER.map((slot) => {
+        const authored = colors[slot];
+        const inner =
+          authored !== undefined
+            ? `<${prefix}srgbClr val="${normalizeThemeColor(authored)}"/>`
+            : (sourceElements[slot] ??
+              `<${prefix}srgbClr val="${DEFAULT_THEME_COLOR_SCHEME[slot]}"/>`);
+        return `<${prefix}${slot}>${inner}</${prefix}${slot}>`;
+      }).join('');
+      edits.push({start: scheme.contentStart, end: scheme.contentEnd, text: body});
+    }
   }
+
   const {major, minor} = overrides.fonts ?? {};
-  if (major !== undefined) xml = replaceLatinTypeface(xml, prefix, 'majorFont', major);
-  if (minor !== undefined) xml = replaceLatinTypeface(xml, prefix, 'minorFont', minor);
+  const latin = (which: 'majorFont' | 'minorFont', typeface: string) => {
+    const found = elementRange(baseXml, [which, 'latin']);
+    if (found === undefined) return;
+    // The authored typeface is *merged over* the source element's attributes rather than replacing
+    // them, which is what keeps the `panose` metric beside it. The old regex captured everything
+    // after the element name and re-emitted only the typeface, so the claim in this file that panose
+    // survived an override was false for as long as it was written down.
+    const attrs: Record<string, string> = {...found.attrs, typeface};
+    let rendered = `<${found.name}`;
+    for (const key in attrs) rendered += ` ${key}="${escapeAttr(attrs[key] ?? '')}"`;
+    edits.push({start: found.start, end: found.end, text: `${rendered}/>`});
+  };
+  if (major !== undefined) latin('majorFont', major);
+  if (minor !== undefined) latin('minorFont', minor);
+
+  let xml = baseXml;
+  for (const edit of edits.sort((a, b) => b.start - a.start)) {
+    xml = xml.slice(0, edit.start) + edit.text + xml.slice(edit.end);
+  }
   return xml;
-}
-
-// Replace the body of `<clrScheme>…</clrScheme>`, keeping the element's own attributes (the scheme's
-// display name). A base with no such block is left alone: this authors an existing theme, and a theme
-// that declares no colour scheme at all is not one an override can repair.
-function replaceBlockBody(xml: string, prefix: string, name: string, body: string): string {
-  const pattern = new RegExp(`(<${prefix}${name}\\b[^>]*>)[\\s\\S]*?(</${prefix}${name}>)`);
-  return xml.replace(pattern, (_all, open: string, close: string) => `${open}${body}${close}`);
-}
-
-// Swap just the `<latin typeface="…"/>` inside one of the two font slots, leaving its `panose` and
-// the east-asian/complex-script faces beside it as they were.
-function replaceLatinTypeface(
-  xml: string,
-  prefix: string,
-  which: 'majorFont' | 'minorFont',
-  typeface: string,
-): string {
-  const pattern = new RegExp(`(<${prefix}${which}\\b[^>]*>[\\s\\S]*?<${prefix}latin\\b)[^>]*(/>)`);
-  return xml.replace(
-    pattern,
-    (_all, open: string, close: string) => `${open} typeface="${escapeAttr(typeface)}"${close}`,
-  );
 }
 
 /**

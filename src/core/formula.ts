@@ -21,6 +21,7 @@
 // exception: LET/LAMBDA parameter scope opens and closes at paren boundaries, state `scanFormula`'s
 // per-run transform cannot carry, so it runs its own forward walk, still deferring to `skipOpaque`.
 
+import {assertWritableNumber} from '../errors.ts';
 import {MAX_COLUMN, MAX_ROW, numberToColumn, tryColumnToNumber} from './address.ts';
 import {MODERN_FUNCTIONS} from './modern-functions.ts';
 import {REF_ERROR} from './value.ts';
@@ -353,4 +354,40 @@ export function translateFormula(formula: string, colDelta: number, rowDelta: nu
       },
     ),
   );
+}
+
+/**
+ * A number as it appears *inside formula text*, which is not the same serialisation as an
+ * attribute's.
+ *
+ * Two divergences, both found as drift rather than designed. The exponent's case: Excel writes
+ * `1E+21` where JavaScript writes `1e+21`, so the same literal read back through the two codecs
+ * produced two different formula strings depending on which file it came from -- exactly the
+ * asymmetry `cell-value.ts` and `cell-accumulator.ts` were extracted to prevent. And the finiteness
+ * guard: the BIFF12 decoder had a private copy of this function with none, so a `PtgNum` whose eight
+ * bytes decode to an infinity produced the formula text `INFINITY`, which the writer then escaped as
+ * ordinary text into a package Excel reports as damaged.
+ *
+ * Here rather than in `xml/xml.ts` beside the attribute form, because formula text is not XML: the
+ * BIFF12 codec produces it too, and reaching the XML serialiser for it put the whole write half of
+ * that module into the closure of an entry that has no XML in it.
+ *
+ * @throws {AuthoringError} when the value is not finite.
+ */
+export function formulaNumberLiteral(value: number): string {
+  assertWritableNumber(value);
+  // Only `e` can appear in a JavaScript number's decimal form besides digits and a sign, so an
+  // unconditional fold cannot touch anything else.
+  return String(value).toUpperCase();
+}
+
+/**
+ * Render a formula operand for serialisation: a number becomes its literal, a string is stripped of
+ * the single optional leading '=' an author may write (OOXML stores the expression without it, e.g.
+ * `=A1>0` on disk is `A1>0`). The result is unescaped: the caller escapes it for its target, whether
+ * that is element text or an attribute value.
+ */
+export function stripFormulaEquals(value: string | number): string {
+  if (typeof value === 'number') return formulaNumberLiteral(value);
+  return value.startsWith('=') ? value.slice(1) : value;
 }

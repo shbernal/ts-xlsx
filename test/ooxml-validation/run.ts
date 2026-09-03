@@ -118,7 +118,10 @@ async function writeStreamingWorkbook(file: string, useSharedStrings: boolean): 
   sheet.addRow(['alpha', 42]).commit();
   sheet.addRow(['beta', 7]).commit();
   sheet.commit();
-  await writeFile(file, await writer.commit());
+  // No sink was supplied, so the writer retains the package and `commit` resolves with it.
+  const bytes = await writer.commit();
+  if (bytes === undefined) throw new Error('the streaming writer retained no package');
+  await writeFile(file, bytes);
 }
 
 async function rewritePackage(

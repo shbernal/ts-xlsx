@@ -27,6 +27,7 @@ import {
   isCfTimePeriod,
   type CfTimePeriod,
 } from '../../core/conditional-formatting.ts';
+import {stripFormulaEquals} from '../../core/formula.ts';
 import type {Color} from '../../core/style.ts';
 import {
   type CollectingPass,
@@ -49,7 +50,6 @@ import {
   escapeAttr,
   escapeText,
   numberText,
-  stripFormulaEquals,
   textAttr,
 } from '../../xml/xml.ts';
 import {colorAttrs, parseColor} from './color-xml.ts';

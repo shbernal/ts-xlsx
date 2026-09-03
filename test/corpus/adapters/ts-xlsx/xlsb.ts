@@ -2,7 +2,7 @@
 // workbook Excel saved in both forms, which is why the fixture is a *pair*: the XML twin is an
 // independent oracle for what the binary must decode to, not something this library produced.
 
-import {strToU8, zipSync} from 'fflate';
+import {strToU8, unzipSync, zipSync} from 'fflate';
 
 import {canonicalJson} from '../../canonical-json.ts';
 import type {Untyped} from '../../untyped.ts';
@@ -120,6 +120,57 @@ export const xlsb = {
     });
   },
 
+  // Damage one cell's token stream so its last token declares an operand past the end of `rgce`, then
+  // read the whole workbook -> { threw, errorName, sheets, formulas, damagedCell, siblingFormula }.
+  // The module contract says a formula this decoder cannot read costs the formula and leaves the
+  // cached result: that held for an *unrecognised* token and not for a *truncated* one, which threw
+  // out of the record reader uncaught and discarded an otherwise fully recoverable workbook. The two
+  // are the same damage.
+  //
+  // The offsets are the fixture's own, and the guard below is what says so: `sheet1.bin`'s first
+  // `BrtFmlaNum` record holds `C1`, whose eleven `rgce` bytes end the token stream. Overwriting the
+  // last of them with `PtgInt` (0x1E), which reads a two-byte operand that is no longer there, is a
+  // truncation expressed without changing a single length field, so the record framing stays exactly
+  // as valid as it was and only the formula runs off its own end.
+  xlsbTruncatedFormulaToken() {
+    const files = unzipSync(fixtureBytes(`${FORMULAS}/source.xlsb`));
+    const original = files['xl/worksheets/sheet1.bin'];
+    if (original === undefined) throw new Error('fixture is missing xl/worksheets/sheet1.bin');
+    const RGCE_LAST = 266;
+    if (original[RGCE_LAST] !== 0x03) {
+      throw new Error(
+        `fixture moved: expected the last rgce byte of C1 at ${RGCE_LAST}, found 0x${(original[RGCE_LAST] ?? 0).toString(16)}`,
+      );
+    }
+    const sheet = Uint8Array.from(original);
+    sheet[RGCE_LAST] = 0x1e;
+    const archive = zipSync({...files, 'xl/worksheets/sheet1.bin': sheet});
+    try {
+      const workbook = readXlsb(archive);
+      const first = workbook.getWorksheet('Calc');
+      return {
+        threw: false,
+        errorName: null,
+        sheets: workbook.worksheets.length,
+        formulas: countFormulas(workbook),
+        damagedCell: normalize(first?.getCell('C1').value),
+        damagedFormula: formulaOf(first?.getCell('C1').value),
+        siblingFormula: formulaOf(first?.getCell('D1').value),
+      };
+    } catch (error) {
+      const failure = error as Untyped;
+      return {
+        threw: true,
+        errorName: String(failure?.name ?? ''),
+        sheets: 0,
+        formulas: 0,
+        damagedCell: null,
+        damagedFormula: null,
+        siblingFormula: null,
+      };
+    }
+  },
+
   // A ZIP whose office document is a binary workbook that does not conform to the record framing:
   // classification succeeded (it *is* an `.xlsb`), so the failure must be a typed parse error rather
   // than a crash, a hang, or a silently empty workbook.
@@ -206,4 +257,16 @@ function snapshot(workbook: WorkbookInstance): string {
     null,
     1,
   );
+}
+
+// How many formula cells a workbook holds, across every sheet: the "and nothing else was lost" half
+// of a damaged-formula assertion.
+function countFormulas(workbook: WorkbookInstance): number {
+  let total = 0;
+  for (const sheet of workbook.worksheets) {
+    for (const {cells} of sheet.rows()) {
+      for (const cell of cells) if (formulaOf(cell.value) !== null) total += 1;
+    }
+  }
+  return total;
 }

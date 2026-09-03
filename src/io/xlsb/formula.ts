@@ -23,8 +23,9 @@
 // gaps that reach that path are listed in `docs/knowledge/specs/xlsb-binary-format-output.md`.
 
 import {MAX_COLUMN, MAX_ROW, numberToColumn} from '../../core/address.ts';
-import {quoteSheetName} from '../../core/formula.ts';
+import {formulaNumberLiteral, quoteSheetName} from '../../core/formula.ts';
 import {REF_ERROR} from '../../core/value.ts';
+import {XlsbParseError} from './errors.ts';
 import {errorCodeFor, RecordReader} from './primitives.ts';
 import {FTAB_USER_DEFINED, fixedArityFor, functionNameFor} from './ptg-functions.ts';
 
@@ -67,14 +68,31 @@ export interface FormulaAnchor {
  * @param rgce the token stream.
  * @param rgcb the trailing extra-data block: the array constants, and the cell ranges a precomputed
  *   range token refers to. Its entries are consumed in token order.
- * @returns the formula text, or `undefined` if the stream uses a token this reader does not decode.
- * @throws {XlsbParseError} if a token runs past the end of the stream (a malformed formula).
+ * @returns the formula text, or `undefined` if the stream uses a token this reader does not decode,
+ *   or runs off the end of its own record.
  */
 export function decodeFormula(
   rgce: Uint8Array,
   rgcb: Uint8Array,
   scope: FormulaScope,
 ): string | undefined {
+  try {
+    return decodeTokens(rgce, rgcb, scope);
+  } catch (error) {
+    // A token whose operand runs past the end of `rgce` is the same damage as a token this decoder
+    // does not recognise, and the module's contract already answers that one by returning
+    // `undefined` and letting the caller keep the cached result. It used to answer this one by
+    // throwing out of `RecordReader`, uncaught, so a single damaged formula in a single cell
+    // discarded an otherwise fully recoverable workbook -- while the same damage spelled as an
+    // unknown opcode degraded gracefully. `rgce` and `rgcb` are views already framed by the record
+    // (`read-worksheet.ts` bounds them), so the record-level guard is what fails a truly malformed
+    // file closed; the token-level one only ever bounded this formula.
+    if (error instanceof XlsbParseError) return undefined;
+    throw error;
+  }
+}
+
+function decodeTokens(rgce: Uint8Array, rgcb: Uint8Array, scope: FormulaScope): string | undefined {
   const tokens = new RecordReader(rgce);
   const extra = new RecordReader(rgcb);
   const stack: string[] = [];
@@ -151,9 +169,9 @@ function step(
     case PTG.Bool:
       return push(tokens.u8() !== 0 ? 'TRUE' : 'FALSE');
     case PTG.Int:
-      return push(String(tokens.u16()));
+      return push(numberLiteral(tokens.u16()));
     case PTG.Num:
-      return push(numberText(tokens.f64()));
+      return push(numberLiteral(tokens.f64()));
     default:
       // Every remaining token is an operand or call whose meaning is independent of its result class
       // (reference, value, or array): the class only tells the calculation engine how to coerce it.
@@ -307,7 +325,7 @@ function arrayConstant(extra: RecordReader): string | undefined {
 function arrayElement(extra: RecordReader): string | undefined {
   switch (extra.u8()) {
     case SER_NUM:
-      return numberText(extra.f64());
+      return numberLiteral(extra.f64());
     case SER_STR:
       return quoteString(extra.shortString());
     case SER_BOOL:
@@ -391,10 +409,15 @@ function quoteString(text: string): string {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
-// A numeric literal. JavaScript and Excel agree on every ordinary number; they part company only at
-// the exponent's case, which is normalised here so `1E+21` does not read back as `1e+21`.
-function numberText(value: number): string {
-  return String(value).toUpperCase();
+// A numeric literal read out of a file, in the one spelling both codecs produce.
+//
+// The finiteness test is the read-side half of the same rule `formulaNumberLiteral` enforces on the
+// write side. Eight bytes of a `PtgNum` can decode to an infinity or a NaN, and neither is a value
+// BIFF12 means to carry or the formula grammar can spell, so it makes the formula undecodable the
+// way an unrecognised token does. The alternative is what used to happen: the text `INFINITY`
+// reaching the model and being written back out as a formula Excel reports as damaged.
+function numberLiteral(value: number): string | undefined {
+  return Number.isFinite(value) ? formulaNumberLiteral(value) : undefined;
 }
 
 // The infix operators, by their ptg. `PtgIsect` is Excel's space operator (`A1:A3 A2:A5`) and

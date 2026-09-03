@@ -43,7 +43,13 @@
 // Refusing is a new throw on a path that used to "succeed" by producing a file Excel reports
 // as damaged, so the failure moved earlier and got louder, which is the whole trade.
 
-import {AuthoringError, codePointHex, invalidToken, unrepresentable} from '../errors.ts';
+import {
+  assertWritableNumber,
+  AuthoringError,
+  codePointHex,
+  invalidToken,
+  unrepresentable,
+} from '../errors.ts';
 import {XML_UNREPRESENTABLE, XML_UNREPRESENTABLE_GLOBAL} from './xml-chars.ts';
 
 const TEXT_ESCAPES: Record<string, string> = {
@@ -77,12 +83,12 @@ const XML_REFUSAL =
  * can find it in a value they never inspected. These arrive from a database column or a CSV
  * field, not from a literal in the calling code.
  *
- * Exported for the one escape that cannot be {@link escapeAttr}: a number format code escapes
- * everything but the apostrophe, and needs this guard just the same.
+ * Every escape in this module runs it, including {@link escapeFormatCode}, whose one deliberate
+ * divergence from {@link escapeAttr} is about the apostrophe and not about this.
  *
  * @throws {AuthoringError} naming the code point and its offset.
  */
-export function assertRepresentable(value: string): void {
+function assertRepresentable(value: string): void {
   const error = unrepresentable(value, XML_UNREPRESENTABLE, XML_REFUSAL);
   if (error !== undefined) throw error;
 }
@@ -97,6 +103,27 @@ export function escapeText(value: string): string {
 export function escapeAttr(value: string): string {
   assertRepresentable(value);
   return value.replace(/[&<>"'\n\r\t]/g, (ch) => ATTR_ESCAPES[ch] as string);
+}
+
+/**
+ * {@link escapeAttr} for a number format code: the same escapes minus the apostrophe.
+ *
+ * A format code can legitimately contain `"` (a quoted literal like `"$"`), `<` and `&`, and Excel
+ * writes one with bare apostrophes. `'` is not markup-significant inside a double-quoted attribute,
+ * so leaving it keeps a round-tripped code byte-identical to the source; that divergence is the whole
+ * reason this exists.
+ *
+ * It is built by *omitting* one entry from {@link ATTR_ESCAPES} rather than by listing the escapes it
+ * does want, which is how it used to be written, in `io/xlsx/style-elements.ts`. An independently
+ * maintained list does not stay a one-character divergence: that one silently dropped the tab, line
+ * feed and carriage return escapes as well, and XML 1.0 3.3.3 requires a parser to normalise all
+ * three in an attribute value to a space, so Excel read back a format code with a space where the
+ * author wrote a tab. Our own reader preserved the raw character, so a round trip through this
+ * library returned it unchanged and no test here could see the loss.
+ */
+export function escapeFormatCode(code: string): string {
+  assertRepresentable(code);
+  return code.replace(/[&<>"\n\r\t]/g, (ch) => ATTR_ESCAPES[ch] as string);
 }
 
 /**
@@ -143,17 +170,6 @@ function needsSpacePreserve(value: string): boolean {
 export function textElement(value: string): string {
   const space = needsSpacePreserve(value) ? ' xml:space="preserve"' : '';
   return `<t${space}>${escapeSpreadsheetText(value)}</t>`;
-}
-
-/**
- * Render a formula operand for serialisation: a number becomes its literal, a string is stripped of
- * the single optional leading '=' an author may write (OOXML stores the expression without it, e.g.
- * `=A1>0` on disk is `A1>0`). The result is unescaped: the caller escapes it for its target,
- * whether that is element text or an attribute value.
- */
-export function stripFormulaEquals(value: string | number): string {
-  if (typeof value === 'number') return String(value);
-  return value.startsWith('=') ? value.slice(1) : value;
 }
 
 /**
@@ -214,25 +230,6 @@ export function checkedToken(
  */
 export function numAttr(name: string, value: number | undefined): string {
   return value === undefined ? '' : ` ${name}="${numberText(value)}"`;
-}
-
-/**
- * Refuse a number OOXML cannot spell. Every numeric attribute in the format is `xsd:double`,
- * `xsd:unsignedInt` or a bounded flavour of one, and none of those lexical spaces has a form for a
- * NaN or an infinity, so a value that reaches the file as `NaN` is a package Excel reports as
- * damaged.
- *
- * Exported for the callers that must refuse before they write. A number can be unwritable and still
- * be read on the way to the bytes: compared, summed, walked. A comparison against `NaN` or an
- * infinity silently takes the wrong branch long before the value would have been serialised.
- *
- * @throws {AuthoringError} naming the value.
- */
-export function assertWritableNumber(value: number): void {
-  if (Number.isFinite(value)) return;
-  throw new AuthoringError(
-    `cannot write a non-finite number (${value}): it has no OOXML representation`,
-  );
 }
 
 /**

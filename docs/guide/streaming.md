@@ -77,7 +77,7 @@ for (let n = 1; n <= 1000; n++) sheet.addRow([n, n * n]).commit();
 sheet.commit();
 
 const bytes = await writer.commit();
-console.log(bytes.length > 0); // true
+console.log(bytes !== undefined && bytes.length > 0); // true
 ```
 
 `commit()` on a row serialises it and frees it, which is what keeps peak memory flat; a row
@@ -109,7 +109,8 @@ try {
 console.log(refused); // true
 
 sheet.commit();
-console.log((await writer.commit()).length > 0); // true
+const written = await writer.commit();
+console.log(written !== undefined && written.length > 0); // true
 ```
 
 This half of the API is asynchronous where the buffered path is synchronous, and the bytes
@@ -128,6 +129,13 @@ for (const record of records) sheet.addRow([record.id, record.total]).commit();
 sheet.commit();
 await writer.commit();
 ```
+
+`commit()` resolves with the package *only when something is going to want it*: when you
+supplied no sink, or when you touched `writer.stream`. Hand the writer a `stream` or a
+`filename` and never reach for `writer.stream`, as the handler above does not, and it resolves
+with `undefined` and the archive is never assembled as a whole object. That is the point of
+passing a sink, and the return type says so rather than handing back a copy of everything you
+just streamed away.
 
 ## What streaming costs you
 

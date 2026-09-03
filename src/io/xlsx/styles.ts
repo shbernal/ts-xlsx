@@ -24,7 +24,7 @@ import type {
   NamedCellStyle,
   TableStyleTable,
 } from '../../core/workbook-styles.ts';
-import {escapeAttr, XML_DECLARATION} from '../../xml/xml.ts';
+import {escapeAttr, escapeFormatCode, numAttr, XML_DECLARATION} from '../../xml/xml.ts';
 import type {XfStyle} from '../style/xf-style.ts';
 import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
 import {
@@ -37,7 +37,6 @@ import {
   DEFAULT_FONT_BODY,
   DEFAULT_FORMAT,
   dxfXml,
-  escapeFormatCode,
   fillSignature,
   fontXml,
   formatSignature,
@@ -333,8 +332,10 @@ export class StyleRegistry {
       const element = style.elements[type];
       if (element === undefined) return [];
       // `size` defaults to 1, so it is written only when a band is genuinely wider than one row.
-      const size =
-        element.size !== undefined && element.size !== 1 ? ` size="${element.size}"` : '';
+      // Through `numAttr`, because `TableStyleElement.size` is public and unvalidated and the
+      // attribute is an `xsd:unsignedInt`: interpolated directly, a `NaN` reached the part as the
+      // four letters, which is a package Excel reports as damaged rather than a value it ignores.
+      const size = element.size === 1 ? '' : numAttr('size', element.size);
       return [
         `<tableStyleElement type="${type}"${size} dxfId="${this.differentialStyleId(element)}"/>`,
       ];

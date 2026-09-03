@@ -31,7 +31,47 @@ import {
 } from './spec-model.ts';
 import {buildReadInput, classifyReadError, type ReadInputKind} from './xml-probes.ts';
 
+// The package a streaming writer resolves with. `commit` answers `undefined` when the caller handed
+// the writer a sink and never touched `.stream` -- the package went to the sink and was never
+// retained -- so a capability that wants the bytes says so here rather than at a dozen call sites.
+async function committedPackage(writer: Untyped): Promise<Uint8Array> {
+  const bytes: Uint8Array | undefined = await writer.commit();
+  if (bytes === undefined) throw new Error('the streaming writer retained no package to inspect');
+  return bytes;
+}
+
 export const streaming = {
+  // Stream an outline group whose summary row carries a cell value spelling the very attribute the
+  // serialiser has to add afterwards -> { poisoned, control }, each the summary row's opening tag.
+  // `collapsed="1"` is a fact about the rows *after* a row, so a streamed summary row is patched once
+  // its group is known; a patcher that asks the rendered markup whether the attribute is already
+  // there is asking a string that also holds cell text, and `escapeText` leaves a double quote
+  // verbatim. A cell value is not allowed to decide how the row containing it is serialised.
+  async collapsedSummaryUnderPoisonedCellText() {
+    const openTagFor = async (value: string) => {
+      const writer = new WorkbookStreamWriter();
+      const sheet = writer.addWorksheet('S');
+      // Summary above its detail, so row 1 terminates the group rows 2-3 form.
+      sheet.model.outline.summaryBelow = false;
+      const summary = sheet.addRow([value]);
+      summary.commit();
+      for (const n of [2, 3]) {
+        const detail = sheet.addRow([`d${n}`]);
+        const row = sheet.model.getRow(n);
+        row.outlineLevel = 1;
+        row.hidden = true;
+        detail.commit();
+      }
+      sheet.commit();
+      const xml = partMapOf(await committedPackage(writer))['xl/worksheets/sheet1.xml'] ?? '';
+      return /<row r="1"[^>]*>/.exec(xml)?.[0] ?? '';
+    };
+    return {
+      poisoned: await openTagFor(' collapsed="1"'),
+      control: await openTagFor('plain'),
+    };
+  },
+
   // The same classification through the STREAMING reader, driven far enough to open the package.
   // The streaming entry point must be wired to the identical typed-error contract.
   classifyStreamReadInput(kind: ReadInputKind) {
@@ -50,7 +90,7 @@ export const streaming = {
     const sheet = writer.addWorksheet('S');
     for (let i = 1; i <= rows; i++) sheet.addRow([`r${i}`, i]).commit();
     sheet.commit();
-    const buffer = Buffer.from(await writer.commit());
+    const buffer = Buffer.from(await committedPackage(writer));
 
     let crcValid = true;
     let crcError = null;
@@ -104,7 +144,7 @@ export const streaming = {
     } catch (e) {
       error = messageOf(e);
     }
-    const buffer = Buffer.from(await writer.commit());
+    const buffer = Buffer.from(await committedPackage(writer));
     // Declared before the failure return so both paths report the same `cells` type. A bare `{}` on
     // the error path widened the result to `Record<string, …> | {}`, and a case reading `cells.A1`
     // then had to defeat the union before it could assert anything.
@@ -131,7 +171,7 @@ export const streaming = {
     } catch (e) {
       error = messageOf(e);
     }
-    const buffer = Buffer.from(await writer.commit());
+    const buffer = Buffer.from(await committedPackage(writer));
     const legibleRejection = error != null && /commit|committed|finaliz|closed/i.test(error);
     const internalCrash = error != null && /Cannot read propert|of (null|undefined)/i.test(error);
     let reloadOk = true;
@@ -159,7 +199,7 @@ export const streaming = {
       protectThrew = true;
     }
     sheet.commit();
-    const buffer = Buffer.from(await writer.commit());
+    const buffer = Buffer.from(await committedPackage(writer));
     const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     const posProt = xml.indexOf('<sheetProtection');
     const posAf = xml.indexOf('<autoFilter');
@@ -198,7 +238,7 @@ export const streaming = {
       });
       sheet.addRow(['x']).commit();
       sheet.commit();
-      buffer = Buffer.from(await writer.commit());
+      buffer = Buffer.from(await committedPackage(writer));
     } catch (e) {
       error = messageOf(e);
     }
@@ -248,7 +288,7 @@ export const streaming = {
     } catch (e) {
       copyError = messageOf(e);
     }
-    const buffer = Buffer.from(await writer.commit());
+    const buffer = Buffer.from(await committedPackage(writer));
     if (copyError)
       return {
         copyError,
@@ -319,7 +359,7 @@ export const streaming = {
       const sheet = writer.addWorksheet('S');
       sheet.getCell('A1').value = 1;
       sheet.commit();
-      const buffer = Buffer.from(await writer.commit());
+      const buffer = Buffer.from(await committedPackage(writer));
       const wbXml = strFromU8(unzipSync(buffer)['xl/workbook.xml']!);
       return {threw, hasFlag: /fullCalcOnLoad="1"/.test(wbXml)};
     };
@@ -348,7 +388,7 @@ export const streaming = {
     sheet.getCell('B1').value = {formula: 'A1*2', result: 20};
     for (let j = 2; j <= rows; j++) sheet.getCell(`B${j}`).value = {sharedFormula: 'B1'};
     sheet.commit();
-    const buffer = Buffer.from(await writer.commit());
+    const buffer = Buffer.from(await committedPackage(writer));
 
     const rs = readXlsx(buffer).getWorksheet('yua');
     const slave = rs!.getCell('B3').value;
@@ -384,7 +424,7 @@ export const streaming = {
     sheet.addRow(['x']).commit();
     sheet.commit();
 
-    const buffer = Buffer.from(await writer.commit());
+    const buffer = Buffer.from(await committedPackage(writer));
     const xml = strFromU8(unzipSync(buffer)['xl/worksheets/sheet1.xml']!);
     const posCf = xml.indexOf('<conditionalFormatting');
     const posHl = xml.indexOf('<hyperlinks');
@@ -414,7 +454,7 @@ export const streaming = {
     sheet.addRow(['r']).commit();
     sheet.commit();
 
-    const buffer = Buffer.from(await writer.commit());
+    const buffer = Buffer.from(await committedPackage(writer));
     const xml = strFromU8(unzipSync(buffer)['xl/worksheets/sheet1.xml']!);
     const posDv = xml.indexOf('<dataValidations');
     const posHl = xml.indexOf('<hyperlinks');
@@ -613,7 +653,7 @@ export const streaming = {
     }
     streamedSheet.addRow(['summary']).commit();
     streamedSheet.commit();
-    const streamedBytes = await writer.commit();
+    const streamedBytes = await committedPackage(writer);
 
     const wb = new Workbook();
     const buffered = wb.addWorksheet('S');

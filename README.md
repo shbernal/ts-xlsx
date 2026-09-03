@@ -149,12 +149,15 @@ const writer = new WorkbookStreamWriter();
 const out = writer.addWorksheet('Big');
 for (let i = 1; i <= 1_000_000; i++) out.addRow([i, i * i]).commit();
 out.commit();
-const packaged: Uint8Array = await writer.commit(); // also delivered via writer.stream
+const packaged = await writer.commit(); // Uint8Array here; also delivered via writer.stream
 ```
 
 The streaming writer is asynchronous where the buffered path is synchronous: `commit()`
 resolves to the package bytes and simultaneously pipes them through `writer.stream` (a Node
 `Readable`), so `writer.stream.pipe(res)` streams a workbook straight to an HTTP response.
+Hand the writer its own sink instead (`{stream}` or `{filename}`) and never touch
+`writer.stream`, and `commit()` resolves with `undefined`: the archive goes to the sink and is
+never assembled as one object, which is what passing a sink was for.
 
 ## Writing without blocking the event loop
 

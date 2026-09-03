@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 
 import {unzipSync, zipSync} from 'fflate';
 
+import type {Workbook} from '../../core/workbook.ts';
 import {PackageReadError, UnsupportedFormatError} from '../opc/errors.ts';
 import {XlsbParseError} from './errors.ts';
 import {readXlsb} from './read.ts';
@@ -51,10 +52,18 @@ function random(seed: number): () => number {
   };
 }
 
+// A formula literal JavaScript spells but no spreadsheet grammar does. Eight mutated bytes of a
+// `PtgNum` decode to one of these as readily as to any other double, and the decoder used to render
+// whatever `String(value)` gave it: the text `INFINITY` then reached the model, was escaped as
+// ordinary formula text by the writer, and produced a package Excel reports as damaged. A read that
+// succeeds is only a success if what it produced can be written back out.
+const UNSPELLABLE_LITERAL = /\b(?:INFINITY|NAN)\b/;
+
 /** Read a mutated package, asserting only that it fails the way a reader is allowed to fail. */
 function readOrFailClosed(archive: Uint8Array, label: string): void {
+  let workbook: Workbook;
   try {
-    readXlsb(archive);
+    workbook = readXlsb(archive);
   } catch (error) {
     // A mutation inside a compressed part can break the deflate stream itself, so the archive failing
     // to unpack (`PackageReadError`) is as legitimate a closed failure as a part failing to parse.
@@ -71,6 +80,29 @@ function readOrFailClosed(archive: Uint8Array, label: string): void {
       error instanceof Error && !(error instanceof TypeError) && !(error instanceof RangeError),
       `${label}: expected a typed, closed failure but got ${String(error)}`,
     );
+    return;
+  }
+  // Outside the `try`, deliberately: this assertion is the *test* failing, and the catch above would
+  // read an `AssertionError` as one more closed failure and pass.
+  assertWritableFormulas(workbook, label);
+}
+
+// Every formula the read produced, checked for a literal the format cannot carry. Throws an
+// `AssertionError`, which `readOrFailClosed` deliberately does not catch: this is the test failing,
+// not the reader failing closed.
+function assertWritableFormulas(workbook: Workbook, label: string): void {
+  for (const sheet of workbook.worksheets) {
+    for (const {cells} of sheet.rows()) {
+      for (const cell of cells) {
+        const value: unknown = cell.value;
+        if (value === null || typeof value !== 'object' || !('formula' in value)) continue;
+        const formula = String(value.formula);
+        assert.ok(
+          !UNSPELLABLE_LITERAL.test(formula),
+          `${label}: decoded a formula no spreadsheet can spell (${formula})`,
+        );
+      }
+    }
   }
 }
 

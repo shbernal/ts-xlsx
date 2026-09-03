@@ -98,3 +98,72 @@ test('an authored typeface XML cannot represent is refused rather than written r
     name: 'AuthoringError',
   });
 });
+
+test('a theme with nothing overridden comes back byte for byte', () => {
+  // The edit is a splice at offsets the scanner found, so everything outside the ranges it names is
+  // the source's own bytes: its whitespace, its comments, its attribute order, its prefix.
+  const source =
+    '<?xml version="1.0"?>\n' +
+    "<!-- a designer's theme, with prose in it -->\n" +
+    '<x:theme xmlns:x="http://schemas.openxmlformats.org/drawingml/2006/main" name="Brand">\n' +
+    '  <x:themeElements>\n' +
+    '    <x:clrScheme name="Brand">\n' +
+    '      <x:dk1><x:sysClr val="windowText" lastClr="000000"/></x:dk1>\n' +
+    '    </x:clrScheme>\n' +
+    '  </x:themeElements>\n' +
+    '</x:theme>';
+  assert.equal(applyThemeOverrides(source, {}), source);
+  assert.equal(applyThemeOverrides(source, {colors: {}, fonts: {}}), source);
+});
+
+test('a </clrScheme> inside a comment does not end the block the override replaces', () => {
+  // `<clrScheme>[\s\S]*?</clrScheme>` terminated here, so the override was spliced into the middle of
+  // the scheme and the real slots survived after it.
+  const source =
+    '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
+    '<a:clrScheme name="X">' +
+    '<!-- was </a:clrScheme> before the redesign -->' +
+    '<a:dk1><a:srgbClr val="111111"/></a:dk1>' +
+    '</a:clrScheme>' +
+    '</a:theme>';
+  const xml = applyThemeOverrides(source, {colors: {accent1: '#BB2649'}});
+  assert.equal(xml.match(/<a:dk1>/g)?.length, 1, 'the real dk1 was replaced, not duplicated');
+  assert.ok(!xml.includes('was </a:clrScheme> before'), 'the comment went with the block body');
+  assert.ok(xml.includes('<a:accent1><a:srgbClr val="BB2649"/></a:accent1>'));
+});
+
+test('an override reaches a <latin> written as an element pair, not only as an empty tag', () => {
+  // `<a:latin\b)[^>]*(/>)` could not match `<a:latin ...></a:latin>`, so the override was dropped
+  // with no error and the file kept the face it had.
+  const source =
+    '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
+    '<a:fontScheme><a:majorFont><a:latin typeface="Old" panose="020F0302"></a:latin>' +
+    '</a:majorFont></a:fontScheme></a:theme>';
+  const xml = applyThemeOverrides(source, {fonts: {major: 'New'}});
+  assert.ok(xml.includes('typeface="New"'), 'the override landed');
+  assert.ok(!xml.includes('typeface="Old"'), 'and replaced the face that was there');
+});
+
+test('an overridden typeface keeps the panose metric beside it', () => {
+  // The doc comment claimed this for as long as it was untrue: the pattern captured everything after
+  // the element name and re-emitted the typeface alone.
+  const source =
+    '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
+    '<a:fontScheme><a:minorFont><a:latin typeface="Old" panose="020F0502020204030204"/>' +
+    '<a:ea typeface=""/></a:minorFont></a:fontScheme></a:theme>';
+  const xml = applyThemeOverrides(source, {fonts: {minor: 'Aptos Narrow'}});
+  assert.ok(xml.includes('panose="020F0502020204030204"'), 'panose survived the override');
+  assert.ok(xml.includes('typeface="Aptos Narrow"'));
+  assert.ok(xml.includes('<a:ea typeface=""/>'), 'and so did the east-asian face beside it');
+});
+
+test('a DrawingML prefix carrying regex metacharacters is matched literally', () => {
+  // The prefix comes out of the part's own root element, and `.` and `-` are legal in an NCName. It
+  // used to be interpolated into a `RegExp` unescaped, so `a.b:` matched `axb:` as well.
+  const source =
+    '<a.b:theme xmlns:a.b="http://schemas.openxmlformats.org/drawingml/2006/main">' +
+    '<a.b:clrScheme name="X"><a.b:dk1><a.b:srgbClr val="111111"/></a.b:dk1></a.b:clrScheme>' +
+    '</a.b:theme>';
+  const xml = applyThemeOverrides(source, {colors: {accent1: '#BB2649'}});
+  assert.ok(xml.includes('<a.b:accent1><a.b:srgbClr val="BB2649"/></a.b:accent1>'));
+});

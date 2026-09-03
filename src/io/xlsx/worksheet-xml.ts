@@ -14,7 +14,7 @@ import {decodeRange, encodeAddress} from '../../core/address.ts';
 import type {DateEpoch} from '../../core/date.ts';
 import {pickStyleFacets} from '../../core/style.ts';
 import type {ColumnProperties, Worksheet, WorksheetProperties} from '../../core/worksheet.ts';
-import {AuthoringError, quoted} from '../../errors.ts';
+import {AuthoringError, InternalError, quoted} from '../../errors.ts';
 import {escapeAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {
@@ -43,9 +43,11 @@ import {
   assertWritableLevel,
   buildColumnDefaults,
   Extent,
+  type FlushedRow,
   type FlushedSheet,
   outlineAttr,
   renderRow,
+  rowOpenTag,
   type RowRenderContext,
 } from './row-xml.ts';
 import {planSharedFormulas} from './shared-formulas.ts';
@@ -467,24 +469,30 @@ interface RowOutline {
  * Every other row attribute is a fact about that row alone, so a row can be rendered the moment it is
  * committed; this one is a fact about the rows *after* it, which the row cannot know when it flushes.
  * Rather than refuse an outlined row on a streamed sheet, or leave the group silently rendering
- * expanded, the one attribute that needs the look-ahead is added once the look-ahead is possible. The
- * string being patched is one this module produced (see {@link rowAttrs}), so its shape is known: an
- * opening `<row` tag whose attributes end at the first `>` or `/>`.
+ * expanded, the one attribute that needs the look-ahead is added once the look-ahead is possible.
+ *
+ * Both halves of the patch are answered by the flushed row's own fields rather than by reading its
+ * markup back. *Is the attribute already there* is `attrs`, because the row's `xml` also holds cell
+ * text and `escapeText` leaves a double quote verbatim: a cell whose value was the literal string
+ * ` collapsed="1"` used to convince the patcher the row already carried the attribute, and the
+ * outline group rendered expanded. *Where does it go* is {@link rowOpenTag}, the emitter's own
+ * spelling of the tag this row began with, so the splice point is shared rather than re-derived by
+ * scanning for a `>` that a cell value could also supply.
  */
 function completeCollapsed(
-  row: {readonly number: number; readonly xml: string},
+  row: FlushedRow,
   collapsedSummaries: ReadonlySet<number>,
 ): {number: number; xml: string} {
-  if (!collapsedSummaries.has(row.number) || row.xml.includes(' collapsed="1"')) {
+  if (!collapsedSummaries.has(row.number) || row.attrs.includes(' collapsed="1"')) {
     return {number: row.number, xml: row.xml};
   }
-  const end = row.xml.indexOf('>');
-  if (end < 0) return {number: row.number, xml: row.xml};
-  const selfClosing = row.xml[end - 1] === '/';
-  const attributesEnd = selfClosing ? end - 1 : end;
+  const open = rowOpenTag(row.number);
+  if (!row.xml.startsWith(open)) {
+    throw new InternalError(`flushed row ${row.number} does not open with ${quoted(open)}`);
+  }
   return {
     number: row.number,
-    xml: `${row.xml.slice(0, attributesEnd)} collapsed="1"${row.xml.slice(attributesEnd)}`,
+    xml: `${open} collapsed="1"${row.xml.slice(open.length)}`,
   };
 }
 

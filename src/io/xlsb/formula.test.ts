@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {XlsbParseError} from './errors.ts';
 import {decodeFormula, type FormulaScope, formulaAnchor} from './formula.ts';
 import {fixedArityFor, functionNameFor} from './ptg-functions.ts';
 
@@ -89,8 +88,31 @@ test('a stream that does not reduce to one value is rejected', () => {
   assert.equal(decodeFormula(bytes(0x03), NONE, SCOPE), undefined);
 });
 
-test('a token running past the end of its own stream is a parse error', () => {
-  assert.throws(() => decodeFormula(bytes(0x1e, 1), NONE, SCOPE), XlsbParseError);
+test('a numeric literal the format cannot spell makes the formula undecodable', () => {
+  // `PtgNum` whose eight bytes are IEEE-754 +Infinity. `String(value)` renders it `Infinity`, which
+  // used to reach the model as the formula text `INFINITY` and be written back out as a formula Excel
+  // reports as damaged. There is no spelling for it, so there is no formula.
+  const infinity = bytes(0x1f, 0, 0, 0, 0, 0, 0, 0xf0, 0x7f);
+  assert.equal(decodeFormula(infinity, NONE, SCOPE), undefined);
+  const notANumber = bytes(0x1f, 0, 0, 0, 0, 0, 0, 0xf8, 0x7f);
+  assert.equal(decodeFormula(notANumber, NONE, SCOPE), undefined);
+});
+
+test('a numeric literal keeps the exponent case Excel writes', () => {
+  // 1e+21, where JavaScript spells the exponent lowercase and Excel spells it `1E+21`. The two codecs
+  // used to disagree, so the same literal read back differently depending on which file it came from.
+  const large = new Uint8Array(9);
+  large[0] = 0x1f;
+  new DataView(large.buffer).setFloat64(1, 1e21, true);
+  assert.equal(decodeFormula(large, NONE, SCOPE), '1E+21');
+});
+
+test('a token running past the end of its own stream costs the formula, not the workbook', () => {
+  // `PtgInt` declaring a 16-bit operand with one byte behind it. This used to escape as an
+  // `XlsbParseError` and abort the entire read, while the *same* damage spelled as an unrecognised
+  // opcode degraded to the cached result. The record-level bound is what fails a malformed file
+  // closed; a formula that runs off its own end is one undecodable formula.
+  assert.equal(decodeFormula(bytes(0x1e, 1), NONE, SCOPE), undefined);
 });
 
 test('an array constant declaring more elements than any workbook holds is refused', () => {

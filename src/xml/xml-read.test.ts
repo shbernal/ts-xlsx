@@ -5,6 +5,7 @@ import {XmlParseError} from './errors.ts';
 import {
   capturedText,
   closeEmptyElements,
+  elementRange,
   elementSubtrees,
   openElements,
   parseXml,
@@ -402,4 +403,48 @@ test('elementSubtrees yields nothing for a container the document does not carry
   const {fragments, attributes} = elementSubtrees('<s><fonts><font/></fonts></s>', DXFS);
   assert.equal(fragments.get('dxfs'), undefined);
   assert.equal(attributes.get('dxfs'), undefined);
+});
+
+test('elementRange finds an element by path and bounds its content', () => {
+  const source = '<root><a><b x="1">body</b></a></root>';
+  const found = elementRange(source, ['a', 'b']);
+  assert.ok(found);
+  assert.equal(source.slice(found.start, found.end), '<b x="1">body</b>');
+  assert.equal(source.slice(found.contentStart, found.contentEnd), 'body');
+  assert.deepEqual({...found.attrs}, {x: '1'});
+});
+
+test('elementRange skips a close tag hiding in a comment or a CDATA section', () => {
+  const source = '<root><a><!-- </a> --><![CDATA[</a>]]>body</a></root>';
+  const found = elementRange(source, ['a']);
+  assert.ok(found);
+  assert.equal(
+    source.slice(found.contentStart, found.contentEnd),
+    '<!-- </a> --><![CDATA[</a>]]>body',
+  );
+});
+
+test('elementRange counts a same-named descendant rather than ending on it', () => {
+  const source = '<root><a>x<a>inner</a>y</a></root>';
+  const found = elementRange(source, ['a']);
+  assert.ok(found);
+  assert.equal(source.slice(found.contentStart, found.contentEnd), 'x<a>inner</a>y');
+});
+
+test('elementRange matches on the local name, whatever prefix the source binds', () => {
+  const source = '<z:root xmlns:z="urn:x"><z:a><z:b/></z:a></z:root>';
+  const found = elementRange(source, ['a', 'b']);
+  assert.ok(found);
+  assert.equal(found.name, 'z:b');
+  assert.equal(found.start, source.indexOf('<z:b/>'));
+  assert.equal(found.contentStart, found.contentEnd, 'an empty element has no content');
+});
+
+test('elementRange answers undefined for a path that is not there', () => {
+  assert.equal(elementRange('<root><a/></root>', ['a', 'b']), undefined);
+  assert.equal(elementRange('<root><b/></root>', ['a']), undefined);
+});
+
+test('elementRange refuses an unterminated element rather than returning half a range', () => {
+  assert.throws(() => elementRange('<root><a>body</root>', ['a']), XmlParseError);
 });

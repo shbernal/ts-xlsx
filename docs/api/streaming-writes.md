@@ -70,7 +70,7 @@ class WorkbookStreamWriter {
   get stream(): Readable;
   addImage(options: AddImageOptions): number;
   addWorksheet(name: string, options: AddWorksheetOptions = {}): WorksheetStreamWriter;
-  async commit(): Promise<Uint8Array>;
+  async commit(): Promise<Uint8Array | undefined>;
 }
 ```
 
@@ -124,12 +124,21 @@ Create a worksheet and append it to the workbook.
 #### `WorkbookStreamWriter.commit`
 
 ```ts
-async commit(): Promise<Uint8Array>;
+async commit(): Promise<Uint8Array | undefined>;
 ```
 
-Assemble the workbook into its package, stream the bytes through [`stream`](./streaming-writes.md#workbookstreamwriterstream), and resolve with
-the same bytes. Every sheet is frozen first, so a row added after this rejects legibly. Idempotent
-only in that a second call throws rather than re-emitting.
+Assemble the workbook into its package and stream the bytes out. Every sheet is frozen first, so
+a row added after this rejects legibly. Idempotent only in that a second call throws rather than
+re-emitting.
+
+**What it resolves with, and why it can be `undefined`.** The archive is handed back only when
+somebody asked for it: when no sink was supplied, or when [`stream`](./streaming-writes.md#workbookstreamwriterstream) was touched, since a
+`PassThrough` nobody drained would otherwise be the only copy. A caller who passed `{filename}`
+or their own `stream` and never reached for [`stream`](./streaming-writes.md#workbookstreamwriterstream) gets `undefined`, and the package is
+never materialised as a whole: retaining every chunk to concatenate them at the end costs a
+second full-size buffer on top of the part map and the archive itself, which is exactly the
+memory the caller passed a sink to avoid. The type says so rather than the prose alone, because
+a promise that resolves with a value the caller was told to ignore is a promise they will use.
 
 If assembling or zipping the package fails, the returned promise rejects *and* every stream this
 writer was given or handed out is destroyed with that error. A caller piping [`stream`](./streaming-writes.md#workbookstreamwriterstream), or

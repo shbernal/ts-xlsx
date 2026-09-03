@@ -76,6 +76,7 @@ import {
   contentTypesXml,
   corePropsXml,
   rootRelsXml,
+  type WorkbookRelPlan,
   workbookRelsXml,
   workbookXml,
 } from './workbook-xml.ts';
@@ -354,18 +355,6 @@ function resolveSheetReferences(plan: SheetPlan): SheetReferences {
   };
 }
 
-// The workbook part's relationship ids, drawn once by {@link assignWorkbookRelIds}. Every consumer
-// receives the ids rather than re-deriving them, which is what makes two consumers disagreeing
-// impossible rather than merely unlikely.
-interface WorkbookRelPlan {
-  readonly sheetRelIds: readonly string[];
-  readonly stylesRelId: string;
-  readonly themeRelId: string;
-  readonly sharedStringsRelId: string | null;
-  readonly personsRelId: string | null;
-  readonly preservedWorkbookRels: readonly (PreservedWorkbookReferencePlan & {relId: string})[];
-}
-
 /**
  * Draw every workbook-level relationship id, once, in the one canonical order the workbook part wires
  * them, and return the ids the two consumers need.
@@ -571,7 +560,7 @@ function emitPackageParts(context: {
   files.add('_rels/.rels', strToU8(rootRelsXml(preserved.root)));
   files.add(CORE_PROPS_PART, strToU8(corePropsXml(workbook.properties)));
   files.add(APP_PROPS_PART, strToU8(appPropsXml(workbook.properties)));
-  files.add(WORKBOOK_PART, strToU8(workbookXml(workbook, preservedWorkbookRels, allPivots)));
+  files.add(WORKBOOK_PART, strToU8(workbookXml(workbook, workbookRels, allPivots)));
   files.add(relsPathFor(WORKBOOK_PART), strToU8(workbookRelsXml(workbookRels, allPivots)));
   files.add(STYLES_PART, strToU8(styles.toXml()));
   // A theme read from a source package is emitted through the preserved-part path, closure and all,

@@ -30,7 +30,7 @@ import {closure, importedPaths, sourceFiles} from './module-graph.ts';
 import {ROOT} from './repo.ts';
 
 const DIST = join(ROOT, 'dist');
-const TOTAL_BUDGET_BYTES = 560 * 1024;
+const TOTAL_BUDGET_BYTES = 575 * 1024;
 
 // Roughly a tenth of headroom over the measured closure, per entry: enough that ordinary growth is
 // not a chore, tight enough that a whole codec crossing a boundary cannot hide inside it.
@@ -50,16 +50,25 @@ const TOTAL_BUDGET_BYTES = 560 * 1024;
 // this comment describes had been eaten to a rounding error on several entries (`/core` sat 0.1 KB
 // under its number); the figures below restore it against today's measurement rather than
 // grandfathering the drift. `/errors` and `/vba` keep theirs, which are already deliberate.
+//
+// Re-baselined once more by the write-path and error-taxonomy corrections. Four small primitives
+// landed below several entries at once and each is on a path those entries actually take:
+// `elementRange` (editing a part at scanner-found offsets instead of by regular expression),
+// `assertWritableNumber` and `formulaNumberLiteral` (a formula literal has a serialisation of its
+// own, and the BIFF12 codec produces it), `read-repair.ts` and `xml-chars.ts` (the reader no longer
+// hands a file-derived value to a guard written about the caller). Nothing crossed a boundary; four
+// entries had simply been left sitting at a few tenths of a percent of headroom, which is not the
+// tripwire this comment describes. The numbers below restore it against today's measurement.
 const ENTRY_BUDGETS_KB: Readonly<Record<string, number>> = {
-  '.': 550,
+  '.': 560,
   './core': 205,
-  './xlsx': 540,
+  './xlsx': 550,
   // Raised from 282 when the style primitives gained real clone plans. A font, a border and a fill
   // were each copied with a spread, which shares everything one level down, so the plans and their
   // exhaustiveness proofs are the fix rather than an addition. They sit in `core/style.ts`, which
   // every entry carries, and this was the one entry whose headroom the ~3 KB exhausted. Restores it
   // against that measurement rather than granting the growth a permanent home in the margin.
-  './xlsb': 285,
+  './xlsb': 293,
   './csv': 210,
   // The streaming writer and the write half it rides on, and nothing of the reader: a jump here is
   // the read path arriving, which would mean the entry had stopped being about one thing.

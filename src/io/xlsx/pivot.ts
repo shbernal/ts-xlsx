@@ -12,7 +12,7 @@
 
 import {encodeAddress} from '../../core/address.ts';
 import type {PivotItem, PivotMetric, PivotRecordCell, PivotTable} from '../../core/pivot-table.ts';
-import {escapeAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
+import {boolAttr, escapeAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {RELATIONSHIPS_NS} from '../opc/namespaces.ts';
 import {SPREADSHEETML_NS} from './namespaces.ts';
 
@@ -54,9 +54,10 @@ export function pivotCacheDefinitionXml(table: PivotTable): string {
       const descriptor =
         numeric === null
           ? `<sharedItems${blank}/>`
-          : `<sharedItems containsSemiMixedTypes="0" containsString="0" containsNumber="1" ` +
-            `containsInteger="${numeric.allInteger ? 1 : 0}"${blank} ` +
-            `minValue="${numberText(numeric.min)}" maxValue="${numberText(numeric.max)}"/>`;
+          : `<sharedItems containsSemiMixedTypes="0" containsString="0" containsNumber="1"` +
+            boolAttr('containsInteger', numeric.allInteger) +
+            blank +
+            ` minValue="${numberText(numeric.min)}" maxValue="${numberText(numeric.max)}"/>`;
       return `<cacheField name="${escapeAttr(field.name)}" numFmtId="0">${descriptor}</cacheField>`;
     })
     .join('');
