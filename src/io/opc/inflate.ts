@@ -16,6 +16,7 @@
 import {type FlateError, Unzip, type UnzipFile, UnzipInflate} from 'fflate';
 
 import {concat} from '../../bytes.ts';
+import {quoted} from '../../errors.ts';
 import {PackageReadError} from './errors.ts';
 
 // Compressed input is pushed in slices this size so decompressed output arrives in
@@ -47,6 +48,18 @@ export function inflatePackage(data: Uint8Array, cap: number): Record<string, Ui
   let failure: Error | undefined;
 
   const unzip = new Unzip((file: UnzipFile) => {
+    // Refuse rather than choose. OPC forbids two parts with one name, and consumers disagree about
+    // which of them a package that carries them anyway means: reading the archive's central directory
+    // takes the first, streaming its local headers takes the last, and that disagreement is the whole
+    // of a "same file, two meanings" attack. A name that cannot be a part name at all is refused on
+    // the same grounds: normalising it away would be this reader deciding what the package said.
+    if (!isPartName(file.name)) {
+      failure ??= new PackageReadError(`illegal part name ${quoted(file.name)} in package`);
+    } else if (file.name in files) {
+      failure ??= new PackageReadError(`duplicate part ${quoted(file.name)} in package`);
+    }
+    // `start()` is called either way: leaving an entry unstarted is not a state fflate's reader is
+    // asked to be in, and the handler below drops every chunk once a failure is set.
     const chunks: Uint8Array[] = [];
     let size = 0;
     file.ondata = (error: FlateError | null, chunk: Uint8Array, final: boolean): void => {
@@ -86,4 +99,20 @@ export function inflatePackage(data: Uint8Array, cap: number): Record<string, Ui
 
   if (failure) throw failure;
   return files;
+}
+
+/**
+ * Whether a zip entry name can be an OPC part name at all ([ISO/IEC 29500-2] 9.1.1): a relative
+ * sequence of `/`-separated segments, none of which is `..`.
+ *
+ * A backslash, a leading slash, a drive letter or a `..` segment each name something outside the
+ * package, and the package is a map rather than a filesystem, so none of them can be reached from
+ * here. They are still rejected: the reader that resolves a relationship target and the zip tool the
+ * user reaches for next do not have to agree about what such a name means, and a part this library
+ * files under a normalised name is a part it has silently renamed.
+ */
+function isPartName(name: string): boolean {
+  if (name === '' || name.startsWith('/') || name.includes('\\')) return false;
+  if (/^[A-Za-z]:/.test(name)) return false;
+  return !name.split('/').includes('..');
 }

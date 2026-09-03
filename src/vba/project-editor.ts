@@ -11,7 +11,7 @@
 // exactly as its own compiler wrote it.
 
 import {quoted} from '../errors.ts';
-import {readU16, spliceBytes} from './bytes.ts';
+import {readU16, spliceBytes, writeU16} from './bytes.ts';
 import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
 import {CompoundFile} from './cfb.ts';
 import {type Decoder, decoderForCodePage, type Encoder, encoderForCodePage} from './codepage.ts';
@@ -299,7 +299,9 @@ function removeModuleDirRecord(dir: Uint8Array, streamName: string, codePage: nu
   )) {
     if (id === REC_MODULES_COUNT) {
       if (size < 2) throw new VbaParseError('PROJECTMODULES MODULES_COUNT record is malformed');
-      countAt = dataStart;
+      // The first one wins. A `dir` carrying a second is not a file Excel wrote, and taking the last
+      // would let it choose which two bytes of the stream this function overwrites.
+      if (countAt < 0) countAt = dataStart;
     } else if (id === REC_MODULE_NAME) {
       blockStart = recordStart;
     } else if (id === REC_MODULE_STREAMNAME) {
@@ -318,11 +320,19 @@ function removeModuleDirRecord(dir: Uint8Array, streamName: string, codePage: nu
     throw new VbaParseError(`module stream ${quoted(streamName)} not found in the dir stream`);
   }
 
-  // MODULES_COUNT always precedes every module block, so countAt is unaffected by removing bytes after it.
+  // In a `dir` Excel wrote, MODULES_COUNT precedes every module block, so the splice below moves no
+  // byte of it. That is an invariant of the input rather than of this code, and the input came out of
+  // a file the caller did not write: were it false, both writes would land inside an unrelated
+  // record's payload and quietly corrupt the macro project. Checked, not assumed.
+  if (countAt >= removeStart) {
+    throw new VbaParseError('dir stream declares MODULES_COUNT after a module block');
+  }
+  const count = readU16(dir, countAt);
+  if (count === 0) {
+    throw new VbaParseError('dir stream declares zero modules but carries a module block');
+  }
   const out = spliceBytes(dir, removeStart, removeEnd);
-  const newCount = readU16(out, countAt) - 1;
-  out[countAt] = newCount & 0xff;
-  out[countAt + 1] = (newCount >> 8) & 0xff;
+  writeU16(out, countAt, count - 1);
   return out;
 }
 

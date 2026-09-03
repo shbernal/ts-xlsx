@@ -59,7 +59,11 @@ const ENTRY_BUDGETS_KB: Readonly<Record<string, number>> = {
   // The streaming writer and the write half it rides on, and nothing of the reader: a jump here is
   // the read path arriving, which would mean the entry had stopped being about one thing.
   './node': 395,
-  './vba': 50,
+  // Raised from 50 when the MS-OVBA encoder stopped rescanning its whole back-window for every
+  // output byte. The hash chain that replaced the rescan is the cost, and it buys a time bound on a
+  // path an untrusted `.xlsm` reaches through `removeVbaModule`; the CFB and `dir` guards landed
+  // alongside it are the rest. Restores this entry's tenth of headroom against that measurement.
+  './vba': 56,
   './customui': 16,
   // The taxonomy reaches nothing but itself, and that is the point: classifying a failure must
   // not cost a parser. A jump here means an error class started importing the layer it describes.

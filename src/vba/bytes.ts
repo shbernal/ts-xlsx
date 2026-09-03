@@ -57,6 +57,20 @@ export function decodeUtf16le(bytes: Uint8Array): string {
 }
 
 /**
+ * Write a little-endian `uint16` over bytes already in `buf`. The value is asserted rather than
+ * masked: a caller that arrived at `-1` or `0x1_0000` has miscounted something, and silently storing
+ * `0xffff` turns that into a `dir` stream declaring 65,535 modules.
+ */
+export function writeU16(buf: Uint8Array, at: number, value: number): void {
+  if (!Number.isInteger(value) || value < 0 || value > 0xffff) {
+    throw new VbaParseError(`${value} does not fit the uint16 at offset ${at}`);
+  }
+  if (at + 1 >= buf.length) throw truncated(at, 2, buf.length);
+  buf[at] = value & 0xff;
+  buf[at + 1] = (value >> 8) & 0xff;
+}
+
+/**
  * Replace `src[start..end)` with `insert`, returning a new array.
  *
  * The three record edits the project editor makes are all this shape: splice a MODULE record block in,

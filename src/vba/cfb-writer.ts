@@ -28,6 +28,7 @@ import {
   FATSECT,
   FREESECT,
   MAX_NAME_CHARS,
+  MINI_STREAM_CUTOFF,
   NOSTREAM,
   TYPE_ROOT,
   TYPE_STORAGE,
@@ -52,7 +53,6 @@ export type CfbNode = CfbStream | CfbStorage;
 // these off the header it was handed because a file may legally say otherwise.
 const SECTOR = 512;
 const MINI_SECTOR = 64;
-const MINI_CUTOFF = 4096;
 const ENTRIES_PER_DIR_SECTOR = SECTOR / DIR_ENTRY_SIZE; // 4
 const FAT_ENTRIES_PER_SECTOR = SECTOR / 4; // 128
 const DIFAT_HEADER_SLOTS = 109; // FAT-sector pointers that fit in the header before DIFAT sectors
@@ -139,7 +139,7 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
       siblings.push(entry);
       if (node.data.length === 0) {
         // an empty stream owns no sectors
-      } else if (node.data.length >= MINI_CUTOFF) {
+      } else if (node.data.length >= MINI_STREAM_CUTOFF) {
         bigStreams.push({entry, data: node.data, sectors: Math.ceil(node.data.length / SECTOR)});
       } else {
         const startMini = miniLength / MINI_SECTOR;
@@ -348,7 +348,7 @@ function writeHeader(
   dv.setUint16(32, 6, true); // mini-sector shift → 64
   dv.setUint32(44, p.fatSectors, true);
   dv.setUint32(48, p.dirStart, true);
-  dv.setUint32(56, MINI_CUTOFF, true);
+  dv.setUint32(56, MINI_STREAM_CUTOFF, true);
   dv.setUint32(60, p.miniFatStart, true);
   dv.setUint32(64, p.miniFatSectors, true);
   dv.setUint32(68, p.difatSectors > 0 ? p.difatStart : ENDOFCHAIN, true);

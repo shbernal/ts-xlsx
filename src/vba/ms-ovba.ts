@@ -21,6 +21,13 @@ const MAX_CHUNK_DECOMPRESSED = 4096;
 const CHUNK_SIGNATURE = 0b011 << 12;
 const CHUNK_COMPRESSED_FLAG = 0x8000;
 
+// The encoder's match search: how far down a prefix's chain it will walk, and how wide the table of
+// chains is. The cap is what turns "how compressible is this data" from a time bound into a size one,
+// and 64 is well past the point where a further candidate can pay for the token it might shorten.
+const MAX_MATCH_CANDIDATES = 64;
+const HASH_BITS = 12;
+const NO_CANDIDATE = -1;
+
 // A single VBA project is well under a megabyte; 64 MiB is far above any legitimate container yet
 // bounds a decompression bomb (a small container that expands without limit) to a survivable size.
 const DEFAULT_MAX_OUTPUT = 64 * 1024 * 1024;
@@ -45,7 +52,7 @@ export function decompressContainer(
     );
   }
 
-  const out = new DecompressedBytes(maxOutput);
+  const out = new ByteSink(maxOutput);
   let pos = start + 1;
 
   while (pos + 2 <= buf.length) {
@@ -113,21 +120,25 @@ export function decompressContainer(
 }
 
 /**
- * The decompressor's output, accumulated as a growable `Uint8Array` behind a length cursor rather
- * than a `number[]`: the ceiling admits 64 MiB, and that many boxed slots cost several times their
- * byte count in real memory before the conversion to bytes ever happens. The cursor is what makes
- * the representation work for a run-length decoder: a back-reference reads a byte this same sink
- * already wrote, and {@link at} stays valid across a grow because the buffer is copied whole.
+ * Bytes under construction: a growable `Uint8Array` behind a length cursor rather than a `number[]`.
+ * Both directions of this codec accumulate into one, because the reason is the same on both sides -
+ * the decoder's ceiling admits 64 MiB and the encoder rewrites a whole `dir` stream, and that many
+ * boxed slots cost several times their byte count in real memory before the conversion to bytes ever
+ * happens. The cursor is what makes the representation work for a run-length decoder: a
+ * back-reference reads a byte this same sink already wrote, and {@link at} stays valid across a grow
+ * because the buffer is copied whole. {@link set} is what makes it work for the encoder, whose flag
+ * byte is written before the eight tokens it describes are known.
  *
- * The ceiling is enforced on every write rather than after each token, so a hostile container can
- * never provoke an allocation past it: growth is capped at the ceiling too.
+ * The optional ceiling is the decode path's bomb guard, enforced on every write rather than after
+ * each token so a hostile container can never provoke an allocation past it: growth is capped at the
+ * ceiling too. The encoder is fed our own bytes and passes none.
  */
-class DecompressedBytes {
+class ByteSink {
   #buf: Uint8Array;
   #length = 0;
   readonly #limit: number;
 
-  constructor(limit: number) {
+  constructor(limit = Infinity) {
     this.#limit = limit;
     // One chunk's worth to start, but never more than the whole container is allowed to produce.
     this.#buf = new Uint8Array(Math.min(MAX_CHUNK_DECOMPRESSED, limit));
@@ -139,6 +150,11 @@ class DecompressedBytes {
 
   at(index: number): number {
     return this.#buf[index] as number;
+  }
+
+  /** Overwrite an already-written byte, the encoder's deferred flag byte. */
+  set(index: number, byte: number): void {
+    this.#buf[index] = byte;
   }
 
   push(byte: number): void {
@@ -157,6 +173,10 @@ class DecompressedBytes {
     this.#buf[this.#length++] = byte;
   }
 
+  pushAll(bytes: Uint8Array): void {
+    for (const byte of bytes) this.push(byte);
+  }
+
   /** The bytes written so far, as an exactly-sized array that does not alias the growth buffer. */
   bytes(): Uint8Array {
     return this.#buf.slice(0, this.#length);
@@ -170,7 +190,8 @@ class DecompressedBytes {
  * size field). The result re-expands to `data` byte-for-byte.
  */
 export function compressContainer(data: Uint8Array): Uint8Array {
-  const out: number[] = [0x01]; // container signature; an empty input yields just this byte
+  const out = new ByteSink();
+  out.push(0x01); // container signature; an empty input yields just this byte
   for (let start = 0; start < data.length; start += MAX_CHUNK_DECOMPRESSED) {
     const chunk = data.subarray(start, Math.min(start + MAX_CHUNK_DECOMPRESSED, data.length));
     const tokens = compressChunk(chunk);
@@ -180,10 +201,11 @@ export function compressContainer(data: Uint8Array): Uint8Array {
     const body = compressed ? tokens : chunk;
     const header =
       (compressed ? CHUNK_COMPRESSED_FLAG : 0) | CHUNK_SIGNATURE | ((body.length - 1) & 0x0fff);
-    out.push(header & 0xff, (header >> 8) & 0xff);
-    for (const b of body) out.push(b);
+    out.push(header & 0xff);
+    out.push((header >> 8) & 0xff);
+    out.pushAll(body);
   }
-  return Uint8Array.from(out);
+  return out.bytes();
 }
 
 // Encode one decompressed chunk (≤ 4096 bytes) as a sequence of MS-OVBA token groups: a flag byte whose
@@ -191,8 +213,26 @@ export function compressContainer(data: Uint8Array): Uint8Array {
 // that recurs earlier in the *same* chunk; matches may overlap the current position (run-length growth),
 // which the decompressor reproduces byte-by-byte. The bit split between the offset and length fields
 // widens as the chunk fills, exactly as the decoder computes it, so both agree on every token's shape.
-function compressChunk(chunk: Uint8Array): number[] {
-  const tokens: number[] = [];
+//
+// Candidates come from a hash chain over three-byte prefixes rather than a rescan of the whole back
+// window. That rescan made the encoder quadratic in the chunk size, and the size is a cost an
+// untrusted file gets to choose: `removeVbaModule` and `addVbaReference` recompress a `dir` stream
+// that arrived inside an `.xlsm` the caller did not write, and data with no matches cost 95 ms per
+// 4 KB chunk. The chain gives up no token the rescan would have emitted: a run under three bytes is
+// never worth a copy token, so a prefix that collides with nothing could not have been encoded anyway.
+function compressChunk(chunk: Uint8Array): Uint8Array {
+  const tokens = new ByteSink();
+  // Walking a chain from its head yields candidates newest-first, so equal-length matches keep the
+  // smallest offset (a marginally cheaper token), the tie-break the nearest-first rescan had.
+  const heads = new Int32Array(1 << HASH_BITS).fill(NO_CANDIDATE);
+  const prev = new Int32Array(MAX_CHUNK_DECOMPRESSED).fill(NO_CANDIDATE);
+  const remember = (at: number): void => {
+    if (at + 2 >= chunk.length) return; // no three-byte prefix starts here, so nothing can match it
+    const bucket = hash3(chunk, at);
+    prev[at] = heads[bucket] as number;
+    heads[bucket] = at;
+  };
+
   let pos = 0;
   while (pos < chunk.length) {
     const flagIndex = tokens.length;
@@ -205,36 +245,51 @@ function compressChunk(chunk: Uint8Array): number[] {
 
       let bestLength = 0;
       let bestOffset = 0;
-      // Scan nearest-first so equal-length matches keep the smallest offset (a marginally cheaper token).
-      for (let cand = pos - 1; cand >= windowStart; cand--) {
+      let candidate = pos + 2 < chunk.length ? (heads[hash3(chunk, pos)] as number) : NO_CANDIDATE;
+      for (let tried = 0; candidate >= windowStart && tried < MAX_MATCH_CANDIDATES; tried++) {
         let len = 0;
         while (
           len < maxLength &&
           pos + len < chunk.length &&
-          chunk[cand + len] === chunk[pos + len]
+          chunk[candidate + len] === chunk[pos + len]
         ) {
           len++;
         }
         if (len > bestLength) {
           bestLength = len;
-          bestOffset = pos - cand;
+          bestOffset = pos - candidate;
           if (bestLength === maxLength) break; // cannot improve
         }
+        candidate = prev[candidate] as number;
       }
 
       if (bestLength >= 3) {
         const token = ((bestOffset - 1) << (16 - bitCount)) | (bestLength - 3);
-        tokens.push(token & 0xff, (token >> 8) & 0xff);
+        tokens.push(token & 0xff);
+        tokens.push((token >> 8) & 0xff);
         flags |= 1 << bit;
+        // Every position a copy token covers still enters the chain: a later match may begin inside
+        // the run this one emitted.
+        for (let i = 0; i < bestLength; i++) remember(pos + i);
         pos += bestLength;
       } else {
         tokens.push(chunk[pos] as number);
+        remember(pos);
         pos++;
       }
     }
-    tokens[flagIndex] = flags;
+    tokens.set(flagIndex, flags);
   }
-  return tokens;
+  return tokens.bytes();
+}
+
+// The three-byte prefix a copy token is built on, folded into one bucket per byte of the largest
+// window a chunk can offer.
+function hash3(chunk: Uint8Array, pos: number): number {
+  const first = chunk[pos] as number;
+  const second = chunk[pos + 1] as number;
+  const third = chunk[pos + 2] as number;
+  return ((first << 8) ^ (second << 4) ^ third) & ((1 << HASH_BITS) - 1);
 }
 
 /**

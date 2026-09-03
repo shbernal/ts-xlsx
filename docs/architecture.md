@@ -675,12 +675,19 @@ The subsystem is built as encode/decode pairs over two formats plus a project la
   see below.
 
 **The reader is hostile-input-facing (CLAUDE.md §3).** Every CFB sector index, chain, and
-stream size is bounds-checked and cycle-guarded; every MS-OVBA back-reference is validated and
-total output is bomb-capped. A malformed project fails closed with `VbaParseError`, never a
-crash, hang, or unbounded allocation, and each guard is pinned by a crafted-malformed fixture.
-The authoring/encode side is *our own* bytes, so it fails closed with `VbaAuthorError` on a
-contract violation (over-long or duplicate stream name, unrepresentable character) rather than
-emitting a silently broken container.
+stream size is bounds-checked and cycle-guarded; the header's layout fields (both shifts, the
+mini-stream cutoff) are checked against the values [MS-CFB] fixes rather than believed, because a
+crafted cutoff routes every stream through the other allocator and both are bounds-checked enough
+to hand back bytes nobody wrote. Every MS-OVBA back-reference is validated and total output is
+bomb-capped. A malformed project fails closed with `VbaParseError`, never a crash, hang, or
+unbounded allocation, and each guard is pinned by a crafted-malformed fixture.
+
+The authoring side fails closed with `VbaAuthorError` on a contract violation (over-long or
+duplicate stream name, unrepresentable character) rather than emitting a silently broken container.
+It is *not* fed only our own bytes: `removeVbaModule` and `addVbaReference` re-encode a `dir` stream
+that arrived in the file, so the encoder is bounded in time like a parser, and the invariants the
+editors patch against (MODULES_COUNT preceding every module block, and being non-zero) are checked
+rather than assumed.
 
 The public API layers by fidelity and intent, each slice fail-closed:
 
@@ -745,6 +752,25 @@ The stack is deliberately small and each choice is recorded as an ADR under
 - **Security- and correctness-first.** Every parser path is hostile-input-facing: no
   unbounded allocation, no zip-bomb naïveté. Entities are decoded but never expanded;
   inflation is bounded by a running output counter, not any declared size.
+- **Work is bounded by what a file contains, not by what it declares.** The declared-size rule
+  above has a CPU twin, and it is the one that keeps being rediscovered: a loop written over a
+  declared *region* costs whatever the region says, and a region is free to be the whole grid. The
+  shape is always the same. `<col min max>` spans the sheet 16,384 columns at a time and any number
+  of elements may do so, which is what `ColumnRecordBudget` bounds; `<mergeCell A1:A1048576>` is a
+  few bytes that used to cost thirty milliseconds each, so 16,384 of them (~570 KB of XML, a few KB
+  zipped) were eight minutes of CPU. Neither is visible to the inflate cap, because after inflation
+  the payload really is small. Prefer the rewrite over the budget where one exists: walking the
+  populated cells and testing each against the rectangle is a strict improvement for legitimate
+  files too, and needs no number anyone has to justify. Where the work is genuinely proportional to
+  a declared count, it gets a named budget with its reasoning attached, and a test that counts the
+  work rather than timing it.
+- **A hostile file reaches the encoders too.** "Our own bytes" is a property of a value's *origin*,
+  not of the direction it is travelling: an edit reads a foreign file, mutates a structure inside
+  it, and writes it back, so every re-encode on an edit path is fed bytes the caller did not write.
+  `Workbook.removeVbaModule` recompresses a `dir` stream out of a `.xlsm`, which is why the MS-OVBA
+  encoder carries a time bound (a hash chain over three-byte prefixes rather than a rescan of the
+  whole back-window) and why the `dir` editors *check* the record ordering they patch against
+  rather than asserting it in a comment.
 - **A name inside an error message goes through `quoted()`.** `src/errors.ts` exports it, every
   layer may import it, and it is the only spelling: the tree had grown three (`"…"`, `'…'`,
   `JSON.stringify`), split by directory rather than by intent, and only the last survives a name that

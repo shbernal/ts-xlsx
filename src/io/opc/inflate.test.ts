@@ -82,6 +82,107 @@ test('an unsupported compression method is rejected, not silently dropped', () =
   assert.throws(() => inflatePackage(archive, GENEROUS_CAP), /unknown compression/);
 });
 
+// ── Hand-assembled archives ─────────────────────────────────────────────────────────────────────────
+// `zipSync` takes an object, so it cannot express two entries under one name or a name no OPC package
+// may carry. These are written out byte by byte instead: stored (method 0) entries, a central
+// directory, and an end-of-central-directory record.
+
+const CRC_TABLE = Uint32Array.from({length: 256}, (_, byte) => {
+  let value = byte;
+  for (let bit = 0; bit < 8; bit++) value = value & 1 ? 0xedb8_8320 ^ (value >>> 1) : value >>> 1;
+  return value >>> 0;
+});
+
+function crc32(bytes: Uint8Array): number {
+  let value = 0xffff_ffff;
+  for (const byte of bytes) value = (CRC_TABLE[(value ^ byte) & 0xff] as number) ^ (value >>> 8);
+  return (value ^ 0xffff_ffff) >>> 0;
+}
+
+function storedZip(entries: readonly {name: string; data: Uint8Array}[]): Uint8Array {
+  const local: number[] = [];
+  const central: number[] = [];
+  const u16 = (n: number): number[] => [n & 0xff, (n >> 8) & 0xff];
+  const u32 = (n: number): number[] => [...u16(n & 0xffff), ...u16((n >>> 16) & 0xffff)];
+
+  for (const {name, data} of entries) {
+    const nameBytes = [...strToU8(name)];
+    const shared = [
+      ...u16(0), // flags
+      ...u16(0), // method: stored
+      ...u16(0), // modified time
+      ...u16(0), // modified date
+      ...u32(crc32(data)),
+      ...u32(data.length), // compressed size
+      ...u32(data.length), // uncompressed size
+      ...u16(nameBytes.length),
+    ];
+    const localHeaderAt = local.length;
+    local.push(...u32(0x0403_4b50), ...u16(20), ...shared, ...u16(0), ...nameBytes, ...data);
+    central.push(
+      ...u32(0x0201_4b50),
+      ...u16(20), // version made by
+      ...u16(20), // version needed
+      ...shared,
+      ...u16(0), // extra length
+      ...u16(0), // comment length
+      ...u16(0), // disk number
+      ...u16(0), // internal attributes
+      ...u32(0), // external attributes
+      ...u32(localHeaderAt),
+      ...nameBytes,
+    );
+  }
+
+  return Uint8Array.from([
+    ...local,
+    ...central,
+    ...u32(0x0605_4b50),
+    ...u16(0),
+    ...u16(0),
+    ...u16(entries.length),
+    ...u16(entries.length),
+    ...u32(central.length),
+    ...u32(local.length),
+    ...u16(0), // comment length
+  ]);
+}
+
+test('the hand-assembled archive builder produces something this reader accepts', () => {
+  const files = inflatePackage(
+    storedZip([
+      {name: 'one.xml', data: strToU8('<a/>')},
+      {name: 'sub/two.xml', data: strToU8('<b/>')},
+    ]),
+    GENEROUS_CAP,
+  );
+  assert.deepEqual(Object.keys(files).sort(), ['one.xml', 'sub/two.xml']);
+  assert.equal(strFromU8(files['sub/two.xml'] as Uint8Array), '<b/>');
+});
+
+test('two parts under one name are refused rather than one of them being chosen', () => {
+  // Walking the central directory takes the first, streaming the local headers takes the last, and a
+  // package that carries both is a package that means different things to different readers.
+  const archive = storedZip([
+    {name: 'xl/worksheets/sheet1.xml', data: strToU8('<first/>')},
+    {name: 'xl/worksheets/sheet1.xml', data: strToU8('<second/>')},
+  ]);
+  assert.throws(() => inflatePackage(archive, GENEROUS_CAP), {
+    name: 'PackageReadError',
+    message: /duplicate part "xl\/worksheets\/sheet1.xml"/,
+  });
+});
+
+test('an entry name that cannot be a part name is refused, not normalised', () => {
+  for (const name of ['/xl/workbook.xml', 'xl\\workbook.xml', '../outside.xml', 'C:/outside.xml']) {
+    assert.throws(
+      () => inflatePackage(storedZip([{name, data: strToU8('<x/>')}]), GENEROUS_CAP),
+      {name: 'PackageReadError', message: /illegal part name/},
+      name,
+    );
+  }
+});
+
 test('inflatePackage agrees with fflate on a well-formed archive', () => {
   const archive = zipSync({a: strToU8('one'), b: noise(3000)});
   const ours = inflatePackage(archive, GENEROUS_CAP);

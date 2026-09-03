@@ -125,6 +125,20 @@ test('an outline level is refused rather than dropped when it is not a number', 
   }
 });
 
+// A finite level slips past the non-finite gate and is the worse hazard of the two: the writer finds
+// a group's end by walking outwards while the neighbouring level exceeds the summary's, every
+// unmapped row answers `0`, and `0 > -1` holds for every row on the sheet.
+test('an outline level is refused when it is negative or fractional, not only when it is not a number', () => {
+  for (const value of [-1, -0.5, 2.5]) {
+    refuses((wb) => {
+      wb.getWorksheet('S')!.getRow(2).outlineLevel = value;
+    });
+    refuses((wb) => {
+      wb.getWorksheet('S')!.getColumn(2).outlineLevel = value;
+    });
+  }
+});
+
 test('a pivot cache blanks a non-finite source value rather than spelling it', () => {
   // `scalarOf` blanks a non-finite cell before it can reach the cache, so this asserts that guard
   // holds from the outside: the write succeeds, and neither the shared item nor the field's

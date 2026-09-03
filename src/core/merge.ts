@@ -23,13 +23,15 @@ export type MergeRect = GridRect;
  * Styles are untouched: a border spanning the merged region rides the covered cells.
  */
 export function clearCoveredValues(rows: Map<number, Map<number, Cell>>, rect: MergeRect): void {
-  for (let row = rect.top; row <= rect.bottom; row++) {
-    const cols = rows.get(row);
-    if (cols === undefined) continue;
-    for (let col = rect.left; col <= rect.right; col++) {
+  // Both loops walk what is populated and test it against the rectangle, never the rectangle itself:
+  // a file may declare `A1:A1048576`, and the work that costs must be the cells that exist, not the
+  // area claimed. Walking the rect is how a few kilobytes of `<mergeCell>` buys minutes of CPU.
+  for (const [row, cols] of rows) {
+    if (row < rect.top || row > rect.bottom) continue;
+    for (const [col, covered] of cols) {
+      if (col < rect.left || col > rect.right) continue;
       if (row === rect.top && col === rect.left) continue;
-      const covered = cols.get(col);
-      if (covered !== undefined) covered.value = null;
+      covered.value = null;
     }
   }
 }

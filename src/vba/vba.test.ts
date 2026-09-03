@@ -328,6 +328,29 @@ test('compressContainer emits copy tokens, shrinking repetitive data via run-len
   assert.deepEqual(decompressContainer(compressContainer(abab)), abab);
 });
 
+// `removeVbaModule` and `addVbaReference` recompress the `dir` stream of a workbook the caller did
+// not write, so the encoder's cost is a number an untrusted file chooses. Data with no matches is its
+// worst case, and the one this bounds: the exhaustive back-window rescan this replaced spent 1.2 s on
+// 128 KiB of it, so ~10 s on the megabyte below, against 0.14 s for the hash chain. The ceiling is
+// wall-clock because the blow-up was a constant factor inside a fixed 4096-byte window rather than a
+// growth rate, so no ratio between two input sizes can see it; the margin is what makes it sound.
+test('the compressor stays fast on data that offers it no matches', () => {
+  let state = 0x9e37_79b9;
+  const noMatches = new Uint8Array(1024 * 1024).map(() => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return state & 0xff;
+  });
+
+  const started = performance.now();
+  const packed = compressContainer(noMatches);
+  const elapsed = performance.now() - started;
+
+  assert.deepEqual(decompressContainer(packed), noMatches);
+  assert.ok(elapsed < 3000, `compressing 1 MiB of unmatched data took ${elapsed.toFixed(0)} ms`);
+});
+
 test('compressContainer output re-parses as a real module through the whole pipeline', () => {
   // Compress genuine VBA source, wrap it as a module stream at offset 0, and read it back through the
   // production CFB writer + parser: the compressor feeding the reader end to end, no store-mode fixture.
@@ -841,9 +864,10 @@ function buildNavigableProjectBin(
   codePage: number,
   modules: ModuleSpec[],
   extraDirRecords: number[] = [],
+  craftDir: (records: number[]) => number[] = (records) => records,
 ): Uint8Array {
   const dir = storeCompress(
-    Uint8Array.from([...buildDirStream(codePage, modules), ...extraDirRecords]),
+    Uint8Array.from(craftDir([...buildDirStream(codePage, modules), ...extraDirRecords])),
   );
   const vbaChildren: CfbNode[] = [
     {name: 'dir', data: dir},
@@ -967,6 +991,48 @@ test('removeVbaModule rejects an unknown module name', () => {
 test('removeVbaModule rejects removing a document module fail-closed', () => {
   const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
   assert.throws(() => removeVbaModule(bin, 'ThisWorkbook'), VbaAuthorError);
+});
+
+// MODULES_COUNT sits ahead of every module block in a dir Excel wrote, which is what makes patching it
+// after a splice safe. These two craft a dir where that is false, the way a hostile `.xlsm` would: one
+// moves the record behind the block being cut (so the patch would write two bytes into an unrelated
+// record's payload), the other declares zero modules while carrying one (so the decrement would store
+// 0xffff). Both are refused rather than produced.
+
+// Lift the 8-byte MODULES_COUNT record out of its place and re-seat it just before the dir terminator,
+// behind every module block.
+function modulesCountAfterTheModules(records: number[]): number[] {
+  const at = records.findIndex(
+    (byte, i) => byte === 0x0f && records[i + 1] === 0x00 && records[i + 2] === 0x02,
+  );
+  const record = records.slice(at, at + 8);
+  const rest = [...records.slice(0, at), ...records.slice(at + 8)];
+  const terminatorAt = rest.length - 6; // the dir Terminator record closes the stream
+  return [...rest.slice(0, terminatorAt), ...record, ...rest.slice(terminatorAt)];
+}
+
+test('removeVbaModule refuses a dir stream whose MODULES_COUNT sits behind a module block', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, [], modulesCountAfterTheModules);
+  assert.throws(() => removeVbaModule(bin, 'Module1'), {
+    name: 'VbaParseError',
+    message: /MODULES_COUNT after a module block/,
+  });
+});
+
+test('removeVbaModule refuses a dir stream that declares zero modules but carries one', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, [], (records) => {
+    const at = records.findIndex(
+      (byte, i) => byte === 0x0f && records[i + 1] === 0x00 && records[i + 2] === 0x02,
+    );
+    const crafted = [...records];
+    crafted[at + 6] = 0;
+    crafted[at + 7] = 0;
+    return crafted;
+  });
+  assert.throws(() => removeVbaModule(bin, 'Module1'), {
+    name: 'VbaParseError',
+    message: /zero modules/,
+  });
 });
 
 test('removeVbaModule rejects a malformed container as a parse error', () => {

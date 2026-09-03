@@ -23,6 +23,35 @@ function grid(cells: Readonly<Record<string, string>>): Map<number, Map<number, 
   return rows;
 }
 
+// A `Map` that charges for every entry it hands out and every key it is asked for, and refuses to
+// keep counting past a ceiling no correct walk can reach. Timing would measure the machine; this
+// measures the algorithm.
+class CountedMap<V> extends Map<number, V> {
+  readonly #budget: {steps: number};
+
+  constructor(budget: {steps: number}) {
+    super();
+    this.#budget = budget;
+  }
+
+  #charge(): void {
+    if (++this.#budget.steps > 10_000_000)
+      throw new Error('walked the declared area, not the cells');
+  }
+
+  override get(key: number): V | undefined {
+    this.#charge();
+    return super.get(key);
+  }
+
+  override *[Symbol.iterator](): MapIterator<[number, V]> {
+    for (const entry of super.entries()) {
+      this.#charge();
+      yield entry;
+    }
+  }
+}
+
 const valuesOf = (rows: Map<number, Map<number, Cell>>): string[] =>
   [...rows.values()]
     .flatMap((cols) => [...cols.values()])
@@ -113,4 +142,22 @@ test('clearCoveredValues walks only the rows a region names', () => {
   const rows = grid({A1: 'anchor', A5: 'far below'});
   clearCoveredValues(rows, {top: 1, left: 1, bottom: 2, right: 2});
   assert.equal(rows.get(5)!.get(1)!.value, 'far below');
+});
+
+// A `<mergeCell>` costs whatever it declares, and what it declares is free to be the whole grid:
+// 4,000 non-overlapping full-column merges are a few hundred KB of XML that compresses to nothing.
+// The guarantee is that the collapse walks the cells that exist, not the area claimed, so the counter
+// aborts instead of the test hanging when a rewrite reintroduces a walk over the rectangle.
+test('clearCoveredValues costs the populated cells, not the declared area', () => {
+  const budget = {steps: 0};
+  const rows = new CountedMap<Map<number, Cell>>(budget);
+  for (let row = 1; row <= 4; row++) {
+    const cols = new CountedMap<Cell>(budget);
+    for (let col = 1; col <= 4; col++) cols.set(col, new Cell(row, col));
+    rows.set(row, cols);
+  }
+  for (let col = 1; col <= 4000; col++) {
+    clearCoveredValues(rows, {top: 1, left: col, bottom: 1_048_576, right: col});
+  }
+  assert.ok(budget.steps < 4000 * 40, `walked ${budget.steps} entries`);
 });

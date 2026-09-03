@@ -23,7 +23,7 @@ import {
   isSharedFormulaValue,
 } from '../../core/value.ts';
 import type {ColumnProperties, RowProperties, Worksheet} from '../../core/worksheet.ts';
-import {InternalError} from '../../errors.ts';
+import {AuthoringError, InternalError} from '../../errors.ts';
 import {
   escapeAttr,
   escapeSpreadsheetText,
@@ -414,12 +414,25 @@ function formulaBodyXml(
   );
 }
 
+/**
+ * Refuse an outline depth that is not a non-negative integer, naming what carried it.
+ *
+ * `xsd:unsignedInt` is the attribute's type, so this is what the schema already says. It is asserted
+ * rather than clamped because a negative level is also a hang: the writer finds a group's end by
+ * walking outwards while the neighbouring level exceeds the summary's, and every unmapped row
+ * answers `0`, which exceeds `-1` for as long as there are rows to walk.
+ */
+export function assertWritableLevel(name: string, level: number): void {
+  if (Number.isInteger(level) && level >= 0) return;
+  throw new AuthoringError(`${name} must be a non-negative integer, not ${level}`);
+}
+
 // An outline depth is written only above the default of zero. That zero test answers whether the
 // level is worth recording, not whether it can be recorded at all, and keeping the two apart is what
 // makes an unwritable level loud: `NaN > 0` is false, so a gate on its own would drop it silently
 // while `Infinity` sailed through into an `xsd:unsignedInt` attribute.
 export function outlineAttr(name: string, level: number | undefined): string {
   if (level === undefined) return '';
-  const text = numberText(level);
-  return level > 0 ? ` ${name}="${text}"` : '';
+  assertWritableLevel(name, level);
+  return level > 0 ? ` ${name}="${numberText(level)}"` : '';
 }

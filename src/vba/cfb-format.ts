@@ -34,6 +34,15 @@ export const TYPE_STORAGE = 1;
 export const TYPE_STREAM = 2;
 export const TYPE_ROOT = 5;
 
+/**
+ * The stream size at or above which a stream lives in the regular FAT rather than the mini stream
+ * ([MS-CFB] 2.2, header offset 56). The spec fixes it at 4096, so the reader checks the header's value
+ * against this rather than believing it: a crafted 0 or 0xFFFFFFFF routes every stream through the
+ * wrong allocator, and since both destinations are bounds-checked the result is a module's source read
+ * back as something nobody wrote rather than a clean rejection.
+ */
+export const MINI_STREAM_CUTOFF = 4096;
+
 /** A directory entry is a fixed 128 bytes ([MS-CFB] 2.6.1), whatever the sector size. */
 export const DIR_ENTRY_SIZE = 128;
 

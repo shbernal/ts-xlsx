@@ -190,6 +190,32 @@ test('every header count driven to its maximum is rejected, not believed', () =>
   }
 });
 
+// The sweep above asks only that a struck header fails closed. These two ask for the stronger thing on
+// the two layout fields the reader used to believe: that it *rejects* them, rather than reading the
+// container through the wrong allocator or through half of a declared size. Both destinations are
+// bounds-checked, so without these the crafted file yields a module's source read back as bytes nobody
+// wrote, which is a worse outcome than a refusal, and a quieter one.
+test('a mini-stream cutoff other than the one MS-CFB fixes is rejected, not believed', () => {
+  for (const cutoff of [0, 64, 8192, 0xffffffff]) {
+    const mutated = Uint8Array.from(SEED);
+    mutated.set(u32(cutoff), 56);
+    assert.throws(() => new CompoundFile(mutated), {
+      name: 'VbaParseError',
+      message: /mini-stream cutoff/,
+    });
+  }
+});
+
+test('a directory entry declaring a stream past 4 GiB is rejected rather than read truncated', () => {
+  const mutated = Uint8Array.from(SEED);
+  // The root entry is the first; the second is the first real stream, whose size is a u64 at +120.
+  mutated.set(u32(1), findDirectory(mutated) + 128 + 124); // the high half of the declared size
+  assert.throws(() => new CompoundFile(mutated), {
+    name: 'VbaParseError',
+    message: /larger than 4 GiB/,
+  });
+});
+
 test('a directory whose sibling links form a chain does not recurse once per entry', () => {
   // A red-black sibling tree is balanced by construction, so its depth is logarithmic and recursion is
   // safe. A hostile file is under no such obligation: linking every entry as the left child of the one

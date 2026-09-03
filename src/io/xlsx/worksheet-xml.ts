@@ -14,7 +14,7 @@ import {decodeRange, encodeAddress} from '../../core/address.ts';
 import {pickStyleFacets} from '../../core/style.ts';
 import type {ColumnProperties, Worksheet, WorksheetProperties} from '../../core/worksheet.ts';
 import {AuthoringError, quoted} from '../../errors.ts';
-import {assertWritableNumber, escapeAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
+import {escapeAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {
   conditionalFormattingsExtXml,
@@ -39,6 +39,7 @@ import {
 } from './part-names.ts';
 import {NS, REL} from './relationships.ts';
 import {
+  assertWritableLevel,
   buildColumnDefaults,
   Extent,
   type FlushedSheet,
@@ -490,9 +491,9 @@ function scanRowOutline(sheet: Worksheet, flushed: FlushedSheet | undefined): Ro
   let maxLevel = 0;
   const note = (number: number, rowLevel: number, rowHidden: boolean): void => {
     // Refused here and not only where the attribute is written, because the walk below compares
-    // levels to find a group's end: against `-Infinity` every comparison holds and the walk runs off
-    // the sheet forever, and against `NaN` none does and the group ends before it starts.
-    assertWritableNumber(rowLevel);
+    // levels to find a group's end: against a negative level every comparison holds and the walk runs
+    // off the sheet forever, and against `NaN` none does and the group ends before it starts.
+    assertWritableLevel(`row ${number} outlineLevel`, rowLevel);
     level.set(number, rowLevel);
     hidden.set(number, rowHidden);
     if (rowLevel > maxLevel) maxLevel = rowLevel;
@@ -512,7 +513,9 @@ function scanRowOutline(sheet: Worksheet, flushed: FlushedSheet | undefined): Ro
     let detail = summary + step;
     let sawDetail = false;
     let allHidden = true;
-    while (levelOf(detail) > summaryLevel) {
+    // The level map is what bounds this walk: it ends at the first row outside the group, and a row
+    // nobody noted is outside every group whatever the arithmetic above it says.
+    while (level.get(detail) !== undefined && levelOf(detail) > summaryLevel) {
       sawDetail = true;
       if (!hidden.get(detail)) allHidden = false;
       detail += step;

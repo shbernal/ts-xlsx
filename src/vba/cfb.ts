@@ -10,10 +10,12 @@
 // the file and every chain walk is cycle-guarded. A malformed container fails closed with a
 // VbaParseError instead of reading out of bounds, looping forever, or over-allocating.
 
+import {quoted} from '../errors.ts';
 import {concat, decodeUtf16le, readU16, readU32} from './bytes.ts';
 import {
   DIR_ENTRY_SIZE,
   MAX_REGULAR_SECTOR,
+  MINI_STREAM_CUTOFF,
   NOSTREAM,
   TYPE_EMPTY,
   TYPE_ROOT,
@@ -81,6 +83,12 @@ export class CompoundFile {
     const numFatSectors = readU32(this.#buf, 44);
     const firstDirSector = readU32(this.#buf, 48);
     this.#miniCutoff = readU32(this.#buf, 56);
+    // Checked on the same terms as the two shifts above, and for a sharper reason: a wrong shift is
+    // caught downstream by arithmetic that stops making sense, while a wrong cutoff routes every
+    // stream through the *other* allocator, which is bounds-checked and will happily return bytes.
+    if (this.#miniCutoff !== MINI_STREAM_CUTOFF) {
+      throw new VbaParseError(`unsupported mini-stream cutoff ${this.#miniCutoff}`);
+    }
     const firstMiniFatSector = readU32(this.#buf, 60);
     const firstDifatSector = readU32(this.#buf, 68);
     const numDifatSectors = readU32(this.#buf, 72);
@@ -258,6 +266,14 @@ export class CompoundFile {
       const name = decodeUtf16le(raw.subarray(off, off + Math.max(0, nameLen - 2)));
       const startSector = readU32(raw, off + 116);
       const size = readU32(raw, off + 120); // low 32 bits, ample for a VBA project
+      // The high half is not ample for anything this library reads, but ignoring it is not the same
+      // as refusing it: a stream declaring 4 GiB + 10 bytes would otherwise read back as its first
+      // ten, silently, which is a module's source truncated rather than a file rejected.
+      if (readU32(raw, off + 124) !== 0) {
+        throw new VbaParseError(
+          `directory entry ${quoted(name)} declares a stream larger than 4 GiB`,
+        );
+      }
       entries.push({name, type, startSector, size, left, right, child});
     }
     return entries;
