@@ -139,3 +139,32 @@ test('a table name that is not an Excel identifier is refused, natively', () => 
     );
   }
 });
+
+test('a table whose derived corner leaves the grid is refused at construction', () => {
+  // The anchor was validated and the far corner, derived from it, was not. `XFC1` plus three columns
+  // reached column XFE, and five million data rows produced a `<table ref>` naming rows that cannot
+  // exist -- which the writer emitted, and which `range` then threw on when anyone read it back.
+  assert.throws(() => table({ref: 'XFC1', columns: [{name: 'a'}, {name: 'b'}, {name: 'c'}]}), {
+    name: 'RangeError',
+    message: /table "T" spans 3 columns from XFC, past the last column \(XFD\)/,
+  });
+  assert.throws(() => table({ref: 'A1', columns: [{name: 'a'}], rowCount: 5_000_000}), {
+    name: 'RangeError',
+    message: /table "T" spans 5000001 rows from 1, past the last row \(1048576\)/,
+  });
+});
+
+test('a table reaching the last column or row exactly is accepted', () => {
+  assert.strictEqual(table({ref: 'XFC1', columns: [{name: 'a'}, {name: 'b'}]}).range, 'XFC1:XFD3');
+  assert.strictEqual(
+    table({ref: 'A1048574', columns: [{name: 'a'}], rowCount: 2}).range,
+    'A1048574:A1048576',
+  );
+});
+
+test('a column splice that would push a table past the last column drops it', () => {
+  // Clamping the anchor is not the same as bounding the table: an anchor clamped onto XFD still puts
+  // a two-column table's right edge at XFE, where `range`, `autoFilterRef` and `region` all throw.
+  const t = table({ref: 'XFC1', columns: [{name: 'a'}, {name: 'b'}]}); // XFC..XFD
+  assert.strictEqual(t.shiftColumns(1, 0, 1), false, 'no room left for its columns');
+});

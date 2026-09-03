@@ -7,7 +7,7 @@
 // range height minus the header row (present unless `headerRowCount="0"`) and the totals row (present
 // only when `totalsRowCount` is positive), so reconstructing one from the other is lossless.
 
-import {encodeAddress, tryDecodeRange} from '../../core/address.ts';
+import {encodeAddress, MAX_COLUMN, tryDecodeRange} from '../../core/address.ts';
 import {
   isTotalsRowFunction,
   type Table,
@@ -201,6 +201,11 @@ export function parseTable(xml: string): TableOptions | undefined {
   if (decoded === undefined) return undefined;
   const {top, left, bottom} = decoded;
   if (top === undefined || left === undefined || bottom === undefined) return undefined;
+  // The anchor is inside the grid, but the columns counted off it need not be: a part is free to
+  // declare more `<tableColumn>`s than there is room for to the right of its own `ref`. That is the
+  // same unreadable table the constructor now refuses, and refusing it is an authoring-facing throw
+  // this path must not raise, so the table is dropped whole like one with an unreadable anchor.
+  if (left + columns.length - 1 > MAX_COLUMN) return undefined;
 
   const headerRow = headerRowCount !== 0;
   const totalsRow = totalsRowCount > 0;

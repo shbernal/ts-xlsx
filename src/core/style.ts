@@ -5,6 +5,7 @@
 // facets landed so far: colours, fills, borders, fonts, alignment, and protection.
 
 import {tokenSet} from '../token-set.ts';
+import {type ClonePlan, cloneWith} from './clone.ts';
 import {type AssertNever, NAMED_STYLE_ID} from './internal.ts';
 
 /** Underline can be a plain flag or one of Excel's named underline styles. */
@@ -152,6 +153,56 @@ export interface GradientFill {
 /** A cell/row background fill: a flat pattern or a colour gradient. */
 export type Fill = PatternFill | GradientFill;
 
+// The three style primitives that reach a defensive copy (here, and through `DifferentialStyle` in a
+// conditional-formatting rule) are none of them flat, so none of them can be copied by a spread. A
+// gradient carries an array of stops and a font and a border each carry a nested colour; copying one
+// with `{...v}` shared exactly those with the caller, so a later mutation of theirs reached into the
+// stored rule. Each declares a plan instead, with the proof beside it that the plan names every
+// field, so a facet added to any of these types does not compile until its copy is stated.
+
+const GRADIENT_STOP_CLONE: ClonePlan<GradientStop> = {position: 'value', color: 'record'};
+
+/** The proof that {@link GRADIENT_STOP_CLONE} names every field of a gradient stop. */
+export type EveryGradientStopFieldIsCloned = AssertNever<
+  Exclude<keyof Required<GradientStop>, keyof typeof GRADIENT_STOP_CLONE>
+>;
+
+const PATTERN_FILL_CLONE: ClonePlan<PatternFill> = {
+  type: 'value',
+  pattern: 'value',
+  fgColor: 'record',
+  bgColor: 'record',
+};
+
+/** The proof that {@link PATTERN_FILL_CLONE} names every field of a pattern fill. */
+export type EveryPatternFillFieldIsCloned = AssertNever<
+  Exclude<keyof Required<PatternFill>, keyof typeof PATTERN_FILL_CLONE>
+>;
+
+const GRADIENT_FILL_CLONE: ClonePlan<GradientFill> = {
+  type: 'value',
+  gradient: 'value',
+  degree: 'value',
+  left: 'value',
+  right: 'value',
+  top: 'value',
+  bottom: 'value',
+  stops: (stops) => stops.map((stop) => cloneWith(stop, GRADIENT_STOP_CLONE)),
+};
+
+/** The proof that {@link GRADIENT_FILL_CLONE} names every field of a gradient fill. */
+export type EveryGradientFillFieldIsCloned = AssertNever<
+  Exclude<keyof Required<GradientFill>, keyof typeof GRADIENT_FILL_CLONE>
+>;
+
+/** A defensive deep copy of a fill, whichever of the two shapes it is. The union is dispatched on
+ * `type` because the two halves share no field beyond it, so one plan could not describe both. */
+export function cloneFill(fill: Fill): Fill {
+  return fill.type === 'gradient'
+    ? cloneWith(fill, GRADIENT_FILL_CLONE)
+    : cloneWith(fill, PATTERN_FILL_CLONE);
+}
+
 /**
  * Line styles a cell border edge can take, as OOXML's `ST_BorderStyle` enumerates them.
  * `none` is the absence of an edge and is expressed by omitting the edge, not by this value.
@@ -210,6 +261,35 @@ export interface Border {
   readonly diagonalDown?: boolean;
 }
 
+const BORDER_EDGE_CLONE: ClonePlan<BorderEdge> = {style: 'value', color: 'record'};
+
+/** The proof that {@link BORDER_EDGE_CLONE} names every field of a border edge. */
+export type EveryBorderEdgeFieldIsCloned = AssertNever<
+  Exclude<keyof Required<BorderEdge>, keyof typeof BORDER_EDGE_CLONE>
+>;
+
+const cloneBorderEdge = (edge: BorderEdge): BorderEdge => cloneWith(edge, BORDER_EDGE_CLONE);
+
+const BORDER_CLONE: ClonePlan<Border> = {
+  left: cloneBorderEdge,
+  right: cloneBorderEdge,
+  top: cloneBorderEdge,
+  bottom: cloneBorderEdge,
+  diagonal: cloneBorderEdge,
+  diagonalUp: 'value',
+  diagonalDown: 'value',
+};
+
+/** The proof that {@link BORDER_CLONE} names every side of a border. */
+export type EveryBorderFieldIsCloned = AssertNever<
+  Exclude<keyof Required<Border>, keyof typeof BORDER_CLONE>
+>;
+
+/** A defensive deep copy of a border, each present edge and its colour included. */
+export function cloneBorder(border: Border): Border {
+  return cloneWith(border, BORDER_CLONE);
+}
+
 /** Vertical alignment of a font relative to the baseline (super/subscript). */
 export type FontVerticalAlignment = 'superscript' | 'subscript';
 
@@ -243,6 +323,31 @@ export interface Font {
   readonly strike?: boolean;
   readonly outline?: boolean;
   readonly vertAlign?: FontVerticalAlignment;
+}
+
+const FONT_CLONE: ClonePlan<Font> = {
+  name: 'value',
+  size: 'value',
+  family: 'value',
+  scheme: 'value',
+  charset: 'value',
+  color: 'record',
+  bold: 'value',
+  italic: 'value',
+  underline: 'value',
+  strike: 'value',
+  outline: 'value',
+  vertAlign: 'value',
+};
+
+/** The proof that {@link FONT_CLONE} names every facet of a font. */
+export type EveryFontFieldIsCloned = AssertNever<
+  Exclude<keyof Required<Font>, keyof typeof FONT_CLONE>
+>;
+
+/** A defensive deep copy of a font, its nested colour included. */
+export function cloneFont(font: Font): Font {
+  return cloneWith(font, FONT_CLONE);
 }
 
 /** How a cell's content sits horizontally within its bounds, as OOXML's `ST_HorizontalAlignment`

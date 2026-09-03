@@ -504,6 +504,54 @@ export const tables = {
       rightEdge: {range: readRange(edge)},
     };
   },
+  // Ask a table to occupy a rectangle the grid does not have, four ways → { pastRightEdge,
+  // pastBottomEdge, onTheEdge, splicedPastRightEdge, writtenRef }. A table's anchor was validated and
+  // its far corner, derived from the anchor plus the column count and the row count, was not. So a
+  // table could be declared over columns past XFD or rows past 1048576: `range` then threw when
+  // anything read it back, and a `rowCount` large enough (which a reader derives from a file's own
+  // stored range, not only an author) put a `<table ref>` naming impossible rows into the package.
+  tableOutsideTheGrid() {
+    const refused = (build: () => void) => {
+      try {
+        build();
+        return null;
+      } catch (error) {
+        return messageOf(error);
+      }
+    };
+    const sheetWith = (name: string) => new Workbook().addWorksheet(name);
+
+    const pastRightEdge = refused(() => {
+      sheetWith('A').addTable({
+        name: 'T',
+        ref: 'XFC1',
+        columns: [{name: 'a'}, {name: 'b'}, {name: 'c'}],
+        rowCount: 1,
+      });
+    });
+    const pastBottomEdge = refused(() => {
+      sheetWith('B').addTable({name: 'T', ref: 'A1', columns: [{name: 'a'}], rowCount: 5_000_000});
+    });
+
+    // Two columns anchored at XFC reach XFD exactly: the last legal rectangle, which must be accepted
+    // and must round-trip. Inserting a column to its left then has nowhere to put its right edge.
+    const edgeWb = new Workbook();
+    const edge = edgeWb.addWorksheet('S');
+    edge.getCell('XFC1').value = 'a';
+    edge.getCell('XFD1').value = 'b';
+    edge.addTable({name: 'T', ref: 'XFC1', columns: [{name: 'a'}, {name: 'b'}], rowCount: 1});
+    const onTheEdge = readRange(edge);
+    const writtenRef =
+      /<table\b[^>]*\bref="([^"]*)"/.exec(
+        partMapOf(writeXlsx(edgeWb))['xl/tables/table1.xml'] ?? '',
+      )?.[1] ?? null;
+
+    edge.spliceColumns(1, 0, ['inserted']);
+    const splicedPastRightEdge = {tableCount: edge.tables.length, range: readRange(edge)};
+
+    return {pastRightEdge, pastBottomEdge, onTheEdge, writtenRef, splicedPastRightEdge};
+  },
+
   // Read a fixture that already carries preserved pivot parts, author a NEW pivot onto it, write, and
   // report the package → { pivotTableParts, cacheDefinitionParts, cacheRecordsParts, duplicateOverrides,
   // authoredPartChanged, reloadOk, reloadError }. The writer generates a pivot table part and both cache

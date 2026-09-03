@@ -15,6 +15,7 @@ import type {DataValidationOverlay} from './data-validation-overlay.ts';
 import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 import {type AnchoredImage, type AnchorPoint, type ImageAnchor, isOneCellAnchor} from './image.ts';
 import type {MergeRect} from './merge.ts';
+import {positionalPlacements} from './row-input.ts';
 import type {Table} from './table.ts';
 import {type CellValue, isSharedFormulaValue, type SharedFormulaValue} from './value.ts';
 import type {WorksheetComments} from './worksheet-comments.ts';
@@ -97,7 +98,7 @@ export class GridEdits {
     this.#rows.clear();
     for (const [row, cols] of shifted) this.#rows.set(row, cols);
 
-    this.#shiftLineProperties(this.#rowProperties, start, count, delta);
+    this.#shiftLineProperties(this.#rowProperties, start, count, delta, 'row');
     this.#shiftMerges('row', start, count, delta);
     this.#shiftTables('row', start, count, delta);
     this.#shiftImages('row', start, count, delta);
@@ -113,8 +114,9 @@ export class GridEdits {
     const delta = inserts.length - count;
     // Built whole, then swapped in, the way `spliceRows` does it. Writing each row back inside the loop
     // meant a throw part-way left the sheet half-spliced: rows already visited shifted, the rest not,
-    // with no way for the caller to act on the error. Nothing here throws any more, but a partial edit
-    // is not a state this class should be able to reach at all.
+    // with no way for the caller to act on the error. `new Cell` still asserts its coordinates, so an
+    // insert landing past the last column or naming a row past the last one does throw; swapping at
+    // the end is what keeps that a refused edit rather than half of one.
     const shiftedRows = new Map<number, Map<number, Cell>>();
     for (const [row, cols] of this.#rows) {
       const shifted = new Map<number, Cell>();
@@ -130,18 +132,29 @@ export class GridEdits {
           shifted.set(dest, moved);
         }
       }
-      inserts.forEach((values, i) => {
-        const value = values[row - 1];
-        if (value !== undefined) {
-          const cell = new Cell(row, start + i);
-          cell.value = value;
-          shifted.set(start + i, cell);
-        }
-      });
       shiftedRows.set(row, shifted);
     }
+    // A pass of its own, because an inserted column's values are indexed by row and the rows they
+    // name need not exist yet. Nested inside the loop above, a value could only land on a row the
+    // grid already held: `insertColumn(1, ['x','y','z'])` on an empty sheet wrote nothing at all, and
+    // on a sheet holding only `A1` it wrote the first value and discarded the rest. `addColumn` goes
+    // through `positionalPlacements` and materialises every row, so the two column-append paths
+    // disagreed about the same argument. This is the column-axis mirror of the pre-built `inserted`
+    // maps `spliceRows` receives.
+    inserts.forEach((values, i) => {
+      for (const [row, value] of positionalPlacements(values)) {
+        const cell = new Cell(row, start + i);
+        cell.value = value;
+        let cols = shiftedRows.get(row);
+        if (cols === undefined) {
+          cols = new Map<number, Cell>();
+          shiftedRows.set(row, cols);
+        }
+        cols.set(start + i, cell);
+      }
+    });
     for (const [row, cols] of shiftedRows) this.#rows.set(row, cols);
-    this.#shiftLineProperties(this.#columns, start, count, delta);
+    this.#shiftLineProperties(this.#columns, start, count, delta, 'col');
     this.#shiftMerges('col', start, count, delta);
     this.#shiftTables('col', start, count, delta);
     this.#shiftImages('col', start, count, delta);
@@ -204,13 +217,26 @@ export class GridEdits {
   }
 
   // Shift a line-metadata map (row properties keyed by row, or column properties keyed by column)
-  // through a splice: entries before the edit stay, entries within the deleted span drop, entries
+  // through a splice: entries before the edit stay, entries a delete swallowed whole drop, entries
   // after shift by `delta`. Mutates the map in place.
-  #shiftLineProperties<T>(map: Map<number, T>, start: number, count: number, delta: number): void {
+  //
+  // Through `shiftIndex` and `isDeletedSpan` like every other participant. This was the last site
+  // still doing the arithmetic by hand, and a hand-written shift does not clamp: a row height on the
+  // last row plus an insert above it left a properties entry at 1048577, which made `rowCount` name
+  // a row `new Row` refuses to construct, so iterating the sheet threw and the sheet could no longer
+  // be written or inspected. The cells on that row clamped correctly, so a row and its own metadata
+  // also came apart.
+  #shiftLineProperties<T>(
+    map: Map<number, T>,
+    start: number,
+    count: number,
+    delta: number,
+    axis: 'row' | 'col',
+  ): void {
     const shifted = new Map<number, T>();
     for (const [index, value] of map) {
-      if (index < start) shifted.set(index, value);
-      else if (index >= start + count) shifted.set(index + delta, value);
+      if (isDeletedSpan(index, index, start, count)) continue;
+      shifted.set(shiftIndex(index, start, count, delta, axis), value);
     }
     map.clear();
     for (const [index, value] of shifted) map.set(index, value);

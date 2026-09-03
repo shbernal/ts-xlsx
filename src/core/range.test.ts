@@ -108,6 +108,16 @@ test('an out-of-bounds or non-integer corner is refused', () => {
   assert.throws(() => s.getRange(1.5, 1, 2, 2), /row 1.5 is out of bounds/);
 });
 
+test('a numeric call missing corners says so, rather than reporting a corner it invented', () => {
+  // Unreachable from TypeScript, reachable from JavaScript, which is half of this API's callers. The
+  // missing corners defaulted to 0, so the complaint was "row 0 is out of bounds": an error about a
+  // coordinate the caller never wrote, pointing at the grid instead of at the call.
+  const s = sheet() as unknown as {getRange(...corners: number[]): unknown};
+  assert.throws(() => s.getRange(2, 2), /needs all four corners; got 2/);
+  assert.throws(() => s.getRange(2), /needs all four corners; got 1/);
+  assert.throws(() => s.getRange(2, 2, 5), /needs all four corners; got 3/);
+});
+
 test('a range knows the sheet it came from', () => {
   const s = sheet();
   assert.equal(s.getRange('A1:B2').sheet, s);

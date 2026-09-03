@@ -12,7 +12,15 @@ import type {
   EveryRuleFieldIsCloned,
 } from '../core/conditional-formatting.ts';
 import type {EveryDataValidationFieldIsCloned} from '../core/data-validation.ts';
-import type {EveryAlignmentFacetIsDeclared} from '../core/style.ts';
+import type {
+  EveryAlignmentFacetIsDeclared,
+  EveryBorderEdgeFieldIsCloned,
+  EveryBorderFieldIsCloned,
+  EveryFontFieldIsCloned,
+  EveryGradientFillFieldIsCloned,
+  EveryGradientStopFieldIsCloned,
+  EveryPatternFillFieldIsCloned,
+} from '../core/style.ts';
 import type {EveryTableStyleInfoFieldIsCloned} from '../core/table.ts';
 import type {EveryWorksheetModelFieldHasAFacet} from '../core/worksheet-model.ts';
 import type {Equal, Expect} from './expect.ts';
@@ -24,10 +32,19 @@ export type FacetTableExhaustiveness = [
   Expect<Equal<EveryColumnPropertyIsMirrored, never>>,
   // Every worksheet model field, covered by a getter/setter facet.
   Expect<Equal<EveryWorksheetModelFieldHasAFacet, never>>,
-  // The four defensive copies: a field added to one of these types without a copy strategy would
+  // The defensive copies: a field added to one of these types without a copy strategy would
   // otherwise be carried by reference into the model, aliasing the caller's object silently.
   Expect<Equal<EveryRuleFieldIsCloned, never>>,
   Expect<Equal<EveryDifferentialStyleFieldIsCloned, never>>,
   Expect<Equal<EveryDataValidationFieldIsCloned, never>>,
   Expect<Equal<EveryTableStyleInfoFieldIsCloned, never>>,
+  // The style primitives a differential style is made of. These are the level the copy used to stop
+  // one short of: `'record'` on a font, a border or a fill is a spread, and each of the three nests
+  // something a spread carries by reference.
+  Expect<Equal<EveryFontFieldIsCloned, never>>,
+  Expect<Equal<EveryBorderFieldIsCloned, never>>,
+  Expect<Equal<EveryBorderEdgeFieldIsCloned, never>>,
+  Expect<Equal<EveryPatternFillFieldIsCloned, never>>,
+  Expect<Equal<EveryGradientFillFieldIsCloned, never>>,
+  Expect<Equal<EveryGradientStopFieldIsCloned, never>>,
 ];

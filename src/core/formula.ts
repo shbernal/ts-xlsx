@@ -21,7 +21,7 @@
 // exception: LET/LAMBDA parameter scope opens and closes at paren boundaries, state `scanFormula`'s
 // per-run transform cannot carry, so it runs its own forward walk, still deferring to `skipOpaque`.
 
-import {columnToNumber, MAX_COLUMN, MAX_ROW, numberToColumn} from './address.ts';
+import {MAX_COLUMN, MAX_ROW, numberToColumn, tryColumnToNumber} from './address.ts';
 import {MODERN_FUNCTIONS} from './modern-functions.ts';
 
 const XLFN = '_xlfn.';
@@ -334,15 +334,19 @@ export function translateFormula(formula: string, colDelta: number, rowDelta: nu
     code.replace(
       CELL_REFERENCE,
       (_match, colAbs: string, colLetters: string, rowAbs: string, rowDigits: string) => {
-        const col =
-          colAbs === '$' ? columnToNumber(colLetters) : columnToNumber(colLetters) + colDelta;
+        // A reference the grid cannot hold becomes `#REF!` on either axis, which is what Excel
+        // writes for the same shift; the decode is tolerant so that answer is reachable at all.
+        // The deltas come from a file's own shared-formula geometry, so this is a read path, and an
+        // odd file aborting the whole sheet with an error outside the library's taxonomy is not an
+        // answer. Both axes used to do exactly that, in opposite ways. The column went through
+        // `columnToNumber`, which threw a bare `RangeError` *before* the guard below could speak:
+        // `CELL_REFERENCE` matches three letters, so `ZZZ1` (column 18278) never reached it, and a
+        // reference past XFD failed where a shift past XFD resolved. The row axis just did the
+        // arithmetic and emitted `A0` or `A-4`, which is not a reference at all.
+        const decoded = tryColumnToNumber(colLetters);
+        if (decoded === undefined) return REF_ERROR;
+        const col = colAbs === '$' ? decoded : decoded + colDelta;
         const row = rowAbs === '$' ? Number(rowDigits) : Number(rowDigits) + rowDelta;
-        // A reference shifted off the grid becomes `#REF!`, on both axes, which is what Excel writes
-        // for the same shift. The two axes used to answer differently and both wrongly: the column
-        // went through `numberToColumn`, whose bounds assert threw a bare `RangeError` from inside a
-        // *read* (the deltas come from a file's own shared-formula geometry, so a hostile or merely
-        // odd file aborted the whole sheet with an error outside the library's taxonomy), while the
-        // row axis just did the arithmetic and emitted `A0` or `A-4`, which is not a reference at all.
         if (col < 1 || col > MAX_COLUMN || row < 1 || row > MAX_ROW) return REF_ERROR;
         return `${colAbs}${numberToColumn(col)}${rowAbs}${row}`;
       },

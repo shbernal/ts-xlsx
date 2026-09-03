@@ -89,5 +89,21 @@ export default {
         assert.deepStrictEqual(columns.validationRefs, ['A1:XFD1']);
       },
     },
+    {
+      name: 'a row height and a column width on the last line stay on it, and the sheet still writes',
+      async expect(api: CorpusApi, assert: Assert) {
+        const {lineProperties} = await api.spliceHoldsGeometryInsideTheGrid();
+        assert.strictEqual(
+          lineProperties.writeError,
+          null,
+          'a height pushed to row 1048577 made the sheet report a row it could not construct, ' +
+            'so iterating it threw and the package could not be written at all',
+        );
+        assert.strictEqual(lineProperties.rowCount, LAST_ROW);
+        assert.strictEqual(lineProperties.lastRowHeight, 20, 'the height clamped, as its cells do');
+        assert.strictEqual(lineProperties.columnCount, 16_384);
+        assert.strictEqual(lineProperties.lastColumnWidth, 12);
+      },
+    },
   ],
 } satisfies Case;

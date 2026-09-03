@@ -51,6 +51,43 @@ test('cloneConditionalFormatting deep-copies rules, formulae, cfvo, colours, and
   assert.notEqual(copy.rules[0]!.style, original.rules[0]!.style, 'the style is a fresh object');
 });
 
+test('the differential style is copied a level deeper than a spread reaches', () => {
+  // `'record'` is `{...v}`, which `clone.ts` documents as the strategy for a flat object. None of a
+  // font, a border or a fill is flat, so the copy shared the nested parts: `copy.border.left` and
+  // `copy.font.color` were the caller's own objects, and mutating either reached into the sheet.
+  const original = {
+    ref: 'A1:A5',
+    rules: [
+      {
+        type: 'cellIs' as const,
+        operator: 'greaterThan' as const,
+        style: {
+          font: {bold: true, color: {argb: 'FFFF0000'}},
+          border: {left: {style: 'thin' as const, color: {argb: 'FF000000'}}},
+          fill: {
+            type: 'gradient' as const,
+            gradient: 'linear' as const,
+            stops: [{position: 0, color: {argb: 'FF00FF00'}}],
+          },
+        },
+      },
+    ],
+  };
+  const copy = cloneConditionalFormatting(original);
+  const from = original.rules[0]!.style;
+  const to = copy.rules[0]!.style!;
+
+  assert.notEqual(to.font, from.font, 'the font is a fresh object');
+  assert.notEqual(to.font!.color, from.font.color, 'and so is the colour inside it');
+  assert.notEqual(to.border!.left, from.border.left, 'each border edge is its own object');
+  assert.notEqual(to.border!.left!.color, from.border.left.color, 'down to the edge colour');
+  const stops = (to.fill as {stops: readonly unknown[]}).stops;
+  assert.notEqual(stops, from.fill.stops, 'the gradient stop array is a copy');
+  assert.notEqual(stops[0], from.fill.stops[0], 'and so is each stop in it');
+
+  assert.deepEqual(to, from, 'a deeper copy is still an equal one');
+});
+
 test('conditional formattings survive a worksheet model round-trip', () => {
   const source = new Workbook().addWorksheet('src');
   source.addConditionalFormatting({

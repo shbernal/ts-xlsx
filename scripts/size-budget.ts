@@ -54,7 +54,12 @@ const ENTRY_BUDGETS_KB: Readonly<Record<string, number>> = {
   '.': 550,
   './core': 205,
   './xlsx': 540,
-  './xlsb': 282,
+  // Raised from 282 when the style primitives gained real clone plans. A font, a border and a fill
+  // were each copied with a spread, which shares everything one level down, so the plans and their
+  // exhaustiveness proofs are the fix rather than an addition. They sit in `core/style.ts`, which
+  // every entry carries, and this was the one entry whose headroom the ~3 KB exhausted. Restores it
+  // against that measurement rather than granting the growth a permanent home in the margin.
+  './xlsb': 285,
   './csv': 210,
   // The streaming writer and the write half it rides on, and nothing of the reader: a jump here is
   // the read path arriving, which would mean the entry had stopped being about one thing.

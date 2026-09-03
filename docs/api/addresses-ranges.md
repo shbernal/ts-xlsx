@@ -31,6 +31,9 @@ Convert column letters to a 1-based number (`"A" → 1`, `"AA" → 27`).
 function columnToNumber(letters: string): number;
 ```
 
+**Throws:** `RangeError` if the letters are malformed or name a column past `XFD`. The two are
+separate messages because a caller fixes them differently.
+
 ---
 
 ### `decodeAddress`

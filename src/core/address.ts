@@ -119,25 +119,40 @@ export function numberToColumn(n: number): string {
   return letters;
 }
 
-/** Convert column letters to a 1-based number (`"A" → 1`, `"AA" → 27`). */
-export function columnToNumber(letters: string): number {
-  if (letters.length === 0 || letters.length > 3) {
-    throw new RangeError(`invalid column letters: ${quoted(letters)}`);
-  }
+// Uppercase only, one to three letters: the spelling Excel writes and the widest one the grid has a
+// column for. `AAAA` is not a near-miss to be repaired, it is four letters where three fit.
+const COLUMN_LETTERS = /^[A-Z]{1,3}$/;
+
+/**
+ * Convert column letters to a 1-based number (`"A" → 1`, `"AA" → 27`), or `undefined` when they name
+ * no column that can exist: not letters at all, or past `XFD` (`"ZZZ"` is well-formed and is column
+ * 18278, which the grid does not have). The tolerant half of the pair the module header describes,
+ * for a caller reading a file rather than a caller's own argument.
+ */
+export function tryColumnToNumber(letters: string): number | undefined {
+  if (!COLUMN_LETTERS.test(letters)) return undefined;
   let n = 0;
   for (let i = 0; i < letters.length; i++) {
-    const code = letters.charCodeAt(i);
-    if (code < 65 || code > 90) {
-      throw new RangeError(`invalid column letters: ${quoted(letters)}`);
-    }
-    n = n * 26 + (code - 64);
+    n = n * 26 + (letters.charCodeAt(i) - 64);
   }
-  if (n > MAX_COLUMN) {
-    throw new RangeError(
-      `column ${quoted(letters)} is out of bounds: Excel supports up to ${MAX_COLUMN} (XFD)`,
-    );
+  return n > MAX_COLUMN ? undefined : n;
+}
+
+/**
+ * Convert column letters to a 1-based number (`"A" → 1`, `"AA" → 27`).
+ *
+ * @throws {RangeError} if the letters are malformed or name a column past `XFD`. The two are
+ *   separate messages because a caller fixes them differently.
+ */
+export function columnToNumber(letters: string): number {
+  const n = tryColumnToNumber(letters);
+  if (n !== undefined) return n;
+  if (!COLUMN_LETTERS.test(letters)) {
+    throw new RangeError(`invalid column letters: ${quoted(letters)}`);
   }
-  return n;
+  throw new RangeError(
+    `column ${quoted(letters)} is out of bounds: Excel supports up to ${MAX_COLUMN} (XFD)`,
+  );
 }
 
 /**

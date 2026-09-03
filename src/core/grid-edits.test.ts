@@ -247,6 +247,7 @@ test('a row splice leaves a filter criterion addressed as it was', () => {
 // with the edges inside the grid opened clean. See
 // docs/knowledge/specs/a-splice-must-not-push-geometry-off-the-grid.md.
 const LAST_ROW = 1_048_576;
+const LAST_COLUMN = 16_384;
 
 test('an insert above a whole-column validation leaves its bottom edge on the last row', () => {
   const sheet = new Workbook().addWorksheet('S');
@@ -322,6 +323,34 @@ test('a splice with content on the last line completes instead of dying inside t
   assert.equal(columns.getCell('A1').value, 'inserted', 'the insert landed');
   assert.equal(columns.getCell('B1').value, 'a1', 'row 1 shifted');
   assert.equal(columns.getCell('B3').value, 'a3', 'and so did row 3, which the throw used to skip');
+});
+
+test('a splice with line properties on the last line keeps them inside the grid too', () => {
+  // The cell grid was fixed to clamp; its row and column *metadata* was the last participant still
+  // doing the arithmetic by hand, so an insert pushed a height off the bottom to row 1048577. That
+  // made `rowCount` name a row `new Row` refuses to construct, so iterating the sheet threw and the
+  // sheet could no longer be written or inspected -- after a legal public call.
+  const rows = new Workbook().addWorksheet('R');
+  rows.getRow(LAST_ROW).height = 20;
+  rows.insertRow(1, ['inserted']);
+  assert.equal(rows.rowCount, LAST_ROW, 'the height clamped onto the last row, as its cells do');
+  assert.doesNotThrow(() => [...rows.rows()]);
+  assert.equal(rows.getRow(LAST_ROW).height, 20);
+
+  const columns = new Workbook().addWorksheet('C');
+  columns.getColumn(LAST_COLUMN).width = 12;
+  columns.spliceColumns(1, 0, ['inserted']);
+  assert.equal(columns.columnCount, LAST_COLUMN);
+  assert.equal(columns.getColumn(LAST_COLUMN).width, 12);
+});
+
+test('a splice drops the line properties of a line it deleted', () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.getRow(2).height = 30;
+  sheet.getRow(3).height = 40;
+  sheet.spliceRows(2, 1);
+  assert.equal(sheet.getRow(2).height, 40, 'row 3 and its height shifted up into row 2');
+  assert.equal(sheet.getRow(3).height, undefined, 'nothing was left behind at the old index');
 });
 
 test('a column splice that deletes a table whole drops the table rather than re-pointing it', () => {

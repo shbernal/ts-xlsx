@@ -438,6 +438,7 @@ million-cell block: OOXML states a whole-axis default in one attribute, and [`ge
 
 **Throws:** `SyntaxError` if the reference is unparseable, names another worksheet, or leaves an
 axis unbounded.
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the numeric form is called with fewer than four corners.
 **Throws:** `RangeError` if a numeric corner is not a positive integer within the sheet's bounds.
 
 #### `Worksheet.rowCount`

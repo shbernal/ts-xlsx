@@ -23,8 +23,17 @@
  */
 export type CloneStrategy<V> = 'value' | 'record' | 'values' | 'records' | ((value: V) => V);
 
-/** One strategy per field of `T`. The `Record` is what makes a missing field a compile error. */
-export type ClonePlan<T> = {readonly [K in keyof Required<T>]-?: CloneStrategy<Required<T>[K]>};
+/**
+ * One strategy per field of `T`. The `Record` is what makes a missing field a compile error.
+ *
+ * A field's strategy sees the field's type without `undefined`, because {@link cloneWith} skips an
+ * absent field rather than handing it over. Under `exactOptionalPropertyTypes` a facet declared
+ * `font?: Font | undefined` keeps that `undefined` through `Required`, so without the exclusion a
+ * nested type's own clone function would not satisfy its own field's strategy.
+ */
+export type ClonePlan<T> = {
+  readonly [K in keyof Required<T>]-?: CloneStrategy<Exclude<Required<T>[K], undefined>>;
+};
 
 /**
  * Copy `source` according to `plan`, leaving a field absent when the source leaves it absent.

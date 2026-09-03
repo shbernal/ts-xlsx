@@ -475,6 +475,38 @@ export const grid = {
     };
   },
 
+  // Insert and append the SAME column of values three ways and report what each wrote, after a
+  // round-trip → { intoEmpty, intoShortGrid, appended }, each a per-row map of the inserted column
+  // plus the value the sheet already held. A column's values are indexed by row, so most of the rows
+  // one names do not exist yet on a sheet being filled in. The insert pass ran inside the loop over
+  // the rows the grid already had, so it could only write onto those: inserting into an empty sheet
+  // wrote nothing at all, and inserting beside a single cell wrote the first value and dropped the
+  // rest, while `addColumn` handed the identical array materialised every row of it.
+  columnInsertMaterialisesEveryValue() {
+    const report = (build: (sheet: ReturnType<WorkbookInstance['addWorksheet']>) => void) => {
+      const wb = new Workbook();
+      build(wb.addWorksheet('S'));
+      const s = roundtrip(wb).getWorksheet('S')!;
+      return {
+        rowCount: s.rowCount,
+        column: ['A1', 'A2', 'A3'].map((ref) => s.getCell(ref).value ?? null),
+        shifted: s.getCell('B1').value ?? null,
+      };
+    };
+    return {
+      intoEmpty: report((s) => {
+        s.insertColumn(1, ['x', 'y', 'z']);
+      }),
+      intoShortGrid: report((s) => {
+        s.getCell('A1').value = 'was here';
+        s.insertColumn(1, ['x', 'y', 'z']);
+      }),
+      appended: report((s) => {
+        s.addColumn(['x', 'y', 'z']);
+      }),
+    };
+  },
+
   // Feed addRow an array built in another realm (a vm context): Array.isArray must recognize it so its
   // elements fill columns → { isArrayCrossRealm, a, b, c }. `instanceof Array` would miss it and place
   // nothing, walking it as a keyed object instead.
@@ -818,7 +850,7 @@ export const grid = {
   // above it has nowhere to push the edge to. A file naming a row past the last one opens in Excel
   // with its repair prompt, so no edge here may exceed the grid.
   spliceHoldsGeometryInsideTheGrid() {
-    const LAST_ROW = 1_048_576;
+    const LAST_ROW = MAX_ROW;
     const rowAxis = new Workbook();
     const rows = rowAxis.addWorksheet('S');
     rows.getCell('A1').value = 'top';
@@ -838,6 +870,18 @@ export const grid = {
     cols.autoFilter = 'A2:XFD2';
     cols.spliceColumns(2, 0, ['inserted']);
 
+    // Line metadata is anchored to the grid exactly as the regions above it are, and was the last
+    // participant still shifting by hand. A height on the last row plus an insert put a properties
+    // entry at 1048577, which made the sheet report a row count `new Row` refuses to construct: the
+    // sheet could then not be iterated, so it could not be written at all.
+    const lineAxis = new Workbook();
+    const lines = lineAxis.addWorksheet('S');
+    lines.getCell('A1').value = 'top';
+    lines.getRow(MAX_ROW).height = 20;
+    lines.getColumn(MAX_COLUMN).width = 12;
+    lines.spliceRows(2, 0, ['inserted']);
+    lines.spliceColumns(2, 0, ['inserted']);
+
     const reread = (wb: WorkbookInstance) => {
       const s = roundtrip(wb).getWorksheet('S')!;
       return {
@@ -847,7 +891,27 @@ export const grid = {
         merges: [...s.merges],
       };
     };
-    return {rows: reread(rowAxis), columns: reread(colAxis)};
+    const rereadLines = () => {
+      try {
+        const s = roundtrip(lineAxis).getWorksheet('S')!;
+        return {
+          writeError: null,
+          rowCount: s.rowCount,
+          columnCount: s.columnCount,
+          lastRowHeight: s.getRow(MAX_ROW).height ?? null,
+          lastColumnWidth: s.getColumn(MAX_COLUMN).width ?? null,
+        };
+      } catch (error) {
+        return {
+          writeError: messageOf(error),
+          rowCount: -1,
+          columnCount: -1,
+          lastRowHeight: null,
+          lastColumnWidth: null,
+        };
+      }
+    };
+    return {rows: reread(rowAxis), columns: reread(colAxis), lineProperties: rereadLines()};
   },
 
   // Anchor a data validation, a conditional format, a comment thread and an autofilter over the same

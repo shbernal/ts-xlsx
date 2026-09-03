@@ -778,6 +778,39 @@ test('insertColumn shifts the columns at and right of it over by one', () => {
   assert.equal(sheet.getCell('C1').value, 'b', 'the column formerly at B1 shifts right to C1');
 });
 
+test('insertColumn materialises every value, on rows the sheet does not hold yet', () => {
+  // The insert pass ran inside the loop over existing rows, so a value could only land where the
+  // grid already had a row: this wrote nothing whatsoever, while `addColumn` given the same array
+  // wrote all three. The two column-append paths disagreed about their own argument.
+  const empty = new Worksheet('S', 1);
+  empty.insertColumn(1, ['x', 'y', 'z']);
+  assert.equal(empty.rowCount, 3, 'an empty sheet gains the rows the inserted column names');
+  assert.deepEqual(
+    [empty.getCell('A1').value, empty.getCell('A2').value, empty.getCell('A3').value],
+    ['x', 'y', 'z'],
+  );
+
+  const partial = new Worksheet('T', 2);
+  partial.getCell('A1').value = 'a';
+  partial.insertColumn(1, ['n1', 'n2', 'n3']);
+  assert.equal(partial.getCell('B1').value, 'a', 'the existing cell shifted right');
+  assert.deepEqual(
+    [partial.getCell('A1').value, partial.getCell('A2').value, partial.getCell('A3').value],
+    ['n1', 'n2', 'n3'],
+    'the values past the last existing row used to be discarded',
+  );
+});
+
+test('an inserted column skips a hole exactly as an appended one does', () => {
+  const sheet = new Worksheet('S', 1);
+  const sparse: CellValue[] = [];
+  sparse[0] = 'a';
+  sparse[2] = 'c'; // index 1 stays a genuine array hole
+  sheet.insertColumn(1, sparse);
+  assert.equal(sheet.hasCell(2, 1), false, 'the hole leaves row 2 unmaterialised');
+  assert.equal(sheet.getCell('A3').value, 'c');
+});
+
 test('addColumn appends after the last used column and returns its cells', () => {
   const sheet = new Worksheet('S', 1);
   sheet.getCell('A1').value = 'header';

@@ -285,3 +285,20 @@ test('a colour resolved through the theme follows a later setTheme', () => {
   wb.setTheme({colors: {accent1: '112233'}});
   assert.equal(wb.resolveColor({theme: 4}), 'FF112233', 'theme="4" is accent1');
 });
+
+test('activeTabIndex resolves a tab against the sheets that exist', () => {
+  const wb = new Workbook();
+  for (const name of ['One', 'Two', 'Three']) wb.addWorksheet(name);
+
+  wb.view.activeTab = 2;
+  assert.equal(wb.activeTabIndex, 2);
+  // The first sheet is a legitimate answer arrived at two ways: the tab names it, or the tab names
+  // nothing that exists and the fallback does. The guard used to spell the first as out of range,
+  // which read as an off-by-one and was not one: both branches yield 0.
+  wb.view.activeTab = 0;
+  assert.equal(wb.activeTabIndex, 0);
+  for (const tab of [-1, 3, 7, 1.5, Number.NaN]) {
+    wb.view.activeTab = tab;
+    assert.equal(wb.activeTabIndex, 0, `${tab} names no sheet`);
+  }
+});

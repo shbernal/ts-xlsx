@@ -284,7 +284,7 @@ export class Workbook {
    */
   get activeTabIndex(): number {
     const {activeTab} = this.view;
-    return Number.isInteger(activeTab) && activeTab > 0 && activeTab < this.#worksheets.length
+    return Number.isInteger(activeTab) && activeTab >= 0 && activeTab < this.#worksheets.length
       ? activeTab
       : 0;
   }

@@ -10,7 +10,7 @@
 import {tokenSet} from '../token-set.ts';
 import {type ClonePlan, cloneWith} from './clone.ts';
 import type {AssertNever} from './internal.ts';
-import type {Color} from './style.ts';
+import {cloneBorder, cloneFill, cloneFont, type Color} from './style.ts';
 import type {DifferentialStyle} from './workbook-styles.ts';
 
 /** How a {@link CfValueObject} reads its `value`: `ST_CfvoType` verbatim. */
@@ -298,10 +298,15 @@ function cloneRule(rule: ConditionalFormattingRule): ConditionalFormattingRule {
   return cloneWith(rule, RULE_CLONE);
 }
 
+// Each of the three non-scalar facets copies through its own plan in `style.ts`. They were `'record'`
+// -- a spread -- which `clone.ts` defines as the strategy for a flat object, and none of the three is
+// flat: a font carries a nested colour, a border five nested edges each with their own, a gradient
+// fill an array of stops. So the copy stopped one level short of what the doc above promises, and a
+// stored rule shared its border edges and its font colour with the caller's object.
 const STYLE_CLONE: ClonePlan<DifferentialStyle> = {
-  font: 'record',
-  fill: 'record',
-  border: 'record',
+  font: cloneFont,
+  fill: cloneFill,
+  border: cloneBorder,
   numFmt: 'value',
 };
 export type EveryDifferentialStyleFieldIsCloned = AssertNever<

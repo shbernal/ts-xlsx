@@ -10,6 +10,7 @@ import {
   MAX_COLUMN,
   MAX_ROW,
   numberToColumn,
+  tryColumnToNumber,
   tryDecodeCellRef,
   tryDecodeRange,
 } from './address.ts';
@@ -40,6 +41,19 @@ test('columnToNumber rejects invalid letters and overflow', () => {
   assert.throws(() => columnToNumber('a'), RangeError);
   assert.throws(() => columnToNumber('A1'), RangeError);
   assert.throws(() => columnToNumber('XFE'), RangeError); // 16385, just past XFD
+  // The two failures keep their own wording: one is a typo, the other a column too far right, and a
+  // caller fixes them differently.
+  assert.throws(() => columnToNumber('A1'), /invalid column letters/);
+  assert.throws(() => columnToNumber('XFE'), /out of bounds/);
+});
+
+test('tryColumnToNumber answers undefined where columnToNumber throws', () => {
+  assert.equal(tryColumnToNumber('A'), 1);
+  assert.equal(tryColumnToNumber('XFD'), MAX_COLUMN);
+  for (const letters of ['', 'a', 'A1', 'XFE', 'ZZZ', 'AAAA', ' A']) {
+    assert.equal(tryColumnToNumber(letters), undefined, letters);
+    assert.throws(() => columnToNumber(letters), RangeError, letters);
+  }
 });
 
 test('decodeAddress reads a plain and an absolute cell identically', () => {

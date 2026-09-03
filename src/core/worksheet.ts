@@ -443,13 +443,24 @@ export class Worksheet {
    *
    * @throws {SyntaxError} if the reference is unparseable, names another worksheet, or leaves an
    *   axis unbounded.
+   * @throws {AuthoringError} if the numeric form is called with fewer than four corners.
    * @throws {RangeError} if a numeric corner is not a positive integer within the sheet's bounds.
    */
   getRange(reference: string): Range;
   getRange(top: number, left: number, bottom: number, right: number): Range;
   getRange(referenceOrTop: string | number, left?: number, bottom?: number, right?: number): Range {
     if (typeof referenceOrTop === 'string') return rangeFrom(this, referenceOrTop);
-    return new Range(this, referenceOrTop, left ?? 0, bottom ?? 0, right ?? 0);
+    // The overloads make a short numeric call unreachable from TypeScript, but this is a public API
+    // and JavaScript reaches it. A `?? 0` here manufactured the missing corners, so `getRange(2, 2)`
+    // failed with "row 0 is out of bounds" -- an error about a coordinate the caller never wrote,
+    // pointing at the grid rather than at the call. Counting the corners says what went wrong.
+    const corners = [left, bottom, right].filter((corner) => corner !== undefined).length + 1;
+    if (left === undefined || bottom === undefined || right === undefined) {
+      throw new AuthoringError(
+        `getRange(top, left, bottom, right) needs all four corners; got ${corners}`,
+      );
+    }
+    return new Range(this, referenceOrTop, left, bottom, right);
   }
 
   /**

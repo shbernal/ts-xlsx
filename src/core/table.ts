@@ -9,7 +9,15 @@
 
 import {AuthoringError, quoted} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
-import {type CellPosition, decodeCellRef, encodeAddress, type GridRect} from './address.ts';
+import {
+  type CellPosition,
+  decodeCellRef,
+  encodeAddress,
+  type GridRect,
+  MAX_COLUMN,
+  MAX_ROW,
+  numberToColumn,
+} from './address.ts';
 import {type ClonePlan, cloneWith} from './clone.ts';
 import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 import type {AssertNever} from './internal.ts';
@@ -315,6 +323,23 @@ export class Table {
         `table ${quoted(this.name)} has no rows: it needs a header row or at least one data row`,
       );
     }
+    // The anchor is inside the grid by construction; the far corner is derived from it and was never
+    // checked. A table anchored at `XFC1` with three columns reached column XFE, and one with five
+    // million data rows produced `A1:A5000001`, a `<table ref>` naming rows that cannot exist that
+    // the writer then emitted. Neither is repairable after the fact: `range`, `autoFilterRef` and
+    // `region` all throw on read once the corner is out of bounds, so the shape is refused here.
+    if (this.#right > MAX_COLUMN) {
+      throw new RangeError(
+        `table ${quoted(this.name)} spans ${this.columns.length} columns from ` +
+          `${numberToColumn(this.#anchorCol)}, past the last column (${numberToColumn(MAX_COLUMN)})`,
+      );
+    }
+    if (this.#bottom > MAX_ROW) {
+      throw new RangeError(
+        `table ${quoted(this.name)} spans ${this.#rowSpan} rows from ${this.#anchorRow}, ` +
+          `past the last row (${MAX_ROW})`,
+      );
+    }
 
     if (grid !== undefined) this.#materializeFrame(grid);
   }
@@ -483,7 +508,13 @@ export class Table {
     if (isDeletedSpan(this.#anchorCol, this.#right, start, count)) return false;
     // Clamped, like every other coordinate a splice moves: an unbounded increment could put the anchor
     // past the last column, where `range`, `autoFilterRef` and `region` all throw on read.
-    this.#anchorCol = shiftIndex(this.#anchorCol, start, count, delta, 'col');
+    const anchor = shiftIndex(this.#anchorCol, start, count, delta, 'col');
+    // Clamping the anchor is not the same as bounding the table: `#right` is derived from the anchor
+    // and the column count, so an anchor clamped onto XFD still puts a two-column table's right edge
+    // at XFE, which is the unreadable table the clamp above was meant to prevent. A table with no
+    // room left for its columns is dropped, the answer `shiftRows` gives one with no room for its rows.
+    if (anchor + this.columns.length - 1 > MAX_COLUMN) return false;
+    this.#anchorCol = anchor;
     return true;
   }
 

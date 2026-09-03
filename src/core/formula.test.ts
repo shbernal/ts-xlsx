@@ -219,6 +219,15 @@ test('translateFormula answers #REF! on either axis when the shift leaves the gr
   assert.equal(translateFormula('A1048576', 0, 5), '#REF!', 'past the last row');
 });
 
+test('translateFormula answers #REF! for a reference the grid never had a column for', () => {
+  // The guard above could not see these: `CELL_REFERENCE` matches three letters, so `ZZZ1` (column
+  // 18278) went into the strict decoder and threw before the shift was ever computed. A reference
+  // past XFD and a shift past XFD are the same answer, and one of them used to abort the read.
+  assert.equal(translateFormula('ZZZ1*2', 0, 1), '#REF!*2');
+  assert.equal(translateFormula('$ZZZ$1*2', 0, 1), '#REF!*2', 'an anchor does not exempt it');
+  assert.equal(translateFormula('SUM(A1,ZZZ1)', 1, 0), 'SUM(B1,#REF!)', 'one operand at a time');
+});
+
 test('translateFormula leaves the references that stay on the grid alone', () => {
   assert.equal(translateFormula('XFC1', 1, 0), 'XFD1', 'the last column is reachable');
   assert.equal(translateFormula('A1048571', 0, 5), 'A1048576', 'and so is the last row');
