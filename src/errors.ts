@@ -136,3 +136,53 @@ export class InternalError extends XlsxError {
 export function quoted(name: string): string {
   return JSON.stringify(name);
 }
+
+/**
+ * The one message for "that token is not in the enumeration", owned here because both sides of a
+ * layering boundary throw it.
+ *
+ * `checkedToken` in `src/xml/xml.ts` is the general form, and `core/` may not import a serialisation
+ * to reach it. The response to that constraint had been to transcribe the sentence into
+ * `core/table-style.ts` character for character, which is a copy that no gate can see is a copy. This
+ * module is the one place below both of them, so the template lives here and neither side owns it.
+ */
+export function invalidToken(kind: string, value: string): AuthoringError {
+  return new AuthoringError(
+    `Invalid ${kind} ${quoted(value)}: not a value the OOXML enumeration allows`,
+  );
+}
+
+/** `U+0001`-style spelling of a code point, for an escape body or an error message. */
+export function codePointHex(codePoint: number): string {
+  return codePoint.toString(16).toUpperCase().padStart(4, '0');
+}
+
+/**
+ * The error for a string carrying a character the target format cannot encode, or `undefined` when
+ * it carries none. Naming the code point and its offset is the whole value of the message: these
+ * strings arrive from a database column or a CSV field, not from a literal the author can see.
+ *
+ * Two formats refuse characters for unrelated reasons -- XML 1.0's `Char` production, and UTF-8's
+ * inability to encode a lone surrogate -- and each had grown its own copy of the rendering, which
+ * had already drifted: the CSV one omitted the zero padding, invisibly, because a surrogate is
+ * always four digits and nothing narrower had been added yet. The *patterns* stay beside their
+ * consumers, which is where they are understood; only the spelling and the message skeleton are
+ * shared, which is where they were wrong.
+ *
+ * `pattern` must not carry the `g` flag: a stateful `lastIndex` would make the same string answer
+ * differently on a second call.
+ *
+ * @param why the clause explaining the refusal, appended after the offset.
+ */
+export function unrepresentable(
+  text: string,
+  pattern: RegExp,
+  why: string,
+): AuthoringError | undefined {
+  const found = pattern.exec(text);
+  if (found === null) return undefined;
+  const codePoint = text.codePointAt(found.index) as number;
+  return new AuthoringError(
+    `cannot write U+${codePointHex(codePoint)} at offset ${found.index}: ${why}`,
+  );
+}

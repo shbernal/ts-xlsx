@@ -495,6 +495,29 @@ lower-level failure passes it as `cause` rather than flattening it into the mess
 the lower layer's text is itself the hazard (a zip library's message can name an absolute path, so
 `sniff-format.ts` replaces rather than wraps it).
 
+The reader is held to the other half of that line: **a file is never allowed to raise an
+`authoring` failure, and never a native one.** A model method validates what it is given, and a
+reader that hands it a file-derived name is asking the model to judge the *file* through a guard
+written about the *caller*. `src/io/xlsx/read-repair.ts` is the single seam where that is resolved,
+and it offers exactly two answers. `repairSheetName` rewrites a name the way Excel repairs it, for
+the case where the rule is a naming rule and dropping the thing would cost more than the name (a
+sheet takes its cells, its position, and every `localSheetId` indexing past it with it). `admitting`
+runs the call and answers `undefined` where the model refuses, for the case where the name *is* the
+identity: a table called `1 bad`, a defined name with no name. It catches `AuthoringError`,
+`RangeError` and `SyntaxError` and nothing else, so an `XlsxError` from a layer below and an
+`InternalError` of ours both keep their identity, and it is the only place on the read path that
+swallows a refusal at all, which makes the set of constructs a corrupt file may silently lose a list
+of call sites rather than a habit.
+
+The same rule binds the scanner, one layer down: **the reader may only produce values the writer can
+serialise.** XML 1.0's `Char` production is stated once, in `src/xml/xml-chars.ts`, below both halves
+of the codec so that neither imports the other; the writer refuses what it names and the reader
+declines to decode it. A character reference to an unrepresentable code point is left as the `&#1;`
+the file wrote, on the same grounds as one naming no code point at all; a raw one has no verbatim
+form to keep and is dropped. Without that bound a hostile file read cleanly and threw
+`AuthoringError: cannot write U+0001 at offset 2` on the *next save*, which is the same taxonomy
+violation arriving by a longer route.
+
 There is deliberately no "not implemented yet" code. Every candidate turned out to be an
 unreachable exhaustiveness guard, and the one real feature gap, that a binary `.xlsb` cannot be
 row-streamed, is already reported through `UnsupportedFormatError`'s `format` branch.
@@ -800,7 +823,16 @@ The stack is deliberately small and each choice is recorded as an ADR under
   itself contains a quote. A sheet may be called `Q1 "draft"` and a part path may hold a newline; under
   either literal spelling the message that reports it is one whose reader cannot tell where the name
   ends, which on a library reading untrusted input is a decoy rather than a diagnostic. Messages stay
-  lowercase throughout, sentence punctuation and all.
+  lowercase throughout, sentence punctuation and all. `scripts/check-error-messages.ts` is
+  the mechanism, because the convention is invisible at the throw site (both spellings produce
+  identical output today, so review cannot see the difference) and a rule with no mechanism decayed
+  into nine inline calls, two of them in a file that did both and one of those four lines from a
+  `quoted()` in the same function. oxlint ships no `no-restricted-syntax`, so the gate is a script:
+  every `JSON.stringify` in `src/` is either `quoted`'s own implementation, `core/range.ts`'s
+  replacer form, or a finding. `errors.ts` owns the message *skeletons* for the same reason it owns
+  the spelling -- `invalidToken` for the OOXML-enumeration refusal, `unrepresentable` for a character
+  the target format cannot encode -- because both of those were being thrown on two sides of a
+  layering boundary and the response had been to transcribe the sentence.
 - **A lookup table on a parser path is a `Map`, or an object with no prototype.** A plain object
   literal indexed by a string the file supplies answers about a dozen attacker-chosen keys with a
   *function*: `constructor`, `toString`, `valueOf`, `hasOwnProperty` and the rest of

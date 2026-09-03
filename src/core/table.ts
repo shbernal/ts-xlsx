@@ -246,12 +246,12 @@ function disambiguateColumnNames(columns: readonly TableColumn[]): TableColumn[]
 function validateTableName(name: string): void {
   if (name.length === 0 || name.length > MAX_TABLE_NAME_LENGTH) {
     throw new RangeError(
-      `table name ${JSON.stringify(name)} must be between 1 and ${MAX_TABLE_NAME_LENGTH} characters`,
+      `table name ${quoted(name)} must be between 1 and ${MAX_TABLE_NAME_LENGTH} characters`,
     );
   }
   if (!TABLE_NAME_PATTERN.test(name)) {
     throw new SyntaxError(
-      `table name ${JSON.stringify(name)} is not a valid Excel identifier: it must start with a letter, ` +
+      `table name ${quoted(name)} is not a valid Excel identifier: it must start with a letter, ` +
         'underscore, or backslash and contain only letters, digits, periods, and underscores',
     );
   }

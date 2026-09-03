@@ -1,0 +1,101 @@
+// What the reader does when a file describes something the model refuses.
+//
+// The taxonomy says an `AuthoringError` "is always the calling code that is wrong, never the input
+// file; a malformed file raises a 'malformed-input' error instead" (`src/errors.ts`). The read path
+// broke that every time it handed a file-derived string to a model method that validates: a
+// duplicate sheet name, a 40-character one, a table called `1 bad`, and `readXlsx` threw
+// `AuthoringError`, `SyntaxError` or `RangeError` at a caller who had done nothing but open a file.
+// The last two are the worse half, because they are *native*: `catch (e) { if (e instanceof
+// XlsxError) … }`, the one-line answer the taxonomy promises, does not see them at all, so the
+// caller cannot tell "your file is broken" from "my own code threw".
+//
+// Excel repairs every one of those inputs on load, and that is the standard this module holds the
+// reader to. There are two ways to meet it and they are not interchangeable:
+//
+//   - {@link repairSheetName}, where the model's rule is a *naming* rule and there is an obviously
+//     right answer. A tab has to be called something, and a sheet dropped for its name would take
+//     its cells, its position in the order, and every `localSheetId` that indexes past it.
+//   - {@link admitting}, where the refusal is about the construct itself and there is nothing to
+//     repair. A table whose name is not an identifier, a defined name scoped to a sheet that is not
+//     there: the honest reading is that the file does not really carry that feature, so the feature
+//     is dropped and the rest of the workbook is read.
+//
+// `admitting` is deliberately the *only* place the read path swallows a model refusal, so the set of
+// constructs a corrupt file may silently lose is a list of call sites rather than a habit. It
+// catches exactly the three types a model method raises about its own input. Anything else goes
+// straight through: an `XlsxError` from a layer below, an `InternalError` of ours.
+
+import {INVALID_SHEET_NAME_CHARS, MAX_SHEET_NAME_LENGTH} from '../../core/limits.ts';
+import {AuthoringError} from '../../errors.ts';
+
+/** Every occurrence, where {@link INVALID_SHEET_NAME_CHARS} tests for the first. */
+const INVALID_SHEET_NAME_CHARS_GLOBAL = new RegExp(INVALID_SHEET_NAME_CHARS.source, 'g');
+
+/**
+ * A sheet name from a file, rewritten into one the model will accept.
+ *
+ * Excel's own repair, in the order the constraints interact: forbidden characters go first (they
+ * can be anywhere), then the length ceiling, then the apostrophe rule *again*, because truncating
+ * can expose an interior apostrophe at the new edge. An empty result becomes `Sheet{n}`, and a
+ * collision takes a ` (2)` suffix that is itself made to fit inside the 31-character limit.
+ *
+ * @param taken the lower-cased names already in the workbook; sheet names collide
+ *   case-insensitively, which is the comparison `Workbook.getWorksheet` makes.
+ */
+export function repairSheetName(name: string, taken: ReadonlySet<string>): string {
+  const stripped = trimApostrophes(name.replace(INVALID_SHEET_NAME_CHARS_GLOBAL, '')).slice(
+    0,
+    MAX_SHEET_NAME_LENGTH,
+  );
+  const base = trimApostrophes(stripped);
+  if (base.length === 0) return firstFree((n) => `Sheet${n}`, taken);
+  if (!taken.has(base.toLowerCase())) return base;
+  return firstFree((n) => withSuffix(base, ` (${n})`), taken, 2);
+}
+
+/** An apostrophe at either edge cannot be told from the quoting of a sheet-qualified reference. */
+function trimApostrophes(name: string): string {
+  return name.replace(/^'+/, '').replace(/'+$/, '');
+}
+
+/** The first `n` for which `candidate(n)` is not already taken, and the name it produced. */
+function firstFree(candidate: (n: number) => string, taken: ReadonlySet<string>, from = 1): string {
+  for (let n = from; ; n++) {
+    const name = candidate(n);
+    if (!taken.has(name.toLowerCase())) return name;
+  }
+}
+
+/** `base` with `suffix` appended, trimming `base` so the whole still fits the length ceiling. */
+function withSuffix(base: string, suffix: string): string {
+  const room = MAX_SHEET_NAME_LENGTH - suffix.length;
+  return trimApostrophes(base.slice(0, room)) + suffix;
+}
+
+/**
+ * Run a model call that is being handed foreign input, and answer `undefined` where the model
+ * refuses it.
+ *
+ * The three caught types are the three a model method raises *about its argument*: an
+ * `AuthoringError` for a composite that cannot exist, and the native `RangeError` / `SyntaxError`
+ * the taxonomy assigns to a single scalar that is out of range or does not parse. Every one of them
+ * is a statement about the caller, and on this path the caller is a file.
+ *
+ * Nothing else is caught. An `XlsxError` raised by a layer below is a real failure of the read and
+ * keeps its identity; an `InternalError` is a bug of ours and must not be swallowed by a reader
+ * being tolerant about somebody else's file.
+ */
+export function admitting<T>(build: () => T): T | undefined {
+  try {
+    return build();
+  } catch (error) {
+    if (
+      error instanceof AuthoringError ||
+      error instanceof RangeError ||
+      error instanceof SyntaxError
+    ) {
+      return undefined;
+    }
+    throw error;
+  }
+}

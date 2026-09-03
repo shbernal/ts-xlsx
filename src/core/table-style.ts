@@ -6,7 +6,7 @@
 // its own joins the gallery for that file, and a table reaches it by name through
 // `TableStyleInfo.name`.
 
-import {AuthoringError, quoted} from '../errors.ts';
+import {AuthoringError, invalidToken, quoted} from '../errors.ts';
 import type {DifferentialStyle} from './workbook-styles.ts';
 
 /**
@@ -123,9 +123,7 @@ export function checkTableStyle(style: TableStyle): void {
   for (const [type, element] of Object.entries(style.elements)) {
     if (element === undefined) continue;
     if (!isTableStyleElementType(type)) {
-      throw new AuthoringError(
-        `Invalid table style element ${JSON.stringify(type)}: not a value the OOXML enumeration allows`,
-      );
+      throw invalidToken('table style element', type);
     }
     const {size} = element;
     if (size === undefined) continue;

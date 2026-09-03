@@ -93,6 +93,7 @@
     "entries:check": "node scripts/check-entries.ts",
     "browser:check": "node scripts/check-browser-safe.ts",
     "source-text:check": "node scripts/check-source-text.ts",
+    "error-messages:check": "node scripts/check-error-messages.ts",
     "chars:check": "charcheck",
     "lint": "node node_modules/oxlint/bin/oxlint src scripts test tools www charcheck.config.ts --type-aware --deny-warnings --report-unused-disable-directives",
     "lint:fix": "pnpm run lint --fix",

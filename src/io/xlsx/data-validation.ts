@@ -35,6 +35,7 @@ import {
   isMainNamespaceElement,
   XM_NS,
 } from './namespaces.ts';
+import {admitting} from './read-repair.ts';
 import {x14Ext} from './x14-ext.ts';
 
 // The typed validations whose literal operands are numbers; `list`/`custom` operands stay strings.
@@ -300,6 +301,8 @@ export function applyDataValidations(
     // file's own unreadable text back on the wire. Dropped here, at the reader's boundary, so the
     // authoring guard behind `addDataValidation` stays a guard rather than a control-flow path.
     if (decodeSqrefRects(sqref).length === 0) continue;
-    sheet.addDataValidation(sqref, rule, extended ? {extended: true} : {});
+    admitting(() => {
+      sheet.addDataValidation(sqref, rule, extended ? {extended: true} : {});
+    });
   }
 }

@@ -61,6 +61,7 @@ import {
   readWorkbookTheme,
   worksheetReferencePass,
 } from './read-parts.ts';
+import {admitting, repairSheetName} from './read-repair.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {parseStyleTable} from './read-styles.ts';
 import {
@@ -195,10 +196,20 @@ export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Wo
     imageIdByMediaPath: new Map<string, number>(),
   };
   const sheetOrder: string[] = [];
+  // The name is repaired rather than trusted. `addWorksheet` refuses an empty, over-long, duplicate
+  // or forbidden-character name, and a file is free to carry all four; refusing there would report a
+  // corrupt package as the caller's mistake, and dropping the sheet would take its cells, its place
+  // in the order, and every `localSheetId` that indexes past it. `sheetOrder` therefore carries the
+  // name the model ended up with, which is what a scoped defined name has to resolve against.
+  const takenSheetNames = new Set<string>();
   for (const {name, relId, state} of parseWorkbookSheets(workbookXml)) {
     const target = workbookRels.byId(relId)?.target;
-    const sheet = workbook.addWorksheet(name, state === undefined ? undefined : {state});
-    sheetOrder.push(name);
+    const sheet = workbook.addWorksheet(
+      repairSheetName(name, takenSheetNames),
+      state === undefined ? undefined : {state},
+    );
+    takenSheetNames.add(sheet.name.toLowerCase());
+    sheetOrder.push(sheet.name);
     readSheet(sheet, target === undefined ? undefined : workbookRels.pathOf(target), context);
   }
 
@@ -208,7 +219,9 @@ export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Wo
   // Defined names follow the sheets: a scoped name's `localSheetId` indexes the sheet order, which
   // is why the names are read only once every sheet is registered.
   for (const name of parseWorkbookDefinedNames(workbookXml, sheetOrder)) {
-    workbook.defineName(name);
+    admitting(() => {
+      workbook.defineName(name);
+    });
   }
   return workbook;
 }
@@ -278,7 +291,11 @@ function readSheet(sheet: Worksheet, path: string | undefined, context: SheetRea
   if (sheetXml !== undefined) {
     applyHyperlinks(sheet, hyperlinks.result(), (id) => sheetRels.byId(id)?.target);
     applyDataValidations(sheet, [...validations.result(), ...extendedValidations.result()]);
-    for (const cf of formattings.result()) sheet.addConditionalFormatting(cf);
+    for (const cf of formattings.result()) {
+      admitting(() => {
+        sheet.addConditionalFormatting(cf);
+      });
+    }
   }
 
   const threads = readSheetCommentThreads(sheetRels, workbook);

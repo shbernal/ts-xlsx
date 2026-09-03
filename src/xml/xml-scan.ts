@@ -19,6 +19,7 @@
 // bundle budget, which is how it drifted 3 KB over one.
 
 import {XmlParseError} from './errors.ts';
+import {isRepresentableCodePoint, stripUnrepresentable} from './xml-chars.ts';
 
 export interface XmlAttributes {
   readonly [name: string]: string;
@@ -59,6 +60,14 @@ const ENTITY = /&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);/g;
  * `&name;` is left verbatim rather than expanded: there is no DTD, so there is nothing
  * to expand it to, and refusing to invent one is what makes entity-expansion attacks
  * impossible.
+ *
+ * A reference naming a code point XML 1.0 has no representation for is left verbatim too, on the
+ * same grounds as one naming no code point at all. `&#1;` is not an escape for U+0001, it is another
+ * way of spelling an ill-formed document, and decoding it puts in the model a character the writer
+ * is *guaranteed* to refuse: a hostile file would then read cleanly and fail on the next save with
+ * an `AuthoringError` blaming the caller, several layers from the input that caused it. The bound
+ * comes from `./xml-chars.ts` rather than from the writer's own guard so that this half of the
+ * codec keeps importing none of the serialisation vocabulary.
  */
 export function decodeEntities(value: string): string {
   if (!value.includes('&')) return value;
@@ -68,15 +77,26 @@ export function decodeEntities(value: string): string {
         body.charCodeAt(1) === 0x78 /* x */
           ? Number.parseInt(body.slice(2), 16)
           : Number.parseInt(body.slice(1), 10);
-      if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff) return match;
-      try {
-        return String.fromCodePoint(codePoint);
-      } catch {
-        return match;
-      }
+      if (!isRepresentableCodePoint(codePoint)) return match;
+      return String.fromCodePoint(codePoint);
     }
     return PREDEFINED_ENTITIES.get(body) ?? match;
   });
+}
+
+/**
+ * Every string this scanner hands out: entity-decoded, then stripped of anything XML 1.0 could not
+ * have carried in the first place.
+ *
+ * A *reference* to an unrepresentable character keeps the spelling the file used, because there is
+ * one to keep. A raw one has none, so the only choices are to drop it or to admit a value the writer
+ * must refuse, and admitting it reports a corrupt input as the caller's mistake. Such a character
+ * makes the document ill-formed by the `Char` production, so it was never legally there; the cell
+ * values that legitimately carry one spell it `_x0001_`, which is a different convention entirely
+ * and is decoded by {@link decodeSpreadsheetText} well after this.
+ */
+function admitText(value: string): string {
+  return stripUnrepresentable(decodeEntities(value));
 }
 
 /**
@@ -117,7 +137,7 @@ export function parseAttributes(source: string): XmlAttributes {
   let match = ATTRIBUTE.exec(source);
   while (match !== null) {
     const value = match[2] ?? match[3] ?? '';
-    attrs[match[1] as string] = decodeEntities(value);
+    attrs[match[1] as string] = admitText(value);
     match = ATTRIBUTE.exec(source);
   }
   return attrs;
@@ -242,12 +262,12 @@ export function* xmlEvents(source: string): Generator<XmlEvent> {
     const lt = source.indexOf('<', i);
     if (lt === -1) {
       const chunk = source.slice(i);
-      if (chunk.length > 0) yield {kind: 'text', text: decodeEntities(normalizeLineEndings(chunk))};
+      if (chunk.length > 0) yield {kind: 'text', text: admitText(normalizeLineEndings(chunk))};
       return;
     }
     if (lt > i) {
       const chunk = source.slice(i, lt);
-      if (chunk.length > 0) yield {kind: 'text', text: decodeEntities(normalizeLineEndings(chunk))};
+      if (chunk.length > 0) yield {kind: 'text', text: admitText(normalizeLineEndings(chunk))};
     }
 
     const markup = markupAt(source, lt);
@@ -255,7 +275,10 @@ export function* xmlEvents(source: string): Generator<XmlEvent> {
       // The one place the two scanners part company: an event stream owes its consumer the CDATA
       // text, a verbatim capture owes it nothing and takes the bounds only to step over them.
       if (markup.kind === 'cdata') {
-        yield {kind: 'text', text: source.slice(markup.contentStart, markup.contentEnd)};
+        yield {
+          kind: 'text',
+          text: stripUnrepresentable(source.slice(markup.contentStart, markup.contentEnd)),
+        };
       }
       i = markup.next;
       continue;

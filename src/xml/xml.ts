@@ -43,7 +43,8 @@
 // Refusing is a new throw on a path that used to "succeed" by producing a file Excel reports
 // as damaged, so the failure moved earlier and got louder, which is the whole trade.
 
-import {AuthoringError} from '../errors.ts';
+import {AuthoringError, codePointHex, invalidToken, unrepresentable} from '../errors.ts';
+import {XML_UNREPRESENTABLE, XML_UNREPRESENTABLE_GLOBAL} from './xml-chars.ts';
 
 const TEXT_ESCAPES: Record<string, string> = {
   '&': '&amp;',
@@ -63,27 +64,13 @@ const ATTR_ESCAPES: Record<string, string> = {
 };
 
 /**
- * The characters an XML 1.0 document cannot carry, whatever escape you reach for.
- *
- * Three classes: the C0 controls outside the tab/LF/CR the `Char` production allows, the two
- * noncharacters at the top of the BMP, and unpaired surrogates. The last are not an XML
- * problem but a UTF-8 one: the encoder substitutes U+FFFD for a lone surrogate, so the
- * package validates and the value is quietly gone, which is the same loss by a different
- * route. U+007F and the C1 controls are deliberately absent: XML 1.1 forbids them, OOXML is
- * 1.0.
- *
- * The `u` flag is load-bearing. It makes the pattern match code points, so an astral
- * character is one unit that no surrogate range can match, and `[\u{D800}-\u{DFFF}]` means
- * exactly "a surrogate that is not part of a pair" with no lookaround.
+ * Why XML refuses a character, as the clause {@link unrepresentable} appends after the offset.
+ * Declared beside the guard rather than inline so the reader's own refusal can quote the same
+ * sentence if it ever needs to.
  */
-// oxlint-disable-next-line eslint/no-control-regex -- naming the control characters is the point: this pattern exists to find them
-const UNREPRESENTABLE = /[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{FFFE}\u{FFFF}\u{D800}-\u{DFFF}]/u;
-const UNREPRESENTABLE_GLOBAL = new RegExp(UNREPRESENTABLE.source, 'gu');
-
-/** `U+0001`-style spelling of a code point, for an escape body or an error message. */
-function codePointHex(codePoint: number): string {
-  return codePoint.toString(16).toUpperCase().padStart(4, '0');
-}
+const XML_REFUSAL =
+  'XML 1.0 has no representation for it, and the _xHHHH_ escape that would carry it is a ' +
+  'convention of cell values only';
 
 /**
  * Refuse a string that XML cannot carry, naming the character and where it is so the author
@@ -96,13 +83,8 @@ function codePointHex(codePoint: number): string {
  * @throws {AuthoringError} naming the code point and its offset.
  */
 export function assertRepresentable(value: string): void {
-  const found = UNREPRESENTABLE.exec(value);
-  if (found === null) return;
-  throw new AuthoringError(
-    `cannot write U+${codePointHex(value.codePointAt(found.index) as number)} at offset ${found.index}: ` +
-      'XML 1.0 has no representation for it, and the _xHHHH_ escape that would carry it is a ' +
-      'convention of cell values only',
-  );
+  const error = unrepresentable(value, XML_UNREPRESENTABLE, XML_REFUSAL);
+  if (error !== undefined) throw error;
 }
 
 /** Escape a string for use as XML element text. */
@@ -136,7 +118,10 @@ export function escapeSpreadsheetText(value: string): string {
   return escapeText(
     value
       .replace(/_(x[0-9A-Fa-f]{4}_)/g, '_x005F_$1')
-      .replace(UNREPRESENTABLE_GLOBAL, (ch) => `_x${codePointHex(ch.codePointAt(0) as number)}_`),
+      .replace(
+        XML_UNREPRESENTABLE_GLOBAL,
+        (ch) => `_x${codePointHex(ch.codePointAt(0) as number)}_`,
+      ),
   );
 }
 
@@ -212,9 +197,7 @@ export function checkedToken(
   kind: string,
 ): string {
   if (!isValid(value)) {
-    throw new AuthoringError(
-      `Invalid ${kind} ${JSON.stringify(value)}: not a value the OOXML enumeration allows`,
-    );
+    throw invalidToken(kind, value);
   }
   return value;
 }
@@ -250,6 +233,34 @@ export function assertWritableNumber(value: number): void {
   throw new AuthoringError(
     `cannot write a non-finite number (${value}): it has no OOXML representation`,
   );
+}
+
+/**
+ * Refuse a `Date` OOXML cannot spell, naming the property that carries it.
+ *
+ * Two ways a `Date` fails to have a `dcterms:W3CDTF` / `xsd:dateTime` spelling, and neither is
+ * caught by the types. An **Invalid Date** is truthy and is an instance of `Date`, so it passes
+ * every guard short of this one and reaches `toISOString()`, which throws a bare
+ * `RangeError: Invalid time value` -- outside this taxonomy, and naming neither the property nor
+ * the document it was being written into. A year **outside 0000-9999** has no four-digit form, so
+ * `toISOString()` falls back to ISO 8601's expanded `+275760-09-13T…` notation, which is not in
+ * the lexical space of either type; that one does not throw at all, it writes a package Excel
+ * offers to repair.
+ *
+ * @throws {AuthoringError} naming the property.
+ */
+export function assertWritableDate(date: Date, property: string): void {
+  const time = date.getTime();
+  if (Number.isNaN(time)) {
+    throw new AuthoringError(`cannot write ${property}: it is an Invalid Date`);
+  }
+  const year = date.getUTCFullYear();
+  if (year < 0 || year > 9999) {
+    throw new AuthoringError(
+      `cannot write ${property}: the year ${year} is outside the 0000-9999 range a W3CDTF ` +
+        'timestamp can spell',
+    );
+  }
 }
 
 /**

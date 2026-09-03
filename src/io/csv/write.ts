@@ -26,7 +26,7 @@ import {
 } from '../../core/value.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {AuthoringError} from '../../errors.ts';
+import {AuthoringError, unrepresentable} from '../../errors.ts';
 
 /**
  * A byte encoding {@link writeCsv} can produce, spelled the way Node's `Buffer` spells it and
@@ -159,18 +159,17 @@ function encode(text: string, encoding: CsvEncoding): Uint8Array {
  * explicit choice, and a surrogate is not a special case there.
  */
 function assertEncodable(text: string): void {
-  const found = LONE_SURROGATE.exec(text);
-  if (found === null) return;
-  const codePoint = (text.codePointAt(found.index) as number).toString(16).toUpperCase();
-  throw new AuthoringError(
-    `cannot write U+${codePoint} at offset ${found.index} of the CSV text: it is an unpaired ` +
-      'surrogate, which UTF-8 cannot encode and CSV has no escape for',
+  const error = unrepresentable(
+    text,
+    SURROGATES,
+    'it is an unpaired surrogate, which UTF-8 cannot encode and CSV has no escape for',
   );
+  if (error !== undefined) throw error;
 }
 
 // The `u` flag makes the pattern match code points, so a well-formed pair is one unit that no
 // surrogate range can match and this means exactly "a surrogate that is not part of a pair".
-const LONE_SURROGATE = /[\u{D800}-\u{DFFF}]/u;
+const SURROGATES = /[\u{D800}-\u{DFFF}]/u;
 
 function selectSheet(workbook: Workbook, name: string | undefined): Worksheet {
   if (name === undefined) {

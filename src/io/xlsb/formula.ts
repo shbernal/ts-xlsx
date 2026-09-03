@@ -24,6 +24,7 @@
 
 import {MAX_COLUMN, MAX_ROW, numberToColumn} from '../../core/address.ts';
 import {quoteSheetName} from '../../core/formula.ts';
+import {REF_ERROR} from '../../core/value.ts';
 import {errorCodeFor, RecordReader} from './primitives.ts';
 import {FTAB_USER_DEFINED, fixedArityFor, functionNameFor} from './ptg-functions.ts';
 
@@ -210,16 +211,16 @@ function operand(
     }
     case PTG.RefErr:
       tokens.skip(6);
-      return push(REFERENCE_ERROR);
+      return push(REF_ERROR);
     case PTG.AreaErr:
       tokens.skip(12);
-      return push(REFERENCE_ERROR);
+      return push(REF_ERROR);
     case PTG.RefErr3d:
       tokens.skip(8);
-      return push(REFERENCE_ERROR);
+      return push(REF_ERROR);
     case PTG.AreaErr3d:
       tokens.skip(14);
-      return push(REFERENCE_ERROR);
+      return push(REF_ERROR);
     case PTG.MemArea:
       // A precomputed range: the tokens it was computed from follow inline, so the header is skipped
       // and the walk simply continues into them. Its extra-data entry, the resulting rectangles, is
@@ -395,8 +396,6 @@ function quoteString(text: string): string {
 function numberText(value: number): string {
   return String(value).toUpperCase();
 }
-
-const REFERENCE_ERROR = '#REF!';
 
 // The infix operators, by their ptg. `PtgIsect` is Excel's space operator (`A1:A3 A2:A5`) and
 // `PtgUnion` its comma; both are operators despite looking like punctuation.

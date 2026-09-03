@@ -47,6 +47,7 @@ import {CellStyleResolver} from './cell-style-resolution.ts';
 import type {SharedString} from './cell-value.ts';
 import {parseColor} from './color-xml.ts';
 import {ColumnRecordBudget, takeColumnSpan} from './column-budget.ts';
+import {admitting} from './read-repair.ts';
 import {RowPositionTracker} from './row-position.ts';
 
 // Membership, not order: the reader meets a `<headerFooter>` child by name and needs only to know
@@ -291,11 +292,10 @@ export function worksheetPass(
           // bad range at the model boundary, but don't let one abort the whole parse: drop it and
           // keep reading the valid geometry.
           if (attrs.ref !== undefined && attrs.ref !== '') {
-            try {
-              sheet.mergeCells(attrs.ref);
-            } catch {
-              // overlapping/malformed merge in the source file: skip it
-            }
+            const ref = attrs.ref;
+            admitting(() => {
+              sheet.mergeCells(ref);
+            });
           }
           break;
         case 'sheetPr':

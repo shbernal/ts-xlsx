@@ -261,6 +261,7 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
           {command: NODE, args: ['scripts/check-entries.ts']},
           {command: NODE, args: ['scripts/check-browser-safe.ts']},
           {command: NODE, args: ['scripts/check-source-text.ts']},
+          {command: NODE, args: ['scripts/check-error-messages.ts']},
           // The docs tree and the site cannot disagree quietly: every page reachable, every
           // link resolvable, every title derivable. Sub-second, where the site build that
           // would also catch it is half a minute.

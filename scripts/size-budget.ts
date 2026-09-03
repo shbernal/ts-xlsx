@@ -63,7 +63,14 @@ const ENTRY_BUDGETS_KB: Readonly<Record<string, number>> = {
   './csv': 210,
   // The streaming writer and the write half it rides on, and nothing of the reader: a jump here is
   // the read path arriving, which would mean the entry had stopped being about one thing.
-  './node': 395,
+  //
+  // Raised from 395 when the reader stopped handing file-derived names straight to the model's
+  // authoring guards. `io/xlsx/read-repair.ts` and `xml/xml-chars.ts` are the two new modules, ~2 KB
+  // between them, and both are on the untrusted-input path rather than beside it: without them a
+  // corrupt package raised an `AuthoringError` blaming the caller, or a native `SyntaxError` the
+  // taxonomy cannot see at all. This entry had 2.2 KB left in it, which is a rounding error and not
+  // the headroom described above; the new figure restores it against today's measurement.
+  './node': 405,
   // Raised from 50 when the MS-OVBA encoder stopped rescanning its whole back-window for every
   // output byte. The hash chain that replaced the rescan is the cost, and it buys a time bound on a
   // path an untrusted `.xlsm` reaches through `removeVbaModule`; the CFB and `dir` guards landed

@@ -4,10 +4,11 @@
 
 import {mangleFormula, quoteSheetName} from '../../core/formula.ts';
 import {WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} from '../../core/workbook-protection.ts';
-import type {DefinedName, Workbook, WorkbookProperties} from '../../core/workbook.ts';
+import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import {isVisibility, type Worksheet} from '../../core/worksheet.ts';
-import {AuthoringError} from '../../errors.ts';
+import {AuthoringError, quoted} from '../../errors.ts';
 import {
+  assertWritableDate,
   checkedToken,
   escapeAttr,
   escapeText,
@@ -441,12 +442,12 @@ function calcPrXml(workbook: Workbook): string {
 // A scope with no sheet at all is refused rather than written. `definedNames` is a live collection, so
 // a name can be pushed onto it without passing `defineName`'s check, and `localSheetId` is an
 // `xsd:unsignedInt` for which the `-1` a lookup miss returns is a package Excel offers to repair.
-function localSheetId(sheets: readonly Worksheet[], name: DefinedName): number {
-  const scope = name.scope?.toLowerCase();
-  const index = sheets.findIndex((sheet) => sheet.name.toLowerCase() === scope);
+function localSheetId(sheets: readonly Worksheet[], name: string, scope: string): number {
+  const wanted = scope.toLowerCase();
+  const index = sheets.findIndex((sheet) => sheet.name.toLowerCase() === wanted);
   if (index === -1) {
     throw new AuthoringError(
-      `defined name ${JSON.stringify(name.name)} is scoped to worksheet ${JSON.stringify(name.scope)}, which this workbook does not contain`,
+      `defined name ${quoted(name)} is scoped to worksheet ${quoted(scope)}, which this workbook does not contain`,
     );
   }
   return index;
@@ -456,7 +457,9 @@ function definedNamesXml(workbook: Workbook): string {
   const sheets = workbook.worksheets;
   const userEntries = workbook.definedNames.map((name) => {
     const scopeAttr =
-      name.scope === undefined ? '' : ` localSheetId="${localSheetId(sheets, name)}"`;
+      name.scope === undefined
+        ? ''
+        : ` localSheetId="${localSheetId(sheets, name.name, name.scope)}"`;
     const commentAttr = textAttr('comment', name.comment);
     const hiddenAttr = name.hidden ? ' hidden="1"' : '';
     return (
@@ -559,10 +562,10 @@ export function corePropsXml(properties: WorkbookProperties): string {
   if (properties.lastModifiedBy !== undefined) {
     parts.push(`<cp:lastModifiedBy>${escapeText(properties.lastModifiedBy)}</cp:lastModifiedBy>`);
   }
-  if (properties.created) {
+  if (properties.created !== undefined) {
     parts.push(w3cdtf('created', properties.created));
   }
-  if (properties.modified) {
+  if (properties.modified !== undefined) {
     parts.push(w3cdtf('modified', properties.modified));
   }
   return (
@@ -574,8 +577,13 @@ export function corePropsXml(properties: WorkbookProperties): string {
   );
 }
 
+// The millisecond field is trimmed because Excel writes seconds and nothing finer, and a document
+// property is a timestamp a person reads, not an interval anything measures. `dcterms:W3CDTF` admits
+// both forms, so this is a match with the producer rather than a correctness fix.
 function w3cdtf(element: string, date: Date): string {
-  return `<dcterms:${element} xsi:type="dcterms:W3CDTF">${date.toISOString()}</dcterms:${element}>`;
+  assertWritableDate(date, `the document property ${quoted(element)}`);
+  const stamp = date.toISOString().replace(/\.\d{3}Z$/, 'Z');
+  return `<dcterms:${element} xsi:type="dcterms:W3CDTF">${stamp}</dcterms:${element}>`;
 }
 
 export function appPropsXml(properties: WorkbookProperties): string {

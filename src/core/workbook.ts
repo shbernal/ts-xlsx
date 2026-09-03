@@ -887,11 +887,11 @@ export class Workbook {
   requireWorksheet(nameOrId: string | number): Worksheet {
     const sheet = this.getWorksheet(nameOrId);
     if (sheet !== undefined) return sheet;
-    const wanted = typeof nameOrId === 'number' ? `id ${nameOrId}` : JSON.stringify(nameOrId);
+    const wanted = typeof nameOrId === 'number' ? `id ${nameOrId}` : quoted(nameOrId);
     if (this.#worksheets.length === 0) {
       throw new AuthoringError(`no worksheet ${wanted}: this workbook has no worksheets`);
     }
-    const have = this.#worksheets.map((sheet) => JSON.stringify(sheet.name)).join(', ');
+    const have = this.#worksheets.map((sheet) => quoted(sheet.name)).join(', ');
     throw new AuthoringError(`no worksheet ${wanted}; this workbook has ${have}`);
   }
 

@@ -41,6 +41,16 @@ export const ERROR_CODES = [
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
+/**
+ * The error a spreadsheet puts in place of a reference that has nowhere left to point.
+ *
+ * Named here rather than in the two formula codecs that produce it. Both of them -- the A1 renderer
+ * in `core/formula.ts` and the BIFF12 one in `io/xlsb/formula.ts` -- had a private literal of their
+ * own, spelled the same and named differently, for a value {@link ERROR_CODES} already publishes and
+ * `isErrorCode` already recognises.
+ */
+export const REF_ERROR: ErrorCode = '#REF!';
+
 /** An in-cell error, e.g. `{error: '#REF!'}`. */
 export interface ErrorValue {
   readonly error: ErrorCode;

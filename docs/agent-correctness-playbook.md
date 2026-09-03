@@ -194,6 +194,19 @@ message is prose too, so that is the right reach rather than a compromise. `scri
 zero today, which is what makes the gate a floor rather than a wish. Config and reasoning:
 `charcheck.config.ts`.
 
+**You are adding a throw, or touching the read path's tolerance of a foreign file.**
+Two rules, one gate each. A name inside a message goes through `quoted()` from
+`src/errors.ts`, never an inline `JSON.stringify`; run `pnpm run error-messages:check`, or
+just let the `invariants` gate do it. And a *file* may never provoke an `authoring` failure
+or a native `RangeError`/`SyntaxError`: if you are handing a file-derived value to a model
+method that validates, it goes through `src/io/xlsx/read-repair.ts` -- `repairSheetName`
+where there is an obviously right rewrite, `admitting` where the honest answer is that the
+file does not really carry that feature. The check that proves it is a corpus case shaped
+like `a-hostile-name-costs-that-name-not-the-read`: patch one attribute of a written
+package, read it back, and assert the read survived *and* the model re-writes. The second
+half is the one that catches the interesting failures, because a reader is allowed to
+produce only values the writer can serialise.
+
 **You are cutting a release.**
 Bump `version` in `package.json`, cut `CHANGELOG.md`'s `## [Unreleased]` into the new
 version's section, commit, and push. Then let CI go green *before* tagging, because the

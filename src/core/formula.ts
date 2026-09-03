@@ -23,6 +23,7 @@
 
 import {MAX_COLUMN, MAX_ROW, numberToColumn, tryColumnToNumber} from './address.ts';
 import {MODERN_FUNCTIONS} from './modern-functions.ts';
+import {REF_ERROR} from './value.ts';
 
 const XLFN = '_xlfn.';
 const XLPM = '_xlpm.';
@@ -353,6 +354,3 @@ export function translateFormula(formula: string, colDelta: number, rowDelta: nu
     ),
   );
 }
-
-// The error a spreadsheet puts in place of a reference that has nowhere left to point.
-const REF_ERROR = '#REF!';

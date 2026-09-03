@@ -26,6 +26,7 @@ import {
 import {type ParsedComment, parseComments} from './comments.ts';
 import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
 import {parsePivotTable} from './read-pivot.ts';
+import {admitting} from './read-repair.ts';
 import {parseTable} from './tables.ts';
 import {parseThemeColorScheme, parseThemeFontScheme} from './theme-xml.ts';
 import {buildCommentThreads, parsePersons, parseThreadedComments} from './threaded-comments.ts';
@@ -399,7 +400,14 @@ export function readSheetTables(
     const tableXml = pkg.partText(tablePath);
     if (tableXml === undefined) continue;
     const options = parseTable(tableXml);
-    if (options !== undefined) sheet.addTable(options);
+    // A table name is validated as an Excel identifier and bounded in length, and a file is free to
+    // carry neither; the refusal is native (`SyntaxError`/`RangeError`), so an unguarded call put a
+    // failure outside the `XlsxError` taxonomy on a path that faces untrusted input.
+    if (options !== undefined) {
+      admitting(() => {
+        sheet.addTable(options);
+      });
+    }
   }
   dropMergesInsideTables(sheet);
 }

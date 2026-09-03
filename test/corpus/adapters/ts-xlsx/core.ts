@@ -39,6 +39,11 @@ import {
   selfClosingDefinedNameReport,
 } from './xml-probes.ts';
 
+// The characters XML 1.0 cannot carry, restated here rather than imported: a case asserts on
+// behaviour, and reading the rule out of the code under test would make the assertion circular.
+// oxlint-disable-next-line eslint/no-control-regex -- naming the control characters is the point
+const UNREPRESENTABLE = /[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{FFFE}\u{FFFF}\u{D800}-\u{DFFF}]/u;
+
 export const core = {
   // Classify a reader input by format family and report the typed error (or success) it produces:
   // `{threw, errorName, code, format, message, leaksZipInternals, leaksAbsolutePath}`. A
@@ -1024,6 +1029,206 @@ export const core = {
       }
     });
   },
+  // Patch one *name* of a written package to something the model's own authoring guards refuse, then
+  // read the result back and write it out again -> one row per mutation
+  // { mutation, threw, isXlsxError, errorName, sheetNames, tables, definedNames, rewrote }. The
+  // taxonomy says `AuthoringError` is always the caller's fault and never the file's, and native
+  // `RangeError`/`SyntaxError` are outside it altogether: a file naming a sheet twice, or a table
+  // `1 bad`, must therefore cost that name or that feature, never the read.
+  hostileNameReport() {
+    const wb = new Workbook();
+    const alpha = wb.addWorksheet('Alpha');
+    alpha.getCell('A1').value = 'keep';
+    alpha.addTable({name: 'T', ref: 'C1', columns: [{name: 'H'}], rowCount: 1});
+    wb.addWorksheet('Beta').getCell('A1').value = 'beta';
+    wb.defineName({name: 'Rate', refersTo: 'Alpha!$A$1'});
+    const bytes = writeXlsx(wb);
+
+    const SHEET = 'xl/workbook.xml';
+    const TABLE = 'xl/tables/table1.xml';
+    const renameSecondSheet = (to: string) => (xml: string) =>
+      xml.replace('name="Beta"', `name="${to}"`);
+    const renameTable = (to: string) => (xml: string) =>
+      xml.replace('name="T"', `name="${to}"`).replace('displayName="T"', `displayName="${to}"`);
+
+    const mutations: {name: string; part: string; patch: (xml: string) => string}[] = [
+      {name: 'duplicate sheet name', part: SHEET, patch: renameSecondSheet('Alpha')},
+      {name: 'empty sheet name', part: SHEET, patch: renameSecondSheet('')},
+      {name: 'sheet name with a forbidden character', part: SHEET, patch: renameSecondSheet('a/b')},
+      {
+        name: 'sheet name over the length limit',
+        part: SHEET,
+        patch: renameSecondSheet('B'.repeat(32)),
+      },
+      {
+        name: 'sheet name edged with an apostrophe',
+        part: SHEET,
+        patch: renameSecondSheet("'Beta'"),
+      },
+      {name: 'table name that is not an identifier', part: TABLE, patch: renameTable('1 bad')},
+      {name: 'table name over the length limit', part: TABLE, patch: renameTable('T'.repeat(300))},
+      {
+        name: 'defined name with no name at all',
+        part: SHEET,
+        patch: (xml) => xml.replace('<definedName name="Rate"', '<definedName name=""'),
+      },
+    ];
+
+    return mutations.map((mutation) => {
+      try {
+        const back = reloadPatched(bytes, {[mutation.part]: mutation.patch});
+        // Written out again, because half of what "the read succeeded" has to mean is that the model
+        // it produced is one this library can still serialise.
+        let rewrote = true;
+        try {
+          writeXlsx(back);
+        } catch {
+          rewrote = false;
+        }
+        return {
+          mutation: mutation.name,
+          threw: false,
+          isXlsxError: null,
+          errorName: null,
+          sheetNames: back.worksheets.map((sheet) => sheet.name),
+          keptSiblingCell: back.worksheets[0]?.getCell('A1').value ?? null,
+          tables: back.worksheets[0]?.tables.length ?? 0,
+          definedNames: back.definedNames.length,
+          rewrote,
+        };
+      } catch (error) {
+        return {
+          mutation: mutation.name,
+          threw: true,
+          isXlsxError: error instanceof XlsxError,
+          errorName: (error as Error)?.constructor?.name ?? null,
+          sheetNames: [],
+          keptSiblingCell: null,
+          tables: 0,
+          definedNames: 0,
+          rewrote: false,
+        };
+      }
+    });
+  },
+
+  // Put a character XML 1.0 cannot carry in front of the reader, as the reference a hostile file
+  // spells it with and as the raw byte, in each of the two places a structural string lives, then
+  // read AND re-write -> one row per case
+  // { where, spelling, threw, rewrote, sheetName, definedName, carriesUnrepresentable }. The reader
+  // is only allowed to produce values the writer can serialise; decoding one it cannot turns a
+  // hostile file into an `AuthoringError` blaming the caller on the next save.
+  unrepresentableCharacterReport() {
+    const wb = new Workbook();
+    wb.addWorksheet('Alpha').getCell('A1').value = 'keep';
+    wb.defineName({name: 'Rate', refersTo: 'Alpha!$A$1'});
+    const bytes = writeXlsx(wb);
+
+    const cases: {where: string; spelling: string; patch: (xml: string) => string}[] = [
+      {
+        where: 'sheet name',
+        spelling: '&#1;',
+        patch: (xml) => xml.replace('name="Alpha"', 'name="A&#1;lpha"'),
+      },
+      {
+        where: 'sheet name',
+        spelling: '&#xD800;',
+        patch: (xml) => xml.replace('name="Alpha"', 'name="A&#xD800;lpha"'),
+      },
+      {
+        where: 'sheet name',
+        spelling: 'a raw control character',
+        patch: (xml) => xml.replace('name="Alpha"', 'name="A\u0001lpha"'),
+      },
+      {
+        where: 'defined name text',
+        spelling: '&#1;',
+        patch: (xml) => xml.replace('Alpha!$A$1', 'Alpha!$A$1&#1;'),
+      },
+      {
+        where: 'defined name text',
+        spelling: 'a raw control character',
+        patch: (xml) => xml.replace('Alpha!$A$1', 'Alpha!$A$1\u0001'),
+      },
+    ];
+
+    return cases.map(({where, spelling, patch}) => {
+      try {
+        const back = reloadPatched(bytes, {'xl/workbook.xml': patch});
+        const sheetName = back.worksheets[0]?.name ?? null;
+        const definedName = back.definedNames[0]?.refersTo ?? null;
+        let rewrote = true;
+        try {
+          writeXlsx(back);
+        } catch {
+          rewrote = false;
+        }
+        return {
+          where,
+          spelling,
+          threw: false,
+          rewrote,
+          sheetName,
+          definedName,
+          // What matters is not which spelling survived but that nothing unrepresentable did.
+          carriesUnrepresentable: UNREPRESENTABLE.test(`${sheetName ?? ''}${definedName ?? ''}`),
+        };
+      } catch {
+        return {
+          where,
+          spelling,
+          threw: true,
+          rewrote: false,
+          sheetName: null,
+          definedName: null,
+          carriesUnrepresentable: false,
+        };
+      }
+    });
+  },
+
+  // Write a workbook whose `created`/`modified` document property is each shape a `Date` can take at
+  // this boundary -> one row per shape { property, kind, threw, isXlsxError, errorName, message,
+  // stamp }. `toISOString()` answers three of the four with something no `dcterms:W3CDTF` can carry:
+  // a throw from outside the taxonomy, or ISO 8601's expanded-year form that Excel repairs.
+  documentDateReport() {
+    const shapes: {kind: string; date: Date}[] = [
+      {kind: 'an ordinary timestamp', date: new Date(Date.UTC(2026, 0, 2, 3, 4, 5, 678))},
+      {kind: 'an Invalid Date', date: new Date(Number.NaN)},
+      {kind: 'a year past 9999', date: new Date(Date.UTC(275760, 8, 12))},
+      {kind: 'a year before 0000', date: new Date(-62200000000000)},
+    ];
+    return shapes.flatMap(({kind, date}) =>
+      (['created', 'modified'] as const).map((property) => {
+        const wb = new Workbook();
+        wb.addWorksheet('S');
+        wb.properties[property] = date;
+        try {
+          const core = partMapOf(writeXlsx(wb))['docProps/core.xml'] ?? '';
+          return {
+            property,
+            kind,
+            threw: false,
+            isXlsxError: null,
+            errorName: null,
+            message: null,
+            stamp: new RegExp(`<dcterms:${property}[^>]*>([^<]*)<`).exec(core)?.[1] ?? null,
+          };
+        } catch (error) {
+          return {
+            property,
+            kind,
+            threw: true,
+            isXlsxError: error instanceof XlsxError,
+            errorName: (error as Error)?.constructor?.name ?? null,
+            message: messageOf(error),
+            stamp: null,
+          };
+        }
+      }),
+    );
+  },
+
   // Namespace-prefix independence: a file may bind an OOXML namespace to any prefix it likes, and the
   // reader must read it the same either way. Built in `xml-probes.ts` beside the other crafted reader
   // inputs; named here so a case can reach them.

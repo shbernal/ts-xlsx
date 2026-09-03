@@ -12,6 +12,7 @@
 // interning table; it just happened to be where the first caller was.
 
 import {type Color, parseArgb} from '../../core/style.ts';
+import {quoted} from '../../errors.ts';
 import {numFinite, numInteger} from '../../xml/xml-scan.ts';
 import {numberText} from '../../xml/xml.ts';
 
@@ -24,7 +25,7 @@ function normalizeArgb(argb: string): string {
   const rgb = parseArgb(argb);
   if (rgb === undefined) {
     throw new SyntaxError(
-      `Invalid ARGB colour ${JSON.stringify(argb)}: expected 6 or 8 hexadecimal digits`,
+      `Invalid ARGB colour ${quoted(argb)}: expected 6 or 8 hexadecimal digits`,
     );
   }
   return rgb;
