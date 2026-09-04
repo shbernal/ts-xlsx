@@ -12,6 +12,50 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+
+## [3.1.0] — 2026-09-04
+
+Twenty-one fixes, most of them on the read path, and most of them cases where a file this
+library did not write came back as a plausible workbook rather than as an error. A worksheet
+that leaves `r` off its cells read as blank. A package that points at its own parts through the
+relationship graph, which OPC says it may, read as no workbook at all. A workbook binding the
+relationships namespace to a prefix other than `r` loaded every sheet empty. None of the three
+threw anything.
+
+**Read the four breaks below before upgrading.** They land under a minor version number, which
+is not what [ADR-0015](docs/decisions/0015-publishing-name-semver-and-first-version.md) §2 asks
+for: each is a public API change and the policy calls for a major. This is the second time the
+project has made that call at release time, after 2.1.0, and for the same reason. None of the
+four is a redesign, and each closes a surface that was wrong rather than changing one that was
+right. But the version number will not warn you the way it is supposed to, so this list has to.
+
+- **`CsvWriteOptions.dateFormat` takes an Excel number-format code, not a moment.js token set.**
+  Only formats carrying a time change what they emit, because `mm` was minutes and is now
+  months.
+- **`WorkbookStreamWriter.commit()` resolves with `undefined`** when the writer was given a sink
+  and `stream` was never touched. Supply no sink, or touch `writer.stream`, and the bytes come
+  back exactly as before.
+- **`WorksheetStreamWriter` can no longer be constructed,** and `flushRow`/`flushedSheet` are no
+  longer callable. `WorkbookStreamWriter.addWorksheet` is unchanged and is where a sheet writer
+  comes from.
+- **`Table.shiftRows` and `Table.shiftColumns` take one `AxisSplice`** instead of three loose
+  numbers: `table.shiftRows(3, 0, 2)` is now
+  `table.shiftRows({axis: 'row', start: 3, count: 0, delta: 2})`.
+
+### Added
+
+- **The 1904 date system, carried on `Workbook.dateEpoch`.** A workbook declares which calendar
+  its serials count from, and nothing in this tree had ever read `<workbookPr date1904="1"/>`.
+  Every date cell in such a workbook came back four years and a day early, through the buffered
+  reader, the streaming reader and the BIFF12 reader alike; writing one back dropped the
+  declaration while re-emitting the serials unchanged, so the next reader applied the other
+  calendar and the document silently changed meaning. `DateEpoch` is `1900 | 1904` rather than a
+  boolean, because the epoch year is what every conversion actually needs, and it is a required
+  parameter on `dateToSerial`, `serialToDate` and `coerceDateSerial`, so no call site can forget
+  which workbook it is converting for. `WorkbookStreamWriter` takes it at construction: it
+  serialises each row as that row is committed, so a system changed part-way through would leave
+  the rows before the change counting from a different day than the rows after it.
+
 ### Changed
 
 - **BREAKING: `CsvWriteOptions.dateFormat` is an Excel number-format code, not a moment.js token
@@ -31,20 +75,6 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   caller passes `{filename}` or `{stream}` to avoid. A caller who supplies no sink, or who touches
   `writer.stream`, gets the bytes exactly as before.
 
-- **`encodeAddress` now refuses a row outside the sheet, as it already refused a column.** It bounded
-  one axis and let the other through, so `encodeAddress(1, 0)` returned `"A0"` and
-  `encodeAddress(1, 2 ** 31)` an address no reader can decode. Both now throw a `RangeError`. Every
-  coordinate check in the model also states its bound the same way, so the three messages the API
-  used to give for one mistake are now one message that names the axis, the value, and the limit.
-
-- **Seventeen types a consumer could reach and not name are now published, and the eighteen missing
-  token guards with them.** `TableColumn.totalsRowFunction` had the type `TotalsRowFunction`, which
-  no entry exported, so the value was reachable and the type was not; the same held for
-  `CellContent`, `DateEpoch`, `AxisHandle`, `CellPosition`, `TableGrid` and `PreservedTheme`. Every
-  closed token union `/core` publishes now publishes its narrowing guard too (`isBorderStyle`,
-  `isFillPatternType`, `isVisibility` and fifteen more): two were published and eighteen were not,
-  with no rule saying why. Both are additive, and both are now gated.
-
 - **BREAKING: `WorksheetStreamWriter` can no longer be constructed, and its `flushRow`/`flushedSheet`
   are no longer callable.** All three were the streaming writer's own plumbing on a published class:
   the constructor took a `StyleRegistry`, `flushedSheet()` returned a `FlushedSheet`, and between them
@@ -60,13 +90,185 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   Excel: the workbook that comes out is well-formed, with its merges, dropdowns, highlights, comment
   anchors and images re-anchored to cells the author never chose. Named fields cannot be transposed.
 
+- **`encodeAddress` now refuses a row outside the sheet, as it already refused a column.** It bounded
+  one axis and let the other through, so `encodeAddress(1, 0)` returned `"A0"` and
+  `encodeAddress(1, 2 ** 31)` an address no reader can decode. Both now throw a `RangeError`. Every
+  coordinate check in the model also states its bound the same way, so the three messages the API
+  used to give for one mistake are now one message that names the axis, the value, and the limit.
+
+- **Seventeen types a consumer could reach and not name are now published, and the eighteen missing
+  token guards with them.** `TableColumn.totalsRowFunction` had the type `TotalsRowFunction`, which
+  no entry exported, so the value was reachable and the type was not; the same held for
+  `CellContent`, `DateEpoch`, `AxisHandle`, `CellPosition`, `TableGrid` and `PreservedTheme`. Every
+  closed token union `/core` publishes now publishes its narrowing guard too (`isBorderStyle`,
+  `isFillPatternType`, `isVisibility` and fifteen more): two were published and eighteen were not,
+  with no rule saying why. Both are additive, and both are now gated.
+
+- **The workbook part is read in one pass, not seven.** Its protection, its `<workbookPr>`, its
+  window view, its sheet list, its defined names, its `<pivotCaches>` registry and its
+  `<externalReferences>` registry were seven readers with seven scans between them, on the same shape
+  `readSheet` had already been given single-pass treatment for. All seven now see the whole part
+  before the first sheet is read, which is also what puts the date system in place before the first
+  cell decode rather than leaving that to a call sited above the loop and a comment asking it to stay
+  there. A `RecordReader` also builds its `DataView` on first numeric read rather than in its
+  constructor, and one is constructed per BIFF12 record in both the worksheet and the styles parser.
+
 ### Fixed
+
+- **A worksheet that leaves `r` off its cells read back as a workbook full of blanks.** `r` is
+  `use="optional"` on both `sml:CT_Row` and `sml:CT_Cell`: a producer may rely on document position
+  instead, and several non-Excel writers do, so the nth `<row>` of `<sheetData>` is row n and the nth
+  `<c>` of a row is that row's nth column. Excel opens such a file without comment. This reader
+  required the attribute and lost every cell of every row, silently, through the buffered reader and
+  the streaming one alike; stripping `r=` from a package this library had just written reproduced it.
+  An absent `r` is legal, an `r` naming a cell that cannot exist (`A0`, `junk!!`) is malformed, and
+  the two are no longer answered the same way.
+
+- **A package that locates its parts through the relationship graph, as OPC allows, read as no
+  workbook.** `xl/workbook.xml`, `xl/sharedStrings.xml` and `xl/styles.xml` are where Excel puts
+  those parts, not where the format says they live; the reader consulted the graph for the theme and
+  for the VBA project and nowhere else. The three failures are graded. A workbook part it cannot find
+  opens nothing. A pool it cannot find is silent, and every `t="s"` cell reads as the empty string. A
+  stylesheet it cannot find is worse than silent, because the date test reads `numFmt` off the
+  resolved style to tell `45000` from `2023-03-15`, so an empty style table changes cell *types* with
+  no error anywhere. Part names are also compared case-insensitively now, as OPC requires: a document
+  at `XL/Workbook.xml` was reported as not a workbook, and an `<Override PartName>` cased differently
+  from its zip entry fell through to `application/octet-stream` for a part being preserved verbatim.
+  `readXlsbPackage` takes the resolved document path too, rather than assuming one.
+
+- **A workbook binding the relationships namespace to a prefix other than `r` loaded every sheet
+  empty.** Six sites indexed the attribute map with the literal `r:id`. A prefix is a local nickname
+  and the rest of the reader knows it, matching on stripped local names, which is what made these few
+  so damaging: the whole file reads perfectly and one feature vanishes, with nothing thrown and
+  nothing logged. One site already hedged with `attrs['r:embed'] ?? attrs.embed`, which is the tell
+  that this had been noticed once and never generalised, and which caught only the unprefixed
+  spelling.
+
+- **Five readers returned a plausible wrong value rather than failing.** An empty pooled string
+  written `<si/>` committed no entry, so every later ordinal shifted by one and a `t="s"` cell past it
+  resolved to its neighbour's string. `RunAccumulator` latched "inside a container" on the open of a
+  self-closing one, which then never ended, so a `<t>` outside every container was absorbed as that
+  container's text. A `t="s"` cell whose `<v>` was present and empty went through a bare `Number()`,
+  and `Number('')` is 0, so the cell resolved to the first pooled string. A Strict-mode `t="d"` cell
+  with unparseable text became a Date whose time is `NaN`, which satisfies every guard, survives into
+  the model and serialises back as the literal `Invalid Date`. And the CSV reader discarded a bare CR
+  instead of ending the row on it, splicing the next row's first field onto the last and losing every
+  row boundary in a classic-Mac file.
+
+- **A `<t>` nobody closed was answered with the previous cell's text.** `RunAccumulator.beginContainer`
+  resets every field a string container owns, and the text capture was not one of them, so markup
+  that opens a `<t>` and is then truncated leaves the capture armed across the container boundary and
+  a stray `</t>` in the next container is answered with the previous one's buffer:
+  `<is><t>orphan</is><is>loose</t></is>` read as `orphanloose`.
+
+- **The two readers disagreed about one document, and the two writers about one model.** The
+  streaming half of each pair is documented as producing what the buffered half produces, and in four
+  places it did not, with no error on either side. OOXML lets a cell inherit its format, and the
+  buffered reader resolved cell then row then column while the streaming reader read the cell's own
+  `s` alone, so a cell under a date-formatted column came back as a `Date` from one reader and as
+  `45000` from the other. A streamed hyperlink kept its visible label and lost what it pointed at,
+  and a streamed note vanished with no comments part emitted at all, because both are serialised
+  outside the `<row>` and were released with it. And `translateFormula` gave two different wrong
+  answers on the read path, where the deltas come from a file's own shared-formula geometry: the
+  column axis threw a bare `RangeError` that aborted a whole sheet read, the row axis emitted `A0` or
+  `A-4`, which is not a reference. Both axes answer `#REF!` now, which is what Excel writes.
+
+- **Seven paths let a file the library did not write choose its own cost.** A `<mergeCell>` cost the
+  height it declared rather than the rows that exist, so 16,000 non-overlapping full-column merges,
+  about 570 KB of XML that zips to a few kilobytes, bought roughly eight minutes of CPU, invisible to
+  the inflate cap because after inflation the payload really is small. A finite negative
+  `outlineLevel` hung the writer forever, walking straight past a non-finite gate that had reasoned
+  about exactly that hazard. The MS-OVBA encoder rescanned its whole 4096-byte back-window for every
+  output byte, 95 ms per 4 KB chunk of unmatched data, on the path `removeVbaModule` and
+  `addVbaReference` take to recompress a `dir` stream that arrived in an `.xlsm`; a hash chain over
+  three-byte prefixes brings a megabyte of unmatched data from about 10 s to 0.14 s, byte-identical
+  on real VBA source. `MODULES_COUNT` was patched on an invariant stated only in a comment, so a
+  crafted `dir` put both patch writes inside an unrelated record's payload and a declared count of
+  zero underflowed to `0xFFFF`. The CFB reader validated two of three header layout fields, so a
+  crafted mini-stream cutoff returned the wrong module source, and a directory entry's size read as
+  its low 32 bits truncated an oversized stream silently. A duplicate zip entry name won last-write
+  rather than being refused, which is the whole of a "same file, two meanings" attack. And the
+  encoder accumulated into the `number[]` its own inverse's docstring rejects for costing several
+  times its byte count in memory.
+
+- **Six more paths spent more than they cost to write.** The CFB FAT was assembled by believing the
+  header's sector counts, with ids free to repeat, so 1 MB of crafted container cost 272 MB of heap
+  and a 10 MB project was an OOM rather than a typed failure; a file cannot hold more FAT sectors
+  than it holds sectors, and that is the bound now. The directory's sibling tree is red-black and so
+  logarithmic in depth, but a hostile file is under no such obligation, and linking every entry to
+  its predecessor gave an uncatchable `RangeError` out of `Workbook.removeVbaModule` and
+  `editXlsxVbaRemoveModule`. The decompressor's 64 MiB ceiling was per call, which bounds one bomb
+  and nothing else: at the measured 230:1 amplification a 30 MB project of a hundred modules reached
+  several gigabytes with every individual call well under its own limit, so one budget now runs
+  across the whole project. A chunk could decompress past the 4096 bytes [MS-OVBA] 2.4.1.3.6 permits,
+  and `bitCount` past the 12 that 2.4.1.3.19.3 bounds it to. Nothing bounded the number of `<col>`
+  elements, each free to span the grid, so 154 KB of worksheet XML cost the buffered reader 13 s and
+  the streaming one 1.7 s; a per-sheet work budget, four times the whole grid, brings both under
+  150 ms. And the two package-level VBA edit functions handed raw caller bytes to an uncapped
+  `unzipSync` rather than to the shared inflater every other reader goes through.
 
 - **A VBA stream whose sector chain ended before its declared size read back as a well-formed
   prefix.** The compound-file reader collected what the chain offered and returned it, so a module's
   source came back truncated with nothing downstream able to tell -- the same silent-truncation
   failure the 4-GiB size check a few lines above it already refused. Such a chain now raises
   `VbaParseError` naming the chain and both byte counts.
+
+- **Seven edits through the public API produced a sheet nothing could read back.** `insertColumn` and
+  `spliceColumns` ran their insert pass inside the loop over the rows the grid already held, so
+  inserting into an empty sheet wrote nothing whatsoever and reported no error, while `addColumn`,
+  handed the identical array, materialised every row of it. Line metadata was the last splice
+  participant doing its arithmetic by hand, and a hand-written shift does not clamp: a height on the
+  last row plus an insert above it left a properties entry at 1048577, after which iterating the
+  sheet threw and it could no longer be written or inspected, after a legal public call. A table's
+  anchor was checked against the grid and the far corner derived from it was not, so `XFC1` with
+  three columns reached XFE and the writer emitted a `<table ref>` naming rows that cannot exist. The
+  conditional-formatting deep copy stopped one level short of `font`, `fill` and `border`, none of
+  which is flat, so a stored rule shared all three with the caller. `translateFormula`'s `#REF!` guard
+  could not be reached for a three-letter column like `ZZZ1`, which threw a bare `RangeError` first.
+  And `getRange(2, 2)` manufactured the two missing corners as zeros and then complained about row 0,
+  a coordinate the caller never wrote.
+
+- **Seven structural edits lost state the writer would have emitted.** A cell carries eight facets of
+  formatting and the tuple driving every copy listed six, so a row splice, a column splice, a
+  `duplicateRow` or a `dst.model = src.model` dropped the quote-prefix flag and the link to a named
+  cell style while the number format came through: inserting a row above a sheet turned a
+  leading-apostrophe `'007` back into an unprefixed cell. The cell grid was the one splice participant
+  doing raw arithmetic where merges, tables, images, overlays and shared-formula anchors all clamped
+  through `shiftIndex`, so an insert on a sheet holding a cell in the last row or column threw a
+  `RangeError` from inside the splice, and on the column axis left the sheet half-shifted.
+  `Table.shiftColumns` asked neither question `shiftRows` asks, so a splice deleting a table's every
+  column left the table alive, carrying the names of columns that no longer exist, and the writer
+  emitted it. Clearing a line's last property deleted the key and left the record, so
+  `getRow(500).height = 20` followed by `= undefined` kept `rowCount` at 500 forever. `Range` fetched
+  by address, and fetching a covered address resolves it to the merge master, so a range over a merge
+  reported the master twice and the covered cell never, while `clearStyle` cleared the master twice.
+  And `addPivotTable` reached its source through a materialising accessor bounded by the used extent,
+  so a source holding 22 cells plus one lone value far down a column grew to 150,000 cells, in
+  189 ms, and they stayed on the sheet.
+
+- **Eight write sites stood outside the escaping boundary, three of them re-emitting untrusted
+  input.** `[Content_Types].xml` interpolated a part path and a content type raw, and a preserved part
+  feeds both from the source package, so a crafted content type closed the attribute and injected a
+  second `<Override>` for `xl/workbook.xml`, while a bare `&` alone made the part unparseable.
+  `<sheetProtection>` re-emitted its agile-hash credential the same way, where its workbook-level
+  counterpart already escaped correctly. Two preserved relationship targets were escaped twice, so
+  `xl/slicers/s&1.xml` came back out as `Target="../slicers/s&amp;amp;1.xml"` and resolved to a part
+  that is not in the package, silently orphaning the slicer. A totals-row function and a custom-filter
+  operator were escaped instead of checked, which turns a bogus token into a well-formed document
+  Excel still rejects rather than a refusal at the call. And a defined name whose scope names no sheet
+  emitted `localSheetId="-1"`, an `xsd:unsignedInt` Excel offers to repair; that lookup also matched
+  its scope exactly where `defineName` had validated it case-insensitively, so a scope accepted at
+  authoring time could not be resolved at write time.
+
+- **Adding a second pivot table to a workbook that already had one overwrote a part.** Both wanted
+  `xl/pivotTables/pivotTable1.xml`, and preserved parts are emitted last, so the old pivot's bytes
+  landed on the new one's path, the new pivot's sheet relationship pointed at data it was never built
+  from, and `[Content_Types].xml` declared three PartNames twice, which violates OPC M2.5 and makes
+  Excel offer to repair the file. The cause was a stale comment claiming the writer never generates a
+  pivot table or its caches. The writer's part map is now a class that refuses a second part on a
+  path, checked at each of the twenty write sites rather than trusted, and it carries no prototype,
+  because a preserved part keeps its zip entry name from an untrusted package and one called
+  `__proto__` was silently dropped while re-pointing the map's prototype at its bytes.
 
 - **A streamed collapsed outline group rendered expanded when a cell in its summary row held the
   text ` collapsed="1"`.** The attribute is decided after the row is serialised, and the patcher was
@@ -1197,7 +1399,8 @@ author a new one ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round
   table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
   (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
 
-[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/shbernal/ts-xlsx/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/shbernal/ts-xlsx/compare/v2.1.0...v3.0.0
 [2.1.0]: https://github.com/shbernal/ts-xlsx/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/shbernal/ts-xlsx/compare/v1.3.1...v2.0.0
