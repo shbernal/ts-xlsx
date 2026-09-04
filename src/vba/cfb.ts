@@ -39,6 +39,19 @@ interface DirEntry {
   readonly child: number;
 }
 
+// The two things a sector chain's kind decides, and the only two: the regular FAT addresses sectors
+// in the file itself and finds the next one in `#fat`, the mini-FAT addresses them in the mini stream
+// and finds the next one in `#miniFat`. Everything else about following a chain -- the cycle guard,
+// the byte budget, the refusal of a chain that ends short -- is the same question either way, which
+// is what lets `#walkChain` be one walk. `what` names the chain in both of its refusals, so a failure
+// still says which chain it was on.
+interface SectorChain {
+  readonly what: string;
+  readonly sectorSize: number;
+  readonly sliceAt: (sector: number, take: number) => Uint8Array;
+  readonly next: (sector: number) => number;
+}
+
 const CFB_SIGNATURE_LO = 0xe011cfd0;
 const CFB_SIGNATURE_HI = 0xe11ab1a1;
 
@@ -291,58 +304,88 @@ export class CompoundFile {
     return entries;
   }
 
+  // Follow a FAT chain to its end, collecting whole sectors: the directory's read, since a directory
+  // declares no byte length of its own and so has no size to fall short of.
   #readChainFull(startSector: number): Uint8Array {
-    // Follow a FAT chain to its end, collecting whole sectors (used for the directory, whose byte
-    // length is not declared). Cycle-guarded and bounded by the sector count.
-    const chunks: Uint8Array[] = [];
-    const seen = new Set<number>();
-    let sector = startSector;
-    while (sector < MAX_REGULAR_SECTOR) {
-      if (seen.has(sector)) throw new VbaParseError('cycle in FAT sector chain');
-      seen.add(sector);
-      const base = this.#dataSectorOffset(sector);
-      chunks.push(this.#buf.subarray(base, base + this.#sectorSize));
-      sector = this.#nextInFat(sector);
-    }
-    return concat(chunks);
+    return this.#walkChain(startSector, undefined, this.#fatChain('FAT sector chain'));
   }
 
   #readViaFat(startSector: number, size: number): Uint8Array {
+    return this.#walkChain(startSector, size, this.#fatChain('stream FAT chain'));
+  }
+
+  #readViaMiniFat(startSector: number, size: number): Uint8Array {
+    return this.#walkChain(startSector, size, this.#miniFatChain());
+  }
+
+  /**
+   * Follow a sector chain, collecting `size` bytes, or whole sectors to the end of the chain when
+   * there is no declared size.
+   *
+   * One walk where there were three. The FAT and the mini-FAT differ in where a sector's bytes live
+   * and in how the next sector is found, and in nothing else -- and the rest of what these loops do
+   * is refuse a cycle in a chain that came out of a file. That guard is the only thing between a
+   * crafted FAT and a loop that never ends, and a guard held in three copies is three places to fix
+   * the next thing found wrong with it.
+   *
+   * A chain that ends before the declared size is **refused**, not returned short. That is the same
+   * call the 4-GiB check on a directory entry makes a few lines up, for the same reason: a stream
+   * that reads back as its first sector is a module's source truncated, and it is truncated
+   * silently, with every parser downstream seeing a well-formed prefix rather than a damaged file.
+   */
+  #walkChain(startSector: number, size: number | undefined, chain: SectorChain): Uint8Array {
     const chunks: Uint8Array[] = [];
     const seen = new Set<number>();
     let sector = startSector;
-    let remaining = size;
+    // No declared size means "to the end of the chain", which is a budget nothing can exhaust.
+    let remaining = size ?? Infinity;
     while (sector < MAX_REGULAR_SECTOR && remaining > 0) {
-      if (seen.has(sector)) throw new VbaParseError('cycle in stream FAT chain');
+      if (seen.has(sector)) throw new VbaParseError(`cycle in ${chain.what}`);
       seen.add(sector);
-      const base = this.#dataSectorOffset(sector);
-      const take = Math.min(this.#sectorSize, remaining);
-      chunks.push(this.#buf.subarray(base, base + take));
+      const take = Math.min(chain.sectorSize, remaining);
+      chunks.push(chain.sliceAt(sector, take));
       remaining -= take;
-      sector = this.#nextInFat(sector);
+      sector = chain.next(sector);
+    }
+    if (size !== undefined && remaining > 0) {
+      throw new VbaParseError(
+        `${chain.what} ends after ${size - remaining} bytes, but ${size} were declared`,
+      );
     }
     return concat(chunks);
   }
 
-  #readViaMiniFat(startSector: number, size: number): Uint8Array {
-    const chunks: Uint8Array[] = [];
-    const seen = new Set<number>();
-    let sector = startSector;
-    let remaining = size;
-    while (sector < MAX_REGULAR_SECTOR && remaining > 0) {
-      if (seen.has(sector)) throw new VbaParseError('cycle in stream mini-FAT chain');
-      seen.add(sector);
-      const base = sector * this.#miniSectorSize;
-      const take = Math.min(this.#miniSectorSize, remaining);
-      if (base + take > this.#miniStream.length) {
-        throw new VbaParseError('mini-stream sector runs past end of the mini stream');
-      }
-      chunks.push(this.#miniStream.subarray(base, base + take));
-      remaining -= take;
-      if (sector >= this.#miniFat.length) throw new VbaParseError('mini-FAT index out of range');
-      sector = this.#miniFat[sector] as number;
-    }
-    return concat(chunks);
+  // A sector of the regular FAT: its bytes sit in the file itself, past the header.
+  #fatChain(what: string): SectorChain {
+    return {
+      what,
+      sectorSize: this.#sectorSize,
+      sliceAt: (sector, take) => {
+        const base = this.#dataSectorOffset(sector);
+        return this.#buf.subarray(base, base + take);
+      },
+      next: (sector) => this.#nextInFat(sector),
+    };
+  }
+
+  // A sector of the mini-FAT: its bytes sit in the mini stream, which is itself a stream read
+  // through the regular FAT, so both bounds are checked against that buffer rather than the file.
+  #miniFatChain(): SectorChain {
+    return {
+      what: 'stream mini-FAT chain',
+      sectorSize: this.#miniSectorSize,
+      sliceAt: (sector, take) => {
+        const base = sector * this.#miniSectorSize;
+        if (base + take > this.#miniStream.length) {
+          throw new VbaParseError('mini-stream sector runs past end of the mini stream');
+        }
+        return this.#miniStream.subarray(base, base + take);
+      },
+      next: (sector) => {
+        if (sector >= this.#miniFat.length) throw new VbaParseError('mini-FAT index out of range');
+        return this.#miniFat[sector] as number;
+      },
+    };
   }
 
   #nextInFat(sector: number): number {

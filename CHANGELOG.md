@@ -62,6 +62,12 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Fixed
 
+- **A VBA stream whose sector chain ended before its declared size read back as a well-formed
+  prefix.** The compound-file reader collected what the chain offered and returned it, so a module's
+  source came back truncated with nothing downstream able to tell -- the same silent-truncation
+  failure the 4-GiB size check a few lines above it already refused. Such a chain now raises
+  `VbaParseError` naming the chain and both byte counts.
+
 - **A streamed collapsed outline group rendered expanded when a cell in its summary row held the
   text ` collapsed="1"`.** The attribute is decided after the row is serialised, and the patcher was
   reading the rendered markup -- which also holds cell text -- to ask whether it was already there.

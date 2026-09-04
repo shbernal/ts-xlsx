@@ -216,6 +216,23 @@ test('a directory entry declaring a stream past 4 GiB is rejected rather than re
   });
 });
 
+test('a stream whose chain ends before its declared size is rejected, not returned short', () => {
+  // The sibling of the 4-GiB refusal above, and the same failure it guards against: a size the chain
+  // cannot deliver reads back as a well-formed prefix, so every parser downstream sees a shorter
+  // module than the file declares and none of them can tell. The root entry is the first, and its
+  // stream is the mini-stream the container reads while opening.
+  const mutated = Uint8Array.from(SEED);
+  const rootSize = new DataView(mutated.buffer, mutated.byteOffset, mutated.byteLength).getUint32(
+    findDirectory(mutated) + 120,
+    true,
+  );
+  mutated.set(u32(rootSize + 8192), findDirectory(mutated) + 120);
+  assert.throws(() => new CompoundFile(mutated), {
+    name: 'VbaParseError',
+    message: /ends after \d+ bytes, but \d+ were declared/,
+  });
+});
+
 test('a directory whose sibling links form a chain does not recurse once per entry', () => {
   // A red-black sibling tree is balanced by construction, so its depth is logarithmic and recursion is
   // safe. A hostile file is under no such obligation: linking every entry as the left child of the one
