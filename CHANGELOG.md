@@ -45,6 +45,13 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   `isFillPatternType`, `isVisibility` and fifteen more): two were published and eighteen were not,
   with no rule saying why. Both are additive, and both are now gated.
 
+- **BREAKING: `WorksheetStreamWriter` can no longer be constructed, and its `flushRow`/`flushedSheet`
+  are no longer callable.** All three were the streaming writer's own plumbing on a published class:
+  the constructor took a `StyleRegistry`, `flushedSheet()` returned a `FlushedSheet`, and between them
+  they named seven internal types no entry barrel exports, so a consumer could hold a value whose type
+  they could not write. A caller receives the sheet writer from `WorkbookStreamWriter.addWorksheet`,
+  which is unchanged and is the only way it was ever meant to be obtained.
+
 ### Fixed
 
 - **A streamed collapsed outline group rendered expanded when a cell in its summary row held the
