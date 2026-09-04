@@ -105,14 +105,8 @@ interface DeferredFormula {
  * non-empty cell with the style its index resolves to in `xfStyles` and, for a formula cell, the text
  * its token stream decodes to through `scope`.
  */
-export function parseWorksheet(
-  part: Uint8Array,
-  sheet: Worksheet,
-  sharedStrings: readonly string[],
-  xfStyles: ReadonlyArray<XfStyle>,
-  scope: FormulaScope,
-  dateEpoch: DateEpoch,
-): void {
+export function parseWorksheet(part: Uint8Array, context: WorksheetReadContext): void {
+  const {sheet, xfStyles, scope} = context;
   // The open row, one-based as the model counts them. -1 means none is open, which a cell record
   // arriving before any row header (a malformed sheet) is dropped against rather than guessed at.
   let row = -1;
@@ -162,16 +156,7 @@ export function parseWorksheet(
         rgcb: reader.bytes(reader.u32()),
       });
     } else if (cellRecord !== undefined) {
-      const member = readCellRecord(cellRecord, reader, {
-        sheet,
-        sharedStrings,
-        xfStyles,
-        scope,
-        dateEpoch,
-        row,
-        rowStyle,
-        columnStyle,
-      });
+      const member = readCellRecord(cellRecord, reader, {...context, row, rowStyle, columnStyle});
       if (member !== undefined) deferred.push(member);
     }
   }
@@ -188,15 +173,27 @@ export function parseWorksheet(
   }
 }
 
-/** What reading one cell record needs from the sheet around it: the tables it resolves through, and
- * the row it is currently inside. */
-interface CellRecordContext {
+/**
+ * What reading a worksheet part needs around it: the sheet being filled and the three tables its
+ * records resolve through, plus the date system a serial under a date format counts from.
+ *
+ * One value rather than five positional arguments, two of them arrays and two of those `readonly
+ * string[]`/`ReadonlyArray<XfStyle>` -- a run whose order the call site cannot be read against, on a
+ * reader that decides what every cell in the sheet says. It is also exactly the half of
+ * {@link CellRecordContext} that does not change between records, which is why that one extends it
+ * and the record loop spreads this one into it.
+ */
+export interface WorksheetReadContext {
   readonly sheet: Worksheet;
   readonly sharedStrings: readonly string[];
   readonly xfStyles: ReadonlyArray<XfStyle>;
   readonly scope: FormulaScope;
   /** The workbook's date system, from `BrtWbProp`: what a serial under a date format counts from. */
   readonly dateEpoch: DateEpoch;
+}
+
+/** What reading one cell record needs: the sheet around it, and the row it is currently inside. */
+interface CellRecordContext extends WorksheetReadContext {
   /** The open row, one-based; -1 when none is, which is a malformed sheet. */
   readonly row: number;
   readonly rowStyle: number;

@@ -92,20 +92,47 @@ export function decodeFormula(
   }
 }
 
+/**
+ * The state one walk of a parsed-expression stream carries: the token stream, the extra-data block
+ * the classed tokens read their payloads from, the operand stack, the scope a name or a sheet index
+ * resolves against, and the sink that appends a result and reports whether the stream is still
+ * decodable.
+ *
+ * One value because it is one value, and because two of its fields are `RecordReader` and sat side
+ * by side in a positional list: transposing them compiles, and yields a decoder that reads operand
+ * payloads out of the wrong buffer -- which does not throw, it produces a plausible wrong formula,
+ * from bytes that came out of a file.
+ *
+ * `readonly` fixes the references, not what they point at: both readers are cursors every token
+ * advances, and the stack is popped and pushed in place. This is the walk's mutable state, held in
+ * one place; it is not a value and must never be copied per token.
+ */
+interface Decode {
+  readonly tokens: RecordReader;
+  readonly extra: RecordReader;
+  readonly stack: string[];
+  readonly scope: FormulaScope;
+  readonly push: (text: string | undefined) => boolean;
+}
+
 function decodeTokens(rgce: Uint8Array, rgcb: Uint8Array, scope: FormulaScope): string | undefined {
-  const tokens = new RecordReader(rgce);
-  const extra = new RecordReader(rgcb);
   const stack: string[] = [];
-  // Pushing `undefined` is how an undecodable token is reported without unwinding: the loop stops and
-  // the arity check below rejects the stream. It keeps every token case a plain expression.
-  const push = (text: string | undefined): boolean => {
-    if (text === undefined) return false;
-    stack.push(text);
-    return true;
+  const decode: Decode = {
+    tokens: new RecordReader(rgce),
+    extra: new RecordReader(rgcb),
+    stack,
+    scope,
+    // Pushing `undefined` is how an undecodable token is reported without unwinding: the loop stops
+    // and the arity check below rejects the stream. It keeps every token case a plain expression.
+    push: (text: string | undefined): boolean => {
+      if (text === undefined) return false;
+      stack.push(text);
+      return true;
+    },
   };
 
-  while (!tokens.done) {
-    if (!step(tokens.u8(), tokens, extra, stack, scope, push)) return undefined;
+  while (!decode.tokens.done) {
+    if (!step(decode.tokens.u8(), decode)) return undefined;
   }
   return stack.length === 1 ? stack[0] : undefined;
 }
@@ -127,15 +154,11 @@ export function formulaAnchor(rgce: Uint8Array, rgcb: Uint8Array): FormulaAnchor
   return {row, column: extra.u32()};
 }
 
-// One token: decode it, mutate the stack, and report whether the stream is still decodable.
-function step(
-  ptg: number,
-  tokens: RecordReader,
-  extra: RecordReader,
-  stack: string[],
-  scope: FormulaScope,
-  push: (text: string | undefined) => boolean,
-): boolean {
+// One token: decode it, mutate the stack, and report whether the stream is still decodable. The ptg
+// stays a positional argument, here and in `operand` below, because it is the one thing that varies
+// per call; folding it into the state would hide that.
+function step(ptg: number, decode: Decode): boolean {
+  const {tokens, stack, push} = decode;
   const binary = BINARY_OPERATORS.get(ptg);
   if (binary !== undefined) {
     const right = stack.pop();
@@ -163,7 +186,7 @@ function step(
     case PTG.Str:
       return push(quoteString(tokens.shortString()));
     case PTG.Attr:
-      return attribute(tokens, stack, push);
+      return attribute(decode);
     case PTG.Err:
       return push(errorCodeFor(tokens.u8()));
     case PTG.Bool:
@@ -176,27 +199,14 @@ function step(
       // Every remaining token is an operand or call whose meaning is independent of its result class
       // (reference, value, or array): the class only tells the calculation engine how to coerce it.
       return ptg >= CLASSED_TOKEN_FLOOR
-        ? operand(
-            (ptg & CLASSED_TOKEN_MASK) | CLASSED_TOKEN_FLOOR,
-            tokens,
-            extra,
-            stack,
-            scope,
-            push,
-          )
+        ? operand((ptg & CLASSED_TOKEN_MASK) | CLASSED_TOKEN_FLOOR, decode)
         : false;
   }
 }
 
 // A class-carrying operand or call token, reduced to its base ptg.
-function operand(
-  base: number,
-  tokens: RecordReader,
-  extra: RecordReader,
-  stack: string[],
-  scope: FormulaScope,
-  push: (text: string | undefined) => boolean,
-): boolean {
+function operand(base: number, decode: Decode): boolean {
+  const {tokens, extra, stack, scope, push} = decode;
   switch (base) {
     case PTG.Array:
       tokens.skip(14); // A size hint the extra-data block restates; the block is the authority.
@@ -209,7 +219,7 @@ function operand(
       return fn !== undefined && fn[1] !== 'variadic' && push(call(fn[0], fn[1], stack));
     }
     case PTG.FuncVar:
-      return variadicCall(tokens, stack, push);
+      return variadicCall(decode);
     case PTG.Name: {
       // Cited 1-based, and into the *unfiltered* name list: the placeholder names Excel registers for
       // post-2007 functions occupy indices too, even though they are not the workbook's defined names.
@@ -256,11 +266,7 @@ function operand(
 // Almost all are invisible in the formula text: the jump offsets an `IF` uses to skip the branch it
 // did not take, the marker on a volatile function. The one that carries meaning is `bitSum`, Excel's
 // encoding of a single-argument `SUM`, which is a call by any other name.
-function attribute(
-  tokens: RecordReader,
-  stack: string[],
-  push: (text: string | undefined) => boolean,
-): boolean {
+function attribute({tokens, stack, push}: Decode): boolean {
   const flags = tokens.u8();
   const data = tokens.u16();
   if ((flags & ATTR_CHOOSE) !== 0) {
@@ -279,11 +285,7 @@ function attribute(
 // `PtgFuncVar` ([MS-XLSB] 2.5.97.4): a call whose argument count is in the token. Index 255 is not a
 // function at all but the indirection every post-2007 function is called through: the name comes from
 // the stream's first operand, which is a `PtgName` pointing at Excel's `_xlfn.`-prefixed placeholder.
-function variadicCall(
-  tokens: RecordReader,
-  stack: string[],
-  push: (text: string | undefined) => boolean,
-): boolean {
+function variadicCall({tokens, stack, push}: Decode): boolean {
   const count = tokens.u8() & FUNCVAR_PARAM_MASK;
   const index = tokens.u16() & FUNCVAR_INDEX_MASK;
   if (index !== FTAB_USER_DEFINED) {

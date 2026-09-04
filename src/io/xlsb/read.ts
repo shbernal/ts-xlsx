@@ -115,7 +115,13 @@ export function readXlsbPackage(
     const target = declared.relId === undefined ? undefined : rels.byId(declared.relId)?.target;
     const part = target === undefined ? undefined : partBytes(rels.pathOf(target));
     if (part !== undefined)
-      parseWorksheet(part, sheet, sharedStrings, cellXfs, scope, declaration.dateEpoch);
+      parseWorksheet(part, {
+        sheet,
+        sharedStrings,
+        xfStyles: cellXfs,
+        scope,
+        dateEpoch: declaration.dateEpoch,
+      });
   }
   for (const defined of definedNames(declaration, scope)) workbook.defineName(defined);
   return workbook;
