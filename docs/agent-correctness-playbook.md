@@ -88,9 +88,9 @@ saying so. `--tsconfig` does not substitute; it overrides import resolution only
 pass fails the gate. Every suppression in this tree carries its reason after a `--`; if you add
 one without a reason, you have recorded that you silenced something and not why.
 
-**Run one corpus case, not 265, while you iterate.**
-`node test/corpus/run.ts --case <id-or-cluster-glob>` is well under a second against ~13 s for
-the whole corpus, and prints the case in full. `--json` gives one machine-readable report
+**Run one corpus case, not the whole corpus, while you iterate.**
+`node test/corpus/run.ts --case <id-or-cluster-glob>` is well under a second against tens of
+seconds for the whole corpus, and prints the case in full. `--json` gives one machine-readable report
 object. The summary line reaches stdout in *every* mode, so never pipe a run through `grep` to
 find a case, and never run the corpus twice to get both the detail and the tally.
 

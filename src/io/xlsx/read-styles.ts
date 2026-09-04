@@ -147,8 +147,11 @@ export function parseStyleTable(xml: string): StyleTable {
     next = events.next();
   }
 
-  // The four preserved sub-tables come out of one scan of the same part, which is what four callers
-  // used to take four regular expressions and four scans of their own to get.
+  // The four preserved sub-tables come out of one scan *of the four*, which is what four callers used
+  // to take four regular expressions and four scans of their own to get. It is a second scan of the
+  // part, deliberately: `elementSubtrees` captures verbatim source spans and the walk above builds a
+  // model, so one pass cannot do both without the event stream carrying offsets it does not carry.
+  // ADR-0004 records that seam and what it would cost to close.
   const {fragments, attributes} = elementSubtrees(xml, PRESERVED_SUBTREES);
   const preserved: PreservedStyleTables = {
     dxfs: fragments.get('dxfs') ?? [],

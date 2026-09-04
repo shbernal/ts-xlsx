@@ -604,6 +604,25 @@ form to keep and is dropped. Without that bound a hostile file read cleanly and 
 `AuthoringError: cannot write U+0001 at offset 2` on the *next save*, which is the same taxonomy
 violation arriving by a longer route.
 
+### What an audit of the read path has already checked
+
+A read-only audit of `src/` in September 2026 looked for the classic parser failures and found none.
+Recorded here so the next one spends its budget elsewhere, and so that a change to any of these is
+recognisable as a change to a property somebody checked rather than to an implementation detail.
+
+- **Entity expansion and XXE are structurally absent**, not mitigated. The scanner knows five
+  entities by name, leaves an unknown one verbatim, and skips a `<!DOCTYPE>` by balancing brackets.
+  There is nothing to expand.
+- **Path traversal in a relationship target is clamped.** `resolveRelativePart` pops `..` without
+  going below the root, and a part is a key in a map, never a filesystem path.
+- **The inflate bound consults no declared size.** The counter aborts on bytes actually produced, so
+  a header that lies about its uncompressed length buys nothing.
+- **`<dimension ref>` and `<row spans>` drive no preallocation.** Both are hints a file chooses, and
+  a reader that sized an array from one would let a few bytes of XML ask for an arbitrary allocation.
+- **Attribute coercion is one vocabulary.** No hand-rolled `attr === '1'` or bare `Number(attr)`
+  survives on the read path; `xml-attrs.ts` is the whole of it, and its answer to an unreadable value
+  is always `undefined`.
+
 There is deliberately no "not implemented yet" code. Every candidate turned out to be an
 unreachable exhaustiveness guard, and the one real feature gap, that a binary `.xlsb` cannot be
 row-streamed, is already reported through `UnsupportedFormatError`'s `format` branch.

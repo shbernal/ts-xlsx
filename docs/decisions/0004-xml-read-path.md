@@ -57,7 +57,7 @@ same component that path will extend, not throwaway work.
 The original slice bounded inflation by the zip's *declared* uncompressed size, and flagged
 the gap: a header-lying bomb (declares small, inflates large) slips past, and worse,
 trusting the declared size to preallocate lets an attacker force a large allocation from a
-few compressed bytes. Both are now closed by `src/io/xlsx/inflate.ts`: the package is fed to
+few compressed bytes. Both are now closed by `src/io/opc/inflate.ts`: the package is fed to
 fflate's streaming unzip in bounded slices, the decompressor grows its output from the bytes
 it *actually* produces, and a running counter aborts the moment real output crosses the cap.
 Declared sizes are consulted for nothing. `maxUncompressedBytes` now bounds produced output,
@@ -136,8 +136,35 @@ shared formulas (it surfaces the clone's own cached result) and must **not** ope
 streamed inline string flattens to text). `finalize`'s plain path is itself routed through `decode`,
 so there is exactly one `RawCell`-build and one decode. Sharing gathering while forking finalisation
 is what lets the two readers stay honest to their different contracts without duplicating the fragile
-part. A malformed non-empty `<c r>` now throws in `beginCell` for *both* readers, closing another way
+part. A malformed non-empty `<c r>` is handled in `beginCell` for *both* readers, closing another way
 the two could have diverged.
+
+**It is dropped there, not thrown.** This paragraph said "throws" until 2026-09-04, and it was the
+first thing an agent read before touching the path: it cited a behaviour the reader does not have and
+must not have, so an agent trusting it would have "restored" a bug. A `<c>` whose `r` names no cell
+that can exist (`A0`, `ZZZZ1`, `junk!!`) is treated as one with no address at all, which is the
+stance every other unreadable foreign attribute gets, and the stance this whole document argues for:
+a file this library did not write is allowed to be wrong, and losing one cell beats losing the sheet.
+The thing that had to be shared between the two readers was the *decision*, not the throw, and it is:
+`cell-accumulator.ts` makes it once.
+
+## Update (2026-09-04): two conventions here have no machine check
+
+Both are held by review, and saying so is the point: a convention a reader assumes is gated is one
+they stop checking.
+
+**The `read-` prefix** (ADR-0030) is enforced by review and nothing else. It has slipped once
+already: `rich-runs.ts` was read-only and unprefixed for as long as it existed, and is
+`read-rich-runs.ts` now.
+
+**`elementSubtrees` is a deliberate second scanner** over the same text, and the two must agree to the
+character about where an element ends. That is why `markupAt` and `tagAt` are exported rather than
+private: the classification is shared even though the walks are not. The seam that would make the
+agreement structural is to give `xmlEvents` the source offsets it already computes, so
+`elementSubtrees` becomes a consumer doing `source.slice(…)` rather than a parallel scan. That costs
+two numbers per event on the hot worksheet path, so it is a measurement rather than a refactor, and
+it has not been made. Until it is, the agreement is maintained by hand and this is where that is
+written down.
 
 ## Update (2026-08-30): the scanner and the ways of driving it are two modules
 

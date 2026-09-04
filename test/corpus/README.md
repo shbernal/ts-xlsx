@@ -63,7 +63,7 @@ This is the line the corpus draws. A case cannot see how the library is built: i
 outlive the rewrite. A case _can_ see the shape of the capability it calls: the name, the
 arguments, the return type. That is the contract it is written against. `CorpusApi`
 was `any` for years on the theory that hiding it bought independence; it bought nothing and
-cost 832 behaviors their type-checking, including a case that carried a branch for a shape
+cost every behavior its type-checking, including a case that carried a branch for a shape
 the API cannot return. When you genuinely need to opt out, `Untyped` from `../untyped.ts`
 says so out loud and is countable. Its module comment carries the command and says which
 of the remaining uses are deliberate.
@@ -347,6 +347,6 @@ A behavior passed (`✓`) or it failed (`✗`), and any failure exits 1.
 It used to be a four-state comparison, crossing each behavior's recorded `baseline` against
 its actual result: green, `○` known-open, `✗` regression, `↑` newly-fixed. That
 was the right instrument for measuring a half-built library against the one it replaced.
-With one implementation left, all 832 behaviors recorded `baseline: 'pass'`, three of the
+With one implementation left, every behavior recorded `baseline: 'pass'`, three of the
 four states were unreachable, and the runner was comparing against a constant. A behavior in
 the corpus is a behavior that must hold; there is nothing else for it to be.

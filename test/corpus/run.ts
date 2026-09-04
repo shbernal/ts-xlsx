@@ -9,7 +9,7 @@
 // started passing. That machinery existed because there were two implementations and the corpus
 // measured a half-built one against the library it was replacing.
 //
-// One implementation remained, every one of the 832 behaviors recorded `baseline: 'pass'`, and three of
+// One implementation remained, every behavior recorded `baseline: 'pass'`, and three of
 // the four states became unreachable: the runner carried a comparison whose second operand was a
 // constant. So the baseline is gone and this reports what it actually knows: a behavior passed, or it
 // failed and the build is red.
@@ -122,8 +122,8 @@ async function loadCases(): Promise<Case[]> {
 }
 
 /**
- * Narrow to the cases any pattern matches, on `id` or `cluster`. Importing all 265
- * cases costs ~0.2 s against a ~10 s full run, so filtering after load buys nearly
+ * Narrow to the cases any pattern matches, on `id` or `cluster`. Importing every
+ * case costs a fraction of a second against a full run of tens, so filtering after load buys nearly
  * the whole saving while matching the case's *durable* identity rather than its
  * filename.
  */
@@ -165,7 +165,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   // Filtering to specific cases is a "show me this one" act, so it lists every
   // behavior by default; an unfiltered run reports only what needs attention,
-  // because 756 ✓ lines are noise to every reader we have.
+  // because a ✓ per behavior is noise to every reader we have.
   const verbose = args.verbose ?? args.patterns.length > 0;
   // Under --json stdout carries exactly one object, so nothing else may print there.
   const say = (line: string) => {

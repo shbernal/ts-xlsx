@@ -14,7 +14,7 @@
 # the tool sees an argument. Measured on this machine with a `--version` call,
 # which does no work at all — ~0.94 s through `pnpm exec`, ~0.51 s through the
 # `.bin` shim, ~0.21 s direct. That is overhead, not lint, and it now dwarfs the
-# work: oxlint takes 0.32 s over all 511 files.
+# work: oxlint takes a fraction of a second over the whole tree.
 
 # The commit-msg gates live in shbernal/lefthook-rules, not here, because they
 # are not about this project: every repo wants them and every repo would

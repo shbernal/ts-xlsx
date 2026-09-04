@@ -226,7 +226,7 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
     {name: 'test:site', steps: [{command: NODE, args: ['--test', 'www/**/*.test.ts']}]},
     // Its own gate, not a step of `lint`: they are two tools now, and a combined gate
     // reports one failure without saying which of them produced it. Whole-tree even in
-    // --quick mode, because the check is ~0.7 s against the whole 511 files, so scoping it to
+    // --quick mode, because the check is under a second against the whole tree, so scoping it to
     // changed files would buy nothing and add a second definition of the file set.
     {name: 'format', steps: [{command: NODE, args: ['scripts/format.ts', '--check']}]},
     // Every project in one gate, deliberately sequential: two `tsc` processes each

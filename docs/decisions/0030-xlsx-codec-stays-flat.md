@@ -55,6 +55,11 @@ a gate for it cannot be written honestly today.
 So the convention is documented in `docs/architecture.md`, which now describes the three kinds of
 module and why the tidy-up is wrong, and enforced by review.
 
+**Enforced by review means enforced by nobody in particular, and it has already slipped once.**
+`rich-runs.ts` was read-only and unprefixed for as long as it existed, and is `read-rich-runs.ts`
+since 2026-09-04. The reason a checker is still the wrong answer is above and unchanged; the reason
+to say this here is that a convention a reader assumes is gated is a convention they stop checking.
+
 ## Consequences
 
 - **Good:** the seven bidirectional feature modules stay whole. The one real read-to-write dependency

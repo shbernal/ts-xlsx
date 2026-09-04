@@ -19,7 +19,7 @@
 // beside `workbook-xml.ts` which writes exactly those elements, because this tree keeps both
 // directions of one wire form together and the workbook part was the last place that was not true.
 //
-// Untrusted input: inflate is bounded by a running byte counter (`./inflate.ts`) that caps
+// Untrusted input: inflate is bounded by a running byte counter (`../opc/inflate.ts`) that caps
 // actual decompressed output rather than trusting the archive's forgeable size headers, and
 // the parser (ADR 0004) never expands entities.
 
