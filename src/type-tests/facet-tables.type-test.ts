@@ -38,6 +38,7 @@ import type {
 } from '../core/style.ts';
 import type {EveryTableStyleInfoFieldIsCloned} from '../core/table.ts';
 import type {EveryWorksheetModelFieldHasAFacet} from '../core/worksheet-model.ts';
+import type {EverySlotIsInSchemaOrder} from '../io/xlsx/theme-xml.ts';
 import type {Equal, Expect} from './expect.ts';
 
 export type FacetTableExhaustiveness = [
@@ -57,6 +58,9 @@ export type FacetTableExhaustiveness = [
   // A list, not a record, so it owes the other half of its proof explicitly: BIFF12 indexes the fill
   // patterns, so the enumeration is needed in order and an ordered list can omit a member silently.
   Expect<Equal<EveryFillPatternIsOrdered, never>>,
+  // The other ordered list, and the one whose order is not the one the model indexes by: a theme
+  // colour slot missing from the schema order is dropped from every rewritten `<a:clrScheme>`.
+  Expect<Equal<EverySlotIsInSchemaOrder, never>>,
   // The defensive copies: a field added to one of these types without a copy strategy would
   // otherwise be carried by reference into the model, aliasing the caller's object silently.
   Expect<Equal<EveryRuleFieldIsCloned, never>>,

@@ -13,6 +13,7 @@
 // Nothing but the xlsx codec reads a theme today; the day a second one does, this moves to a shared
 // home and not before.
 
+import type {AssertNever} from '../../core/internal.ts';
 import {
   DEFAULT_THEME_COLOR_SCHEME,
   isThemeColorSlot,
@@ -155,7 +156,7 @@ export function parseThemeFontScheme(themeXml: string): ThemeFontScheme {
 // The `<a:clrScheme>` child order: dk1, lt1, dk2, lt2, accent1..6, hlink, folHlink. Not the order
 // `theme="n"` indexes (see THEME_COLOR_SLOTS); this is the sequence CT_ColorScheme requires the
 // elements to be written in, and writing them in index order would be schema-invalid.
-const SCHEME_ELEMENT_ORDER: readonly ThemeColorSlot[] = [
+const SCHEME_ELEMENT_ORDER = [
   'dk1',
   'lt1',
   'dk2',
@@ -168,7 +169,21 @@ const SCHEME_ELEMENT_ORDER: readonly ThemeColorSlot[] = [
   'accent6',
   'hlink',
   'folHlink',
-];
+] as const satisfies readonly ThemeColorSlot[];
+
+/**
+ * The half of the proof the list above owes: `satisfies` covers "no invented slot", this covers "no
+ * omission". A slot missing here is not a slot written in the wrong place -- it is a slot dropped
+ * from every rewritten `<a:clrScheme>`, verbatim source element and all, so a caller who authored it
+ * gets back a theme that silently does not carry it.
+ *
+ * This is the one list in the library where the schema order and the index order differ, which makes
+ * it the one a new slot is least likely to be added to by hand. `DEFAULT_THEME_COLOR_SCHEME` proves
+ * the same completeness on the model side.
+ */
+export type EverySlotIsInSchemaOrder = AssertNever<
+  Exclude<ThemeColorSlot, (typeof SCHEME_ELEMENT_ORDER)[number]>
+>;
 
 /**
  * Apply authored colour/font overrides to a theme part, returning the new part text.
