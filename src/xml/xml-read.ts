@@ -14,6 +14,7 @@ import {
   localName,
   markupAt,
   parseAttributes,
+  type Tag,
   tagAt,
   type XmlAttributes,
   type XmlEvent,
@@ -54,6 +55,40 @@ export interface SubtreeCapture {
 }
 
 /**
+ * Every element tag in `source`, in document order, with the offsets an offset-based reader needs:
+ * where the `<` sits, the tag as {@link tagAt} split it, and its namespace-stripped local name.
+ * Markup that is not a tag -- a comment, a CDATA section, a processing instruction, a declaration --
+ * is stepped over through {@link markupAt} and never yielded.
+ *
+ * The two functions below work on offsets rather than events, so neither can go through
+ * {@link xmlEvents}, which hands back decoded payloads and no positions. That is the whole of what
+ * they share, and it is the part that must not drift: they are run over the same part
+ * (`parseStyleTable` puts both over `xl/styles.xml`), so a form one walk skipped and the other did
+ * not would make them disagree about where an element ends. `markupAt` and `tagAt` are shared for
+ * that reason; the loop that drives them is shared for the same one.
+ *
+ * Deliberately private: each of the two below builds a different state machine on top of this, and
+ * publishing the walk would invite a third offset scanner rather than a third caller of these two.
+ */
+function* rawTags(source: string): Generator<{lt: number; tag: Tag; local: string}> {
+  const length = source.length;
+  let i = 0;
+  while (i < length) {
+    const lt = source.indexOf('<', i);
+    if (lt === -1) break;
+    const markup = markupAt(source, lt);
+    if (markup !== undefined) {
+      i = markup.next;
+      continue;
+    }
+    const tag = tagAt(source, lt);
+    // Advanced before the yield, so a consumer that `continue`s still moves the scan on.
+    i = tag.next;
+    yield {lt, tag, local: localName(tag.name)};
+  }
+}
+
+/**
  * Capture the verbatim source text of selected elements, in one scan.
  *
  * Some content is re-emitted byte for byte rather than modelled: a differential style, a custom
@@ -87,19 +122,7 @@ export function elementSubtrees(source: string, selection: SubtreeSelection): Su
   // it, so `</name>` for a descendant does not end the capture.
   let capture: {local: string; start: number; depth: number} | undefined;
 
-  const length = source.length;
-  let i = 0;
-  while (i < length) {
-    const lt = source.indexOf('<', i);
-    if (lt === -1) break;
-    const markup = markupAt(source, lt);
-    if (markup !== undefined) {
-      i = markup.next;
-      continue;
-    }
-
-    const tag = tagAt(source, lt);
-    const local = localName(tag.name);
+  for (const {lt, tag, local} of rawTags(source)) {
     if (tag.close) {
       if (capture !== undefined && local === capture.local) {
         if (capture.depth > 0) capture.depth -= 1;
@@ -114,7 +137,6 @@ export function elementSubtrees(source: string, selection: SubtreeSelection): Su
           container = undefined;
         }
       }
-      i = tag.next;
       continue;
     }
 
@@ -138,7 +160,6 @@ export function elementSubtrees(source: string, selection: SubtreeSelection): Su
         }
       }
     }
-    i = tag.next;
   }
 
   if (capture !== undefined) {
@@ -197,19 +218,7 @@ export function elementRange(source: string, path: readonly string[]): ElementRa
     | {start: number; contentStart: number; name: string; attrs: XmlAttributes}
     | undefined;
 
-  const length = source.length;
-  let i = 0;
-  while (i < length) {
-    const lt = source.indexOf('<', i);
-    if (lt === -1) break;
-    const markup = markupAt(source, lt);
-    if (markup !== undefined) {
-      i = markup.next;
-      continue;
-    }
-    const tag = tagAt(source, lt);
-    const local = localName(tag.name);
-
+  for (const {lt, tag, local} of rawTags(source)) {
     if (tag.close) {
       const innermost = open.at(-1);
       if (innermost !== undefined && innermost.local === local) {
@@ -221,19 +230,10 @@ export function elementRange(source: string, path: readonly string[]): ElementRa
           }
         }
       }
-      i = tag.next;
       continue;
     }
 
-    const wanted = path[open.length];
-    if (pending !== undefined) {
-      // Inside the element being measured: only its own name nesting matters, and `open` already
-      // holds it, so count the depth there.
-      const innermost = open.at(-1);
-      if (innermost !== undefined && !tag.selfClosing && innermost.local === local) {
-        innermost.depth += 1;
-      }
-    } else if (local === wanted) {
+    if (pending === undefined && local === path[open.length]) {
       const last = open.length === path.length - 1;
       if (last) {
         if (tag.selfClosing) {
@@ -257,12 +257,13 @@ export function elementRange(source: string, path: readonly string[]): ElementRa
         open.push({local, depth: 0});
       }
     } else {
+      // Either inside the element being measured, or on a name no step of the path wants. Both are
+      // the same question: does this tag deepen the innermost open element's nesting in itself?
       const innermost = open.at(-1);
       if (innermost !== undefined && !tag.selfClosing && innermost.local === local) {
         innermost.depth += 1;
       }
     }
-    i = tag.next;
   }
 
   if (pending !== undefined) {
