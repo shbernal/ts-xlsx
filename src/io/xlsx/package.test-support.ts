@@ -146,3 +146,51 @@ export function readPatched(parts: Record<string, string>): Workbook {
   for (const [name, xml] of Object.entries(parts)) files[name] = strToU8(xml);
   return readXlsx(zipSync(files));
 }
+
+// The three parts every hand-authored foreign package needs, plus the content-type declaration a
+// real one always carries. Not what this library writes -- what a *foreign* generator minimally
+// emits: one sheet named `S`, reached by relationship, with an empty `<sheetData>`.
+//
+// The relationship `Type` is the placeholder `x` on purpose. The reader resolves a worksheet by
+// following the `r:id` the sheet list cites, not by matching the relationship's type, and fourteen
+// hand-built packages relied on that without any of them saying so.
+const FOREIGN_PACKAGE_DEFAULTS: Record<string, string> = {
+  '[Content_Types].xml':
+    '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="xml" ContentType="application/xml"/></Types>',
+  'xl/workbook.xml':
+    '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
+  'xl/_rels/workbook.xml.rels':
+    '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
+  [SHEET1]: '<?xml version="1.0"?><worksheet><sheetData/></worksheet>',
+};
+
+/**
+ * A package assembled from hand-authored parts: what a *foreign* generator might emit, as distinct
+ * from {@link readPatched}, which starts from a package this library wrote. This is how a reader case
+ * says "given this markup and nothing else".
+ *
+ * Fourteen cases in one file built this by hand, four or five entries each, with the two long
+ * namespace URIs spelled out every time. The duplication was the smaller cost: each copy also made
+ * an undeclared claim about what the reader tolerates -- most omitted `[Content_Types].xml`, none
+ * declared a content type for the worksheet -- and those claims were spread across fourteen literals
+ * where nobody could see them together.
+ *
+ * Override any part by path, add any part by path, and pass `undefined` to drop a default one, which
+ * is how a case says "and no content types at all". Returns the zipped bytes, since that is what
+ * every caller wants: a package to hand to the reader.
+ */
+export function foreignPackage(parts: Record<string, string | undefined> = {}): Uint8Array {
+  const files: Record<string, Uint8Array> = {};
+  for (const [path, xml] of Object.entries({...FOREIGN_PACKAGE_DEFAULTS, ...parts})) {
+    if (xml !== undefined) files[path] = strToU8(xml);
+  }
+  return zipSync(files);
+}
+
+/** A worksheet part around hand-authored `<row>` markup: the override a reader case makes most. */
+export function foreignSheet(rows: string): string {
+  return `<?xml version="1.0"?><worksheet><sheetData>${rows}</sheetData></worksheet>`;
+}

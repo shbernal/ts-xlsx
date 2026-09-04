@@ -13,6 +13,8 @@ import {conditionalFormattingPass} from './conditional-formatting.ts';
 import {dataValidationPass, extendedDataValidationPass} from './data-validation.ts';
 import {sheetHyperlinkPass} from './hyperlinks.ts';
 import {
+  foreignPackage,
+  foreignSheet,
   optionalPartText,
   partText,
   patchParts,
@@ -475,29 +477,14 @@ test('a cell overriding one facet keeps the column’s other facet default', () 
 test('a built-in numFmt id on a foreign cell resolves to its standard format code', () => {
   // A foreign generator names a built-in format by id with no <numFmt> entry; the reader
   // resolves it from the standard table (id 10 = "0.00%").
-  const files: Record<string, Uint8Array> = {
-    '[Content_Types].xml': strToU8(
-      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-        '<Default Extension="xml" ContentType="application/xml"/></Types>',
-    ),
-    'xl/workbook.xml': strToU8(
-      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/styles.xml': strToU8(
+  const pkg = foreignPackage({
+    'xl/styles.xml':
       '<?xml version="1.0"?><styleSheet><fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
-        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
-        '<xf numFmtId="10" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>',
-    ),
-    'xl/worksheets/sheet1.xml': strToU8(
-      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="1"><v>0.5</v></c></row></sheetData></worksheet>',
-    ),
-  };
-  const back = readXlsx(zipSync(files)).getWorksheet('S');
+      '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<xf numFmtId="10" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>',
+    [SHEET1]: foreignSheet('<row r="1"><c r="A1" s="1"><v>0.5</v></c></row>'),
+  });
+  const back = readXlsx(pkg).getWorksheet('S');
   assert.equal(back?.getCell('A1').numFmt, '0.00%');
 });
 
@@ -505,23 +492,11 @@ test('a custom indexed-color palette survives a read → write round-trip verbat
   const palette =
     '<colors><indexedColors><rgbColor rgb="ff000000"/><rgbColor rgb="ffffffff"/>' +
     '<rgbColor rgb="ff3f6797"/><rgbColor rgb="ffaaaaaa"/></indexedColors></colors>';
-  const files: Record<string, Uint8Array> = {
-    'xl/workbook.xml': strToU8(
-      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/styles.xml': strToU8(
-      `<?xml version="1.0"?><styleSheet><dxfs count="0"/>${palette}</styleSheet>`,
-    ),
-    'xl/worksheets/sheet1.xml': strToU8(
-      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1"><v>1</v></c></row></sheetData></worksheet>',
-    ),
-  };
-  const loaded = readXlsx(zipSync(files));
+  const pkg = foreignPackage({
+    'xl/styles.xml': `<?xml version="1.0"?><styleSheet><dxfs count="0"/>${palette}</styleSheet>`,
+    [SHEET1]: foreignSheet('<row r="1"><c r="A1"><v>1</v></c></row>'),
+  });
+  const loaded = readXlsx(pkg);
   assert.deepEqual(loaded.indexedColors, [
     '<rgbColor rgb="ff000000"/>',
     '<rgbColor rgb="ffffffff"/>',
@@ -551,22 +526,13 @@ test('a gradient fill in the <fills> list keeps its id slot so later fills still
     '<xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0"/>' +
     '<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0"/>' +
     '</cellXfs></styleSheet>';
-  const files: Record<string, Uint8Array> = {
-    'xl/workbook.xml': strToU8(
-      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/styles.xml': strToU8(styles),
-    'xl/worksheets/sheet1.xml': strToU8(
+  const pkg = foreignPackage({
+    'xl/styles.xml': styles,
+    [SHEET1]:
       '<?xml version="1.0"?><worksheet><sheetData><row r="1">' +
-        '<c r="A1" s="1"><v>1</v></c><c r="A2" s="2"><v>2</v></c></row></sheetData></worksheet>',
-    ),
-  };
-  const back = readXlsx(zipSync(files)).getWorksheet('S');
+      '<c r="A1" s="1"><v>1</v></c><c r="A2" s="2"><v>2</v></c></row></sheetData></worksheet>',
+  });
+  const back = readXlsx(pkg).getWorksheet('S');
   assert.equal(
     fillFgArgb(back?.getCell('A1').fill),
     'FFFF0000',
@@ -644,44 +610,23 @@ test('a path gradient fill round-trips its inner-rectangle insets', () => {
 });
 
 test('a Strict-mode t="d" cell parses to the ISO date it states, not a 1900 serial', () => {
-  const files: Record<string, Uint8Array> = {
-    'xl/workbook.xml': strToU8(
-      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/worksheets/sheet1.xml': strToU8(
-      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" t="d"><v>2024-02-09</v></c></row></sheetData></worksheet>',
-    ),
-  };
-  const cell = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1');
+  const pkg = foreignPackage({
+    [SHEET1]: foreignSheet('<row r="1"><c r="A1" t="d"><v>2024-02-09</v></c></row>'),
+  });
+  const cell = readXlsx(pkg).getWorksheet('S')?.getCell('A1');
   assert.equal(cell?.type, 'date');
   assert.equal((cell.value as Date).toISOString(), '2024-02-09T00:00:00.000Z');
 });
 
 test('a serial under a built-in locale date id (57) reads as a date, not a bare number', () => {
-  const files: Record<string, Uint8Array> = {
-    'xl/workbook.xml': strToU8(
-      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
+  const pkg = foreignPackage({
     // Built-in id 57 carries no <numFmt> entry: it is resolved from the built-in table.
-    'xl/styles.xml': strToU8(
+    'xl/styles.xml':
       '<?xml version="1.0"?><styleSheet><cellXfs count="2"><xf numFmtId="0"/>' +
-        '<xf numFmtId="57" applyNumberFormat="1"/></cellXfs></styleSheet>',
-    ),
-    'xl/worksheets/sheet1.xml': strToU8(
-      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="1"><v>45809</v></c></row></sheetData></worksheet>',
-    ),
-  };
-  const cell = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1');
+      '<xf numFmtId="57" applyNumberFormat="1"/></cellXfs></styleSheet>',
+    [SHEET1]: foreignSheet('<row r="1"><c r="A1" s="1"><v>45809</v></c></row>'),
+  });
+  const cell = readXlsx(pkg).getWorksheet('S')?.getCell('A1');
   assert.equal(cell?.type, 'date', 'a serial under a built-in date id reads as a date');
   assert.ok(cell?.numFmt, 'the built-in id resolves to a non-empty format code');
 });
@@ -770,27 +715,16 @@ test('a foreign font’s <u val="none"/> reads back as not underlined, not the t
   // Real producers write <u val="none"/> for the explicit ABSENCE of an underline. Surfacing the
   // literal "none" would be truthy: a consumer’s `if (font.underline)` would mistake it for an
   // underline, so the reader must read it back falsy.
-  const files: Record<string, Uint8Array> = {
-    'xl/workbook.xml': strToU8(
-      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/styles.xml': strToU8(
+  const pkg = foreignPackage({
+    'xl/styles.xml':
       '<?xml version="1.0"?><styleSheet>' +
-        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><u val="none"/></font></fonts>' +
-        '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
-        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
-        '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>',
-    ),
-    'xl/worksheets/sheet1.xml': strToU8(
-      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="1" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>',
-    ),
-  };
-  const underline = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').font?.underline;
+      '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><u val="none"/></font></fonts>' +
+      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+      '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>',
+    [SHEET1]: foreignSheet('<row r="1"><c r="A1" s="1" t="inlineStr"><is><t>x</t></is></c></row>'),
+  });
+  const underline = readXlsx(pkg).getWorksheet('S')?.getCell('A1').font?.underline;
   assert.ok(
     !underline,
     `<u val="none"/> must read back falsy, not the truthy string "none"; got ${JSON.stringify(underline)}`,
@@ -800,31 +734,16 @@ test('a foreign font’s <u val="none"/> reads back as not underlined, not the t
 test('a foreign font honours an explicit-false boolean flag rather than tag presence', () => {
   // A foreign generator writes <b/> (bold on) but <i val="0"/> (italic explicitly off). The
   // reader must honour the val: a present tag is not truthy on its own.
-  const files: Record<string, Uint8Array> = {
-    '[Content_Types].xml': strToU8(
-      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-        '<Default Extension="xml" ContentType="application/xml"/></Types>',
-    ),
-    'xl/workbook.xml': strToU8(
-      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/styles.xml': strToU8(
+  const pkg = foreignPackage({
+    'xl/styles.xml':
       '<?xml version="1.0"?><styleSheet>' +
-        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><i val="0"/></font></fonts>' +
-        '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
-        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
-        '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>',
-    ),
-    'xl/worksheets/sheet1.xml': strToU8(
-      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="1" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>',
-    ),
-  };
-  const font = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').font;
+      '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><i val="0"/></font></fonts>' +
+      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+      '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>',
+    [SHEET1]: foreignSheet('<row r="1"><c r="A1" s="1" t="inlineStr"><is><t>x</t></is></c></row>'),
+  });
+  const font = readXlsx(pkg).getWorksheet('S')?.getCell('A1').font;
   assert.equal(font?.bold, true, 'a bare <b/> is bold');
   assert.equal(font?.italic, false, '<i val="0"/> is explicitly not italic: the val is honoured');
 });
@@ -863,32 +782,17 @@ test('a cell bordered on one side does not fabricate the other three across a ro
 test('a foreign diagonal border reads its edge and diagonal direction', () => {
   // A foreign generator declares a diagonal border with diagonalUp; the reader must carry the
   // edge and the direction flag rather than dropping either.
-  const files: Record<string, Uint8Array> = {
-    '[Content_Types].xml': strToU8(
-      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-        '<Default Extension="xml" ContentType="application/xml"/></Types>',
-    ),
-    'xl/workbook.xml': strToU8(
-      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/styles.xml': strToU8(
+  const pkg = foreignPackage({
+    'xl/styles.xml':
       '<?xml version="1.0"?><styleSheet>' +
-        '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
-        '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
-        '<border diagonalUp="1"><left/><right/><top/><bottom/><diagonal style="thin"/></border></borders>' +
-        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
-        '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/></cellXfs></styleSheet>',
-    ),
-    'xl/worksheets/sheet1.xml': strToU8(
-      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="1" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>',
-    ),
-  };
-  const border = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').border;
+      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+      '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
+      '<border diagonalUp="1"><left/><right/><top/><bottom/><diagonal style="thin"/></border></borders>' +
+      '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/></cellXfs></styleSheet>',
+    [SHEET1]: foreignSheet('<row r="1"><c r="A1" s="1" t="inlineStr"><is><t>x</t></is></c></row>'),
+  });
+  const border = readXlsx(pkg).getWorksheet('S')?.getCell('A1').border;
   assert.equal(border?.diagonal?.style, 'thin', 'the diagonal edge survives');
   assert.equal(border?.diagonalUp, true, 'the diagonalUp direction is honoured');
   assert.equal(border?.top, undefined, 'a styleless edge is not fabricated');
@@ -935,30 +839,15 @@ test('alignment boolean flags left off do not read back spuriously enabled', () 
 test('a foreign alignment carrying only wrapText="0" reads back with no alignment', () => {
   // Excel writes an all-false alignment as wrapText="0"; the raw "0" is a truthy JS string, so a
   // reader that guards on presence rather than the parsed boolean would mistake it for present.
-  const files: Record<string, Uint8Array> = {
-    '[Content_Types].xml': strToU8(
-      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-        '<Default Extension="xml" ContentType="application/xml"/></Types>',
-    ),
-    'xl/workbook.xml': strToU8(
-      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/styles.xml': strToU8(
+  const pkg = foreignPackage({
+    'xl/styles.xml':
       '<?xml version="1.0"?><styleSheet>' +
-        '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
-        '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1">' +
-        '<alignment wrapText="0"/></xf></cellXfs></styleSheet>',
-    ),
-    'xl/worksheets/sheet1.xml': strToU8(
-      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="0" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>',
-    ),
-  };
-  assert.equal(readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').alignment, undefined);
+      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+      '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1">' +
+      '<alignment wrapText="0"/></xf></cellXfs></styleSheet>',
+    [SHEET1]: foreignSheet('<row r="1"><c r="A1" s="0" t="inlineStr"><is><t>x</t></is></c></row>'),
+  });
+  assert.equal(readXlsx(pkg).getWorksheet('S')?.getCell('A1').alignment, undefined);
 });
 
 test('cell protection round-trips the meaningful flags, and only the protected cell carries them', () => {
@@ -990,30 +879,15 @@ test('a default-locked cell does not read back as explicitly protected', () => {
 test('a foreign <protection locked="1">, an explicit default, reads back with no protection', () => {
   // A foreign generator states the default explicitly (locked on). Since locked defaults true,
   // that carries no information; the reader must not fabricate a { locked: true } protection.
-  const files: Record<string, Uint8Array> = {
-    '[Content_Types].xml': strToU8(
-      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-        '<Default Extension="xml" ContentType="application/xml"/></Types>',
-    ),
-    'xl/workbook.xml': strToU8(
-      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/styles.xml': strToU8(
+  const pkg = foreignPackage({
+    'xl/styles.xml':
       '<?xml version="1.0"?><styleSheet>' +
-        '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
-        '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1">' +
-        '<protection locked="1"/></xf></cellXfs></styleSheet>',
-    ),
-    'xl/worksheets/sheet1.xml': strToU8(
-      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="0" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>',
-    ),
-  };
-  assert.equal(readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').protection, undefined);
+      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+      '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1">' +
+      '<protection locked="1"/></xf></cellXfs></styleSheet>',
+    [SHEET1]: foreignSheet('<row r="1"><c r="A1" s="0" t="inlineStr"><is><t>x</t></is></c></row>'),
+  });
+  assert.equal(readXlsx(pkg).getWorksheet('S')?.getCell('A1').protection, undefined);
 });
 
 test('the inflate bound rejects a part whose declared size is over the cap', () => {
@@ -1037,25 +911,11 @@ test('a zip that is not an xlsx (no workbook part) is rejected, not misread', ()
 test('a t="s" shared-string cell resolves against the shared table', () => {
   // Our writer emits inlineStr, but the reader must also resolve shared strings that
   // foreign generators use. Assemble a minimal package by hand to exercise that path.
-  const files: Record<string, Uint8Array> = {
-    '[Content_Types].xml': strToU8(
-      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-        '<Default Extension="xml" ContentType="application/xml"/></Types>',
-    ),
-    'xl/workbook.xml': strToU8(
-      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/sharedStrings.xml': strToU8('<?xml version="1.0"?><sst><si><t>shared</t></si></sst>'),
-    'xl/worksheets/sheet1.xml': strToU8(
-      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c></row></sheetData></worksheet>',
-    ),
-  };
-  const back = readXlsx(zipSync(files)).getWorksheet('S');
+  const pkg = foreignPackage({
+    'xl/sharedStrings.xml': '<?xml version="1.0"?><sst><si><t>shared</t></si></sst>',
+    [SHEET1]: foreignSheet('<row r="1"><c r="A1" t="s"><v>0</v></c></row>'),
+  });
+  const back = readXlsx(pkg).getWorksheet('S');
   assert.equal(back?.getCell('A1').value, 'shared');
 });
 
@@ -1481,18 +1341,12 @@ test("a sheet-list entry's state attribute is read back as the worksheet visibil
 });
 
 test('an unknown state attribute on a sheet-list entry falls back to visible, not the raw string', () => {
-  const files: Record<string, Uint8Array> = {
-    'xl/workbook.xml': strToU8(
+  const pkg = foreignPackage({
+    'xl/workbook.xml':
       '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<sheets><sheet name="S" sheetId="1" state="bogus" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/worksheets/sheet1.xml': strToU8('<?xml version="1.0"?><worksheet><sheetData/></worksheet>'),
-  };
-  assert.equal(readXlsx(zipSync(files)).getWorksheet('S')?.state, 'visible');
+      '<sheets><sheet name="S" sheetId="1" state="bogus" r:id="rId1"/></sheets></workbook>',
+  });
+  assert.equal(readXlsx(pkg).getWorksheet('S')?.state, 'visible');
 });
 
 test('workbook structure protection survives a read→write round-trip', () => {
@@ -1518,20 +1372,14 @@ test('a workbook with no protection emits no <workbookProtection> and reads back
 });
 
 test('a workbook protection password/hash credential is preserved verbatim across a round-trip', () => {
-  const files: Record<string, Uint8Array> = {
-    'xl/workbook.xml': strToU8(
+  const pkg = foreignPackage({
+    'xl/workbook.xml':
       '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<workbookProtection workbookAlgorithmName="SHA-512" workbookHashValue="aGFzaA==" ' +
-        'workbookSaltValue="c2FsdA==" workbookSpinCount="100000" lockStructure="1"/>' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/worksheets/sheet1.xml': strToU8('<?xml version="1.0"?><worksheet><sheetData/></worksheet>'),
-  };
-  const back = readXlsx(zipSync(files));
+      '<workbookProtection workbookAlgorithmName="SHA-512" workbookHashValue="aGFzaA==" ' +
+      'workbookSaltValue="c2FsdA==" workbookSpinCount="100000" lockStructure="1"/>' +
+      '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
+  });
+  const back = readXlsx(pkg);
   assert.equal(back.protection?.lockStructure, true);
   assert.equal(back.protection?.credentials?.workbookAlgorithmName, 'SHA-512');
   assert.equal(back.protection?.credentials?.workbookSpinCount, '100000');
@@ -1543,19 +1391,13 @@ test('a workbook protection password/hash credential is preserved verbatim acros
 });
 
 test('an unknown attribute on <workbookProtection> is dropped, not echoed back on write', () => {
-  const files: Record<string, Uint8Array> = {
-    'xl/workbook.xml': strToU8(
+  const pkg = foreignPackage({
+    'xl/workbook.xml':
       '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<workbookProtection lockStructure="1" bogusAttr="evil"/>' +
-        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
-    ),
-    'xl/worksheets/sheet1.xml': strToU8('<?xml version="1.0"?><worksheet><sheetData/></worksheet>'),
-  };
-  const wbXml = partText(writeXlsx(readXlsx(zipSync(files))), 'xl/workbook.xml');
+      '<workbookProtection lockStructure="1" bogusAttr="evil"/>' +
+      '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
+  });
+  const wbXml = partText(writeXlsx(readXlsx(pkg)), 'xl/workbook.xml');
   assert.match(wbXml, /lockStructure="1"/);
   assert.doesNotMatch(wbXml, /bogusAttr/);
 });
