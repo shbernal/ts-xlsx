@@ -15,7 +15,7 @@
 
 import {importedPaths, sourceFiles, toPosix} from './module-graph.ts';
 import {ROOT as REPO_ROOT} from './repo.ts';
-import {verdict} from './verdict.ts';
+import {reportCrash, verdict} from './verdict.ts';
 
 // `/`-separated, because every path this gate reports is a graph key rather than a filesystem
 // argument; see module-graph.ts.
@@ -99,34 +99,46 @@ const RULES: readonly Rule[] = [
 const ENTRIES = 'src/entries';
 const ENTRY_COMPOSER = 'src/index.ts';
 
-const violations: string[] = [];
-for (const file of sourceFiles(`${ROOT}/src`, '.ts').map(repoRelative)) {
-  if (file !== ENTRY_COMPOSER && !file.startsWith(`${ENTRIES}/`)) {
+// Wrapped, because a gate that throws should still report as a gate. `verdict.ts` fixes the shape of
+// a finding and `reportCrash` fixes the shape of a failure to look; running the body at module top
+// level opted this check out of the second one, so a bug in the walker arrived as a bare stack while
+// every sibling's arrived named.
+function main(): void {
+  const violations: string[] = [];
+  for (const file of sourceFiles(`${ROOT}/src`, '.ts').map(repoRelative)) {
+    if (file !== ENTRY_COMPOSER && !file.startsWith(`${ENTRIES}/`)) {
+      for (const target of importedPaths(`${ROOT}/${file}`).map(repoRelative)) {
+        if (target.startsWith(`${ENTRIES}/`)) {
+          violations.push(
+            `  ${file}\n    imports ${target}\n    only ${ENTRY_COMPOSER} may compose the entry barrels; import the module that declares the symbol`,
+          );
+        }
+      }
+    }
+    const rule = RULES.find(
+      (candidate) => file === candidate.layer || file.startsWith(`${candidate.layer}/`),
+    );
+    if (rule === undefined) continue;
     for (const target of importedPaths(`${ROOT}/${file}`).map(repoRelative)) {
-      if (target.startsWith(`${ENTRIES}/`)) {
+      const crossed = rule.forbidden.find((layer) => target.startsWith(`${layer}/`));
+      if (crossed !== undefined) {
         violations.push(
-          `  ${file}\n    imports ${target}\n    only ${ENTRY_COMPOSER} may compose the entry barrels; import the module that declares the symbol`,
+          `  ${file}\n    imports ${target}\n    ${rule.layer} may not reach into ${crossed}: ${rule.because}`,
         );
       }
     }
   }
-  const rule = RULES.find(
-    (candidate) => file === candidate.layer || file.startsWith(`${candidate.layer}/`),
-  );
-  if (rule === undefined) continue;
-  for (const target of importedPaths(`${ROOT}/${file}`).map(repoRelative)) {
-    const crossed = rule.forbidden.find((layer) => target.startsWith(`${layer}/`));
-    if (crossed !== undefined) {
-      violations.push(
-        `  ${file}\n    imports ${target}\n    ${rule.layer} may not reach into ${crossed}: ${rule.because}`,
-      );
-    }
-  }
+
+  verdict({
+    gate: 'layering',
+    problems: violations,
+    ok: `${RULES.length} rules + the entry-barrel rule hold across src/`,
+    failure: 'import(s) cross a layer boundary',
+  });
 }
 
-verdict({
-  gate: 'layering',
-  problems: violations,
-  ok: `${RULES.length} rules + the entry-barrel rule hold across src/`,
-  failure: 'import(s) cross a layer boundary',
-});
+try {
+  main();
+} catch (error) {
+  reportCrash('layering', error);
+}

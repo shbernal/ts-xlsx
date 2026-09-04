@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import {readFileSync, rmSync} from 'node:fs';
-import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {Duplex, PassThrough, type Readable} from 'node:stream';
 import {test} from 'node:test';
 
+import {scratchDir} from '../../../scripts/repo.ts';
 import {isOneCellAnchor} from '../../core/image.ts';
 import {partsOf, partText} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
@@ -283,7 +283,10 @@ test('a successful commit still ends the stream cleanly, with no error event', a
 });
 
 test('commit to a valid filename writes a re-openable package to disk', async () => {
-  const target = join(tmpdir(), `ts-xlsx-stream-${process.pid}.xlsx`);
+  // Under the repo's own `.tmp/`, and a fresh directory rather than a name built from the process
+  // id. A pid collides between two concurrent checkouts, and a throw before the `finally` leaves the
+  // file in the system temp directory for good; `.tmp/` is git-ignored, inspectable, and swept.
+  const target = join(scratchDir('stream-commit'), 'out.xlsx');
   try {
     const writer = new WorkbookStreamWriter({filename: target});
     writer.addWorksheet('S').addRow(['a']).commit();
@@ -300,7 +303,7 @@ test('commit to a valid filename writes a re-openable package to disk', async ()
 test('commit to an unopenable filename rejects with the underlying I/O error rather than hanging', async () => {
   // A path whose parent directory does not exist cannot be opened for writing; the write stream errors
   // on a later tick and commit must surface it.
-  const badPath = join(tmpdir(), 'ts-xlsx-no-such-dir', `${'x'.repeat(300)}.xlsx`);
+  const badPath = join(scratchDir('stream-bad'), 'no-such-dir', `${'x'.repeat(300)}.xlsx`);
   const writer = new WorkbookStreamWriter({filename: badPath});
   writer.addWorksheet('S').addRow(['a']).commit();
 

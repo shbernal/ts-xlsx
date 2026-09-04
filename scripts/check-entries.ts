@@ -31,13 +31,13 @@
 //
 //   node scripts/check-entries.ts
 
-import {readdirSync, readFileSync} from 'node:fs';
+import {readdirSync} from 'node:fs';
 import {join} from 'node:path';
 
 import * as ast from 'typescript/unstable/ast';
 import {API, type Project} from 'typescript/unstable/sync';
 
-import {ROOT} from './repo.ts';
+import {readPackageJson, ROOT} from './repo.ts';
 import {verdict} from './verdict.ts';
 
 const CONFIG = join(ROOT, 'tsconfig.json');
@@ -95,16 +95,9 @@ function starExportedEntries(source: ast.SourceFile): string[] {
   return paths;
 }
 
-/** A subpath's target: a bare file (`./package.json` is one) or the conditions object entries use. */
-type ExportTarget = string | {readonly default?: string};
-
-interface PackageJson {
-  readonly exports: Readonly<Record<string, ExportTarget>>;
-}
-
 /** The subpath → entry-source mapping `package.json` publishes, with `dist/*.js` read back to `src/*.ts`. */
 function publishedEntries(): Map<string, string> {
-  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as PackageJson;
+  const pkg = readPackageJson();
   const map = new Map<string, string>();
   for (const [subpath, target] of Object.entries(pkg.exports)) {
     const emitted = typeof target === 'string' ? undefined : target.default;

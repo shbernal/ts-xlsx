@@ -4,7 +4,7 @@ import {test} from 'node:test';
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
-import {partText} from './package.test-support.ts';
+import {partText, roundtrip} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -34,7 +34,7 @@ test('a global defined name round-trips through write then read', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 1;
   wb.defineName({name: 'TaxRate', refersTo: 'S!$A$1:$B$2'});
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   assert.deepEqual([...back.definedNames], [{name: 'TaxRate', refersTo: 'S!$A$1:$B$2'}]);
 });
 
@@ -54,7 +54,7 @@ test('a sheet-scoped name round-trips back to its scope worksheet name', () => {
   wb.addWorksheet('First').getCell('A1').value = 1;
   wb.addWorksheet('Second').getCell('A1').value = 2;
   wb.defineName({name: 'Local', refersTo: 'Second!$A$1', scope: 'Second'});
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   assert.deepEqual(
     [...back.definedNames],
     [{name: 'Local', refersTo: 'Second!$A$1', scope: 'Second'}],
@@ -65,7 +65,7 @@ test('a comment and the hidden flag survive the round-trip', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 1;
   wb.defineName({name: 'Secret', refersTo: 'S!$A$1', comment: 'internal use', hidden: true});
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   assert.deepEqual(
     [...back.definedNames],
     [{name: 'Secret', refersTo: 'S!$A$1', comment: 'internal use', hidden: true}],
@@ -79,7 +79,7 @@ test('special characters in the name and formula are escaped and round-trip verb
   const xml = workbookXmlOf(wb);
   assert.match(xml, /&amp;/);
   assert.doesNotMatch(xml, /&(?!(amp|lt|gt|quot|apos);)/);
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   assert.equal(back.definedNames[0]?.refersTo, "'O''Brien & Co'!$A$1");
 });
 
@@ -92,7 +92,7 @@ test('a name defined as a LAMBDA stores _xlfn. and _xlpm. but is modelled plain'
     xml,
     /<definedName name="Double">_xlfn\.LAMBDA\(_xlpm\.x,_xlpm\.x\*2\)<\/definedName>/,
   );
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   assert.deepEqual([...back.definedNames], [{name: 'Double', refersTo: 'LAMBDA(x,x*2)'}]);
 });
 
@@ -101,7 +101,7 @@ test('a plain reference carries no _xlfn. prefix and reads back verbatim', () =>
   wb.addWorksheet('S').getCell('A1').value = 1;
   wb.defineName({name: 'Region', refersTo: 'S!$A$1:$B$2'});
   assert.doesNotMatch(workbookXmlOf(wb), /_xlfn\./);
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   assert.equal(back.definedNames[0]?.refersTo, 'S!$A$1:$B$2');
 });
 

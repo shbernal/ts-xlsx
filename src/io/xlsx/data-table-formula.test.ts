@@ -5,7 +5,7 @@ import {strToU8, zipSync} from 'fflate';
 
 import {isDataTableFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {sheetXml} from './package.test-support.ts';
+import {roundtrip, sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -39,7 +39,7 @@ test('a data-table formula round-trips its kind, range, inputs, and result', () 
     result: 99,
   };
 
-  const value = readXlsx(writeXlsx(wb)).getWorksheet('S')?.getCell('B2').value ?? null;
+  const value = roundtrip(wb).getWorksheet('S')?.getCell('B2').value ?? null;
   assert.ok(isDataTableFormulaValue(value), 'the cell reads back as a data-table formula');
   assert.strictEqual(value.ref, 'B2:B5');
   assert.strictEqual(value.dataTableRow, true);
@@ -60,7 +60,7 @@ test('a two-variable data table round-trips its 2-D flag and both input cells', 
     result: 99,
   };
 
-  const value = readXlsx(writeXlsx(wb)).getWorksheet('S')?.getCell('B2').value ?? null;
+  const value = roundtrip(wb).getWorksheet('S')?.getCell('B2').value ?? null;
   assert.ok(isDataTableFormulaValue(value), 'the cell reads back as a data-table formula');
   assert.strictEqual(value.dataTable2D, true, 'the 2-D kind survives');
   assert.strictEqual(value.r1, 'A1', 'the row input cell survives');
@@ -79,7 +79,7 @@ test('a column-input data table round-trips with no row-orientation flag', () =>
     result: 5,
   };
 
-  const value = readXlsx(writeXlsx(wb)).getWorksheet('S')?.getCell('B2').value ?? null;
+  const value = roundtrip(wb).getWorksheet('S')?.getCell('B2').value ?? null;
   assert.ok(isDataTableFormulaValue(value), 'the cell reads back as a data-table formula');
   assert.strictEqual(value.r1, 'A1', 'the input cell survives');
   assert.strictEqual(value.dataTableRow, undefined, 'no row-orientation flag is invented');
@@ -123,7 +123,7 @@ test('a re-written data-table formula still declares t="dataTable" after a read-
     result: 99,
   };
 
-  const reloaded = readXlsx(writeXlsx(wb));
+  const reloaded = roundtrip(wb);
   const sheet2 = reloaded.getWorksheet('S');
   assert.ok(sheet2, 'the sheet reloads');
   sheet2.getCell('A1').value = 'edited elsewhere';

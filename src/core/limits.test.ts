@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {readXlsx} from '../io/xlsx/read.ts';
-import {writeXlsx} from '../io/xlsx/write.ts';
+import {roundtrip} from '../io/xlsx/package.test-support.ts';
 import {Column} from './column.ts';
 import {MAX_COLUMN_WIDTH, MAX_ROW_HEIGHT} from './limits.ts';
 import {Row} from './row.ts';
@@ -39,7 +38,7 @@ test('an over-limit geometry round-trips through the writer and the reader', () 
   authored.getRow(1).height = 5000;
   authored.getColumn(1).width = 1000;
 
-  const loaded = readXlsx(writeXlsx(source)).getWorksheet('Probe');
+  const loaded = roundtrip(source).getWorksheet('Probe');
   assert.ok(loaded !== undefined);
   assert.equal(loaded.getRow(1).height, 5000, 'the reader loads a height Excel would clamp');
   assert.equal(loaded.getColumn(1).width, 1000, 'the reader loads a width Excel would honour');

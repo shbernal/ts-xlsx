@@ -51,9 +51,13 @@ node tools/vba-compiler/run.ts <spec.json> --out <vbaProject.bin | out.xlsm>
   // to the real host. Omit for a from-scratch project.
   "base": "./path/to/workbook.xlsm",
   "modules": [
-    { "name": "Module1", "kind": "procedural", "source": "Function AddThem(a, b)\r\n  AddThem = a + b\r\nEnd Function" },
-    { "name": "Widget",  "kind": "class",      "source": "..." }
-  ]
+    {
+      "name": "Module1",
+      "kind": "procedural",
+      "source": "Function AddThem(a, b)\r\n  AddThem = a + b\r\nEnd Function",
+    },
+    {"name": "Widget", "kind": "class", "source": "..."},
+  ],
 }
 ```
 
@@ -65,10 +69,10 @@ node tools/vba-compiler/run.ts <spec.json> --out <vbaProject.bin | out.xlsm>
 
 ### Two modes
 
-| Mode | When | Output |
-|---|---|---|
-| **from-scratch** (no `base`) | procedural/class modules for a fresh project | `.bin` to attach, or a `.xlsm` |
-| **in-place** (with `base`) | edit an existing project, or author `document`/`designer` code-behind | the edited `.xlsm` |
+| Mode                         | When                                                                  | Output                         |
+| ---------------------------- | --------------------------------------------------------------------- | ------------------------------ |
+| **from-scratch** (no `base`) | procedural/class modules for a fresh project                          | `.bin` to attach, or a `.xlsm` |
+| **in-place** (with `base`)   | edit an existing project, or author `document`/`designer` code-behind | the edited `.xlsm`             |
 
 **Prefer in-place for `document` code-behind.** A from-scratch `.bin` carries the throwaway workbook's
 own empty `ThisWorkbook`/`Sheet1` document modules; attaching it to a different workbook works for

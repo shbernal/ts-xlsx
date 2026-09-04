@@ -143,6 +143,21 @@ file anywhere else is part of the cache key and buys you a full re-verify.
 
 ## Situation → check
 
+**A corpus case failed and the message does not say where.**
+Read the frames under it. A failure prints the throw's stack indented beneath `FAILED:`, and the
+footer prints the command to re-run exactly the cases that failed. That matters because a case
+reaches through optional chains, so a round trip that loses a sheet surfaces as `Cannot read
+properties of undefined (reading 'cells')`, and nothing in that sentence distinguishes a bug in the
+case, in the adapter, and in the reader. Under `--json` the stack is a `stack` field on the behavior.
+
+**You are writing a check under `scripts/`.**
+Report through `verdict()` and crash through `reportCrash()`, never `process.exit`: it truncates an
+unflushed pipe, which is how a gate loses the diagnostic it just printed on exactly the runs where
+someone needs it, and `verify.ts` captures every gate through a pipe. Accumulate findings into a
+`problems` array rather than throwing on the first, because for a boundary check the whole list is
+the diagnostic. Give the gate the same name as its `*:check` package script; that correspondence is
+what lets a failure name its own re-run command, and `check-tsconfig-coverage.ts` now enforces it.
+
 **You want to know whether something is actually tested.**
 Run `pnpm run coverage`, never `node --test --experimental-test-coverage` on its own.
 The library is covered by two separate suites, and each one alone reports numbers that

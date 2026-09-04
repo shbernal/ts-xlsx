@@ -36,3 +36,23 @@ jobs:
       #
       # `node …` rather than `pnpm run test` skips the package-manager wrapper.
       - run: node scripts/verify.ts --full
+
+  coverage:
+    name: Coverage floors
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Its own job, not a step in the one above. The floors are a real gate and were enforced by
+    # nothing: a change dropping branch coverage from 95% to 60% was green everywhere a human or an
+    # agent looked, which ADR-0035 recorded as an open follow-up rather than an oversight. This is
+    # that follow-up. It stays out of `verify --full` for the reason that ADR gives: coverage runs
+    # both suites under the instrumenting runtime and costs about 80 s, against ~30 s for every
+    # other gate put together, and a gate that doubles the loop is a gate people stop running.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/coverage.ts

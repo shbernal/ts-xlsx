@@ -124,10 +124,18 @@ V8 data land on the original `.ts` bytes, since stripping preserves positions.
   and labels them honestly. Modules no suite loads are named rather than omitted.
   No new dependency, since the implementation is the one already in the runtime.
 - **Negative / accepted:** a private node API is on the path, and will break on some
-  future node, loudly and by design. A full run costs ~74 s, so it is on demand, not in
-  `verify --full`; nothing forces it before a push, which means the floors bind only when
-  someone runs them.
+  future node, loudly and by design. A full run costs ~80 s, so it is on demand rather than
+  in `verify --full`: a gate that doubles the local loop is a gate people stop running.
+- **Enforced in CI since 2026-09-04.** The floors used to bind only when someone chose to
+  run them, which meant a change dropping branch coverage from 95% to 60% was green
+  everywhere a human or an agent looked. `corpus.yml` now carries a `coverage` job,
+  separate from the gate job so it lengthens nothing local. This is the follow-up the
+  paragraph above used to record as open.
+- **The instrument is out of the denominator too.** `EXCLUDE` named only
+  `src/**/*.test.ts`, so `package.test-support.ts` was a row in the table at 100/100/100 by
+  construction and `src/type-tests/**` counted as well. It is now the same three patterns
+  `tsconfig.build.json` excludes, which is the same rule said once: what is not shipped is
+  not the library. The honest union is 99.29 lines / 95.33 branches / 98.65 functions over
+  144 modules.
 - **Revisit when:** node's internal coverage module moves (fix the import, do not
-  approximate); CI grows a job that can afford 74 s, at which point the floors should be
-  enforced there; or coverage instrumentation gets cheap enough to fold into
-  `verify --full`.
+  approximate), or coverage instrumentation gets cheap enough to fold into `verify --full`.

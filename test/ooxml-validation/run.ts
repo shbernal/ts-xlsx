@@ -8,9 +8,8 @@
 // they enforced different rule sets while appearing to enforce the same one.
 
 import assert from 'node:assert/strict';
-import {mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
+import {readFile, rm, writeFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
-import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -23,6 +22,7 @@ import {
   validatorAvailable,
 } from 'ooxml-validate';
 
+import {scratchDir} from '../../scripts/repo.ts';
 import {Workbook} from '../../src/core/workbook.ts';
 import {WorkbookStreamWriter} from '../../src/io/xlsx/write-stream.ts';
 import {writeXlsx} from '../../src/io/xlsx/write.ts';
@@ -165,7 +165,7 @@ async function main(): Promise<void> {
     throw new Error('the OOXML oracle is unavailable, so this gate proves nothing');
   }
 
-  const temp = await mkdtemp(path.join(tmpdir(), 'ts-xlsx-ooxml-'));
+  const temp = scratchDir('ooxml');
   try {
     const at = (name: string) => path.join(temp, name);
     const invalid = at('invalid.xlsx');

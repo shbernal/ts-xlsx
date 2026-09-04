@@ -3,7 +3,7 @@ import {test} from 'node:test';
 
 import {isRichTextValue, type RichTextValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {sheetXml} from './package.test-support.ts';
+import {roundtrip, sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -22,7 +22,7 @@ test('a rich-text cell round-trips its runs and per-run fonts', () => {
     richText: [{text: 'bold', font: {bold: true}}, {text: ' plain'}],
   };
 
-  const back = richTextOf(readXlsx(writeXlsx(wb)), 'S', 'A1');
+  const back = richTextOf(roundtrip(wb), 'S', 'A1');
   assert.equal(back.richText.length, 2);
   assert.equal(back.richText[0]?.text, 'bold');
   assert.equal(back.richText[0]?.font?.bold, true);
@@ -39,7 +39,7 @@ test('the run face name (rFont) round-trips', () => {
   const xml = sheetXml(writeXlsx(wb));
   assert.match(xml, /<rPr>.*<rFont val="Arial"\/>.*<\/rPr>/, 'the run face is <rFont>, not <name>');
 
-  const run = richTextOf(readXlsx(writeXlsx(wb)), 'S', 'A1').richText[0];
+  const run = richTextOf(roundtrip(wb), 'S', 'A1').richText[0];
   assert.equal(run?.font?.name, 'Arial');
   assert.equal(run?.font?.size, 14);
 });
@@ -89,7 +89,7 @@ test('a formatted leading run keeps its formatting, identically to a non-leading
     ],
   };
 
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   const lead = richTextOf(back, 'S', 'A1').richText.find((r) => r.text === 'here');
   const tail = richTextOf(back, 'S', 'A2').richText.find((r) => r.text === 'here');
   assert.equal(lead?.font?.underline, true, 'the underlined leading run survives');
@@ -100,7 +100,7 @@ test('a run whose font is an empty object reads back with no font', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {richText: [{text: 'x', font: {}}]};
 
-  const run = richTextOf(readXlsx(writeXlsx(wb)), 'S', 'A1').richText[0];
+  const run = richTextOf(roundtrip(wb), 'S', 'A1').richText[0];
   assert.equal(run?.text, 'x');
   assert.equal(run?.font, undefined, 'a font with no facets is not materialised');
 });
@@ -112,7 +112,7 @@ test('a rich-text hyperlink label round-trips as rich text with its target', () 
     text: {richText: [{text: 'bold', font: {bold: true}}, {text: 'plain'}]},
   };
 
-  const cell = readXlsx(writeXlsx(wb)).getWorksheet('S')?.getCell('A1').value;
+  const cell = roundtrip(wb).getWorksheet('S')?.getCell('A1').value;
   assert.ok(cell !== undefined && cell !== null && typeof cell === 'object' && 'hyperlink' in cell);
   assert.equal(cell.hyperlink, 'https://example.org', 'the target survives');
   assert.ok(isRichTextValue(cell.text), 'the display label is rich text, not flattened');
@@ -130,7 +130,7 @@ test('rich text with markup-significant characters and edge whitespace round-tri
     ],
   };
 
-  const back = richTextOf(readXlsx(writeXlsx(wb)), 'S', 'A1');
+  const back = richTextOf(roundtrip(wb), 'S', 'A1');
   assert.equal(
     back.richText[0]?.text,
     ' a<b>&',

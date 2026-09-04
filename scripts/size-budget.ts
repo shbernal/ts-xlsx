@@ -23,11 +23,12 @@
 //
 //   node scripts/size-budget.ts
 
-import {readFileSync, statSync} from 'node:fs';
+import {statSync} from 'node:fs';
 import {join, resolve} from 'node:path';
 
 import {closure, importedPaths, sourceFiles} from './module-graph.ts';
-import {ROOT} from './repo.ts';
+import {readPackageJson, ROOT} from './repo.ts';
+import {verdict} from './verdict.ts';
 
 const DIST = join(ROOT, 'dist');
 const TOTAL_BUDGET_BYTES = 575 * 1024;
@@ -102,10 +103,6 @@ const ENTRY_BUDGETS_KB: Readonly<Record<string, number>> = {
   './errors': 4,
 };
 
-interface PackageJson {
-  readonly exports: Readonly<Record<string, string | {readonly default?: string}>>;
-}
-
 // Emitted JS, not source, and the emitter picks its own quoting: double under TypeScript 6 and single
 // under 7. Both forms are matched, by the shared walker, which is the reason it is shared: two of the
 // four gates matched one quote style only, so the same flip in the source formatter would have made
@@ -120,7 +117,7 @@ function bytes(files: Iterable<string>): number {
 
 const kb = (n: number) => `${(n / 1024).toFixed(1)} KB`;
 
-const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as PackageJson;
+const pkg = readPackageJson();
 const over: string[] = [];
 
 const all = sourceFiles(DIST, '.js');
@@ -145,15 +142,20 @@ for (const [subpath, target] of Object.entries(pkg.exports)) {
   const reached = closure(resolve(ROOT, emitted), staticImports);
   const size = bytes(reached);
   const budget = budgetKb * 1024;
-  const verdict = size > budget ? `OVER by ${kb(size - budget)}` : 'ok';
+  const state = size > budget ? `OVER by ${kb(size - budget)}` : 'ok';
   console.log(
-    `  ${subpath.padEnd(12)} ${kb(size).padStart(9)}  ${String(reached.size).padStart(3)} modules   budget ${kb(budget).padStart(9)}   ${verdict}`,
+    `  ${subpath.padEnd(12)} ${kb(size).padStart(9)}  ${String(reached.size).padStart(3)} modules   budget ${kb(budget).padStart(9)}   ${state}`,
   );
   if (size > budget) over.push(`"${subpath}" is over by ${kb(size - budget)}`);
 }
 
-if (over.length > 0) {
-  console.error(`\nOVER BUDGET:\n${over.map((line) => `  ${line}`).join('\n')}`);
-  console.error('\nInvestigate the growth or raise the budget deliberately.');
-  process.exit(1);
-}
+// Through `verdict` like every sibling, and `process.exitCode` rather than `process.exit`. This is
+// a publish-blocking gate whose output `verify.ts` captures through a pipe, which is the exact
+// configuration `verdict.ts`'s header describes: `process.exit` truncates an unflushed pipe, so the
+// gate that most needs its diagnostic read was the one that could lose it.
+verdict({
+  gate: 'size',
+  problems: over.map((line) => `  ${line}`),
+  ok: 'every entry within its budget',
+  failure: 'entry closure(s) over budget; investigate the growth or raise the budget deliberately',
+});

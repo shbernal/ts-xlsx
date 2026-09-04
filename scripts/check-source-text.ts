@@ -41,7 +41,7 @@ import {existsSync, readFileSync} from 'node:fs';
 import {extname, join} from 'node:path';
 
 import {ROOT} from './repo.ts';
-import {verdict} from './verdict.ts';
+import {reportCrash, verdict} from './verdict.ts';
 
 /** The trees we author by hand or generate into. `skills` is published, so it is source too. */
 const ROOTS = ['src', 'scripts', 'test', 'tools', 'docs', 'skills', 'www'];
@@ -142,17 +142,29 @@ function collect(): string[] {
   return [...new Set(authored)].sort();
 }
 
-const files = collect();
+// Wrapped, because a gate that throws should still report as a gate. `verdict.ts` fixes the shape of
+// a finding and `reportCrash` fixes the shape of a failure to look; running the body at module top
+// level opted this check out of the second one, so a bug in the walker arrived as a bare stack while
+// every sibling's arrived named.
+function main(): void {
+  const files = collect();
 
-const problems: Problem[] = [];
-for (const file of files) scan(file, problems);
+  const problems: Problem[] = [];
+  for (const file of files) scan(file, problems);
 
-verdict({
-  gate: 'source-text',
-  problems: problems.map(
-    (problem) =>
-      `  ${problem.file}:${problem.line}:${problem.column}  ${problem.label}\n      ${problem.hint}`,
-  ),
-  ok: `${files.length} files, no control characters or bidi overrides`,
-  failure: 'problem(s) in authored text',
-});
+  verdict({
+    gate: 'source-text',
+    problems: problems.map(
+      (problem) =>
+        `  ${problem.file}:${problem.line}:${problem.column}  ${problem.label}\n      ${problem.hint}`,
+    ),
+    ok: `${files.length} files, no control characters or bidi overrides`,
+    failure: 'problem(s) in authored text',
+  });
+}
+
+try {
+  main();
+} catch (error) {
+  reportCrash('source-text', error);
+}

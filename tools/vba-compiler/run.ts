@@ -19,15 +19,19 @@
 //
 // Usage:  node tools/vba-compiler/run.ts <spec.json> --out <vbaProject.bin | out.xlsm>
 
-import {spawn} from 'node:child_process';
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
+import {failWith, runPwsh} from '../pwsh.ts';
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const COMPILE_PS1 = path.join(HERE, 'compile.ps1');
+// Annotated, not inferred. TypeScript performs never-return control-flow analysis only for a
+// function declaration or a const with an explicit type, so without this every `fail(...)` reads as
+// an ordinary call and the code after it as reachable.
+const fail: (message: string) => never = failWith('vba-compiler');
 const PWSH_TIMEOUT_MS = 180_000;
-const MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
 
 /** A module to author: its VBA name, kind, and source (without a leading `Attribute VB_Name` line). */
 interface ModuleSpec {
@@ -50,63 +54,6 @@ interface CompileResult {
   readonly out: string;
   readonly modules: readonly {name: string; action: string; kind: string}[];
   readonly error: string | null;
-}
-
-interface PwshResult {
-  readonly code: number | null;
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly spawnError?: Error;
-}
-
-function fail(message: string): never {
-  process.stderr.write(`vba-compiler: ${message}\n`);
-  process.exit(1);
-}
-
-function runPwsh(args: readonly string[], timeoutMs: number): Promise<PwshResult> {
-  return new Promise<PwshResult>((resolve) => {
-    const child = spawn('pwsh', ['-NoProfile', '-NonInteractive', ...args], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    const stdout: Buffer[] = [];
-    const stderr: Buffer[] = [];
-    let bytes = 0;
-    let settled = false;
-    const done = (r: PwshResult) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(r);
-    };
-    const timer = setTimeout(() => {
-      child.kill('SIGKILL');
-      done({code: null, stdout: Buffer.concat(stdout).toString('utf8'), stderr: 'timed out'});
-    }, timeoutMs);
-    const collect = (target: Buffer[]) => (chunk: Buffer) => {
-      bytes += chunk.length;
-      if (bytes > MAX_OUTPUT_BYTES) {
-        child.kill('SIGKILL');
-        done({
-          code: null,
-          stdout: Buffer.concat(stdout).toString('utf8'),
-          stderr: 'output too large',
-        });
-        return;
-      }
-      target.push(chunk);
-    };
-    child.stdout.on('data', collect(stdout));
-    child.stderr.on('data', collect(stderr));
-    child.on('error', (spawnError) => done({code: null, stdout: '', stderr: '', spawnError}));
-    child.on('close', (code) =>
-      done({
-        code,
-        stdout: Buffer.concat(stdout).toString('utf8'),
-        stderr: Buffer.concat(stderr).toString('utf8'),
-      }),
-    );
-  });
 }
 
 // Refuse to run on a host without pwsh or a registered Excel COM server, so the tool never masquerades a

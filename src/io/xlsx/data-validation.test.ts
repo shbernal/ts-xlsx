@@ -8,7 +8,7 @@ import type {
   DataValidationType,
 } from '../../core/data-validation.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {readPatched, sheetXml, SHEET1} from './package.test-support.ts';
+import {readPatched, roundtrip, SHEET1, sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -55,7 +55,7 @@ test('a typed validation round-trips its type, operator, and numeric bounds on e
     allowBlank: true,
     formulae: [0, 9],
   });
-  const reread = readXlsx(writeXlsx(workbook)).getWorksheet('S');
+  const reread = roundtrip(workbook).getWorksheet('S');
   assert.ok(reread);
 
   for (const ref of ['A1', 'A2', 'A3']) {
@@ -74,7 +74,7 @@ test('a numeric-typed validation whose operand is a reference keeps the referenc
     operator: 'greaterThan',
     formulae: ['L26'],
   });
-  const dv = readXlsx(writeXlsx(workbook)).getWorksheet('S')?.dataValidationAt('A1');
+  const dv = roundtrip(workbook).getWorksheet('S')?.dataValidationAt('A1');
   assert.deepEqual(dv?.formulae, ['L26'], 'the cell reference survives as a string');
 });
 
@@ -82,14 +82,14 @@ test('a typed rule authored without an operator reads back as the default "betwe
   // Excel omits operator="between" from the XML because it is the default; the reader restores it.
   const workbook = new Workbook();
   workbook.addWorksheet('S').addDataValidation('A1', {type: 'whole', formulae: [0, 9]});
-  const dv = readXlsx(writeXlsx(workbook)).getWorksheet('S')?.dataValidationAt('A1');
+  const dv = roundtrip(workbook).getWorksheet('S')?.dataValidationAt('A1');
   assert.equal(dv?.operator, 'between');
 });
 
 test('a list validation round-trips its string source verbatim', () => {
   const workbook = new Workbook();
   workbook.addWorksheet('S').addDataValidation('B1', {type: 'list', formulae: ['myNames']});
-  const dv = readXlsx(writeXlsx(workbook)).getWorksheet('S')?.dataValidationAt('B1');
+  const dv = roundtrip(workbook).getWorksheet('S')?.dataValidationAt('B1');
   assert.equal(dv?.type, 'list');
   assert.deepEqual(dv?.formulae, ['myNames'], 'the defined-name source is not coerced to a number');
 });
@@ -319,7 +319,7 @@ test('every schema token of every validation union round-trips unchanged', () =>
         expected.set(ref, rule);
       }
 
-  const read = readXlsx(writeXlsx(workbook)).getWorksheet('S');
+  const read = roundtrip(workbook).getWorksheet('S');
   for (const [ref, rule] of expected) {
     const back = read?.dataValidationAt(ref);
     assert.equal(back?.type, rule.type, `${ref} type`);

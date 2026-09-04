@@ -60,7 +60,7 @@ value. What you assign is what the cell is.
 
 This library is a hard fork of ExcelJS, and the fork's first job was to get the knowledge out
 before discarding the code. Every credible bug, reproduction and edge case in that backlog
-became a corpus case written against *behaviour* rather than against an implementation, which
+became a corpus case written against _behaviour_ rather than against an implementation, which
 is how they outlived the rewrite they were built to survive. A bug without a case is a bug
 that will return.
 

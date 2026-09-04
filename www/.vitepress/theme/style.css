@@ -44,7 +44,8 @@
    */
   --xlsx-grid-line: rgba(20, 108, 67, 0.1);
   --xlsx-grid-pitch: 84px 30px;
-  --xlsx-lattice: linear-gradient(to right, var(--xlsx-grid-line) 1px, transparent 1px),
+  --xlsx-lattice:
+    linear-gradient(to right, var(--xlsx-grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--xlsx-grid-line) 1px, transparent 1px);
 
   --vp-home-hero-name-color: transparent;
@@ -163,7 +164,9 @@
   font-size: 0.85rem;
   color: var(--vp-c-text-1);
   background: var(--vp-c-bg-soft);
-  transition: border-color 0.2s, color 0.2s;
+  transition:
+    border-color 0.2s,
+    color 0.2s;
 }
 
 .pg-chip:hover {

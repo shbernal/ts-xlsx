@@ -5,12 +5,12 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {ERROR_CODES, isErrorValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {sheetXml} from './package.test-support.ts';
+import {roundtrip, sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
 function reReadA1(wb: Workbook): unknown {
-  return readXlsx(writeXlsx(wb)).getWorksheet('S')?.getCell('A1').value;
+  return roundtrip(wb).getWorksheet('S')?.getCell('A1').value;
 }
 
 test('an error cell round-trips as its error value', () => {
@@ -55,7 +55,7 @@ test('a styled error cell keeps its style across the round-trip', () => {
   cell.value = {error: '#N/A'};
   cell.font = {bold: true};
 
-  const back = readXlsx(writeXlsx(wb)).getWorksheet('S')?.getCell('A1');
+  const back = roundtrip(wb).getWorksheet('S')?.getCell('A1');
   assert.deepEqual(back?.value, {error: '#N/A'}, 'the error value survives');
   assert.equal(back?.font?.bold, true, 'the font survives alongside it');
 });

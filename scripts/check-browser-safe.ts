@@ -35,7 +35,7 @@ import {
   withoutComments,
 } from './module-graph.ts';
 import {ROOT} from './repo.ts';
-import {verdict} from './verdict.ts';
+import {reportCrash, verdict} from './verdict.ts';
 
 // The root barrel is the entry most consumers name, and each browser-facing subpath is checked in
 // its own right: a subpath's closure is a subset of the root's today, and nothing guarantees that
@@ -115,70 +115,84 @@ function reachableFrom(entry: string): string[] {
   return [...closure(entry, (file) => imports(file).relative)].sort();
 }
 
-const problems: string[] = [];
-// file -> the first browser entry that reaches it, so a violation is reported once and still names
-// a specifier a consumer would recognise.
-const reachable = new Map<string, string>();
+// Wrapped, because a gate that throws should still report as a gate. `verdict.ts` fixes the shape of
+// a finding and `reportCrash` fixes the shape of a failure to look; running the body at module top
+// level opted this check out of the second one, so a bug in the walker arrived as a bare stack while
+// every sibling's arrived named.
+function main(): void {
+  const problems: string[] = [];
+  // file -> the first browser entry that reaches it, so a violation is reported once and still names
+  // a specifier a consumer would recognise.
+  const reachable = new Map<string, string>();
 
-for (const entry of BROWSER_ENTRIES) {
-  for (const file of reachableFrom(entry)) if (!reachable.has(file)) reachable.set(file, entry);
-}
+  for (const entry of BROWSER_ENTRIES) {
+    for (const file of reachableFrom(entry)) if (!reachable.has(file)) reachable.set(file, entry);
+  }
 
-for (const [file, entry] of [...reachable].sort(([a], [b]) => a.localeCompare(b))) {
-  for (const specifier of imports(file).bare) {
-    const name = specifier.replace(/^node:/, '').split('/')[0] as string;
-    if (specifier.startsWith('node:') || BUILTINS.includes(name)) {
+  for (const [file, entry] of [...reachable].sort(([a], [b]) => a.localeCompare(b))) {
+    for (const specifier of imports(file).bare) {
+      const name = specifier.replace(/^node:/, '').split('/')[0] as string;
+      if (specifier.startsWith('node:') || BUILTINS.includes(name)) {
+        problems.push(
+          `  ${file}\n    imports ${specifier}\n` +
+            `    it is reachable from ${entry}, which a browser bundles: publish it from ${NODE_ENTRY} instead`,
+        );
+      }
+    }
+  }
+
+  for (const file of [...reachable.keys()].sort()) {
+    const source = withoutComments(readFileSync(join(ROOT, file), 'utf8'));
+    for (const pattern of NODE_GLOBALS) {
+      const match = pattern.exec(source);
+      if (match === null) continue;
+      const line = source.slice(0, match.index).split('\n').length;
       problems.push(
-        `  ${file}\n    imports ${specifier}\n` +
-          `    it is reachable from ${entry}, which a browser bundles: publish it from ${NODE_ENTRY} instead`,
+        `  ${file}:${line}\n    reads the Node-only global \`${match[0].trim()}\`\n` +
+          `    a bundler will not warn and it is undefined in a tab: use the platform's own API`,
       );
     }
   }
-}
 
-for (const file of [...reachable.keys()].sort()) {
-  const source = withoutComments(readFileSync(join(ROOT, file), 'utf8'));
-  for (const pattern of NODE_GLOBALS) {
-    const match = pattern.exec(source);
-    if (match === null) continue;
-    const line = source.slice(0, match.index).split('\n').length;
+  // The Node-only entry is checked from the other side: it exists to carry the imports the browser
+  // entries may not, so an empty one would mean the boundary had quietly moved rather than held.
+  const nodeOnly = reachableFrom(NODE_ENTRY).filter((file) => !reachable.has(file));
+  const carried = nodeOnly.flatMap((file) =>
+    imports(file).bare.filter((s) => s.startsWith('node:')),
+  );
+  if (carried.length === 0) {
     problems.push(
-      `  ${file}:${line}\n    reads the Node-only global \`${match[0].trim()}\`\n` +
-        `    a bundler will not warn and it is undefined in a tab: use the platform's own API`,
+      `  ${NODE_ENTRY}\n    reaches no Node built-in that the browser entries do not\n` +
+        `    it exists only to hold that boundary; fold it back into /xlsx if there is nothing left to hold`,
     );
   }
+
+  // A directory read, purely so the entry list above cannot silently fall behind the files on disk.
+  const unclassified = sourceFiles(`${ROOT}/src/entries`, '.ts')
+    .map((path) => `src/entries/${path.slice(path.lastIndexOf('/') + 1)}`)
+    .filter(
+      (file) =>
+        !BROWSER_ENTRIES.includes(file) && file !== NODE_ENTRY && !file.endsWith('-unavailable.ts'),
+    );
+  for (const file of unclassified) {
+    problems.push(
+      `  ${file}\n    is an entry this check has no verdict on\n` +
+        `    add it to BROWSER_ENTRIES, or publish it from ${NODE_ENTRY} if it is Node-only`,
+    );
+  }
+
+  verdict({
+    gate: 'browser-safe',
+    problems,
+    ok:
+      `${reachable.size} modules reachable from ${BROWSER_ENTRIES.length} entries, no Node built-in ` +
+      `and no Node global; ${NODE_ENTRY} carries ${[...new Set(carried)].sort().join(', ')}`,
+    failure: 'break(s) in the browser boundary',
+  });
 }
 
-// The Node-only entry is checked from the other side: it exists to carry the imports the browser
-// entries may not, so an empty one would mean the boundary had quietly moved rather than held.
-const nodeOnly = reachableFrom(NODE_ENTRY).filter((file) => !reachable.has(file));
-const carried = nodeOnly.flatMap((file) => imports(file).bare.filter((s) => s.startsWith('node:')));
-if (carried.length === 0) {
-  problems.push(
-    `  ${NODE_ENTRY}\n    reaches no Node built-in that the browser entries do not\n` +
-      `    it exists only to hold that boundary; fold it back into /xlsx if there is nothing left to hold`,
-  );
+try {
+  main();
+} catch (error) {
+  reportCrash('browser-safe', error);
 }
-
-// A directory read, purely so the entry list above cannot silently fall behind the files on disk.
-const unclassified = sourceFiles(`${ROOT}/src/entries`, '.ts')
-  .map((path) => `src/entries/${path.slice(path.lastIndexOf('/') + 1)}`)
-  .filter(
-    (file) =>
-      !BROWSER_ENTRIES.includes(file) && file !== NODE_ENTRY && !file.endsWith('-unavailable.ts'),
-  );
-for (const file of unclassified) {
-  problems.push(
-    `  ${file}\n    is an entry this check has no verdict on\n` +
-      `    add it to BROWSER_ENTRIES, or publish it from ${NODE_ENTRY} if it is Node-only`,
-  );
-}
-
-verdict({
-  gate: 'browser-safe',
-  problems,
-  ok:
-    `${reachable.size} modules reachable from ${BROWSER_ENTRIES.length} entries, no Node built-in ` +
-    `and no Node global; ${NODE_ENTRY} carries ${[...new Set(carried)].sort().join(', ')}`,
-  failure: 'break(s) in the browser boundary',
-});

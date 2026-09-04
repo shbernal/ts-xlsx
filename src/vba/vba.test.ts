@@ -6,6 +6,7 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 import {Workbook} from '../core/workbook.ts';
 import {PackageReadError} from '../io/opc/errors.ts';
 import {editXlsxVbaAddReference, editXlsxVbaRemoveModule} from '../io/xlsx/edit-vba.ts';
+import {roundtrip} from '../io/xlsx/package.test-support.ts';
 import {readXlsx} from '../io/xlsx/read.ts';
 import {writeXlsx} from '../io/xlsx/write.ts';
 import {decodeUtf16le, readU16, readU32} from './bytes.ts';
@@ -615,7 +616,7 @@ test('reading vbaProject does not regress byte-for-byte macro preservation on wr
   assert.deepEqual(reBin, vbaBin, 'the macro blob is re-emitted byte-for-byte');
   // And it still parses from the re-emitted package.
   assert.deepEqual(
-    readXlsx(writeXlsx(wb)).vbaProject?.modules.map((m) => m.name),
+    roundtrip(wb).vbaProject?.modules.map((m) => m.name),
     ['ThisWorkbook', 'Module1', 'Class1'],
   );
 });
@@ -642,7 +643,7 @@ test('attaching vbaProjectBytes turns a plain workbook macro-enabled and embeds 
 
   // The re-read package exposes the same macros.
   assert.deepEqual(
-    readXlsx(writeXlsx(wb)).vbaProject?.modules.map((m) => m.name),
+    roundtrip(wb).vbaProject?.modules.map((m) => m.name),
     ['ThisWorkbook', 'Module1', 'Class1'],
   );
 });
@@ -657,7 +658,7 @@ test('vbaProjectBytes copies a macro project from one workbook to another', () =
   target.vbaProjectBytes = bytes;
 
   assert.deepEqual(
-    readXlsx(writeXlsx(target)).vbaProject?.modules.map((m) => m.name),
+    roundtrip(target).vbaProject?.modules.map((m) => m.name),
     ['ThisWorkbook', 'Module1', 'Class1'],
     'the copied project decodes from the target package',
   );
@@ -700,7 +701,7 @@ test('the vbaProjectBytes getter returns a defensive copy', () => {
   assert.ok(second);
   assert.notDeepEqual(second, first, 'mutating a returned copy does not corrupt the stored blob');
   // The stored blob still round-trips and parses.
-  assert.ok(readXlsx(writeXlsx(wb)).vbaProject);
+  assert.ok(roundtrip(wb).vbaProject);
 });
 
 test('assigning undefined removes the macro project, reverting to a plain package', () => {
@@ -772,7 +773,7 @@ test('replacing the project drops a now-stale signature over the old bytes', () 
   );
   assert.deepEqual(wb.vbaProjectSignatures, [], 'no signatures remain after replace');
   assert.deepEqual(
-    readXlsx(writeXlsx(wb)).vbaProject?.modules.map((m) => m.name),
+    roundtrip(wb).vbaProject?.modules.map((m) => m.name),
     ['Module1'],
     'the replacement project decodes',
   );
@@ -1181,7 +1182,7 @@ test('Workbook.removeVbaModule removes a module from a read workbook and preserv
     'the PROJECTREFERENCES record survives the whole package round-trip',
   );
 
-  const reread = readXlsx(writeXlsx(wb));
+  const reread = roundtrip(wb);
   assert.deepEqual(
     reread.vbaProject?.modules.map((m) => [m.name, m.kind]),
     [
@@ -1230,7 +1231,7 @@ test('Workbook.addVbaReference adds a reference to a read workbook, preserving m
     'the new reference is present after a full package round-trip',
   );
   assert.deepEqual(
-    readXlsx(writeXlsx(wb)).vbaProject?.modules.map((m) => m.name),
+    roundtrip(wb).vbaProject?.modules.map((m) => m.name),
     ['ThisWorkbook', 'Module1', 'Class1'],
     'the module set is unaffected',
   );

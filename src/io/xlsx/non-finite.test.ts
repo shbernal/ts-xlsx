@@ -11,7 +11,7 @@ import {test} from 'node:test';
 
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import {AuthoringError} from '../../errors.ts';
-import {partsWritten} from './package.test-support.ts';
+import {partIn, partsWritten} from './package.test-support.ts';
 import {writeXlsx} from './write.ts';
 
 const UNWRITABLE = [Number.NaN, Infinity, -Infinity] as const;
@@ -188,6 +188,6 @@ test('a scope matching its sheet only in case still resolves to that sheet', () 
   workbook.addWorksheet('Data').getCell('A1').value = 1;
   workbook.defineName({name: 'Local', refersTo: 'Data!$A$1', scope: 'dAtA'});
 
-  const workbookPart = partsWritten(workbook)['xl/workbook.xml'] ?? '';
+  const workbookPart = partIn(partsWritten(workbook), 'xl/workbook.xml');
   assert.match(workbookPart, /<definedName name="Local" localSheetId="1">/);
 });

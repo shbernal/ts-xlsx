@@ -6,25 +6,20 @@
  * either would be right on the day it was written and wrong later.
  */
 
-import {readFileSync} from 'node:fs';
-import {dirname, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {readPackageJson, ROOT} from '../../scripts/repo.ts';
 
-/** Resolved from this file, not from `process.cwd()`, so the scripts run from anywhere. */
-export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+/**
+ * The repository root, from the one module that resolves it.
+ *
+ * This used to spell the two-level `resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')`
+ * itself, which made it the twelfth hand-written root and the most fragile of them, since moving
+ * this file one directory either way changes the answer silently. `www/` is inside the lint and
+ * format target sets and its checks run in the `invariants` gate: it is not an outsider to the
+ * harness, so it does not get its own copy of the harness's facts.
+ */
+export const repoRoot = ROOT;
 
-interface PackageJson {
-  readonly name: string;
-  readonly description: string;
-  readonly author: string;
-  readonly license: string;
-  readonly dependencies: Readonly<Record<string, string>>;
-  readonly repository: {readonly url: string};
-}
-
-export const pkg = JSON.parse(
-  readFileSync(resolve(repoRoot, 'package.json'), 'utf8'),
-) as PackageJson;
+export const pkg = readPackageJson();
 
 /** `https://github.com/owner/repo.git` -> `https://github.com/owner/repo` */
 export const repoUrl = pkg.repository.url.replace(/^git\+/, '').replace(/\.git$/, '');

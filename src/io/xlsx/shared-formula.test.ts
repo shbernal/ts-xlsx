@@ -4,8 +4,7 @@ import {test} from 'node:test';
 import type {Fill} from '../../core/style.ts';
 import {isSharedFormulaValue, type SharedFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {sheetXml} from './package.test-support.ts';
-import {readXlsx} from './read.ts';
+import {roundtrip, sheetXml} from './package.test-support.ts';
 import {writeXlsx} from './write.ts';
 
 // A master formula filled down a column: B1 is the master, B2/B3 are clones referencing it.
@@ -31,7 +30,7 @@ function sharedOf(wb: Workbook, ref: string): SharedFormulaValue {
 }
 
 test('a shared-formula clone reads back its master formula translated to its own address', () => {
-  const back = readXlsx(writeXlsx(filledColumn()));
+  const back = roundtrip(filledColumn());
 
   const master = back.getWorksheet('S')?.getCell('B1').value as {formula: string; result: number};
   assert.equal(master.formula, 'A1*2', 'the master keeps its own formula');
@@ -58,7 +57,7 @@ test('a shared formula filled across a row translates the column, not the row', 
   sheet.getCell('B1').value = {sharedFormula: 'A1', result: 0};
   sheet.getCell('C1').value = {sharedFormula: 'A1', result: 0};
 
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   assert.equal(sharedOf(back, 'B1').formula, 'B2+1', 'one column across');
   assert.equal(sharedOf(back, 'C1').formula, 'C2+1', 'two columns across');
 });
@@ -69,16 +68,12 @@ test('an absolute reference in the master is not shifted in a clone', () => {
   sheet.getCell('B1').value = {formula: '$A$1+A1', result: 0};
   sheet.getCell('B2').value = {sharedFormula: 'B1', result: 0};
 
-  assert.equal(
-    sharedOf(readXlsx(writeXlsx(wb)), 'B2').formula,
-    '$A$1+A2',
-    'the anchored term stays put',
-  );
+  assert.equal(sharedOf(roundtrip(wb), 'B2').formula, '$A$1+A2', 'the anchored term stays put');
 });
 
 test('a shared formula survives a read → write → read round-trip', () => {
-  const once = readXlsx(writeXlsx(filledColumn()));
-  const twice = readXlsx(writeXlsx(once));
+  const once = roundtrip(filledColumn());
+  const twice = roundtrip(once);
 
   const b2 = sharedOf(twice, 'B2');
   assert.equal(b2.formula, 'A2*2', 'the clone still resolves after a second round-trip');
@@ -112,7 +107,7 @@ test('a clone above or left of its master is rejected', () => {
 });
 
 test('inserting a column into a shared-formula sheet re-anchors the master so the write succeeds', () => {
-  const wb = readXlsx(writeXlsx(filledColumn()));
+  const wb = roundtrip(filledColumn());
   const sheet = wb.getWorksheet('S');
   assert.ok(sheet !== undefined);
 
@@ -123,7 +118,7 @@ test('inserting a column into a shared-formula sheet re-anchors the master so th
   assert.doesNotThrow(() => writeXlsx(wb));
 
   // The grouping survives the write and re-reads intact at its new position.
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   const c2 = sharedOf(back, 'C2');
   assert.equal(c2.sharedFormula, 'C1');
   assert.match(sheetXml(writeXlsx(wb)), /<f t="shared" ref="C1:C3" si="0">/);
@@ -139,7 +134,7 @@ test('a styled shared-formula clone keeps its fill and font on read, not just it
   sheet.getCell('B2').fill = red;
   sheet.getCell('B2').font = {bold: true};
 
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   const b2 = back.getWorksheet('S')?.getCell('B2');
   assert.ok(b2 !== undefined);
   assert.equal(

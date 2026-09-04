@@ -22,16 +22,7 @@
 import {spawn} from 'node:child_process';
 
 import {OXFMT, ROOT} from './repo.ts';
-
-/** Must stay in step with the `include` list tsconfig.json and tsconfig.test.json span. */
-const TARGETS = [
-  'src/**/*.ts',
-  'scripts/**/*.ts',
-  'test/**/*.ts',
-  'tools/**/*.ts',
-  'www/**/*.ts',
-  'charcheck.config.ts',
-];
+import {FORMAT_TARGETS} from './targets.ts';
 
 const mode = process.argv[2];
 if (mode !== '--write' && mode !== '--check') {
@@ -39,7 +30,7 @@ if (mode !== '--write' && mode !== '--check') {
   process.exit(2);
 }
 
-const child = spawn(process.execPath, [OXFMT, mode, ...TARGETS], {
+const child = spawn(process.execPath, [OXFMT, mode, ...FORMAT_TARGETS], {
   cwd: ROOT,
   stdio: 'inherit',
 });

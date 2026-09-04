@@ -3,9 +3,8 @@ import {test} from 'node:test';
 
 import type {TotalsRowFunction} from '../../core/table.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {readXlsx} from './read.ts';
+import {roundtrip} from './package.test-support.ts';
 import {parseTable} from './tables.ts';
-import {writeXlsx} from './write.ts';
 
 // Author a workbook whose single sheet carries one table, round-trip it, and hand back the
 // reconstructed table for assertions.
@@ -29,7 +28,7 @@ function roundtripTable(options: {
 }) {
   const wb = new Workbook();
   wb.addWorksheet('S').addTable(options);
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   const sheet = back.getWorksheet('S');
   assert.ok(sheet !== undefined);
   return sheet.tables;
@@ -213,7 +212,7 @@ test('a distinct display name round-trips independently of the internal name', (
     columns: [{name: 'C'}],
     rowCount: 1,
   });
-  const table = readXlsx(writeXlsx(wb)).getWorksheet('S')?.tables[0];
+  const table = roundtrip(wb).getWorksheet('S')?.tables[0];
   assert.ok(table !== undefined);
   assert.equal(table.name, 'MyTable', 'the internal identifier is unaffected');
   assert.equal(table.displayName, 'My Display Name', 'the display label survives the round-trip');
@@ -257,7 +256,7 @@ test('several tables on one sheet all read back in definition order', () => {
   sheet.addTable({name: 'First', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
   sheet.addTable({name: 'Second', ref: 'D1', columns: [{name: 'B'}, {name: 'C'}], rowCount: 2});
 
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   const tables = back.getWorksheet('S')?.tables ?? [];
   assert.deepEqual(
     tables.map((t) => t.name),
@@ -271,7 +270,7 @@ test('tables on distinct sheets each reconstruct on their own sheet', () => {
   wb.addWorksheet('One').addTable({name: 'TA', ref: 'A1', columns: [{name: 'X'}], rowCount: 1});
   wb.addWorksheet('Two').addTable({name: 'TB', ref: 'A1', columns: [{name: 'Y'}], rowCount: 1});
 
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   assert.deepEqual(
     back.getWorksheet('One')?.tables.map((t) => t.name),
     ['TA'],
@@ -321,7 +320,7 @@ test('reading does not flatten a rich-text header cell to its plain column name'
   sheet.addTable({name: 'T', ref: 'A1', columns: [{name: 'Alpha'}], rowCount: 1});
   sheet.getCell('A1').value = {richText: [{text: 'Al', font: {bold: true}}, {text: 'pha'}]};
 
-  const value = readXlsx(writeXlsx(wb)).getWorksheet('S')?.getCell('A1').value;
+  const value = roundtrip(wb).getWorksheet('S')?.getCell('A1').value;
   assert.ok(value !== null && typeof value === 'object' && 'richText' in value);
   assert.equal(value.richText.length, 2, 'the runs survive the read');
   assert.equal(value.richText[0]?.font?.bold, true);
@@ -333,7 +332,7 @@ test('reading preserves a header cell whose text drifted from the declared colum
   sheet.addTable({name: 'T', ref: 'A1', columns: [{name: 'Alpha'}], rowCount: 1});
   sheet.getCell('A1').value = 'Drifted';
 
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   assert.equal(
     back.getWorksheet('S')?.getCell('A1').value,
     'Drifted',
@@ -349,8 +348,8 @@ test('a table survives a second read → write → read round-trip unchanged', (
     columns: [{name: 'One'}, {name: 'Two'}, {name: 'Three'}],
     rowCount: 4,
   });
-  const once = readXlsx(writeXlsx(wb));
-  const twice = readXlsx(writeXlsx(once));
+  const once = roundtrip(wb);
+  const twice = roundtrip(once);
   const table = twice.getWorksheet('S')?.tables[0];
   assert.ok(table !== undefined);
   assert.equal(table.name, 'Persist');

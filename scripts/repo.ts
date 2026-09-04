@@ -11,7 +11,8 @@
 // `.bin` shim was written out in four places plus `lefthook.yml`. That reasoning is a property of
 // this repo's platform, not of any one script, so it is stated once, below.
 
-import {dirname, resolve} from 'node:path';
+import {mkdirSync, mkdtempSync, readFileSync} from 'node:fs';
+import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 /** The repository root, resolved from this module's own location. */
@@ -20,6 +21,42 @@ export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** A repo-relative path made absolute. */
 export function fromRoot(...segments: readonly string[]): string {
   return resolve(ROOT, ...segments);
+}
+
+/**
+ * The fields of `package.json` anything in this repo reads, as one declaration.
+ *
+ * Three readers had three private `PackageJson` interfaces over the same file, which is three
+ * chances for one of them to describe a field the file no longer has. Widened rather than exact: a
+ * consumer names what it needs and the compiler still checks the shape of what it names.
+ */
+export interface PackageJson {
+  readonly name: string;
+  readonly description: string;
+  readonly author: string;
+  readonly license: string;
+  readonly dependencies: Readonly<Record<string, string>>;
+  readonly repository: {readonly url: string};
+  readonly exports: Readonly<Record<string, string | {readonly default?: string}>>;
+}
+
+export function readPackageJson(): PackageJson {
+  return JSON.parse(readFileSync(fromRoot('package.json'), 'utf8')) as PackageJson;
+}
+
+/**
+ * A fresh scratch directory under the repo's own `.tmp/`, and never under the system temp.
+ *
+ * CLAUDE.md puts scratch in `.tmp/` so it is inspectable and already git-ignored, and three callers
+ * reached for `os.tmpdir()` instead. `$TMPDIR` is pointed at `.tmp/` only in an agent's environment,
+ * so on a CI runner or a plain shell that constraint silently did not apply at all. One of them named
+ * its file by process id with no `mkdtemp`, which is a stray `.xlsx` left in system temp forever
+ * whenever the test throws before its cleanup, and a collision between two concurrent checkouts.
+ */
+export function scratchDir(prefix: string): string {
+  const base = fromRoot('.tmp');
+  mkdirSync(base, {recursive: true});
+  return mkdtempSync(join(base, `${prefix}-`));
 }
 
 /**

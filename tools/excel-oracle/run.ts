@@ -15,20 +15,23 @@
 // absent, so on a non-Excel host it degrades with a clear message rather than silently emitting empty
 // facts.
 
-import {spawn} from 'node:child_process';
-import {mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
-import {tmpdir} from 'node:os';
+import {readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 import {strFromU8, unzipSync} from 'fflate';
 
+import {scratchDir} from '../../scripts/repo.ts';
+import {failWith, runPwsh} from '../pwsh.ts';
 import {emitProbe, type ProbeSpec} from './emit-probe.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OBSERVE_PS1 = path.join(HERE, 'observe.ps1');
+// Annotated, not inferred. TypeScript performs never-return control-flow analysis only for a
+// function declaration or a const with an explicit type, so without this every `fail(...)` reads as
+// an ordinary call and the code after it as reachable.
+const fail: (message: string) => never = failWith('excel-oracle');
 const PWSH_TIMEOUT_MS = 120_000;
-const MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
 
 /** A probe file: the workbook to emit, and what to observe once Excel has opened it. */
 interface Probe {
@@ -61,63 +64,6 @@ interface RawObservation {
   readonly resavedPath: string | null;
   readonly resaveThrew: boolean;
   readonly resaveError: string | null;
-}
-
-interface PwshResult {
-  readonly code: number | null;
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly spawnError?: Error;
-}
-
-function fail(message: string): never {
-  process.stderr.write(`excel-oracle: ${message}\n`);
-  process.exit(1);
-}
-
-function runPwsh(args: readonly string[], timeoutMs: number): Promise<PwshResult> {
-  return new Promise<PwshResult>((resolve) => {
-    const child = spawn('pwsh', ['-NoProfile', '-NonInteractive', ...args], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    const stdout: Buffer[] = [];
-    const stderr: Buffer[] = [];
-    let bytes = 0;
-    let settled = false;
-    const done = (r: PwshResult) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(r);
-    };
-    const timer = setTimeout(() => {
-      child.kill('SIGKILL');
-      done({code: null, stdout: Buffer.concat(stdout).toString('utf8'), stderr: 'timed out'});
-    }, timeoutMs);
-    const collect = (target: Buffer[]) => (chunk: Buffer) => {
-      bytes += chunk.length;
-      if (bytes > MAX_OUTPUT_BYTES) {
-        child.kill('SIGKILL');
-        done({
-          code: null,
-          stdout: Buffer.concat(stdout).toString('utf8'),
-          stderr: 'output too large',
-        });
-        return;
-      }
-      target.push(chunk);
-    };
-    child.stdout.on('data', collect(stdout));
-    child.stderr.on('data', collect(stderr));
-    child.on('error', (spawnError) => done({code: null, stdout: '', stderr: '', spawnError}));
-    child.on('close', (code) =>
-      done({
-        code,
-        stdout: Buffer.concat(stdout).toString('utf8'),
-        stderr: Buffer.concat(stderr).toString('utf8'),
-      }),
-    );
-  });
 }
 
 // Refuse to run on a host without pwsh or a registered Excel COM server, so the harness never
@@ -188,7 +134,7 @@ async function main(): Promise<void> {
   const probe = readProbe(probePath);
   const resave = probe.observe.resave !== false;
 
-  const work = mkdtempSync(path.join(tmpdir(), 'excel-oracle-'));
+  const work = scratchDir('excel-oracle');
   const xlsxPath = path.join(work, `${probe.invariant}.xlsx`);
   const resavedPath = path.join(work, `${probe.invariant}.excel-resaved.xlsx`);
 

@@ -4,7 +4,7 @@ import {test} from 'node:test';
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
-import {optionalPartText as partText} from './package.test-support.ts';
+import {optionalPartText, partText, roundtrip} from './package.test-support.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
@@ -21,8 +21,8 @@ function bookWithStrings(...values: string[]): Workbook {
 test('useSharedStrings writes a sharedStrings part and stores the cell as a t="s" reference', () => {
   const pkg = writeXlsx(bookWithStrings('hello'), {useSharedStrings: true});
 
-  assert.match(partText(pkg, 'xl/sharedStrings.xml') ?? '', /<si><t>hello<\/t><\/si>/);
-  const sheet = partText(pkg, 'xl/worksheets/sheet1.xml') ?? '';
+  assert.match(partText(pkg, 'xl/sharedStrings.xml'), /<si><t>hello<\/t><\/si>/);
+  const sheet = partText(pkg, 'xl/worksheets/sheet1.xml');
   assert.match(sheet, /t="s"><v>0<\/v>/);
   assert.doesNotMatch(sheet, /inlineStr/);
 });
@@ -30,8 +30,8 @@ test('useSharedStrings writes a sharedStrings part and stores the cell as a t="s
 test('without the option, strings stay inline and no sharedStrings part is written', () => {
   const pkg = writeXlsx(bookWithStrings('hello'));
 
-  assert.equal(partText(pkg, 'xl/sharedStrings.xml'), undefined);
-  assert.match(partText(pkg, 'xl/worksheets/sheet1.xml') ?? '', /t="inlineStr"><is><t>hello<\/t>/);
+  assert.equal(optionalPartText(pkg, 'xl/sharedStrings.xml'), undefined);
+  assert.match(partText(pkg, 'xl/worksheets/sheet1.xml'), /t="inlineStr"><is><t>hello<\/t>/);
 });
 
 test('an enabled workbook with no string cells never fabricates an empty sharedStrings part', () => {
@@ -39,27 +39,27 @@ test('an enabled workbook with no string cells never fabricates an empty sharedS
   workbook.addWorksheet('S').getCell('A1').value = 42;
   const pkg = writeXlsx(workbook, {useSharedStrings: true});
 
-  assert.equal(partText(pkg, 'xl/sharedStrings.xml'), undefined);
+  assert.equal(optionalPartText(pkg, 'xl/sharedStrings.xml'), undefined);
   // The workbook rels must not dangle a reference to a part that was omitted.
-  assert.doesNotMatch(partText(pkg, 'xl/_rels/workbook.xml.rels') ?? '', /sharedStrings/);
+  assert.doesNotMatch(partText(pkg, 'xl/_rels/workbook.xml.rels'), /sharedStrings/);
 });
 
 test('an identical string is pooled once: count counts references, uniqueCount counts entries', () => {
   const pkg = writeXlsx(bookWithStrings('dup', 'dup', 'other'), {useSharedStrings: true});
-  const sst = partText(pkg, 'xl/sharedStrings.xml') ?? '';
+  const sst = partText(pkg, 'xl/sharedStrings.xml');
 
   assert.match(sst, /count="3"/);
   assert.match(sst, /uniqueCount="2"/);
   // Both duplicate cells reference index 0; the distinct one gets index 1.
-  const sheet = partText(pkg, 'xl/worksheets/sheet1.xml') ?? '';
+  const sheet = partText(pkg, 'xl/worksheets/sheet1.xml');
   assert.match(sheet, /r="A1"[^>]* t="s"><v>0<\/v>/);
   assert.match(sheet, /r="A2"[^>]* t="s"><v>0<\/v>/);
   assert.match(sheet, /r="A3"[^>]* t="s"><v>1<\/v>/);
 });
 
 test('shared and inline storage both read back to the same values', () => {
-  const shared = readXlsx(writeXlsx(bookWithStrings('a', 'b', 'a'), {useSharedStrings: true}));
-  const inline = readXlsx(writeXlsx(bookWithStrings('a', 'b', 'a')));
+  const shared = roundtrip(bookWithStrings('a', 'b', 'a'), {useSharedStrings: true});
+  const inline = roundtrip(bookWithStrings('a', 'b', 'a'));
   for (const wb of [shared, inline]) {
     const sheet = wb.getWorksheet('S');
     assert.ok(sheet);
@@ -78,10 +78,10 @@ test('under the option a rich-text cell is pooled as a rich <si> of runs and rea
 
   // The runs become a rich <si> entry the cell references by index: the shape Excel itself writes.
   assert.match(
-    partText(pkg, 'xl/sharedStrings.xml') ?? '',
+    partText(pkg, 'xl/sharedStrings.xml'),
     /<si><r><rPr><b\/><\/rPr><t>bold<\/t><\/r><r><t>plain<\/t><\/r><\/si>/,
   );
-  const sheet = partText(pkg, 'xl/worksheets/sheet1.xml') ?? '';
+  const sheet = partText(pkg, 'xl/worksheets/sheet1.xml');
   assert.match(sheet, /r="A1"[^>]* t="s"><v>0<\/v>/);
   assert.doesNotMatch(sheet, /inlineStr/);
 
@@ -96,12 +96,12 @@ test('a plain string and rich runs of the same text stay distinct entries in the
   sheet.getCell('A1').value = 'text';
   sheet.getCell('A2').value = {richText: [{text: 'text', font: {italic: true}}]};
   const pkg = writeXlsx(workbook, {useSharedStrings: true});
-  const sst = partText(pkg, 'xl/sharedStrings.xml') ?? '';
+  const sst = partText(pkg, 'xl/sharedStrings.xml');
 
   // The plain <t> entry and the <r>-run entry render to different markup, so neither collapses
   // into the other: two references, two distinct entries.
   assert.match(sst, /uniqueCount="2"/);
-  const cells = partText(pkg, 'xl/worksheets/sheet1.xml') ?? '';
+  const cells = partText(pkg, 'xl/worksheets/sheet1.xml');
   assert.match(cells, /r="A1"[^>]* t="s"><v>0<\/v>/);
   assert.match(cells, /r="A2"[^>]* t="s"><v>1<\/v>/);
 });
@@ -112,7 +112,7 @@ test('identical rich runs are pooled once, like plain strings', () => {
   const runs = {richText: [{text: 'x', font: {bold: true}}]};
   sheet.getCell('A1').value = runs;
   sheet.getCell('A2').value = {richText: [{text: 'x', font: {bold: true}}]};
-  const sst = partText(writeXlsx(workbook, {useSharedStrings: true}), 'xl/sharedStrings.xml') ?? '';
+  const sst = partText(writeXlsx(workbook, {useSharedStrings: true}), 'xl/sharedStrings.xml');
 
   assert.match(sst, /count="2"/);
   assert.match(sst, /uniqueCount="1"/);

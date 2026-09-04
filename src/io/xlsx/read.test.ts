@@ -1504,7 +1504,7 @@ test('workbook structure protection survives a read→write round-trip', () => {
   // The element precedes <sheets> in CT_Workbook order.
   assert.ok(wbXml.indexOf('<workbookProtection') < wbXml.indexOf('<sheets>'));
 
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   assert.equal(back.protection?.lockStructure, true);
   assert.equal(back.protection?.lockWindows, undefined);
 });
@@ -1514,7 +1514,7 @@ test('a workbook with no protection emits no <workbookProtection> and reads back
   wb.addWorksheet('S').getCell('A1').value = 'x';
   const wbXml = partText(writeXlsx(wb), 'xl/workbook.xml');
   assert.doesNotMatch(wbXml, /workbookProtection/);
-  assert.equal(readXlsx(writeXlsx(wb)).protection, undefined);
+  assert.equal(roundtrip(wb).protection, undefined);
 });
 
 test('a workbook protection password/hash credential is preserved verbatim across a round-trip', () => {
@@ -1619,7 +1619,7 @@ test('an authored default font moves the cells that only inherited the file’s,
   seedSheet.getCell('A3').value = 'names a face outright';
   seedSheet.getCell('A3').font = {name: 'Courier New', size: 9};
 
-  const back = readXlsx(writeXlsx(seed));
+  const back = roundtrip(seed);
   back.setDefaultFont({name: 'Georgia', size: 12});
 
   const fonts = fontsBlockOf(back);

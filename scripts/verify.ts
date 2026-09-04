@@ -28,6 +28,13 @@ import {open, mkdir, readFile, writeFile} from 'node:fs/promises';
 import {dirname, join, resolve} from 'node:path';
 
 import {CHARCHECK, NODE, OXLINT, ROOT, TSC} from './repo.ts';
+import {
+  LINT_STRICT,
+  LINT_TARGETS,
+  LINT_TYPE_AWARE,
+  LINT_UNUSED_DIRECTIVES,
+  UNIT_SUITE_GLOB,
+} from './targets.ts';
 import {reportCrash, UsageError} from './verdict.ts';
 
 const STAMP = join(ROOT, '.tmp', 'verify-stamp.json');
@@ -39,20 +46,11 @@ const TSGOLINT = resolve(
   `node_modules/.bin/tsgolint${process.platform === 'win32' ? '.exe' : ''}`,
 );
 
-/** What `lint` covers; must stay in step with the `lint` package script. */
-const LINT_TARGETS = ['src', 'scripts', 'test', 'tools', 'www', 'charcheck.config.ts'];
-// CLAUDE.md §2 admits no warnings, and oxlint exits 0 on them. Nothing in .oxlintrc.jsonc is set
-// to "warn" today, so this changes no current outcome. It is here so that the first rule adopted
-// at warning severity, to stage a migration, is still a gate rather than a message.
-const LINT_STRICT = '--deny-warnings';
-// A suppression that has outlived its cause is worse than none: it reads as a live hazard and
-// silences a rule that would now pass. The move onto oxlint left eleven of them.
-const UNUSED_DIRECTIVES = '--report-unused-disable-directives';
-// The rules that need a typechecker, spawning tsgolint alongside oxlint. This flag is the only
+// The rules that need a typechecker spawn tsgolint alongside oxlint, and `--type-aware` is the only
 // thing that turns them on: .oxlintrc.jsonc deliberately leaves `options.typeAware` unset, because
-// setting it there would apply to every invocation including the pre-commit hook, and oxlint has
-// no flag to switch it back off. The config says why at length.
-const TYPE_AWARE = '--type-aware';
+// setting it there would apply to every invocation including the pre-commit hook, and oxlint has no
+// flag to switch it back off. The config says why at length. The targets and the other two flags are
+// `targets.ts`'s, which is also what the `lint` package script now spawns, so there is one list.
 // Deliberately narrower than the formatter's set: oxlint reads no JSON.
 const LINTABLE = /\.(?:ts|js|mjs|cjs)$/;
 // Past this many changed files, an explicit list stops being cheaper than a whole-tree
@@ -160,7 +158,10 @@ function wholeTreeLint(): Gate {
   return {
     name: 'lint',
     steps: [
-      {command: NODE, args: [OXLINT, ...LINT_TARGETS, TYPE_AWARE, LINT_STRICT, UNUSED_DIRECTIVES]},
+      {
+        command: NODE,
+        args: [OXLINT, ...LINT_TARGETS, LINT_TYPE_AWARE, LINT_STRICT, LINT_UNUSED_DIRECTIVES],
+      },
     ],
   };
 }
@@ -215,7 +216,10 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
   }
   gates.push(
     lint,
-    {name: 'test:src', steps: [{command: NODE, args: ['--test', 'src/**/*.test.ts']}]},
+    {name: 'test:src', steps: [{command: NODE, args: ['--test', UNIT_SUITE_GLOB]}]},
+    // The harness's own tests, in their own gate: `module-graph.ts` is what four gates mean by an
+    // import, and a bug there fails them all at once, for reasons unrelated to the code they check.
+    {name: 'test:harness', steps: [{command: NODE, args: ['--test', 'scripts/**/*.test.ts']}]},
     // Its own gate rather than a widened glob on the one above. A gate's name is what a
     // failure reports, and "test:src failed" pointing at a module under www/ would be a lie.
     // The site's tests build and read real workbooks, so they belong in --quick too.
@@ -261,6 +265,7 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
           {command: NODE, args: ['scripts/check-entries.ts']},
           {command: NODE, args: ['scripts/check-public-types.ts']},
           {command: NODE, args: ['scripts/check-facet-register.ts']},
+          {command: NODE, args: ['scripts/check-tsconfig-coverage.ts']},
           {command: NODE, args: ['scripts/check-browser-safe.ts']},
           {command: NODE, args: ['scripts/check-source-text.ts']},
           {command: NODE, args: ['scripts/check-error-messages.ts']},
@@ -313,7 +318,7 @@ async function missingExecutables(
       // The script or tool entry: the first argument that is neither a flag nor a glob for `--test`.
       const entry = step.args.find((arg) => !arg.startsWith('-') && !arg.includes('*'));
       if (entry !== undefined) required.add(resolve(ROOT, entry));
-      if (step.args.includes(TYPE_AWARE)) required.add(TSGOLINT);
+      if (step.args.includes(LINT_TYPE_AWARE)) required.add(TSGOLINT);
     }
   }
   const missing: {path: string; reason: string}[] = [];

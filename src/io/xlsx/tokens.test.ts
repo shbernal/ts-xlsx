@@ -13,7 +13,7 @@ import {zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
 import {AuthoringError} from '../../errors.ts';
-import {partsWritten as partsOf, sheetXml} from './package.test-support.ts';
+import {partIn, partsWritten as partsOf, roundtrip, sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -134,7 +134,7 @@ test('the tokens the enumerations do allow still round-trip', () => {
   wb.addWorksheet('Hidden', {state: 'veryHidden'});
   wb.view.visibility = 'hidden';
 
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   const sheetBack = back.getWorksheet('S');
   assert.equal(sheetBack?.pageSetup.orientation, 'landscape');
   assert.equal(sheetBack?.pageSetup.pageOrder, 'overThenDown');
@@ -148,7 +148,7 @@ test('a foreign token in a file is dropped on read rather than carried into a wr
   const wb = sheeted();
   wb.getWorksheet('S')!.pageSetup.orientation = 'landscape';
   const parts = partsOf(wb);
-  const doctored = (parts['xl/worksheets/sheet1.xml'] as string)
+  const doctored = partIn(parts, 'xl/worksheets/sheet1.xml')
     .replace('orientation="landscape"', 'orientation="sideways"')
     .replace(
       '<pageSetup',

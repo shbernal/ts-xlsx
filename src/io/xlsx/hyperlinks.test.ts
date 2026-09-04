@@ -5,9 +5,8 @@ import {strToU8, zipSync} from 'fflate';
 
 import {isHyperlinkValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {partsWritten} from './package.test-support.ts';
+import {optionalPartIn, partIn, partsWritten, roundtrip} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
-import {writeXlsx} from './write.ts';
 
 function hyperlinkOf(workbook: Workbook, sheet: string, ref: string) {
   const value = workbook.getWorksheet(sheet)?.getCell(ref).value;
@@ -22,7 +21,7 @@ test('an external hyperlink round-trips with its target and visible label', () =
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {hyperlink: 'https://example.com', text: 'Example'};
 
-  const back = hyperlinkOf(readXlsx(writeXlsx(wb)), 'S', 'A1');
+  const back = hyperlinkOf(roundtrip(wb), 'S', 'A1');
   assert.equal(back.hyperlink, 'https://example.com');
   assert.equal(back.text, 'Example');
 });
@@ -32,7 +31,7 @@ test('an external URL keeps its "#" fragment through a round-trip', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {hyperlink: url, text: 'open case'};
 
-  const back = hyperlinkOf(readXlsx(writeXlsx(wb)), 'S', 'A1');
+  const back = hyperlinkOf(roundtrip(wb), 'S', 'A1');
   assert.equal(back.hyperlink, url, 'the fragment tail must not be dropped');
   assert.equal(back.text, 'open case');
 });
@@ -45,7 +44,7 @@ test('a tooltip survives the round-trip', () => {
     tooltip: 'go to example',
   };
 
-  const back = hyperlinkOf(readXlsx(writeXlsx(wb)), 'S', 'A1');
+  const back = hyperlinkOf(roundtrip(wb), 'S', 'A1');
   assert.equal(back.tooltip, 'go to example');
 });
 
@@ -55,13 +54,15 @@ test('an internal "#"-target is written as a location with no external relations
   wb.addWorksheet('Target');
 
   const parts = partsWritten(wb);
-  const sheetXml = parts['xl/worksheets/sheet1.xml'] ?? '';
+  const sheetXml = partIn(parts, 'xl/worksheets/sheet1.xml');
   const link = sheetXml.match(/<hyperlink\b[^>]*\/?>/)?.[0] ?? '';
   assert.match(link, /location="[^"]*Target[^"]*A1[^"]*"/, 'the internal target rides in location');
   assert.doesNotMatch(link, /r:id=/, 'an internal link uses no relationship id');
-  // An internal link must not produce a sheet rels part carrying an External relationship.
-  const rels = parts['xl/worksheets/_rels/sheet1.xml.rels'];
-  if (rels !== undefined) assert.doesNotMatch(rels, /TargetMode="External"/);
+  // An internal link must not produce a sheet rels part carrying an External relationship. Which is
+  // two claims, and the `if (rels !== undefined)` this used to be spelled with made the second one
+  // vacuous: a writer that stopped emitting the rels part entirely passed it.
+  const rels = optionalPartIn(parts, 'xl/worksheets/_rels/sheet1.xml.rels');
+  assert.ok(rels === undefined || !/TargetMode="External"/.test(rels));
 });
 
 test('an internal "#"-target round-trips verbatim', () => {
@@ -69,7 +70,7 @@ test('an internal "#"-target round-trips verbatim', () => {
   wb.addWorksheet('Main').getCell('A1').value = {hyperlink: '#Sheet2!A1', text: 'go'};
   wb.addWorksheet('Sheet2');
 
-  const back = hyperlinkOf(readXlsx(writeXlsx(wb)), 'Main', 'A1');
+  const back = hyperlinkOf(roundtrip(wb), 'Main', 'A1');
   assert.equal(back.hyperlink, '#Sheet2!A1');
 });
 
@@ -78,7 +79,7 @@ test('an external link produces exactly one External relationship of hyperlink t
   wb.addWorksheet('S').getCell('A1').value = {hyperlink: 'https://example.com', text: 'x'};
 
   const parts = partsWritten(wb);
-  const rels = parts['xl/worksheets/_rels/sheet1.xml.rels'] ?? '';
+  const rels = partIn(parts, 'xl/worksheets/_rels/sheet1.xml.rels');
   const external = [...rels.matchAll(/<Relationship\b[^>]*TargetMode="External"[^>]*\/>/g)];
   assert.equal(external.length, 1);
   assert.match(external[0]?.[0] ?? '', /Type="[^"]*\/hyperlink"/);
@@ -92,7 +93,7 @@ test('the <hyperlinks> element sits after <mergeCells> and before <pageMargins>'
   sheet.mergeCells('B1:C1');
   sheet.pageMargins.left = 0.5;
 
-  const sheetXml = partsWritten(wb)['xl/worksheets/sheet1.xml'] ?? '';
+  const sheetXml = partIn(partsWritten(wb), 'xl/worksheets/sheet1.xml');
   const merge = sheetXml.indexOf('<mergeCells');
   const links = sheetXml.indexOf('<hyperlinks>');
   const margins = sheetXml.indexOf('<pageMargins');
@@ -137,15 +138,18 @@ test('a hyperlink relationship id does not collide with a table on the same shee
   sheet.getCell('A1').value = {hyperlink: 'https://example.com', text: 'h'};
 
   const parts = partsWritten(wb);
-  const rels = parts['xl/worksheets/_rels/sheet1.xml.rels'] ?? '';
+  const rels = partIn(parts, 'xl/worksheets/_rels/sheet1.xml.rels');
   const ids = [...rels.matchAll(/Id="(rId\d+)"/g)].map((m) => m[1]);
+  // Uniqueness is vacuously true of nothing, and the point of this test is that the hyperlink and
+  // the table both claim an id in the same part: fewer than two and it is not testing that at all.
+  assert.ok(ids.length >= 2, `expected the link and the table to claim ids; got ${ids.join(', ')}`);
   assert.equal(
     new Set(ids).size,
     ids.length,
     `relationship ids must be unique; got ${ids.join(', ')}`,
   );
   // The link reads back intact despite sharing the rels part with the table.
-  const back = hyperlinkOf(readXlsx(writeXlsx(wb)), 'S', 'A1');
+  const back = hyperlinkOf(roundtrip(wb), 'S', 'A1');
   assert.equal(back.hyperlink, 'https://example.com');
 });
 
@@ -182,7 +186,7 @@ test('a range hyperlink keeps its extent through a write→read round-trip', () 
   sheet.getCell('D1').value = {hyperlink: 'https://example.com', text: 'go', range: 'D1:H1'};
   sheet.getCell('A1').value = {hyperlink: 'https://example.com/plain', text: 'one'};
 
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   const ranged = hyperlinkOf(back, 'S', 'D1');
   assert.equal(ranged.range, 'D1:H1');
   assert.equal(ranged.hyperlink, 'https://example.com');

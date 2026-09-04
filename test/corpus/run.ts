@@ -34,6 +34,7 @@ import {readdir} from 'node:fs/promises';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
+import {reportCrash, UsageError} from '../../scripts/verdict.ts';
 import type {Behavior, Case, CorpusApi} from './case.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -44,12 +45,22 @@ type Status = 'pass' | 'fail';
 interface Outcome {
   status: Status;
   detail?: string;
+  /**
+   * The throw's stack, kept because the message alone does not say which layer failed.
+   *
+   * A case reaches through optional chains, so a round trip that loses a sheet surfaces as
+   * `Cannot read properties of undefined (reading 'cells')` and nothing in that sentence
+   * distinguishes a bug in the case, in the adapter, and in the reader. The heading already gives
+   * the id; the stack gives the layer.
+   */
+  stack?: string;
 }
 
 /** One behavior's verdict, as reported. */
 interface BehaviorResult {
   name: string;
   status: Status;
+  stack?: string;
   detail?: string;
 }
 
@@ -61,9 +72,6 @@ interface Args {
   verbose: boolean | undefined;
   json: boolean;
 }
-
-/** A bad invocation, not a corpus failure: reported as one legible line, no stack. */
-class UsageError extends Error {}
 
 function parseArgs(argv: string[]): Args {
   const args: Args = {
@@ -97,7 +105,18 @@ async function loadCases(): Promise<Case[]> {
   const cases: Case[] = [];
   for (const file of files) {
     const mod = await import(pathToFileURL(resolve(dir, file)).href);
-    cases.push(mod.default as Case);
+    const loaded = mod.default as Case;
+    // The id is what a failure heading names and what `--case` selects, so a case whose id does not
+    // match its filename is one a reader cannot find from the report. Every case agreed already;
+    // this is what keeps that true.
+    const expected = file.slice(0, -'.case.ts'.length);
+    if (loaded.id !== expected) {
+      throw new UsageError(
+        `case file ${file} declares id "${loaded.id}": the id is how a failure is found and re-run, ` +
+          `so it must be the filename without .case.ts ("${expected}")`,
+      );
+    }
+    cases.push(loaded);
   }
   return cases;
 }
@@ -131,7 +150,12 @@ async function runBehavior(behavior: Behavior, api: CorpusApi): Promise<Outcome>
     await behavior.expect(api, assert);
     return {status: 'pass'};
   } catch (err) {
-    return {status: 'fail', detail: err instanceof Error ? err.message : String(err)};
+    if (!(err instanceof Error)) return {status: 'fail', detail: String(err)};
+    return {
+      status: 'fail',
+      detail: err.message,
+      ...(err.stack === undefined ? {} : {stack: err.stack}),
+    };
   }
 }
 
@@ -167,6 +191,7 @@ async function main() {
   );
 
   const report: {id: string; cluster: string; behaviors: BehaviorResult[]}[] = [];
+  const failedIds = new Set<string>();
   for (const testCase of cases) {
     // `provenance` is an optional, disposable trace: a case is identified by its
     // durable `id`/`cluster`, never by an upstream number. Show a ref only if present.
@@ -176,13 +201,15 @@ async function main() {
     const behaviors: BehaviorResult[] = [];
 
     for (const behavior of testCase.behavior) {
-      const {status, detail} = await runBehavior(behavior, api);
+      const {status, detail, stack} = await runBehavior(behavior, api);
       tally[status]++;
       behaviors.push({
         name: behavior.name,
         status,
         ...(detail === undefined ? {} : {detail}),
+        ...(stack === undefined ? {} : {stack}),
       });
+      if (status === 'fail') failedIds.add(testCase.id);
 
       const note = status === 'fail' ? `FAILED: ${detail}` : undefined;
       if (!verbose && note === undefined) continue;
@@ -191,7 +218,13 @@ async function main() {
         headingShown = true;
       }
       say(`    ${MARK[status]} ${behavior.name}`);
-      if (note !== undefined) say(`        ${note}`);
+      if (note !== undefined) {
+        say(`        ${note}`);
+        // Frames only: the first line of a stack is the message, which the line above already is.
+        if (stack !== undefined) {
+          for (const frame of stack.split('\n').slice(1)) say(`        ${frame.trim()}`);
+        }
+      }
     }
 
     if (headingShown) say('');
@@ -219,16 +252,13 @@ async function main() {
 
   if (failed) {
     console.error(`\nFAIL: ${tally.fail} behavior(s) the corpus had locked in no longer hold.`);
+    // The command, spelled out. The playbook makes re-running one case the first move after a
+    // failure, and a footer that prints only a tally leaves the reader to assemble it from the
+    // headings above.
+    const only = [...failedIds].map((id) => `--case ${id}`).join(' ');
+    console.error(`re-run: node test/corpus/run.ts ${only}`);
     process.exitCode = 1;
   }
 }
 
-main().catch((err: unknown) => {
-  if (err instanceof UsageError) console.error(`corpus: ${err.message}`);
-  else {
-    console.error(
-      `corpus runner failed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
-    );
-  }
-  process.exitCode = 1;
-});
+main().catch((err: unknown) => reportCrash('corpus', err));

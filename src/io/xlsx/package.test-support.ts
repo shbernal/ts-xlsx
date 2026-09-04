@@ -17,7 +17,7 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
 import {readXlsx} from './read.ts';
-import {writeXlsx} from './write.ts';
+import {type WriteOptions, writeXlsx} from './write.ts';
 
 /** The first worksheet's part path, which most writer tests are reaching for. */
 export const SHEET1 = 'xl/worksheets/sheet1.xml';
@@ -76,6 +76,17 @@ export function partIn(parts: Record<string, string>, name: string): string {
   return xml;
 }
 
+/**
+ * One named part's text from an already-unzipped map, or undefined.
+ *
+ * {@link partIn}'s counterpart, for the test whose claim is about absence. The shape it replaces is
+ * `const x = parts[name]; if (x !== undefined) assert.doesNotMatch(x, …)`, which reads as care and
+ * is the vacuity this module exists to remove: the assertion it guards passes when the part is gone.
+ */
+export function optionalPartIn(parts: Record<string, string>, name: string): string | undefined {
+  return parts[name];
+}
+
 /** One named part's text, or undefined: for a test asserting a part was *not* written. */
 export function optionalPartText(pkg: Uint8Array, name: string): string | undefined {
   const bytes = filesOf(pkg)[name];
@@ -87,9 +98,14 @@ export function sheetXml(pkg: Uint8Array): string {
   return partText(pkg, SHEET1);
 }
 
-/** Write a workbook and read it straight back: the round-trip under test. */
-export function roundtrip(workbook: Workbook): Workbook {
-  return readXlsx(writeXlsx(workbook));
+/**
+ * Write a workbook and read it straight back: the round-trip under test.
+ *
+ * The helper existed and was imported by two files while ninety-eight call sites spelled it out.
+ * That is worse than its being missing: the next author reads the ninety-eight and copies one.
+ */
+export function roundtrip(workbook: Workbook, options?: WriteOptions): Workbook {
+  return readXlsx(writeXlsx(workbook, options));
 }
 
 /**

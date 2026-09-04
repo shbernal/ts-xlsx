@@ -61,6 +61,7 @@ import {join, relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 import {NODE, ROOT} from './repo.ts';
+import {NON_LIBRARY_GLOBS, UNIT_SUITE_GLOB} from './targets.ts';
 import {reportCrash, UsageError} from './verdict.ts';
 
 const RAW = join(ROOT, '.tmp', 'coverage');
@@ -72,9 +73,14 @@ const RESPAWNED = 'TS_XLSX_COVERAGE_RESPAWNED';
 /**
  * The library is what gets measured. Test files, the corpus harness, and `scripts/` are the
  * instrument, and an instrument that reports on itself flatters itself.
+ *
+ * The exclusions are `tsconfig.build.json`'s, and are the same three for the same reason: what is
+ * not shipped is not the library. Only the first was listed here, so `package.test-support.ts` was a
+ * row in the table at 100/100/100 by construction, and `src/type-tests/**` was in the denominator
+ * too. An instrument that reports on itself flatters itself, and this one was.
  */
 const INCLUDE = ['src/**/*.ts'];
-const EXCLUDE = ['src/**/*.test.ts'];
+const EXCLUDE = NON_LIBRARY_GLOBS;
 
 /**
  * Floors, not targets (CLAUDE.md §2). Set just under the measured union so a real regression trips
@@ -91,7 +97,7 @@ interface Suite {
 }
 
 const SUITES: readonly Suite[] = [
-  {name: 'unit', args: ['--test', 'src/**/*.test.ts']},
+  {name: 'unit', args: ['--test', UNIT_SUITE_GLOB]},
   {name: 'corpus', args: ['test/corpus/run.ts']},
 ];
 

@@ -4,8 +4,7 @@ import {test} from 'node:test';
 import {dateToSerial} from '../../core/date.ts';
 import {type FormulaValue, isFormulaValue, isSharedFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {sheetXml} from './package.test-support.ts';
-import {readXlsx} from './read.ts';
+import {roundtrip, sheetXml} from './package.test-support.ts';
 import {writeXlsx} from './write.ts';
 
 function formulaOf(wb: Workbook, ref: string): FormulaValue {
@@ -19,7 +18,7 @@ test('a date-valued formula result round-trips as a Date, not a bare serial', ()
   const when = new Date(2020, 0, 1);
   wb.addWorksheet('S').getCell('A1').value = {formula: 'TODAY()', result: when};
 
-  const a1 = formulaOf(readXlsx(writeXlsx(wb)), 'A1');
+  const a1 = formulaOf(roundtrip(wb), 'A1');
   assert.equal(a1.formula, 'TODAY()');
   assert.ok(a1.result instanceof Date, 'the cached result reads back as a Date');
   assert.equal(a1.result.getTime(), when.getTime());
@@ -46,7 +45,7 @@ test('an explicit date format on the cell wins over the default but still reads 
   cell.value = {formula: 'TODAY()', result: when};
   cell.numFmt = 'yyyy-mm-dd';
 
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   const a1 = formulaOf(back, 'A1');
   assert.ok(a1.result instanceof Date, 'the explicit-format cell still yields a Date');
   assert.equal(a1.result.getTime(), when.getTime());
@@ -70,7 +69,7 @@ test('a formula with an Invalid Date result writes no cached value and reads bac
     'no <v> is cached for an unrepresentable date',
   );
 
-  const back = readXlsx(writeXlsx(wb));
+  const back = roundtrip(wb);
   const a1 = formulaOf(back, 'A1');
   assert.equal(a1.formula, 'TODAY()');
   assert.equal(a1.result, undefined, 'no result is invented on read');
@@ -85,7 +84,7 @@ test('a shared-formula clone with a date result reads back as a Date', () => {
   sheet.getCell('B1').value = {formula: 'A1+1', result: day1};
   sheet.getCell('B2').value = {sharedFormula: 'B1', result: day2};
 
-  const clone = readXlsx(writeXlsx(wb)).getWorksheet('S')?.getCell('B2').value;
+  const clone = roundtrip(wb).getWorksheet('S')?.getCell('B2').value;
   assert.ok(
     clone !== undefined && clone !== null && isSharedFormulaValue(clone),
     'B2 stays a shared formula',

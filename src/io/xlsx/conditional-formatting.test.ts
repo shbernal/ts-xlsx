@@ -3,7 +3,7 @@ import {test} from 'node:test';
 
 import type {CfValueObjectType} from '../../core/conditional-formatting.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {partText, readPatched, sheetXml, SHEET1} from './package.test-support.ts';
+import {partText, readPatched, roundtrip, SHEET1, sheetXml} from './package.test-support.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -48,7 +48,7 @@ test('a dataBar rule reads back on the same range with its type, colour, and bot
       },
     ],
   });
-  const rule = readXlsx(writeXlsx(workbook)).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
+  const rule = roundtrip(workbook).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
   assert.equal(rule?.type, 'dataBar');
   assert.equal(rule?.color?.argb, 'FF638EC6');
   assert.deepEqual(
@@ -319,8 +319,8 @@ test('a gradient dataBar writes the classic element plus a linked x14 extension 
 
 test('the gradient flag survives a write→read round-trip through the x14 extension', () => {
   for (const gradient of [true, false]) {
-    const rule = readXlsx(writeXlsx(dataBarBook({gradient}))).getWorksheet('S')
-      ?.conditionalFormattings[0]?.rules[0];
+    const rule = roundtrip(dataBarBook({gradient})).getWorksheet('S')?.conditionalFormattings[0]
+      ?.rules[0];
     assert.equal(rule?.type, 'dataBar');
     assert.equal(rule?.gradient, gradient, `gradient=${gradient} reads back`);
     // The classic facets still survive alongside the enriched ones.
@@ -338,7 +338,7 @@ test('a dataBar negative-fill and axis colour round-trip through the x14 extensi
   assert.match(xml, /<x14:negativeFillColor rgb="FFFF0000"\/>/);
   assert.match(xml, /<x14:axisColor rgb="FF000000"\/>/);
 
-  const rule = readXlsx(writeXlsx(book)).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
+  const rule = roundtrip(book).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
   assert.equal(rule?.negativeFillColor?.argb, 'FFFF0000');
   assert.equal(rule?.axisColor?.argb, 'FF000000');
 });
@@ -374,7 +374,7 @@ test('a sheet with both an extended validation and a gradient dataBar emits one 
     'the two extensions are not split across two worksheet extLst',
   );
 
-  const sheet = readXlsx(writeXlsx(workbook)).getWorksheet('S');
+  const sheet = roundtrip(workbook).getWorksheet('S');
   assert.equal(sheet?.conditionalFormattings[0]?.rules[0]?.gradient, true, 'the gradient survives');
   assert.equal(sheet?.dataValidations.length, 1, 'the extended validation survives');
 });
@@ -424,7 +424,7 @@ test('an iconSet rule reads back with its type, icon family, and every threshold
       },
     ],
   });
-  const rule = readXlsx(writeXlsx(workbook)).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
+  const rule = roundtrip(workbook).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
   assert.equal(rule?.type, 'iconSet');
   assert.equal(rule?.iconSet, '5Rating');
   assert.deepEqual(
@@ -508,7 +508,7 @@ test('every schema token of the cfvo type union round-trips unchanged', () => {
     })),
   });
 
-  const rules = readXlsx(writeXlsx(workbook)).getWorksheet('S')?.conditionalFormattings[0]?.rules;
+  const rules = roundtrip(workbook).getWorksheet('S')?.conditionalFormattings[0]?.rules;
   assert.deepEqual(
     rules?.map((rule) => rule.cfvo?.[0]?.type),
     types,

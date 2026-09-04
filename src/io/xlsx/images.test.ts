@@ -4,8 +4,7 @@ import {test} from 'node:test';
 import {isOneCellAnchor} from '../../core/image.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {imageContentType} from './images.ts';
-import {partIn, partsWritten, partText} from './package.test-support.ts';
-import {readXlsx} from './read.ts';
+import {partIn, partsWritten, partText, roundtrip} from './package.test-support.ts';
 import {writeXlsx} from './write.ts';
 
 // A 1×1 transparent PNG: enough bytes to prove the media round-trips verbatim.
@@ -25,14 +24,14 @@ function anchored(): Workbook {
 }
 
 test('an anchored image survives the write/read round-trip with its bytes intact', () => {
-  const back = readXlsx(writeXlsx(anchored())).getWorksheet('S');
+  const back = roundtrip(anchored()).getWorksheet('S');
   const images = back?.images ?? [];
   assert.strictEqual(images.length, 1);
   const anchor = images[0]?.anchor;
   assert.ok(anchor && !isOneCellAnchor(anchor));
   assert.deepStrictEqual(anchor.from, {col: 0, row: 5, colOff: 0, rowOff: 0});
   assert.deepStrictEqual(anchor.to, {col: 2, row: 8, colOff: 0, rowOff: 0});
-  const media = readXlsx(writeXlsx(anchored())).getImage(images[0]?.imageId ?? -1);
+  const media = roundtrip(anchored()).getImage(images[0]?.imageId ?? -1);
   assert.strictEqual(media?.extension, 'png');
   assert.deepStrictEqual(media?.data, ONE_PX_PNG);
 });
@@ -61,7 +60,7 @@ test('an image-free workbook writes no drawing or media parts', () => {
 test('inserting a row above an anchored image shifts its anchor down a row', () => {
   const wb = anchored();
   wb.getWorksheet('S')?.spliceRows(1, 0, ['inserted']);
-  const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+  const back = roundtrip(wb).getWorksheet('S');
   const anchor = back?.images[0]?.anchor;
   assert.ok(anchor && !isOneCellAnchor(anchor));
   assert.strictEqual(anchor.from.row, 6, 'from-anchor row 5 shifts to 6');
@@ -106,7 +105,7 @@ test('a one-cell anchor round-trips through the reader as an extent, not a to-po
   const ws = wb.addWorksheet('S');
   const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
   ws.addImage(id, {tl: {col: 2, row: 3}, ext: {width: 191, height: 47}});
-  const anchor = readXlsx(writeXlsx(wb)).getWorksheet('S')?.images[0]?.anchor;
+  const anchor = roundtrip(wb).getWorksheet('S')?.images[0]?.anchor;
   assert.ok(anchor && isOneCellAnchor(anchor));
   assert.deepStrictEqual(anchor.from, {col: 2, row: 3, colOff: 0, rowOff: 0});
   assert.deepStrictEqual(anchor.ext, {cx: 191 * 9525, cy: 47 * 9525});
@@ -129,7 +128,7 @@ test('a dirty or missing image extension is sanitised to a well-formed media nam
     'every Default extension is a bare token',
   );
   assert.doesNotMatch(contentTypes, /image\/undefined/, 'no bogus media type');
-  assert.strictEqual(readXlsx(writeXlsx(wb)).getWorksheet('S')?.images.length, 2);
+  assert.strictEqual(roundtrip(wb).getWorksheet('S')?.images.length, 2);
 });
 
 test('removeImage drops exactly the targeted anchor and omits its now-orphaned media', () => {
@@ -176,10 +175,7 @@ test('a picture rotation survives the write/read round-trip on a rot-only transf
   const drawing = partText(writeXlsx(wb), 'xl/drawings/drawing1.xml');
   assert.match(drawing, /<a:xfrm rot="2700000"\/>/);
   assert.doesNotMatch(drawing, /<a:off|<a:ext/, 'the rot rides alone, no zeroed offset/extent');
-  assert.strictEqual(
-    readXlsx(writeXlsx(wb)).getWorksheet('S')?.images[0]?.anchor.rotation,
-    2700000,
-  );
+  assert.strictEqual(roundtrip(wb).getWorksheet('S')?.images[0]?.anchor.rotation, 2700000);
 });
 
 test('a sheet background image writes a <picture>, an image relationship, and its media, and round-trips', () => {
@@ -199,14 +195,14 @@ test('a sheet background image writes a <picture>, an image relationship, and it
     ),
   );
   assert.ok(parts['xl/media/image1.png'], 'the background bytes are written once');
-  const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+  const back = roundtrip(wb).getWorksheet('S');
   assert.strictEqual(
     back?.backgroundImageId !== undefined,
     true,
     'the background survives the round-trip',
   );
   assert.deepStrictEqual(
-    back && readXlsx(writeXlsx(wb)).getImage(back.backgroundImageId ?? -1)?.data,
+    back && roundtrip(wb).getImage(back.backgroundImageId ?? -1)?.data,
     ONE_PX_PNG,
   );
 });

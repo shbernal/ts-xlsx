@@ -306,6 +306,22 @@ value lands where the model says instead of being routed to a region master mid-
 is proved exhaustive over `keyof WorksheetModel` at compile time, so a field added without a facet
 is a build error that names the field.
 
+### The harness is code, and is held to the same rules as the library
+
+Four gates ask `scripts/module-graph.ts` what a module imports, and its comment-stripper is a
+hand-rolled character scanner: the right shape, since a parser for four gates would cost more than it
+saves, and exactly the shape that gets one case wrong quietly. It did. `const a = /don't/;` opened a
+phantom string at the apostrophe, so a commented-out import on the next line read as a real one. That
+degrades toward a false alarm, which is the safe direction, and a gate that can fail for reasons
+unrelated to the code is still how a gate loses its reader. `scripts/module-graph.test.ts` runs in its
+own `test:harness` gate and covers the scanner's edges.
+
+Which file a tool runs over is `scripts/targets.ts`, once. The unit-suite glob had three copies, the
+lint targets two, the formatter's targets carried a comment claiming they tracked the tsconfig include
+lists and had already drifted, and the coverage exclusions were a partial copy of
+`tsconfig.build.json`'s. `package.json` cannot import a constant, which is why `lint` and `test:src`
+are now thin `node scripts/…` wrappers, the shape `format` and `build` already had.
+
 ### A table is only a single source of truth if the other copy is derived from it
 
 An exhaustiveness proof covers omission from *the table*. It says nothing about a consumer that

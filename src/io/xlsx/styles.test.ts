@@ -4,10 +4,9 @@ import {test} from 'node:test';
 import type {Fill, Font} from '../../core/style.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {XlsxError} from '../../errors.ts';
+import {roundtrip} from './package.test-support.ts';
 import {parseIndexedColors} from './read-styles.ts';
-import {readXlsx} from './read.ts';
 import {StyleRegistry} from './styles.ts';
-import {writeXlsx} from './write.ts';
 
 const solid = (argb: string): Fill => ({type: 'pattern', pattern: 'solid', fgColor: {argb}});
 
@@ -649,7 +648,7 @@ test('every alignment facet set to a non-default value survives a round-trip', (
   } as const;
   const workbook = new Workbook();
   workbook.addWorksheet('S').getCell('A1').alignment = alignment;
-  const back = readXlsx(writeXlsx(workbook)).getWorksheet('S')?.getCell('A1').alignment;
+  const back = roundtrip(workbook).getWorksheet('S')?.getCell('A1').alignment;
   assert.deepEqual(back, alignment, 'all seven facets come back exactly as they were set');
 });
 

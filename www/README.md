@@ -4,7 +4,7 @@ The published site: https://shbernal.github.io/ts-xlsx/
 
 This one directory is both the VitePress root and the site's application code. The two
 sibling projects this site borrows from split those in half, because in each of them the
-docs tree *is* the site root, so a component would have landed inside a tree the docs kit
+docs tree _is_ the site root, so a component would have landed inside a tree the docs kit
 validates. Ours does not: the site root is its own directory, and a split here would buy a
 re-export shim and nothing else.
 
