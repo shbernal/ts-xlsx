@@ -852,6 +852,9 @@ silently becomes a no-op. Cells carry their full style to the shifted position, 
 shift with the rows they cover.
 
 **Throws:** `RangeError` if `start` is not a positive integer or `count` is negative.
+**Throws:** `RangeError` if an inserted row would land past the last row of the grid. The sheet is
+left untouched, so this is a refused edit rather than half of one: a region pushed off the edge
+clamps and absorbs the loss, but content pushed off it is what Excel refuses outright.
 
 #### `Worksheet.insertRow`
 
@@ -944,6 +947,10 @@ the right of the edit re-anchors to its new columns. Each inserted column is an 
 indexed by row (index 0 → row 1); an empty array inserts a blank column.
 
 **Throws:** `RangeError` if `start` is not a positive integer or `count` is negative.
+**Throws:** `RangeError` if an inserted column would land past the last column, or one of its values
+past the last row. The sheet is left untouched, so this is a refused edit rather than half of
+one: a region pushed off the edge clamps and absorbs the loss, but content pushed off it is
+what Excel refuses outright, and [`addColumn`](./worksheet.md#worksheetaddcolumn) refuses the same argument identically.
 
 #### `Worksheet.insertColumn`
 
@@ -955,7 +962,8 @@ Insert one column of `values` at the 1-based `pos`, shifting the columns at and 
 by one. `values` is an array of values indexed by row (index 0 → row 1), like
 [`addColumn`](./worksheet.md#worksheetaddcolumn). Shorthand for [`spliceColumns`](./worksheet.md#worksheetsplicecolumns)`(pos, 0, values)`.
 
-**Throws:** `RangeError` if `pos` is not a positive integer.
+**Throws:** `RangeError` if `pos` is not a positive integer, or if the column would land past the
+last column or one of its values past the last row; see [`spliceColumns`](./worksheet.md#worksheetsplicecolumns).
 
 #### `Worksheet.addColumn`
 

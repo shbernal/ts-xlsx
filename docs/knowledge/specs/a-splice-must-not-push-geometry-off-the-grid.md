@@ -66,6 +66,16 @@ constructs a `Cell` at the destination, and `assertRowInBounds` throws a `RangeE
 map is replaced, so a splice that would push a cell off the end fails with the sheet unchanged.
 Excel's message is friendlier; the outcome is the same.
 
+The column axis is decided by the same sentence, and it is worth writing down because the two
+answers look inconsistent side by side. `spliceColumns(16384, 0, a, b)` refuses with `column 16385 is
+out of bounds` and leaves the sheet untouched, while a validation or an autofilter on the same sheet
+would have been clamped. That is the region/content split, not a gap: the second inserted column is
+content with nowhere to go, and the only clamp available would stack it on top of the first at XFD
+and report success. An inserted column whose values reach past row 1048576 is refused for the same
+reason, and `addColumn` refuses that argument identically, so the two column-append doors agree.
+Locked by the two `an insert with nowhere to put a column` / `an inserted column reaching past the
+last row` tests in `src/core/grid-edits.test.ts`.
+
 That leaves one deliberate deviation, in a merge occupying the very last rows. Excel refuses the
 insert; we clamp, so `C1048575:D1048576` becomes `C1048576:D1048576`, one row shorter. Refusing at
 that point is worse for a library: the splice has already been accepted for the cells and every other

@@ -115,6 +115,14 @@ export class GridEdits {
     // with no way for the caller to act on the error. `new Cell` still asserts its coordinates, so an
     // insert landing past the last column or naming a row past the last one does throw; swapping at
     // the end is what keeps that a refused edit rather than half of one.
+    //
+    // Refusing is the answer, not an omission, and it is deliberately not the clamp every *region* a
+    // splice moves gets. Excel draws the same line: a region whose edge is pushed off the grid is
+    // clamped and absorbs the loss, while content pushed off it makes Excel refuse the whole insert
+    // ("can't insert new cells because it would push non-empty cells off the end of the worksheet").
+    // Clamping here would be worse than either -- two inserted columns would stack on XFD, and the
+    // caller would be told the edit succeeded. See
+    // docs/knowledge/specs/a-splice-must-not-push-geometry-off-the-grid.md.
     const shiftedRows = new Map<number, Map<number, Cell>>();
     for (const [row, cols] of this.#rows) {
       const shifted = new Map<number, Cell>();

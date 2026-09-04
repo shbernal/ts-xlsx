@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import type {CommentThread} from './comment-thread.ts';
+import type {CellValue} from './value.ts';
 import {Workbook} from './workbook.ts';
 import type {Worksheet} from './worksheet.ts';
 
@@ -366,6 +367,48 @@ test('a column splice that deletes a table whole drops the table rather than re-
 
   sheet.spliceColumns(2, 2);
   assert.deepEqual(sheet.tables, [], 'the table had no column left to occupy');
+});
+
+test('an insert with nowhere to put a column is refused whole, not clamped', () => {
+  // The other half of the rule the regions above follow, and the reason it is the other half rather
+  // than an inconsistency. A *region* pushed off the edge clamps, because a validation one column
+  // narrower is a legible loss in a file that opens. *Content* pushed off the edge is what Excel
+  // refuses outright ("can't insert new cells because it would push non-empty cells off the end of
+  // the worksheet"), and so does this: clamping two inserted columns onto XFD would stack the second
+  // on top of the first and call that success. See
+  // docs/knowledge/specs/a-splice-must-not-push-geometry-off-the-grid.md.
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.getCell('A1').value = 'a1';
+
+  assert.throws(
+    () => sheet.spliceColumns(LAST_COLUMN, 0, ['first'], ['second']),
+    (error: unknown) =>
+      error instanceof RangeError && /column 16385 is out of bounds/.test(error.message),
+  );
+
+  // Refused, not half-applied: the grid is swapped in after the inserts are built, so a throw leaves
+  // the caller a sheet they can still act on.
+  assert.equal(sheet.getCell('A1').value, 'a1');
+  assert.equal(sheet.columnCount, 1);
+});
+
+test('an inserted column reaching past the last row is refused, the way addColumn refuses it', () => {
+  // Same rule on the other axis of the same argument: an inserted column's values are indexed by row,
+  // so a long enough array names a row that cannot exist. `addColumn` has always answered this with a
+  // `RangeError` from `new Cell`; the splice path answers identically, which is what keeps the two
+  // column-append doors from disagreeing about the same argument.
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.getCell('A1').value = 'a1';
+  // Sparse on purpose: only the last element exists, so this names row 1048577 without allocating a
+  // million values to get there.
+  const values: CellValue[] = [];
+  values[LAST_ROW] = 'past the bottom';
+
+  assert.throws(() => sheet.insertColumn(1, values), RangeError);
+  assert.throws(() => sheet.addColumn(values), RangeError);
+
+  assert.equal(sheet.getCell('A1').value, 'a1');
+  assert.equal(sheet.columnCount, 1);
 });
 
 test('a table on the right edge keeps its anchor inside the grid', () => {

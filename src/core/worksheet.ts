@@ -839,6 +839,9 @@ export class Worksheet {
    * shift with the rows they cover.
    *
    * @throws {RangeError} if `start` is not a positive integer or `count` is negative.
+   * @throws {RangeError} if an inserted row would land past the last row of the grid. The sheet is
+   *   left untouched, so this is a refused edit rather than half of one: a region pushed off the edge
+   *   clamps and absorbs the loss, but content pushed off it is what Excel refuses outright.
    */
   spliceRows(start: number, count: number, ...inserts: RowInput[]): void {
     assertStartAndCount('splice', 'row', start, count);
@@ -981,6 +984,10 @@ export class Worksheet {
    * indexed by row (index 0 → row 1); an empty array inserts a blank column.
    *
    * @throws {RangeError} if `start` is not a positive integer or `count` is negative.
+   * @throws {RangeError} if an inserted column would land past the last column, or one of its values
+   *   past the last row. The sheet is left untouched, so this is a refused edit rather than half of
+   *   one: a region pushed off the edge clamps and absorbs the loss, but content pushed off it is
+   *   what Excel refuses outright, and {@link addColumn} refuses the same argument identically.
    */
   spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void {
     assertStartAndCount('splice', 'column', start, count);
@@ -994,7 +1001,8 @@ export class Worksheet {
    * by one. `values` is an array of values indexed by row (index 0 → row 1), like
    * {@link addColumn}. Shorthand for {@link spliceColumns}`(pos, 0, values)`.
    *
-   * @throws {RangeError} if `pos` is not a positive integer.
+   * @throws {RangeError} if `pos` is not a positive integer, or if the column would land past the
+   *   last column or one of its values past the last row; see {@link spliceColumns}.
    */
   insertColumn(pos: number, values: CellValue[]): void {
     this.spliceColumns(pos, 0, values);
