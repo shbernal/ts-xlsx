@@ -378,6 +378,16 @@ boundary is the module graph rather than a naming convention. No layering rule g
 that module: `package.json` maps only the eight subpaths, so the symbol is already unreachable from
 outside the package, and a rule would only police `src/core` against itself.
 
+The same key draws the same boundary one layer up, around the streaming writer rather than the model.
+`WorksheetStreamWriter`'s constructor took the writer's `StyleRegistry` and its `flushedSheet()`
+returned its `FlushedSheet`, so seven writer-internal types were named by a published class's
+signature and a consumer could hold values whose types the package does not export. They carried
+`@unpublished`, which records a decision without changing anything: `new WorksheetStreamWriter(…)`
+still compiled, and nobody should ever call it, because the sheet writer comes from
+`WorkbookStreamWriter.addWorksheet`. The constructor is now `private` with a static
+`WorksheetStreamWriter[INTERNAL].create`, and the flush plumbing is on the instance channel, so the
+two members are gone from the `.d.ts` and from the API reference.
+
 The channel takes two shapes on purpose. `Workbook` and `Worksheet` carry a symbol-keyed *object* of
 operations, one allocation per book or sheet, which is nothing. `Cell` gets a symbol-keyed accessor
 *pair* instead, because a per-instance channel object on the one class allocated in the millions is a

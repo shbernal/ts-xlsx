@@ -144,6 +144,14 @@ function referencedTypes(node: ast.Node): string[] {
   const found = new Set<string>();
   const walk = (child: ast.Node): void => {
     if (!isVisibleMember(child)) return;
+    // A statement body is not a signature. A `const flushed = new Map<Worksheet, FlushedSheet>()`
+    // inside a method says nothing about what a consumer can reach: the annotations, casts and type
+    // arguments in there are the implementation talking to the compiler. Walking them reported the
+    // streaming writer's own plumbing as an unnameable public type the moment that plumbing stopped
+    // declining publication, which is the opposite of what had just been fixed. A type a body
+    // genuinely leaks does so through the declaration's *inferred* return type, and that is a
+    // reference node this walk never sees anyway.
+    if (ast.isBlock(child)) return;
     if (ast.isTypeReferenceNode(child)) {
       const name = child.typeName;
       // A qualified `A.B` names a namespace member, which this package has none of; the head is

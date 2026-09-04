@@ -59,11 +59,6 @@ const RESERVED_FONT_COUNT = 1;
 const RESERVED_BORDER_COUNT = 1;
 
 /** What a {@link StyleRegistry} needs from its workbook before any style is interned.
- *
- * @unpublished Writer plumbing, reachable only through `WorksheetStreamWriter`'s constructor and its
- * `flushedSheet()`, neither of which a consumer calls: a caller receives the writer from
- * `WorkbookStreamWriter.sheet()`. Naming it would publish the streaming writer's internal wiring as
- * API; the honest fix is for those two members not to be on the public surface at all.
  */
 export interface StyleRegistryOptions {
   /**
@@ -140,10 +135,12 @@ class InternTable {
 }
 
 /**
- * @unpublished Writer plumbing, reachable only through `WorksheetStreamWriter`'s constructor and its
- * `flushedSheet()`, neither of which a consumer calls: a caller receives the writer from
- * `WorkbookStreamWriter.sheet()`. Naming it would publish the streaming writer's internal wiring as
- * API; the honest fix is for those two members not to be on the public surface at all.
+ * The interned style table one written package is built against: every distinct fill, number format,
+ * font, border and xf, each handed back as the stable index a cell's `s` attribute names.
+ *
+ * One workbook, one registry. The streaming writer is why that is worth saying: it interns a row's
+ * styles at the moment the row is flushed, long before `xl/styles.xml` is emitted, so the ids already
+ * baked into those rows are only correct if the very same registry emits the part.
  */
 export class StyleRegistry {
   // The `<font>` body emitted as id 0.

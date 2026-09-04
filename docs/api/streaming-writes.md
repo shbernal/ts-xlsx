@@ -187,8 +187,6 @@ class WorksheetStreamWriter {
   get rowCount(): number;
   addRow(values: CellValue[]): StreamedRow;
   addRows(rows: CellValue[][]): StreamedRow[];
-  flushRow(number: number, cells: readonly Cell[]): void;
-  flushedSheet(): FlushedSheet | undefined;
   getCell(reference: string): Cell;
   addDataValidation(sqref: string, rule: DataValidation, options: {extended?: boolean} = {}): void;
   addConditionalFormatting(formatting: ConditionalFormatting): void;
@@ -236,19 +234,6 @@ addRows(rows: CellValue[][]): StreamedRow[];
 ```
 
 Append a batch of rows in one call, each landing directly below the previous.
-
-#### `WorksheetStreamWriter.flushRow`
-
-```ts
-flushRow(number: number, cells: readonly Cell[]): void;
-```
-
-Serialise an eagerly-committed row and release its cells from the model. Called by
-[`StreamedRow.commit`](./streaming-writes.md#streamedrowcommit); the row's `<row>` XML is retained (interned into the workbook's live
-style registry so its ids stay valid) and the cell graph is dropped, bounding peak memory.
-
-**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the row carries a shared-formula cell: a finished row cannot join the
-whole-sheet formula planning, so shared formulas must be authored through [`getCell`](./streaming-writes.md#worksheetstreamwritergetcell).
 
 #### `WorksheetStreamWriter.getCell`
 

@@ -26,11 +26,6 @@ import type {RelIdAllocator} from './package-plan.ts';
  * `row`/`col` are the anchor's position, kept so links gathered from separate passes (the sheet's live
  * rows, and the rows the streaming writer already flushed and evicted) can be merged back into the
  * row-major order Excel writes them in. They are not serialised; `ref` is.
- *
- * @unpublished Writer plumbing, reachable only through `WorksheetStreamWriter`'s constructor and its
- * `flushedSheet()`, neither of which a consumer calls: a caller receives the writer from
- * `WorkbookStreamWriter.sheet()`. Naming it would publish the streaming writer's internal wiring as
- * API; the honest fix is for those two members not to be on the public surface at all.
  */
 export interface CollectedHyperlink {
   readonly ref: string;

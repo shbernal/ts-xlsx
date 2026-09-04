@@ -81,11 +81,6 @@ export class Extent {
 }
 
 /**
- * A worksheet's eagerly-serialised rows: each row's `<row>` XML tagged with its number (so it merges
- * into ascending order with the sheet's remaining live rows, whatever order it was committed in), plus
- * the used-cell {@link Extent} they span. The buffered pass folds that extent into the sheet's dimension.
- */
-/**
  * A row the streaming writer already serialised, kept with the attribute string it was built from.
  *
  * The attributes are carried rather than re-read out of `xml`, and that is the whole point of the
@@ -95,11 +90,6 @@ export class Extent {
  * embedded in it is not: `escapeText` leaves a double quote verbatim, so a cell whose value was the
  * literal string ` collapsed="1"` answered that question for the row and left the outline group
  * rendering expanded. A file cannot forge a field.
- *
- * @unpublished Writer plumbing, reachable only through `WorksheetStreamWriter`'s constructor and its
- * `flushedSheet()`, neither of which a consumer calls: a caller receives the writer from
- * `WorkbookStreamWriter.sheet()`. Naming it would publish the streaming writer's internal wiring as
- * API; the honest fix is for those two members not to be on the public surface at all.
  */
 export interface FlushedRow {
   readonly number: number;
@@ -109,10 +99,9 @@ export interface FlushedRow {
 }
 
 /**
- * @unpublished Writer plumbing, reachable only through `WorksheetStreamWriter`'s constructor and its
- * `flushedSheet()`, neither of which a consumer calls: a caller receives the writer from
- * `WorkbookStreamWriter.sheet()`. Naming it would publish the streaming writer's internal wiring as
- * API; the honest fix is for those two members not to be on the public surface at all.
+ * A worksheet's eagerly-serialised rows: each row's `<row>` XML tagged with its number (so it merges
+ * into ascending order with the sheet's remaining live rows, whatever order it was committed in), plus
+ * the used-cell {@link Extent} they span. The buffered pass folds that extent into the sheet's dimension.
  */
 export interface FlushedSheet {
   readonly rows: readonly FlushedRow[];

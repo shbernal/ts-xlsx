@@ -157,7 +157,7 @@ export class StreamedRow {
   commit(): void {
     if (this.#committed) return;
     this.#committed = true;
-    this.#sheet?.flushRow(this.#number, this.#cells);
+    this.#sheet?.[INTERNAL].flushRow(this.#number, this.#cells);
   }
 }
 
@@ -190,12 +190,32 @@ export class WorksheetStreamWriter {
 
   readonly #dateEpoch: DateEpoch;
 
-  constructor(sheet: Worksheet, eager: boolean, styles: StyleRegistry, dateEpoch: DateEpoch) {
+  // Private, and reached from `WorkbookStreamWriter.addWorksheet` through the static channel below.
+  // A caller never builds one of these -- they receive it from `addWorksheet` -- and the parameters
+  // say why that matters: a `StyleRegistry` is the writer's own interning table, so a public
+  // constructor made it a type a consumer could hold and could not name.
+  private constructor(
+    sheet: Worksheet,
+    eager: boolean,
+    styles: StyleRegistry,
+    dateEpoch: DateEpoch,
+  ) {
     this.#sheet = sheet;
     this.#eager = eager;
     this.#styles = styles;
     this.#dateEpoch = dateEpoch;
   }
+
+  /**
+   * The workbook writer's construction channel. A static member keyed by the same symbol as the
+   * instance one below, so both halves of this class's internal wiring are reached the one way; see
+   * `core/internal.ts`.
+   */
+  static readonly [INTERNAL]: WorksheetStreamWriterFactory = {
+    create(sheet, eager, styles, dateEpoch) {
+      return new WorksheetStreamWriter(sheet, eager, styles, dateEpoch);
+    },
+  };
 
   /** The sheet's name. */
   get name(): string {
@@ -243,15 +263,7 @@ export class WorksheetStreamWriter {
     return cells;
   }
 
-  /**
-   * Serialise an eagerly-committed row and release its cells from the model. Called by
-   * {@link StreamedRow.commit}; the row's `<row>` XML is retained (interned into the workbook's live
-   * style registry so its ids stay valid) and the cell graph is dropped, bounding peak memory.
-   *
-   * @throws {AuthoringError} if the row carries a shared-formula cell: a finished row cannot join the
-   *   whole-sheet formula planning, so shared formulas must be authored through {@link getCell}.
-   */
-  flushRow(number: number, cells: readonly Cell[]): void {
+  #flushRow(number: number, cells: readonly Cell[]): void {
     for (const cell of cells) {
       if (isSharedFormulaValue(cell.value)) {
         throw new AuthoringError(
@@ -298,8 +310,7 @@ export class WorksheetStreamWriter {
     this.#sheet[INTERNAL].evictRow(number);
   }
 
-  // The rows this writer flushed, or undefined if none. Handed to buildPackageParts at commit.
-  flushedSheet(): FlushedSheet | undefined {
+  #flushedSheet(): FlushedSheet | undefined {
     if (this.#flushedRows.length === 0) return undefined;
     return {
       rows: this.#flushedRows,
@@ -401,6 +412,13 @@ export class WorksheetStreamWriter {
     return this.#sheet;
   }
 
+  readonly [INTERNAL]: WorksheetStreamWriterInternals = {
+    flushRow: (number, cells) => {
+      this.#flushRow(number, cells);
+    },
+    flushedSheet: () => this.#flushedSheet(),
+  };
+
   #assertOpen(): void {
     if (this.#committed) {
       throw new AuthoringError(
@@ -408,6 +426,48 @@ export class WorksheetStreamWriter {
       );
     }
   }
+}
+
+/**
+ * How a {@link WorksheetStreamWriter} comes into being. Its parameters are the writer's own plumbing
+ * -- the interning table its rows' style ids are assigned from, the epoch its dates are serialised
+ * against -- and a consumer supplies neither, because a consumer receives the sheet writer from
+ * {@link WorkbookStreamWriter.addWorksheet}. Reached as `WorksheetStreamWriter[INTERNAL]`.
+ */
+export interface WorksheetStreamWriterFactory {
+  create(
+    sheet: Worksheet,
+    eager: boolean,
+    styles: StyleRegistry,
+    dateEpoch: DateEpoch,
+  ): WorksheetStreamWriter;
+}
+
+/**
+ * What the streaming writer's own machinery may do to a sheet writer that a caller may not, the same
+ * boundary `sheet[INTERNAL]` draws around the model. Reached as `writer[INTERNAL]`; see
+ * `core/internal.ts`.
+ *
+ * Both members were public until they were not. Neither is callable by anyone but this module, and
+ * between them they named seven writer-internal types -- `StyleRegistry`, `FlushedSheet` and the
+ * shapes those reach -- on a published class's signature, so a consumer could hold values whose types
+ * the package would not export. They carried `@unpublished` to record that, which is a note rather
+ * than a boundary; this is the boundary.
+ */
+export interface WorksheetStreamWriterInternals {
+  /**
+   * Serialise an eagerly-committed row and release its cells from the model. Called by
+   * {@link StreamedRow.commit}; the row's `<row>` XML is retained (interned into the workbook's live
+   * style registry so its ids stay valid) and the cell graph is dropped, bounding peak memory.
+   *
+   * @throws {AuthoringError} if the row carries a shared-formula cell: a finished row cannot join the
+   *   whole-sheet formula planning, so shared formulas must be authored through
+   *   {@link WorksheetStreamWriter.getCell}.
+   */
+  flushRow(number: number, cells: readonly Cell[]): void;
+
+  /** The rows this writer flushed, or undefined if none. Handed to `buildPackageParts` at commit. */
+  flushedSheet(): FlushedSheet | undefined;
 }
 
 /**
@@ -476,7 +536,7 @@ export class WorkbookStreamWriter {
   /** Create a worksheet and append it to the workbook. */
   addWorksheet(name: string, options: AddWorksheetOptions = {}): WorksheetStreamWriter {
     this.#assertOpen('no more worksheets can be added');
-    const sheet = new WorksheetStreamWriter(
+    const sheet = WorksheetStreamWriter[INTERNAL].create(
       this.#workbook.addWorksheet(name, options),
       this.#eager,
       this.#styles,
@@ -517,7 +577,7 @@ export class WorkbookStreamWriter {
     // so styles.xml stays consistent with the ids already baked into their XML.
     const flushed = new Map<Worksheet, FlushedSheet>();
     for (const sheet of this.#sheets) {
-      const sheetFlushed = sheet.flushedSheet();
+      const sheetFlushed = sheet[INTERNAL].flushedSheet();
       if (sheetFlushed) flushed.set(sheet.model, sheetFlushed);
     }
     const owned = this.#stream;

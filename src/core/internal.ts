@@ -15,11 +15,18 @@
 // and you have the complete list of code that can restore preserved state.
 //
 // Prefer an ordinary public method whenever a caller could reasonably want the operation. This is for
-// operations that are *only* meaningful mid-deserialisation.
+// operations that are *only* meaningful to the library's own machinery: mid-deserialisation, or
+// mid-serialisation, which is how the streaming writer came to use the same key for its own plumbing.
 
 /**
- * Keys the codec-only operations on `Workbook` and `Worksheet` (see `WorkbookInternals` /
- * `WorksheetInternals`, declared beside their classes).
+ * Keys the operations the library's own machinery may perform on a published class and a caller may
+ * not (see `WorkbookInternals` / `WorksheetInternals`, declared beside their classes).
+ *
+ * Not only the model: `WorksheetStreamWriter` hangs its construction and its row-flush plumbing off
+ * the same key, on the static side and the instance side respectively, because that class has the
+ * identical problem one layer up. Its constructor took the writer's style registry and its
+ * `flushedSheet()` returned the writer's flushed-row record, so seven internal types were named by a
+ * published signature and none of them was a type a consumer could write down.
  */
 export const INTERNAL: unique symbol = Symbol('ts-xlsx codec channel');
 
