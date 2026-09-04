@@ -7,10 +7,10 @@
 import {strFromU8} from 'fflate';
 
 import type {PreservedPart, PreservedRelationship} from '../../core/preserved.ts';
+import {isRelType} from '../../rel-type.ts';
 import {openElements} from '../../xml/xml-read.ts';
 import {extensionOf, relsPathFor, resolveRelativePart} from './part-paths.ts';
 import {DEFAULT_MAX_UNCOMPRESSED} from './read-options.ts';
-import {isRelType} from './rel-types.ts';
 import {inflateSpreadsheetPackage} from './sniff-format.ts';
 
 // The two ways a reader reaches into an inflated package: a part's UTF-8-decoded text, or its raw

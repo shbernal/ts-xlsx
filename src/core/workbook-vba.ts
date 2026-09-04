@@ -10,6 +10,7 @@
 // reference is generated from and what a consumer reads. What is written here is what the
 // implementation needs said.
 
+import {isRelType} from '../rel-type.ts';
 import {
   addVbaReference,
   parseVbaProject,
@@ -69,7 +70,7 @@ export class WorkbookVbaProject {
     // emits a byte-identical macro-enabled package with no writer changes.
     replaceContents(
       this.#references,
-      this.#references.filter((r) => !r.relType.endsWith('/vbaProject')),
+      this.#references.filter((r) => !isRelType(r.relType, 'vbaProject')),
     );
     if (bytes !== undefined) {
       this.#references.push({
@@ -128,7 +129,7 @@ export class WorkbookVbaProject {
   }
 
   #ref(): PreservedWorkbookReference | undefined {
-    return this.#references.find((r) => r.relType.endsWith('/vbaProject'));
+    return this.#references.find((r) => isRelType(r.relType, 'vbaProject'));
   }
 
   #entry(): PreservedPart | undefined {

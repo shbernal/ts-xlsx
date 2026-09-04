@@ -352,10 +352,20 @@ matching entry in an end table, because a mistyped pairing across two maps reins
 beside its function name rather than in a map keyed by name, so "no arity recorded" stops being
 representable at all. It used to read as "variadic", which made a `PtgFunc` pop the wrong operands.
 
-The same reasoning applies to a *predicate* two layers share. `isRelType` in `io/opc/rel-types.ts`
-is a leaf importing nothing, because the reader and the writer both ask whether a relationship Type
-names a part class, and putting the answer beside the reader pulled the whole read path (the bounded
+The same reasoning applies to a *predicate* several layers share. `isRelType` in `rel-type.ts` is a
+leaf importing nothing, because the reader and the writer both ask whether a relationship Type names
+a part class, and putting the answer beside the reader pulled the whole read path (the bounded
 inflater included) into the writer's module closure. The per-entry size budget is what noticed.
+
+It sat in `io/opc/` while only the codecs asked it, and that was the wrong home the moment two other
+layers did. `core/workbook-vba.ts` finds the macro project among a workbook's preserved references
+and `customui/ribbon.ts` recognises a ribbon part; neither may import `src/io`, so both spelled the
+suffix test by hand, three sites carrying the separator gotcha with nowhere to say why the slash was
+load-bearing. The question that settles the home is whether a relationship Type is a concept the
+model may own, and it is: a `Workbook` already holds preserved references keyed by their Type, so the
+string is model state and only the reading of it was missing. Reading a URI's last segment is no more
+a serialisation concern than rendering a number as hex, so it moved to a root leaf beside `hex.ts`,
+under the same layering rule.
 
 Not everything the codecs need to do to the model belongs in its public API. Pushing preserved bytes
 back into a `Workbook`, restoring a loaded sheet's hashed protection credential, placing a cell at an

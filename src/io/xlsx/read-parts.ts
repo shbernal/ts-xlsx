@@ -12,6 +12,7 @@ import {INTERNAL} from '../../core/internal.ts';
 import type {PreservedWorksheetReference} from '../../core/preserved.ts';
 import {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import {isAnyRelType} from '../../rel-type.ts';
 import type {CollectingPass} from '../../xml/xml-read.ts';
 import {localName} from '../../xml/xml-scan.ts';
 import {relAttr} from '../opc/namespaces.ts';
@@ -23,7 +24,6 @@ import {
   type PartRelationships,
   readPartRelationships,
 } from '../opc/read-opc.ts';
-import {isAnyRelType} from '../opc/rel-types.ts';
 import {type ParsedComment, parseComments} from './comments.ts';
 import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
 import {parsePivotTable} from './read-pivot.ts';

@@ -18,6 +18,7 @@
 
 import {strFromU8} from 'fflate';
 
+import {isRelType} from '../rel-type.ts';
 import {tokenSet} from '../token-set.ts';
 import {boolStrict, localName, type XmlAttributes, xmlEvents} from '../xml/xml-scan.ts';
 import {CustomUiParseError} from './errors.ts';
@@ -33,8 +34,8 @@ export const CUSTOMUI_2009_NAMESPACE = 'http://schemas.microsoft.com/office/2009
 
 // The OPC relationship Type URIs Office wires the two ribbon parts under, from the package-root rels.
 // Both end `/ui/extensibility` (the 2010 one confusingly carries `2007` in its path); the reader
-// matches on that suffix, in {@link isCustomUiRelType}, exactly as the rest of the reader matches
-// preserved relationship types by local suffix.
+// matches on that suffix, in {@link isCustomUiRelType}, through the same `isRelType` the codecs use
+// on every other preserved relationship type.
 export const CUSTOMUI_2007_REL_TYPE =
   'http://schemas.microsoft.com/office/2006/relationships/ui/extensibility';
 export const CUSTOMUI_2010_REL_TYPE =
@@ -42,7 +43,7 @@ export const CUSTOMUI_2010_REL_TYPE =
 
 /** Whether a package-root relationship Type URI points at a `customUI` ribbon part. */
 export function isCustomUiRelType(type: string): boolean {
-  return type.endsWith('/ui/extensibility');
+  return isRelType(type, 'ui/extensibility');
 }
 
 /**

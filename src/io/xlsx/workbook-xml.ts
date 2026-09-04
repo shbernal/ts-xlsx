@@ -7,6 +7,7 @@ import {WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} from '../../core/workbook-protecti
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import {isVisibility, type Worksheet} from '../../core/worksheet.ts';
 import {AuthoringError, InternalError, quoted} from '../../errors.ts';
+import {isRelType} from '../../rel-type.ts';
 import {
   assertWritableDate,
   checkedToken,
@@ -17,7 +18,6 @@ import {
   XML_DECLARATION,
 } from '../../xml/xml.ts';
 import {extensionOf, THEME_PART_PATH} from '../opc/part-paths.ts';
-import {isRelType} from '../opc/rel-types.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {imageContentType} from './images.ts';
 import {SLICER_CACHES_EXT_URI} from './namespaces.ts';

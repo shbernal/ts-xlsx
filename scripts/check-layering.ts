@@ -61,6 +61,11 @@ const RULES: readonly Rule[] = [
     because: 'narrowing a closed token union needs nothing but the union',
   },
   {
+    layer: 'src/rel-type.ts',
+    forbidden: ['src/core', 'src/io', 'src/xml', 'src/vba', 'src/customui'],
+    because: 'reading the last segment of a relationship URI is below the four layers that ask',
+  },
+  {
     layer: 'src/xml',
     forbidden: ['src/core', 'src/io', 'src/vba', 'src/customui'],
     because: 'XML escaping and parsing know nothing about spreadsheets',
