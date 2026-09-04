@@ -469,30 +469,31 @@ function planPackage(
  * has been through it. Emitting the styles part first would silently drop the styles of whatever had
  * not been serialised yet.
  */
-function serialiseSheets(
-  workbook: Workbook,
-  sheets: readonly Worksheet[],
-  plan: PackagePlan,
-  styles: StyleRegistry,
-  sharedStrings: SharedStringTable | null,
-  flushed: InternalWriteOptions['flushed'],
-): string[] {
+function serialiseSheets(context: {
+  readonly workbook: Workbook;
+  readonly sheets: readonly Worksheet[];
+  readonly plan: PackagePlan;
+  readonly styles: StyleRegistry;
+  readonly sharedStrings: SharedStringTable | null;
+  readonly flushed: InternalWriteOptions['flushed'];
+}): string[] {
+  const {workbook, sheets, plan, styles, sharedStrings, flushed} = context;
   return sheets.map((sheet, i) => {
     const sheetPlan = plan.perSheet[i] as SheetPlan;
-    return worksheetXml(
+    return worksheetXml({
       sheet,
-      sheetPlan.tables,
+      tables: sheetPlan.tables,
       styles,
-      resolveSheetReferences(sheetPlan),
-      sheetPlan.hyperlinks,
+      references: resolveSheetReferences(sheetPlan),
+      hyperlinks: sheetPlan.hyperlinks,
       sharedStrings,
-      workbook.dateEpoch,
+      dateEpoch: workbook.dateEpoch,
       // Exactly one sheet is marked selected; the model resolves which, so no package can ship with
       // none selected (no view initialised on open) or with several (an accidental group selection,
       // where an edit to one sheet lands on all of them).
-      i === workbook.activeTabIndex,
-      flushed?.get(sheet),
-    );
+      active: i === workbook.activeTabIndex,
+      flushed: flushed?.get(sheet),
+    });
   });
 }
 
@@ -630,7 +631,14 @@ export function buildPackageParts(
   const styles = options.styles ?? createStyleRegistry(workbook);
 
   const plan = planPackage(workbook, sheets, options.flushed);
-  const sheetXml = serialiseSheets(workbook, sheets, plan, styles, sharedStrings, options.flushed);
+  const sheetXml = serialiseSheets({
+    workbook,
+    sheets,
+    plan,
+    styles,
+    sharedStrings,
+    flushed: options.flushed,
+  });
   return emitPackageParts({workbook, sheets, plan, styles, sharedStrings, sheetXml});
 }
 

@@ -79,17 +79,32 @@ export interface SheetReferences {
   readonly slicerRelIds: readonly string[];
 }
 
-export function worksheetXml(
-  sheet: Worksheet,
-  tables: readonly TablePlan[],
-  styles: StyleRegistry,
-  references: SheetReferences,
-  hyperlinks: readonly HyperlinkPlan[],
-  sharedStrings: SharedStringTable | null,
-  dateEpoch: DateEpoch,
-  active: boolean,
-  flushed?: FlushedSheet,
-): string {
+/**
+ * Everything one worksheet part is rendered from: the sheet itself, the parts of the package plan
+ * that belong to it, and the two registries a sheet pass interns into.
+ *
+ * One object for the reason {@link SheetReferences} is one object, applied to the layer above it: a
+ * run of positional arguments carrying two `readonly …[]`s, two nullable references and a bare
+ * boolean is a run whose order the call site cannot be read against. `active:` is the clearest of
+ * them -- as a positional it needed a comment at the call site to say which boolean it was.
+ */
+export interface WorksheetXmlInputs {
+  readonly sheet: Worksheet;
+  readonly tables: readonly TablePlan[];
+  readonly styles: StyleRegistry;
+  readonly references: SheetReferences;
+  readonly hyperlinks: readonly HyperlinkPlan[];
+  readonly sharedStrings: SharedStringTable | null;
+  readonly dateEpoch: DateEpoch;
+  /** Whether this is the workbook's one selected sheet. */
+  readonly active: boolean;
+  /** The rows the streaming writer already serialised and evicted, absent on the buffered path. */
+  readonly flushed?: FlushedSheet | undefined;
+}
+
+export function worksheetXml(inputs: WorksheetXmlInputs): string {
+  const {sheet, tables, styles, references, hyperlinks, sharedStrings, dateEpoch, active, flushed} =
+    inputs;
   // A merge overlapping a table is Excel-invalid geometry; reject it before serialising
   // rather than emit a package a consumer repairs on open.
   validateMerges(sheet);

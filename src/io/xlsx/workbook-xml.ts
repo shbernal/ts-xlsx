@@ -102,8 +102,9 @@ export interface WorkbookRelPlan {
  *
  * One object rather than twelve positional parameters, eight of them arrays and four of those bare
  * `readonly number[]`, which two adjacent ones could be silently transposed between. That is the same
- * hazard `SheetReferences` and `SheetPlan` were introduced to remove, applied to the last place in
- * this writer that still had it.
+ * hazard `SheetReferences`, `SheetPlan` and `WorksheetXmlInputs` remove elsewhere in this writer, and
+ * it travels the whole way down: the two functions that render from this take it as it stands rather
+ * than re-scattering its fields across their own parameter lists.
  */
 export interface ContentTypeInputs {
   readonly sheetCount: number;
@@ -121,46 +122,17 @@ export interface ContentTypeInputs {
 }
 
 export function contentTypesXml(inputs: ContentTypeInputs): string {
-  const {
-    sheetCount,
-    tables,
-    commentNumbers,
-    drawingNumbers,
-    printerSettingsNumbers,
-    mediaExtensions,
-    hasSharedStrings,
-    preservedParts,
-    pivots,
-    preservedWorkbookRefs,
-    threadedCommentNumbers,
-    hasPersons,
-  } = inputs;
   // One extension→default-content-type map both halves read: the defaults render it, the overrides
   // correct any preserved part whose own type differs from its extension's default. Sharing it is what
-  // keeps a `<Default>` and its `<Override>`s from ever disagreeing.
-  const extensionDefaults = buildExtensionDefaults(
-    commentNumbers,
-    printerSettingsNumbers,
-    mediaExtensions,
-    preservedParts,
-  );
+  // keeps a `<Default>` and its `<Override>`s from ever disagreeing. It stays a second argument to the
+  // overrides rather than joining the inputs: it is derived from them here, and folding an output back
+  // into the input bag would let a caller hand over a map that disagrees with the parts beside it.
+  const extensionDefaults = buildExtensionDefaults(inputs);
   return (
     XML_DECLARATION +
     `<Types xmlns="${NS.contentTypes}">` +
     contentTypeDefaults(extensionDefaults) +
-    contentTypeOverrides(
-      sheetCount,
-      tables,
-      drawingNumbers,
-      commentNumbers,
-      hasSharedStrings,
-      preservedParts,
-      pivots,
-      preservedWorkbookRefs,
-      extensionDefaults,
-      threadedCommentNumbers,
-      hasPersons,
-    ) +
+    contentTypeOverrides(inputs, extensionDefaults) +
     '</Types>'
   );
 }
@@ -172,11 +144,9 @@ export function contentTypesXml(inputs: ContentTypeInputs): string {
 // token as it will be emitted so rendering stays byte-stable. A preserved `.xml` part is deliberately
 // left out: it always carries its own type as a per-part override, never a generic `xml` default.
 function buildExtensionDefaults(
-  commentNumbers: readonly number[],
-  printerSettingsNumbers: readonly number[],
-  mediaExtensions: readonly string[],
-  preservedParts: readonly PreservedPartPlan[],
+  inputs: ContentTypeInputs,
 ): Map<string, {extension: string; contentType: string}> {
+  const {commentNumbers, printerSettingsNumbers, mediaExtensions, preservedParts} = inputs;
   const defaults = new Map<string, {extension: string; contentType: string}>();
   const add = (extension: string, contentType: string): void => {
     const key = extension.toLowerCase();
@@ -224,18 +194,21 @@ function contentTypeDefaults(
 // sibling (a `vbaProjectSignature.bin` next to a `vbaProject.bin`), which a lone extension default would
 // otherwise mis-type.
 function contentTypeOverrides(
-  sheetCount: number,
-  tables: readonly TablePlan[],
-  drawingNumbers: readonly number[],
-  commentNumbers: readonly number[],
-  hasSharedStrings: boolean,
-  preservedParts: readonly PreservedPartPlan[],
-  pivots: readonly PivotPlan[],
-  preservedWorkbookRefs: readonly PreservedWorkbookReferencePlan[],
+  inputs: ContentTypeInputs,
   extensionDefaults: ReadonlyMap<string, {extension: string; contentType: string}>,
-  threadedCommentNumbers: readonly number[],
-  hasPersons: boolean,
 ): string {
+  const {
+    sheetCount,
+    tables,
+    drawingNumbers,
+    commentNumbers,
+    threadedCommentNumbers,
+    pivots,
+    hasSharedStrings,
+    hasPersons,
+    preservedParts,
+    preservedWorkbookRefs,
+  } = inputs;
   const preservedOverrides = preservedParts
     // A preserved theme lands at the fixed theme path, whose override is already in the list below,
     // and OPC forbids declaring the same PartName twice. The fixed declaration is the right one to
