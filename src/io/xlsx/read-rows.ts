@@ -31,6 +31,7 @@ import {CellStyleResolver} from './cell-style-resolution.ts';
 import type {SharedString} from './cell-value.ts';
 import {ColumnRecordBudget, takeColumnSpan} from './column-budget.ts';
 import {XlsxParseError} from './errors.ts';
+import {SHARED_STRINGS_PART, STYLES_PART} from './part-names.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {
   workbookPropertiesPass,
@@ -207,16 +208,11 @@ function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined)
   const sheetsPass = workbookSheetsPass();
   parseXmlPasses(workbookXml, [sheetsPass, workbookPropertiesPass(properties)]);
   const sheets = sheetsPass.result();
-  // Every part below is reached through the relationship that names it, with the conventional path
-  // only as the fallback: the same resolution `readXlsx` does, because a streamed read of a package
-  // must not decode a cell differently from a buffered one.
   const rels = readPartRelationships(documentPath, text);
   const sharedStrings = parseSharedStrings(
-    rels.relatedText('sharedStrings') ?? text('xl/sharedStrings.xml') ?? '',
+    rels.relatedTextOrPath('sharedStrings', SHARED_STRINGS_PART),
   );
-  const {cellXfs: xfStyles} = parseStyleTable(
-    rels.relatedText('styles') ?? text('xl/styles.xml') ?? '',
-  );
+  const {cellXfs: xfStyles} = parseStyleTable(rels.relatedTextOrPath('styles', STYLES_PART));
 
   return {
     sheets,

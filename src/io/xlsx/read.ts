@@ -31,7 +31,6 @@ import {UnsupportedFormatError} from '../opc/errors.ts';
 import {
   contentTypeResolver,
   openSpreadsheetPackage,
-  type PackageAccessors,
   readPartRelationships,
 } from '../opc/read-opc.ts';
 import type {ReadPackageOptions} from '../opc/read-options.ts';
@@ -46,7 +45,9 @@ import {
   extendedDataValidationPass,
 } from './data-validation.ts';
 import {applyHyperlinks, sheetHyperlinkPass} from './hyperlinks.ts';
+import {SHARED_STRINGS_PART, STYLES_PART} from './part-names.ts';
 import {
+  type PackageReadContext,
   readRootPreservedReferences,
   readSheetBackground,
   readSheetComments,
@@ -131,22 +132,29 @@ export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Wo
   // readers below. It used to be held as a raw string and handed to three separate scanners, which
   // also left two different idioms for "reach a related part" side by side in one function.
   const workbookRels = readPartRelationships(documentPath, partText);
-  // Through the relationship, not the conventional path. A workbook's own rels are what say where its
-  // pool and its stylesheet live, and a package free to name the workbook part anything is free to
-  // name these too. The conventional path stays as the fallback for a package whose rels are damaged;
-  // without the relationship first, a renamed pool read as no pooled strings at all, and a renamed
-  // stylesheet silently changed cell *types*, because the date test reads `numFmt` off the resolved
-  // style to tell `45000` from a date.
   const sharedStrings = parseSharedStrings(
-    workbookRels.relatedText('sharedStrings') ?? partText('xl/sharedStrings.xml') ?? '',
+    workbookRels.relatedTextOrPath('sharedStrings', SHARED_STRINGS_PART),
   );
   // The style table resolves a cell/row/column style index to its facets (fill, number
   // format); a package without one (a hand-rolled foreign file) yields an empty table and
   // every index reads as unstyled.
-  const stylesXml = workbookRels.relatedText('styles') ?? partText('xl/styles.xml') ?? '';
+  const stylesXml = workbookRels.relatedTextOrPath('styles', STYLES_PART);
   const {cellXfs: xfStyles, namedStyles, defaultFont, preserved} = parseStyleTable(stylesXml);
 
   const workbook = new Workbook();
+  // Everything the part readers below share for the whole of this read, built once and handed down.
+  // The workbook-level readers run before the sheet loop and the sheet-level ones inside it, and all
+  // of them resolve parts against the same package and intern media into the same map.
+  const context: SheetReadContext = {
+    pkg,
+    workbook,
+    contentTypeOf,
+    sharedStrings,
+    xfStyles,
+    // A picture used on more than one sheet is one media part; caching by media path across the
+    // whole loop keeps it a single workbook image so a re-write does not duplicate the bytes.
+    imageIdByMediaPath: new Map<string, number>(),
+  };
   // The four sub-tables the stylesheet carries verbatim, all captured by the same read of the part
   // that resolved the xfs above rather than by four more scans of it.
   //
@@ -164,7 +172,7 @@ export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Wo
   workbook[INTERNAL].restoreTableStyles(preserved.tableStyles);
   // Preserve the theme part so a branded colour/font scheme is not overwritten by the default theme
   // the writer emits for a workbook that has none.
-  readWorkbookTheme(workbookRels, pkg, contentTypeOf, workbook);
+  readWorkbookTheme(context, workbookRels);
   // Preserve the named cell-style layer only when a file declares one beyond the Normal default, so an
   // ordinary workbook keeps an empty named-style table and emits just the default on write.
   if (namedStyles.length > 1) workbook[INTERNAL].restoreNamedStyles(namedStyles);
@@ -200,18 +208,8 @@ export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Wo
   // The threaded-comment author registry is workbook-level, and every conversation on every sheet
   // resolves its authors and @mentions through it, so it is restored before the sheet loop that reads
   // those conversations, not alongside the other workbook-level parts below.
-  readWorkbookPersons(workbookRels, workbook);
+  readWorkbookPersons(context, workbookRels);
 
-  const context: SheetReadContext = {
-    pkg,
-    workbook,
-    contentTypeOf,
-    sharedStrings,
-    xfStyles,
-    // A picture used on more than one sheet is one media part; caching by media path across the
-    // whole loop keeps it a single workbook image so a re-write does not duplicate the bytes.
-    imageIdByMediaPath: new Map<string, number>(),
-  };
   const sheetOrder: string[] = [];
   // The name is repaired rather than trusted. `addWorksheet` refuses an empty, over-long, duplicate
   // or forbidden-character name, and a file is free to carry all four; refusing there would report a
@@ -230,17 +228,11 @@ export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Wo
     readSheet(sheet, target === undefined ? undefined : workbookRels.pathOf(target), context);
   }
 
-  readWorkbookPreservedReferences(
-    {
-      cacheIdByRelId: pivotCaches.result(),
-      externalIndexByRelId: externalReferences.result(),
-    },
-    workbookRels,
-    pkg,
-    contentTypeOf,
-    workbook,
-  );
-  readRootPreservedReferences(pkg, contentTypeOf, workbook);
+  readWorkbookPreservedReferences(context, workbookRels, {
+    cacheIdByRelId: pivotCaches.result(),
+    externalIndexByRelId: externalReferences.result(),
+  });
+  readRootPreservedReferences(context);
 
   // Defined names follow the sheets: a scoped name's `localSheetId` indexes the sheet order, which
   // is why the names are read only once every sheet is registered.
@@ -258,13 +250,12 @@ export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Wo
  * is the one mutable member, and is deliberately shared across sheets: that sharing is what makes a
  * picture used on two of them resolve to one workbook image rather than two copies of the bytes.
  */
-interface SheetReadContext {
-  readonly pkg: PackageAccessors;
-  readonly workbook: Workbook;
-  readonly contentTypeOf: (path: string) => string;
+// The package-wide read state, plus the two tables only a *sheet* body decodes against: a cell's
+// `t="s"` indexes the pool and its `s=` indexes the xfs. Both are resolved before the workbook part
+// is even scanned, so the whole read shares one object.
+interface SheetReadContext extends PackageReadContext {
   readonly sharedStrings: readonly SharedString[];
   readonly xfStyles: readonly XfStyle[];
-  readonly imageIdByMediaPath: Map<string, number>;
 }
 
 /**
@@ -287,7 +278,7 @@ interface SheetReadContext {
  * the order rather than vanishing from the workbook.
  */
 function readSheet(sheet: Worksheet, path: string | undefined, context: SheetReadContext): void {
-  const {pkg, workbook, contentTypeOf, sharedStrings, xfStyles, imageIdByMediaPath} = context;
+  const {pkg, workbook, sharedStrings, xfStyles} = context;
   const {partText} = pkg;
   const sheetXml = path === undefined ? undefined : partText(path);
 
@@ -324,19 +315,19 @@ function readSheet(sheet: Worksheet, path: string | undefined, context: SheetRea
     }
   }
 
-  const threads = readSheetCommentThreads(sheetRels, workbook);
+  const threads = readSheetCommentThreads(context, sheetRels);
   if (threads.length > 0) sheet[INTERNAL].restoreCommentThreads(threads);
   const comments = readSheetComments(sheetRels);
   if (comments !== undefined) applyNotes(sheet, comments);
 
-  readSheetImages(sheetRels, pkg, workbook, sheet, imageIdByMediaPath);
-  readSheetBackground(sheetRels, pkg, workbook, sheet, imageIdByMediaPath);
+  readSheetImages(context, sheetRels, sheet);
+  readSheetBackground(context, sheetRels, sheet);
   if (sheetXml !== undefined) {
-    readSheetPreservedReferences(sheetRels, references.result(), pkg, contentTypeOf, sheet);
+    readSheetPreservedReferences(context, sheetRels, references.result(), sheet);
   }
 
-  readSheetTables(sheetRels, pkg, sheet);
-  readSheetPivotTables(sheetRels, pkg, sheet);
+  readSheetTables(context, sheetRels, sheet);
+  readSheetPivotTables(context, sheetRels, sheet);
   const printerSettings = readSheetPrinterSettings(sheetRels);
   if (printerSettings !== undefined) sheet.pageSetup.printerSettings = printerSettings;
 }

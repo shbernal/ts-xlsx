@@ -197,6 +197,48 @@ test('a row past the last row is dropped, as the buffered reader drops it', () =
   );
 });
 
+test('a stylesheet at an unconventional path is still found, so a date stays a date', () => {
+  // The resolution both readers run: through the relationship that names the part, with the
+  // conventional path only as the fallback. A package is free to name any part anything, and a
+  // stylesheet resolved conventional-path-first reads as no styles at all -- which changes a cell's
+  // *type*, because the date test reads `numFmt` off the resolved style to tell 45000 from a date.
+  // Nothing about the resulting workbook is malformed, so only a check like this one catches it.
+  const archive = zipSync({
+    '[Content_Types].xml': strToU8('<Types/>'),
+    'xl/workbook.xml': strToU8(
+      '<workbook><sheets><sheet name="S" r:id="rId1"/></sheets></workbook>',
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<Relationships>' +
+        '<Relationship Id="rId1" Type="x/worksheet" Target="worksheets/sheet1.xml"/>' +
+        '<Relationship Id="rId2" Type="x/styles" Target="theStyles.xml"/>' +
+        '</Relationships>',
+    ),
+    // Number format 14 is the built-in short date, so `s="1"` is what makes the serial a date.
+    'xl/theStyles.xml': strToU8(
+      '<styleSheet><cellXfs count="2"><xf numFmtId="0"/>' +
+        '<xf numFmtId="14" applyNumberFormat="1"/></cellXfs></styleSheet>',
+    ),
+    // A stylesheet also sits at the conventional path, and it is not this workbook's: the two
+    // resolution orders give different answers only when both parts exist, which is the case a
+    // package that renames one of them and leaves the other behind actually presents.
+    'xl/styles.xml': strToU8('<styleSheet><cellXfs count="0"/></styleSheet>'),
+    'xl/worksheets/sheet1.xml': strToU8(
+      '<?xml version="1.0"?><worksheet><sheetData>' +
+        '<row r="1"><c r="A1" s="1"><v>45000</v></c><c r="B1"><v>45000</v></c></row>' +
+        '</sheetData></worksheet>',
+    ),
+  });
+
+  const [row] = rows(archive);
+  assert.ok(row?.cells[0]?.value instanceof Date, 'the styled cell reads as a date');
+  assert.equal(row?.cells[1]?.value, 45_000, 'and the unstyled one beside it stays a number');
+  // And the buffered reader answers the same package the same way: a streamed read must not decode
+  // a cell differently from a buffered one.
+  const model = readXlsx(archive).getWorksheet('S');
+  assert.deepEqual(model?.getCell('A1').value, row?.cells[0]?.value);
+});
+
 test('streamed values agree with readXlsx cell-for-cell', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');

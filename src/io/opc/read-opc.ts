@@ -185,6 +185,25 @@ export interface PartRelationships {
   /** As {@link relatedText}, for a part whose content is opaque bytes (a printer-settings blob, an
    * image) rather than XML. */
   relatedBytes(name: string): Uint8Array | undefined;
+  /**
+   * The text of a part reached through the relationship that names it, falling back to
+   * `conventionalPath` only when the part declares no such relationship, and to `''` when neither
+   * resolves.
+   *
+   * The order is the whole point, and it decides more than where a lookup lands. A package is free
+   * to name any part anything -- the workbook part included -- so the part's own relationships are
+   * what say where its pool and its stylesheet live. Resolved conventional-path-first, a renamed
+   * pool reads as no pooled strings at all, and a renamed stylesheet silently changes cell *types*,
+   * because the date test reads `numFmt` off the resolved style to tell `45000` from a date. The
+   * conventional path stays as the fallback for a package whose rels are damaged.
+   *
+   * The `''` is a real package state, not a lookup that failed quietly: a workbook may carry no pool
+   * and no stylesheet, and every reader of these parses the empty text into the empty table it would
+   * have built anyway. Stated here so the two readers that resolve these parts cannot answer the
+   * same package differently -- a streamed read must not decode a cell differently from a buffered
+   * one.
+   */
+  relatedTextOrPath(name: string, conventionalPath: string): string;
 }
 
 // Read and parse a part's `.rels`. A part with no rels part yields an empty set rather than undefined,
@@ -217,6 +236,10 @@ export function readPartRelationships(
     relatedBytes: (name) => {
       const path = targetPath(name);
       return path === undefined ? undefined : partBytes?.(path);
+    },
+    relatedTextOrPath: (name, conventionalPath) => {
+      const path = targetPath(name);
+      return (path === undefined ? undefined : partText(path)) ?? partText(conventionalPath) ?? '';
     },
   };
 }

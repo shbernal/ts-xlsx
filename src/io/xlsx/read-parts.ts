@@ -32,6 +32,24 @@ import {parseTable} from './tables.ts';
 import {parseThemeColorScheme, parseThemeFontScheme} from './theme-xml.ts';
 import {buildCommentThreads, parsePersons, parseThreadedComments} from './threaded-comments.ts';
 
+/**
+ * What every part reader in one package read shares: the inflated package, the model being built, the
+ * content-type resolver a preserved part's closure is captured through, and the interning map that
+ * makes one workbook image per media part however many places point at it.
+ *
+ * None of the four varies within a read, and threading them positionally is what let `internImage`
+ * end up taking the same three in a different order from both of its callers. What genuinely varies
+ * -- a part's relationships, the sheet being filled -- stays a positional argument, and the sheet's
+ * rels in particular are deliberately *not* in here: they are per sheet, and a stale copy of them
+ * would send every sheet's parts to the first sheet's.
+ */
+export interface PackageReadContext {
+  readonly pkg: PackageAccessors;
+  readonly workbook: Workbook;
+  readonly contentTypeOf: (path: string) => string;
+  readonly imageIdByMediaPath: Map<string, number>;
+}
+
 // A sheet's comments live in a comments part reached through the sheet's own relationships: the sheet
 // declares a relationship of type `.../comments` whose target resolves (relative to the sheet's
 // directory) to the comments part. A sheet declaring no such relationship simply has none.
@@ -46,7 +64,10 @@ export function readSheetComments(
 // `xl/persons/person.xml`, whose entries every message's `personId` and every mention's
 // `mentionpersonId` resolve through. A workbook with no threaded comments declares no such
 // relationship and keeps an empty registry.
-export function readWorkbookPersons(workbookRels: PartRelationships, workbook: Workbook): void {
+export function readWorkbookPersons(
+  {workbook}: PackageReadContext,
+  workbookRels: PartRelationships,
+): void {
   const xml = workbookRels.relatedText('person');
   if (xml !== undefined) workbook[INTERNAL].restorePersons(parsePersons(xml));
 }
@@ -62,11 +83,10 @@ export function readWorkbookPersons(workbookRels: PartRelationships, workbook: W
 // reports as a package needing repair. A package that declares no theme leaves the workbook on the
 // library's default, which is also what a dangling relationship target degrades to.
 export function readWorkbookTheme(
+  context: PackageReadContext,
   workbookRels: PartRelationships,
-  pkg: PackageAccessors,
-  contentTypeOf: (path: string) => string,
-  workbook: Workbook,
 ): void {
+  const {pkg, contentTypeOf, workbook} = context;
   const entryPath = workbookRels.targetPath('theme');
   if (entryPath === undefined) return;
   const parts = capturePartClosure(entryPath, pkg.partText, pkg.partBytes, contentTypeOf);
@@ -91,8 +111,8 @@ export function readWorkbookTheme(
 // this reader drops is therefore dropped from the file, which is why a message too damaged to place is
 // still kept wherever it can be, and why the anchor is canonicalised here rather than trusted downstream.
 export function readSheetCommentThreads(
+  {workbook}: PackageReadContext,
   sheetRels: PartRelationships,
-  workbook: Workbook,
 ): CommentThread[] {
   const xml = sheetRels.relatedText('threadedComment');
   if (xml === undefined) return [];
@@ -113,12 +133,8 @@ export function readSheetPrinterSettings(sheetRels: PartRelationships): Uint8Arr
 // would write the media twice on the way out, so the map is the property both callers depend on and
 // is what makes the re-write byte-count-stable. `undefined` means the part named a target the package
 // does not carry, which is a broken relationship the caller skips over rather than fails on.
-function internImage(
-  workbook: Workbook,
-  pkg: PackageAccessors,
-  imageIdByMediaPath: Map<string, number>,
-  mediaPath: string,
-): number | undefined {
+function internImage(context: PackageReadContext, mediaPath: string): number | undefined {
+  const {workbook, pkg, imageIdByMediaPath} = context;
   const known = imageIdByMediaPath.get(mediaPath);
   if (known !== undefined) return known;
   const bytes = pkg.partBytes(mediaPath);
@@ -133,13 +149,11 @@ function internImage(
 // picture's embed id to a media part under `xl/media/`. Each anchor becomes a workbook image (deduped
 // by media path) placed back on the sheet at its two-cell anchor.
 export function readSheetImages(
+  context: PackageReadContext,
   sheetRels: PartRelationships,
-  pkg: PackageAccessors,
-  workbook: Workbook,
   sheet: Worksheet,
-  imageIdByMediaPath: Map<string, number>,
 ): void {
-  const {partText} = pkg;
+  const {partText} = context.pkg;
   const drawingPath = sheetRels.targetPath('drawing');
   if (drawingPath === undefined) return;
   const drawingXml = partText(drawingPath);
@@ -155,7 +169,7 @@ export function readSheetImages(
     const embedded = drawingRels.byId(anchor.embed);
     if (embedded === undefined) continue;
     const mediaPath = drawingRels.pathOf(embedded.target);
-    const id = internImage(workbook, pkg, imageIdByMediaPath, mediaPath);
+    const id = internImage(context, mediaPath);
     if (id === undefined) continue;
     const rot = anchor.rotation !== undefined ? {rotation: anchor.rotation} : {};
     if (anchor.to !== undefined) {
@@ -173,15 +187,13 @@ export function readSheetImages(
 // it is the sheet rels' sole image relationship. The bytes are deduped against images shared with a
 // drawing, keeping one media part per picture across a re-write.
 export function readSheetBackground(
+  context: PackageReadContext,
   sheetRels: PartRelationships,
-  pkg: PackageAccessors,
-  workbook: Workbook,
   sheet: Worksheet,
-  imageIdByMediaPath: Map<string, number>,
 ): void {
   const mediaPath = sheetRels.targetPath('image');
   if (mediaPath === undefined) return;
-  const id = internImage(workbook, pkg, imageIdByMediaPath, mediaPath);
+  const id = internImage(context, mediaPath);
   if (id !== undefined) sheet.addBackgroundImage(id);
 }
 
@@ -196,13 +208,13 @@ export function readSheetBackground(
 // Each reference's target part and the transitive closure of parts it reaches (a VML's image, a
 // drawing's media) are captured with their bytes, content types, and relationships.
 export function readSheetPreservedReferences(
+  context: PackageReadContext,
   sheetRels: PartRelationships,
   referenceRelIds: WorksheetReferenceRelIds,
-  pkg: PackageAccessors,
-  contentTypeOf: (path: string) => string,
   sheet: Worksheet,
 ): void {
-  const {partText, partBytes} = pkg;
+  const {contentTypeOf} = context;
+  const {partText, partBytes} = context.pkg;
 
   const capture = (
     element: PreservedWorksheetReference['element'],
@@ -251,13 +263,12 @@ function isPreservedSheetRelType(type: string): boolean {
 // `cacheId`) and an external link's `<externalReferences>` position (its `[n]` index) are captured
 // alongside so the wiring a pivot table or a formula resolves through survives too.
 export function readWorkbookPreservedReferences(
-  registrations: WorkbookRegistrations,
+  context: PackageReadContext,
   workbookRels: PartRelationships,
-  pkg: PackageAccessors,
-  contentTypeOf: (path: string) => string,
-  workbook: Workbook,
+  registrations: WorkbookRegistrations,
 ): void {
-  const {partText, partBytes} = pkg;
+  const {contentTypeOf, workbook} = context;
+  const {partText, partBytes} = context.pkg;
   const {cacheIdByRelId, externalIndexByRelId} = registrations;
   for (const record of workbookRels.records) {
     if (record.external || !isPreservedWorkbookRelType(record.type)) continue;
@@ -281,12 +292,9 @@ export function readWorkbookPreservedReferences(
 // root rels for the parts it models (the workbook, and core/app properties), so every other root
 // relationship's target would be dropped on write; capturing its closure here re-declares it verbatim.
 // External targets and the three regenerated relationship types are skipped.
-export function readRootPreservedReferences(
-  pkg: PackageAccessors,
-  contentTypeOf: (path: string) => string,
-  workbook: Workbook,
-): void {
-  const {partText, partBytes} = pkg;
+export function readRootPreservedReferences(context: PackageReadContext): void {
+  const {contentTypeOf, workbook} = context;
+  const {partText, partBytes} = context.pkg;
   const relsXml = partText('_rels/.rels');
   if (relsXml === undefined) return;
   for (const record of parseRelationshipRecords(relsXml)) {
@@ -400,8 +408,8 @@ export function worksheetReferencePass(): CollectingPass<WorksheetReferenceRelId
 // is parsed back into the model and re-registered in definition order. A part that fails to parse
 // (missing name/ref/columns, which is Excel corruption) is skipped rather than crashing the whole read.
 export function readSheetTables(
+  {pkg}: PackageReadContext,
   sheetRels: PartRelationships,
-  pkg: PackageAccessors,
   sheet: Worksheet,
 ): void {
   for (const tablePath of sheetRels.targetPaths('table')) {
@@ -428,8 +436,8 @@ export function readSheetTables(
 // The read is lenient: a pivot whose cache is missing still yields a (partial) model rather than
 // throwing, matching Excel's tolerance for a damaged package on load.
 export function readSheetPivotTables(
+  {pkg}: PackageReadContext,
   sheetRels: PartRelationships,
-  pkg: PackageAccessors,
   sheet: Worksheet,
 ): void {
   const {partText} = pkg;
