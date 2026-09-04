@@ -76,6 +76,9 @@ export {
   isDataValidationOperator,
   isDataValidationType,
 } from '../core/data-validation.ts';
+// The descriptor a structural edit is: `Table.shiftRows`/`shiftColumns` name it, so a caller that
+// re-pins a table itself needs to be able to write its type.
+export type {AxisSplice} from '../core/grid-shift.ts';
 export {
   type AnchoredImage,
   type AnchorPoint,

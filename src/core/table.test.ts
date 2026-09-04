@@ -51,32 +51,32 @@ test('distinct column names are accepted', () => {
 test('inserting a row above a table shifts its whole range down', () => {
   const t = table(); // A3:B5 (header + 2 data rows)
   assert.strictEqual(t.range, 'A3:B5');
-  const alive = t.shiftRows(1, 0, 1); // insert one row at the top
+  const alive = t.shiftRows({axis: 'row', start: 1, count: 0, delta: 1}); // insert one row at the top
   assert.strictEqual(alive, true);
   assert.strictEqual(t.range, 'A4:B6');
 });
 
 test('inserting rows inside a table grows its data rows', () => {
   const t = table(); // A3:B5
-  t.shiftRows(4, 0, 2); // two rows inserted within the data body (row 4)
+  t.shiftRows({axis: 'row', start: 4, count: 0, delta: 2}); // two rows inserted within the data body (row 4)
   assert.strictEqual(t.range, 'A3:B7', 'the table absorbs the inserted rows');
 });
 
 test('a table left entirely above the splice is untouched', () => {
   const t = table(); // A3:B5
-  t.shiftRows(10, 0, 5); // insert well below the table
+  t.shiftRows({axis: 'row', start: 10, count: 0, delta: 5}); // insert well below the table
   assert.strictEqual(t.range, 'A3:B5');
 });
 
 test('deleting every row of a table reports it as removed', () => {
   const t = table(); // rows 3..5
-  const alive = t.shiftRows(3, 3, -3); // delete the whole span
+  const alive = t.shiftRows({axis: 'row', start: 3, count: 3, delta: -3}); // delete the whole span
   assert.strictEqual(alive, false);
 });
 
 test('a column splice to the left shifts the table anchor', () => {
   const t = table(); // anchored at column A (A3:B5)
-  t.shiftColumns(1, 0, 2); // insert two columns before it
+  t.shiftColumns({axis: 'col', start: 1, count: 0, delta: 2}); // insert two columns before it
   assert.strictEqual(t.range, 'C3:D5');
 });
 
@@ -166,5 +166,9 @@ test('a column splice that would push a table past the last column drops it', ()
   // Clamping the anchor is not the same as bounding the table: an anchor clamped onto XFD still puts
   // a two-column table's right edge at XFE, where `range`, `autoFilterRef` and `region` all throw.
   const t = table({ref: 'XFC1', columns: [{name: 'a'}, {name: 'b'}]}); // XFC..XFD
-  assert.strictEqual(t.shiftColumns(1, 0, 1), false, 'no room left for its columns');
+  assert.strictEqual(
+    t.shiftColumns({axis: 'col', start: 1, count: 0, delta: 1}),
+    false,
+    'no room left for its columns',
+  );
 });

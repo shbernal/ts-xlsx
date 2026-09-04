@@ -52,6 +52,14 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   they could not write. A caller receives the sheet writer from `WorkbookStreamWriter.addWorksheet`,
   which is unchanged and is the only way it was ever meant to be obtained.
 
+- **BREAKING: `Table.shiftRows` and `Table.shiftColumns` take one splice descriptor instead of three
+  loose numbers.** `table.shiftRows(3, 0, 2)` is now
+  `table.shiftRows({axis: 'row', start: 3, count: 0, delta: 2})`, and the new `AxisSplice` type is
+  published from `/core`. `start`, `count` and `delta` are three `number`s in an order no call site
+  can be read against, and transposing two of them is invisible to the compiler, to the linter and to
+  Excel: the workbook that comes out is well-formed, with its merges, dropdowns, highlights, comment
+  anchors and images re-anchored to cells the author never chose. Named fields cannot be transposed.
+
 ### Fixed
 
 - **A streamed collapsed outline group rendered expanded when a cell in its summary row held the

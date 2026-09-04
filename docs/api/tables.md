@@ -31,8 +31,8 @@ class Table {
   get columnCount(): number;
   get rowCount(): number;
   addRow(values: readonly CellValue[] = []): void;
-  shiftRows(start: number, count: number, delta: number): boolean;
-  shiftColumns(start: number, count: number, delta: number): boolean;
+  shiftRows(splice: AxisSplice): boolean;
+  shiftColumns(splice: AxisSplice): boolean;
   get options(): TableOptions;
   get range(): string;
   get autoFilterRef(): string | undefined;
@@ -69,25 +69,24 @@ worksheet throws, as does passing `values` on any detached table: there is nowhe
 #### `Table.shiftRows`
 
 ```ts
-shiftRows(start: number, count: number, delta: number): boolean;
+shiftRows(splice: AxisSplice): boolean;
 ```
 
-Re-pin the table through a row splice: `count` rows removed at the 1-based `start`, then rows
-inserted so surviving rows below shift by `delta`. A splice entirely above the table moves its
-whole range by `delta`; one landing inside grows or shrinks the data rows to absorb the change;
+Re-pin the table through a row splice. A splice entirely above the table moves its whole range
+by the splice's `delta`; one landing inside grows or shrinks the data rows to absorb the change;
 one that deletes the table's every row removes it. Returns `false` when the table no longer has
 a row to occupy (the caller drops it), `true` when it survives.
 
 #### `Table.shiftColumns`
 
 ```ts
-shiftColumns(start: number, count: number, delta: number): boolean;
+shiftColumns(splice: AxisSplice): boolean;
 ```
 
-Re-pin the table through a column splice, the mirror of [`shiftRows`](./tables.md#tableshiftrows). A splice entirely to the
-table's left moves its anchor by `delta`; one to its right leaves it untouched; one that deletes
-the table's every column removes it. Returns `false` when the table no longer has a column to
-occupy (the caller drops it), `true` when it survives.
+Re-pin the table through a column splice, the mirror of [`shiftRows`](./tables.md#tableshiftrows). A splice entirely to
+the table's left moves its anchor by the splice's `delta`; one to its right leaves it untouched;
+one that deletes the table's every column removes it. Returns `false` when the table no longer
+has a column to occupy (the caller drops it), `true` when it survives.
 
 A splice landing *inside* the table's columns is structural surgery on named columns with no
 unambiguous answer, so those columns are left as-is rather than fabricated or dropped. Whole-table

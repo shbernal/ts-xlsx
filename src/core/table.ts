@@ -20,7 +20,7 @@ import {
   numberToColumn,
 } from './address.ts';
 import {type ClonePlan, cloneWith} from './clone.ts';
-import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
+import {type AxisSplice, isDeletedSpan, shiftIndex} from './grid-shift.ts';
 import type {AssertNever} from './internal.ts';
 import {MAX_TABLE_NAME_LENGTH, TABLE_NAME_PATTERN} from './limits.ts';
 import type {CellStyle} from './style.ts';
@@ -473,17 +473,16 @@ export class Table {
   }
 
   /**
-   * Re-pin the table through a row splice: `count` rows removed at the 1-based `start`, then rows
-   * inserted so surviving rows below shift by `delta`. A splice entirely above the table moves its
-   * whole range by `delta`; one landing inside grows or shrinks the data rows to absorb the change;
+   * Re-pin the table through a row splice. A splice entirely above the table moves its whole range
+   * by the splice's `delta`; one landing inside grows or shrinks the data rows to absorb the change;
    * one that deletes the table's every row removes it. Returns `false` when the table no longer has
    * a row to occupy (the caller drops it), `true` when it survives.
    */
-  shiftRows(start: number, count: number, delta: number): boolean {
+  shiftRows(splice: AxisSplice): boolean {
     // A table whose every row lies within the deleted span has nothing left to occupy.
-    if (isDeletedSpan(this.#anchorRow, this.#bottom, start, count)) return false;
-    const top = shiftIndex(this.#anchorRow, start, count, delta, 'row');
-    const bottom = shiftIndex(this.#bottom, start, count, delta, 'row');
+    if (isDeletedSpan(this.#anchorRow, this.#bottom, splice)) return false;
+    const top = shiftIndex(this.#anchorRow, splice);
+    const bottom = shiftIndex(this.#bottom, splice);
     const span = bottom - top + 1;
     const fixedRows = (this.headerRow ? 1 : 0) + (this.totalsRow ? 1 : 0);
     const dataRows = span - fixedRows;
@@ -494,22 +493,22 @@ export class Table {
   }
 
   /**
-   * Re-pin the table through a column splice, the mirror of {@link shiftRows}. A splice entirely to the
-   * table's left moves its anchor by `delta`; one to its right leaves it untouched; one that deletes
-   * the table's every column removes it. Returns `false` when the table no longer has a column to
-   * occupy (the caller drops it), `true` when it survives.
+   * Re-pin the table through a column splice, the mirror of {@link shiftRows}. A splice entirely to
+   * the table's left moves its anchor by the splice's `delta`; one to its right leaves it untouched;
+   * one that deletes the table's every column removes it. Returns `false` when the table no longer
+   * has a column to occupy (the caller drops it), `true` when it survives.
    *
    * A splice landing *inside* the table's columns is structural surgery on named columns with no
    * unambiguous answer, so those columns are left as-is rather than fabricated or dropped. Whole-table
    * deletion is not that case: a table left declared over whatever slid into its place, carrying the
    * names of columns that no longer exist, is content the writer then emits.
    */
-  shiftColumns(start: number, count: number, delta: number): boolean {
+  shiftColumns(splice: AxisSplice): boolean {
     // A table whose every column lies within the deleted span has nothing left to occupy.
-    if (isDeletedSpan(this.#anchorCol, this.#right, start, count)) return false;
+    if (isDeletedSpan(this.#anchorCol, this.#right, splice)) return false;
     // Clamped, like every other coordinate a splice moves: an unbounded increment could put the anchor
     // past the last column, where `range`, `autoFilterRef` and `region` all throw on read.
-    const anchor = shiftIndex(this.#anchorCol, start, count, delta, 'col');
+    const anchor = shiftIndex(this.#anchorCol, splice);
     // Clamping the anchor is not the same as bounding the table: `#right` is derived from the anchor
     // and the column count, so an anchor clamped onto XFD still puts a two-column table's right edge
     // at XFE, which is the unreadable table the clamp above was meant to prevent. A table with no

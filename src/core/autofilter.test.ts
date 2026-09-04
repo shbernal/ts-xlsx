@@ -39,7 +39,12 @@ test('canonicalizeAutoFilter refuses a colId outside the range it is measured ag
 
 test('a row splice moves the filter range and leaves every criterion where it was', () => {
   // Criteria are addressed on the column axis, so a row edit cannot touch them.
-  const moved = shiftAutoFilter(filterOn('B2:D10', [0, 2]), 'row', 1, 0, 3);
+  const moved = shiftAutoFilter(filterOn('B2:D10', [0, 2]), {
+    axis: 'row',
+    start: 1,
+    count: 0,
+    delta: 3,
+  });
   assert.equal(moved?.ref, 'B5:D13');
   assert.deepEqual(colIdsOf(moved), [0, 2]);
 });
@@ -47,7 +52,12 @@ test('a row splice moves the filter range and leaves every criterion where it wa
 test('a column insert before the filter re-bases every criterion against the new left edge', () => {
   // B2:D10 with criteria on B (offset 0) and D (offset 2). Two columns inserted at A push the whole
   // filter right, and the offsets must stay pointing at the same *columns*, so they do not change.
-  const moved = shiftAutoFilter(filterOn('B2:D10', [0, 2]), 'col', 1, 0, 2);
+  const moved = shiftAutoFilter(filterOn('B2:D10', [0, 2]), {
+    axis: 'col',
+    start: 1,
+    count: 0,
+    delta: 2,
+  });
   assert.equal(moved?.ref, 'D2:F10');
   assert.deepEqual(colIdsOf(moved), [0, 2]);
 });
@@ -55,7 +65,12 @@ test('a column insert before the filter re-bases every criterion against the new
 test('a column insert inside the filter widens it and pushes the criteria past the cut', () => {
   // B2:D10, one column inserted at C. B keeps offset 0; D was offset 2 and is now offset 3, because
   // a column it does not own moved in front of it.
-  const moved = shiftAutoFilter(filterOn('B2:D10', [0, 2]), 'col', 3, 0, 1);
+  const moved = shiftAutoFilter(filterOn('B2:D10', [0, 2]), {
+    axis: 'col',
+    start: 3,
+    count: 0,
+    delta: 1,
+  });
   assert.equal(moved?.ref, 'B2:E10');
   assert.deepEqual(colIdsOf(moved), [0, 3]);
 });
@@ -63,19 +78,35 @@ test('a column insert inside the filter widens it and pushes the criteria past t
 test('a criterion whose column a delete swallowed goes with the column', () => {
   // B2:D10 with criteria on B, C and D. Deleting C must drop C's criterion and pull D's offset down,
   // rather than leaving three offsets over a now-two-wide filter.
-  const moved = shiftAutoFilter(filterOn('B2:D10', [0, 1, 2]), 'col', 3, 1, -1);
+  const moved = shiftAutoFilter(filterOn('B2:D10', [0, 1, 2]), {
+    axis: 'col',
+    start: 3,
+    count: 1,
+    delta: -1,
+  });
   assert.equal(moved?.ref, 'B2:C10');
   assert.deepEqual(colIdsOf(moved), [0, 1]);
 });
 
 test('the filter is dropped when the splice deleted every line it covered', () => {
-  assert.equal(shiftAutoFilter(filterOn('B2:D10', [0]), 'col', 2, 3, -3), undefined);
-  assert.equal(shiftAutoFilter(filterOn('B2:D10', [0]), 'row', 2, 9, -9), undefined);
+  assert.equal(
+    shiftAutoFilter(filterOn('B2:D10', [0]), {axis: 'col', start: 2, count: 3, delta: -3}),
+    undefined,
+  );
+  assert.equal(
+    shiftAutoFilter(filterOn('B2:D10', [0]), {axis: 'row', start: 2, count: 9, delta: -9}),
+    undefined,
+  );
 });
 
 test('a filter straddling the cut survives with its edges clamped', () => {
   // Deleting rows 1..4 takes the filter's top edge but not its bottom, so the region shrinks to the
   // cut line rather than disappearing.
-  const moved = shiftAutoFilter(filterOn('B2:D10', [0]), 'row', 1, 4, -4);
+  const moved = shiftAutoFilter(filterOn('B2:D10', [0]), {
+    axis: 'row',
+    start: 1,
+    count: 4,
+    delta: -4,
+  });
   assert.equal(moved?.ref, 'B1:D6');
 });

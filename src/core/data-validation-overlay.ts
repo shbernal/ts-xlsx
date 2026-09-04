@@ -11,6 +11,7 @@ import {
   type DataValidation,
   type DataValidationEntry,
 } from './data-validation.ts';
+import type {AxisSplice} from './grid-shift.ts';
 import {decodeSqrefRects, type MergeRect, shiftSqref} from './merge.ts';
 
 export class DataValidationOverlay {
@@ -80,11 +81,11 @@ export class DataValidationOverlay {
    * attached to rather than on whatever moved into their place. A rule whose every target area fell
    * inside a deleted span is dropped with them.
    */
-  shift(axis: 'row' | 'col', start: number, count: number, delta: number): void {
+  shift(splice: AxisSplice): void {
     const entries: DataValidationEntry[] = [];
     const rects: {rects: readonly MergeRect[]; rule: DataValidation}[] = [];
     for (const entry of this.#entries) {
-      const sqref = shiftSqref(entry.sqref, axis, start, count, delta);
+      const sqref = shiftSqref(entry.sqref, splice);
       if (sqref === undefined) continue;
       entries.push({...entry, sqref});
       // The decoded rectangles are what `at()` answers from, so they are re-derived here rather than

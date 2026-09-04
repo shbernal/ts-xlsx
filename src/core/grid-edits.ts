@@ -12,7 +12,7 @@ import {Cell, copyCellContent} from './cell.ts';
 import type {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
 import {replaceContents} from './containers.ts';
 import type {DataValidationOverlay} from './data-validation-overlay.ts';
-import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
+import {type AxisSplice, isDeletedSpan, shiftIndex, shiftRect} from './grid-shift.ts';
 import {type AnchoredImage, type AnchorPoint, type ImageAnchor, isOneCellAnchor} from './image.ts';
 import type {MergeRect} from './merge.ts';
 import {positionalPlacements} from './row-input.ts';
@@ -76,7 +76,7 @@ export class GridEdits {
   // Row metadata, merged ranges and everything else anchored to the grid shift the same way, so a
   // formatting-only row, a covered merge or a dropdown stays aligned with the data it describes.
   spliceRows(start: number, count: number, inserted: Map<number, Cell>[]): void {
-    const delta = inserted.length - count;
+    const splice: AxisSplice = {axis: 'row', start, count, delta: inserted.length - count};
     const shifted = new Map<number, Map<number, Cell>>();
     for (const [row, cols] of this.#rows) {
       if (row < start) shifted.set(row, cols);
@@ -86,7 +86,7 @@ export class GridEdits {
         // splice died with a `RangeError` from inside the grid where a merge or a table would have
         // clamped. A row clamped onto the last one lands on whatever is already there, which is the
         // content Excel also loses when it pushes a row off the bottom.
-        const dest = shiftIndex(row, start, count, delta, 'row');
+        const dest = shiftIndex(row, splice);
         shifted.set(dest, this.#relocateRow(cols, dest));
       }
     }
@@ -96,12 +96,12 @@ export class GridEdits {
     this.#rows.clear();
     for (const [row, cols] of shifted) this.#rows.set(row, cols);
 
-    this.#shiftLineProperties(this.#rowProperties, start, count, delta, 'row');
-    this.#shiftMerges('row', start, count, delta);
-    this.#shiftTables('row', start, count, delta);
-    this.#shiftImages('row', start, count, delta);
-    this.#reanchorSharedFormulas('row', start, count, delta);
-    this.#shiftRangeBoundOverlays('row', start, count, delta);
+    this.#shiftLineProperties(this.#rowProperties, splice);
+    this.#shiftMerges(splice);
+    this.#shiftTables(splice);
+    this.#shiftImages(splice);
+    this.#reanchorSharedFormulas(splice);
+    this.#shiftRangeBoundOverlays(splice);
   }
 
   // Apply a delete-then-insert to the column grid: cells left of the edit stay, cells at or beyond the
@@ -109,7 +109,7 @@ export class GridEdits {
   // values materialise as fresh cells at `start`. Column metadata, merges, tables, images,
   // shared-formula clones and the range-bound overlays re-anchor the same way.
   spliceColumns(start: number, count: number, inserts: CellValue[][]): void {
-    const delta = inserts.length - count;
+    const splice: AxisSplice = {axis: 'col', start, count, delta: inserts.length - count};
     // Built whole, then swapped in, the way `spliceRows` does it. Writing each row back inside the loop
     // meant a throw part-way left the sheet half-spliced: rows already visited shifted, the rest not,
     // with no way for the caller to act on the error. `new Cell` still asserts its coordinates, so an
@@ -132,7 +132,7 @@ export class GridEdits {
         } else if (col >= start + count) {
           // `shiftIndex` for the same reason the row axis uses it: `new Cell` asserts its coordinates,
           // so an unclamped destination past column XFD threw from inside the splice.
-          const dest = shiftIndex(col, start, count, delta, 'col');
+          const dest = shiftIndex(col, splice);
           const moved = new Cell(row, dest);
           copyCellContent(cell, moved);
           shifted.set(dest, moved);
@@ -160,12 +160,12 @@ export class GridEdits {
       }
     });
     for (const [row, cols] of shiftedRows) this.#rows.set(row, cols);
-    this.#shiftLineProperties(this.#columns, start, count, delta, 'col');
-    this.#shiftMerges('col', start, count, delta);
-    this.#shiftTables('col', start, count, delta);
-    this.#shiftImages('col', start, count, delta);
-    this.#reanchorSharedFormulas('col', start, count, delta);
-    this.#shiftRangeBoundOverlays('col', start, count, delta);
+    this.#shiftLineProperties(this.#columns, splice);
+    this.#shiftMerges(splice);
+    this.#shiftTables(splice);
+    this.#shiftImages(splice);
+    this.#reanchorSharedFormulas(splice);
+    this.#shiftRangeBoundOverlays(splice);
   }
 
   // Re-anchor the four things bound to a range that live outside the cell grid: data validations,
@@ -173,14 +173,12 @@ export class GridEdits {
   // an overlay knows whether it holds a rectangle or a point, and the autofilter knows that its
   // criteria are addressed relative to its own left edge. This pass only routes the splice to them
   // and lets a deleted anchor take its entry with it.
-  #shiftRangeBoundOverlays(axis: 'row' | 'col', start: number, count: number, delta: number): void {
-    this.#dataValidations.shift(axis, start, count, delta);
-    this.#conditionalFormattings.shift(axis, start, count, delta);
-    this.#comments.shift(axis, start, count, delta);
+  #shiftRangeBoundOverlays(splice: AxisSplice): void {
+    this.#dataValidations.shift(splice);
+    this.#conditionalFormattings.shift(splice);
+    this.#comments.shift(splice);
     const filter = this.#autoFilter.get();
-    if (filter !== undefined) {
-      this.#autoFilter.set(shiftAutoFilter(filter, axis, start, count, delta));
-    }
+    if (filter !== undefined) this.#autoFilter.set(shiftAutoFilter(filter, splice));
   }
 
   // Rebuild a row's cells at a new row index. `Cell` fixes its position at construction, so a moved
@@ -204,7 +202,7 @@ export class GridEdits {
   // would reject the clone as orphaned. Applying the same shift the grid used keeps each clone pointed
   // at its master's new cell. A master whose axis coordinate falls in the deleted span clamps to the
   // cut line like a merge edge: a genuinely orphaned clone the writer then reports legibly.
-  #reanchorSharedFormulas(axis: 'row' | 'col', start: number, count: number, delta: number): void {
+  #reanchorSharedFormulas(splice: AxisSplice): void {
     for (const cols of this.#rows.values()) {
       for (const cell of cols.values()) {
         const value = cell.value;
@@ -212,9 +210,9 @@ export class GridEdits {
         const master = tryDecodeCellRef(value.sharedFormula);
         if (master === undefined) continue;
         const anchored =
-          axis === 'row'
-            ? encodeAddress(master.col, shiftIndex(master.row, start, count, delta, 'row'))
-            : encodeAddress(shiftIndex(master.col, start, count, delta, 'col'), master.row);
+          splice.axis === 'row'
+            ? encodeAddress(master.col, shiftIndex(master.row, splice))
+            : encodeAddress(shiftIndex(master.col, splice), master.row);
         if (anchored === value.sharedFormula) continue;
         const reanchored: SharedFormulaValue = {...value, sharedFormula: anchored};
         cell.value = reanchored;
@@ -232,17 +230,11 @@ export class GridEdits {
   // a row `new Row` refuses to construct, so iterating the sheet threw and the sheet could no longer
   // be written or inspected. The cells on that row clamped correctly, so a row and its own metadata
   // also came apart.
-  #shiftLineProperties<T>(
-    map: Map<number, T>,
-    start: number,
-    count: number,
-    delta: number,
-    axis: 'row' | 'col',
-  ): void {
+  #shiftLineProperties<T>(map: Map<number, T>, splice: AxisSplice): void {
     const shifted = new Map<number, T>();
     for (const [index, value] of map) {
-      if (isDeletedSpan(index, index, start, count)) continue;
-      shifted.set(shiftIndex(index, start, count, delta, axis), value);
+      if (isDeletedSpan(index, index, splice)) continue;
+      shifted.set(shiftIndex(index, splice), value);
     }
     map.clear();
     for (const [index, value] of shifted) map.set(index, value);
@@ -253,8 +245,7 @@ export class GridEdits {
   // entirely deleted is dropped. A range straddling the cut is a genuinely ambiguous geometry: its
   // edges are clamped to the cut line as a best effort. Unbounded whole-row/column merges carry no
   // rectangle and pass through unchanged.
-  #shiftMerges(axis: 'row' | 'col', start: number, count: number, delta: number): void {
-    const shift = (v: number): number => shiftIndex(v, start, count, delta, axis);
+  #shiftMerges(splice: AxisSplice): void {
     const merges: string[] = [];
     const rects: MergeRect[] = [];
     for (const range of this.#merges.ranges) {
@@ -263,13 +254,8 @@ export class GridEdits {
         merges.push(range);
         continue;
       }
-      const {top, left, bottom, right} = decoded;
-      const [lo, hi] = axis === 'row' ? [top, bottom] : [left, right];
-      if (isDeletedSpan(lo, hi, start, count)) continue;
-      const rect: MergeRect =
-        axis === 'row'
-          ? {top: shift(top), left, bottom: shift(bottom), right}
-          : {top, left: shift(left), bottom, right: shift(right)};
+      const rect = shiftRect(decoded, splice);
+      if (rect === undefined) continue;
       rects.push(rect);
       merges.push(encodeRect(rect));
     }
@@ -278,11 +264,9 @@ export class GridEdits {
 
   // Re-pin the sheet's tables through a splice on the given axis, dropping any table a delete leaves
   // with no row to occupy. `Table` owns the shift arithmetic; the sheet only prunes the casualties.
-  #shiftTables(axis: 'row' | 'col', start: number, count: number, delta: number): void {
+  #shiftTables(splice: AxisSplice): void {
     const survivors = this.#tables.filter((table) =>
-      axis === 'row'
-        ? table.shiftRows(start, count, delta)
-        : table.shiftColumns(start, count, delta),
+      splice.axis === 'row' ? table.shiftRows(splice) : table.shiftColumns(splice),
     );
     replaceContents(this.#tables, survivors);
   }
@@ -292,18 +276,18 @@ export class GridEdits {
   // cut line. Grid points are 0-based, so each is converted to the 1-based coordinate the shared
   // shift arithmetic uses and back. An anchor whose points both move keeps its size; an anchor
   // straddling the cut grows or shrinks, matching how Excel reflows a picture across inserted rows.
-  #shiftImages(axis: 'row' | 'col', start: number, count: number, delta: number): void {
-    const shiftPoint = (point: AnchorPoint): AnchorPoint => {
-      const zeroBased = axis === 'row' ? point.row : point.col;
-      const shifted = shiftIndex(zeroBased + 1, start, count, delta, axis) - 1;
+  #shiftImages(splice: AxisSplice): void {
+    const shiftAnchor = (point: AnchorPoint): AnchorPoint => {
+      const zeroBased = splice.axis === 'row' ? point.row : point.col;
+      const shifted = shiftIndex(zeroBased + 1, splice) - 1;
       if (shifted === zeroBased) return point;
-      return axis === 'row' ? {...point, row: shifted} : {...point, col: shifted};
+      return splice.axis === 'row' ? {...point, row: shifted} : {...point, col: shifted};
     };
     const moved: AnchoredImage[] = this.#images.map((image) => {
-      const from = shiftPoint(image.anchor.from);
+      const from = shiftAnchor(image.anchor.from);
       const anchor: ImageAnchor = isOneCellAnchor(image.anchor)
         ? {...image.anchor, from}
-        : {...image.anchor, from, to: shiftPoint(image.anchor.to)};
+        : {...image.anchor, from, to: shiftAnchor(image.anchor.to)};
       return {imageId: image.imageId, anchor};
     });
     replaceContents(this.#images, moved);

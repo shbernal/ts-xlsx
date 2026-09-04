@@ -4,6 +4,7 @@
 
 import {type ConditionalFormatting, cloneConditionalFormatting} from './conditional-formatting.ts';
 import {replaceContents} from './containers.ts';
+import type {AxisSplice} from './grid-shift.ts';
 import {shiftSqref} from './merge.ts';
 
 export class ConditionalFormattingOverlay {
@@ -28,10 +29,10 @@ export class ConditionalFormattingOverlay {
    * Re-anchor every rule set through a row or column splice, so a highlight keeps covering the cells
    * it was written for. A rule set whose every target area fell inside a deleted span goes with them.
    */
-  shift(axis: 'row' | 'col', start: number, count: number, delta: number): void {
+  shift(splice: AxisSplice): void {
     const entries: ConditionalFormatting[] = [];
     for (const entry of this.#entries) {
-      const ref = shiftSqref(entry.ref, axis, start, count, delta);
+      const ref = shiftSqref(entry.ref, splice);
       if (ref !== undefined) entries.push({...entry, ref});
     }
     replaceContents(this.#entries, entries);

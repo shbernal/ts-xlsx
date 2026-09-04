@@ -1,7 +1,7 @@
 import {AuthoringError, quoted} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
 import {boundedRect, decodeRange, encodeRect} from './address.ts';
-import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
+import {type AxisSplice, isDeletedSpan, shiftIndex, shiftRect} from './grid-shift.ts';
 
 /**
  * A worksheet's autofilter: the filtered region plus any per-column criteria narrowing it. A bare
@@ -117,8 +117,8 @@ function canonicalizeColumn(column: FilterColumn, width: number): FilterColumn {
 }
 
 /**
- * Re-anchor a filter through a splice of `count` lines at `start` on `axis`, or drop it (`undefined`)
- * when the splice deleted every line it covered.
+ * Re-anchor a filter through a splice, or drop it (`undefined`) when the splice deleted every line
+ * it covered.
  *
  * A row splice only moves the range. A column splice moves its left edge too, and a criterion is
  * addressed by its offset from that edge rather than by an absolute column, so every offset is
@@ -126,31 +126,19 @@ function canonicalizeColumn(column: FilterColumn, width: number): FilterColumn {
  * Left alone, those offsets would keep their old numbers and silently re-point each filter at a
  * neighbouring column.
  */
-export function shiftAutoFilter(
-  filter: AutoFilter,
-  axis: 'row' | 'col',
-  start: number,
-  count: number,
-  delta: number,
-): AutoFilter | undefined {
+export function shiftAutoFilter(filter: AutoFilter, splice: AxisSplice): AutoFilter | undefined {
   // Unreachable for a stored filter: canonicalizeAutoFilter refuses anything but a bounded rectangle.
   const rect = boundedRect(decodeRange(filter.ref));
   if (rect === undefined) return filter;
-  const {top, left, bottom, right} = rect;
-  const [lo, hi] = axis === 'row' ? [top, bottom] : [left, right];
-  if (isDeletedSpan(lo, hi, start, count)) return undefined;
-  const movedLo = shiftIndex(lo, start, count, delta, axis);
-  const movedHi = shiftIndex(hi, start, count, delta, axis);
-  if (axis === 'row') {
-    const ref = encodeRect({top: movedLo, left, bottom: movedHi, right});
-    return {ref, columns: filter.columns};
-  }
-  const ref = encodeRect({top, left: movedLo, bottom, right: movedHi});
+  const moved = shiftRect(rect, splice);
+  if (moved === undefined) return undefined;
+  const ref = encodeRect(moved);
+  if (splice.axis === 'row') return {ref, columns: filter.columns};
   const columns: FilterColumn[] = [];
   for (const column of filter.columns) {
-    const absolute = left + column.colId;
-    if (isDeletedSpan(absolute, absolute, start, count)) continue;
-    columns.push({...column, colId: shiftIndex(absolute, start, count, delta, axis) - movedLo});
+    const absolute = rect.left + column.colId;
+    if (isDeletedSpan(absolute, absolute, splice)) continue;
+    columns.push({...column, colId: shiftIndex(absolute, splice) - moved.left});
   }
   return {ref, columns};
 }

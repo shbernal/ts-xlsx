@@ -13,7 +13,7 @@ import {quoted} from '../errors.ts';
 import {decodeCellRef, encodeAddress} from './address.ts';
 import {type CommentThread, commentThreadGuid, commentThreadOffset} from './comment-thread.ts';
 import {replaceContents} from './containers.ts';
-import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
+import {type AxisSplice, shiftPoint} from './grid-shift.ts';
 
 export class WorksheetComments {
   // Quoted by the duplicate-id refusal, which has to say *which* sheet already holds the id.
@@ -80,19 +80,17 @@ export class WorksheetComments {
    * the cell, so a thread left behind would put a note on one cell and its conversation on another,
    * a pairing the writer emits and Excel refuses.
    */
-  shift(axis: 'row' | 'col', start: number, count: number, delta: number): void {
+  shift(splice: AxisSplice): void {
     const survivors: CommentThread[] = [];
     for (const thread of this.#threads) {
-      const {col, row} = decodeCellRef(thread.ref);
-      const line = axis === 'row' ? row : col;
-      if (isDeletedSpan(line, line, start, count)) continue;
-      const moved = shiftIndex(line, start, count, delta, axis);
-      if (moved === line) {
+      const anchor = decodeCellRef(thread.ref);
+      const moved = shiftPoint(anchor, splice);
+      if (moved === undefined) continue;
+      if (moved.col === anchor.col && moved.row === anchor.row) {
         survivors.push(thread);
         continue;
       }
-      const ref = axis === 'row' ? encodeAddress(col, moved) : encodeAddress(moved, row);
-      survivors.push({...thread, ref});
+      survivors.push({...thread, ref: encodeAddress(moved.col, moved.row)});
     }
     replaceContents(this.#threads, survivors);
   }

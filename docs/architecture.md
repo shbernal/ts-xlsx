@@ -234,10 +234,15 @@ with the cells, and so do the four things bound to a range that live outside the
 data validations, conditional formats, comment threads and the sheet's autofilter. The invariant
 is the general one, not a list that happened to be complete once: an overlay left behind re-points a
 dropdown or a highlight rule at cells nobody chose, and the writer emits that without complaint. The
-single coordinate rule they all share is `core/grid-shift.ts`, and every participant answers the same
-two questions through it: where does this land, and did the delete swallow it whole? A range the
-delete swallowed whole takes its entry with it rather than clamping onto the cut line, because
-dropping a rule is legible and silently re-aiming one is not.
+single coordinate rule they all share is `core/grid-shift.ts`. The edit is one value there,
+`AxisSplice`, rather than the loose `(axis, start, count, delta)` a call site cannot be read against:
+three of the four are `number`, and a transposed pair is invisible to the compiler, to the linter and
+to Excel -- the workbook it produces is well-formed and aimed at the wrong cells. Every participant
+answers the same two questions through that module -- where does this land, and did the delete
+swallow it whole? -- and the projections built out of them (a span, a rectangle, a point) live beside
+them, so the axis ternary is written once instead of once per overlay. A range the delete swallowed
+whole takes its entry with it rather than clamping onto the cut line, because dropping a rule is
+legible and silently re-aiming one is not.
 
 The row and column axes are deliberately not mirror images, and where they diverge is a decision
 rather than a gap someone forgot to close. A row takes either input shape, a positional array or an
