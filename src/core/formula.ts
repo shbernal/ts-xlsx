@@ -280,8 +280,8 @@ export function mangleParams(formula: string): string {
  * LET or LAMBDA parameter spelled like a function already carries `_xlpm.`.
  *
  * A name is not a value where it names a sheet (`SUM!A1`, `SUM:Other!A1`) or a table (`Rate[Amount]`),
- * where a sheet or workbook qualifies it (`S1!SUM`), or inside an error literal: the `N` of `#N/A` is a
- * function too.
+ * where a sheet or workbook qualifies it (`S1!SUM`), where it is the column of a reference (`$T$1`,
+ * `T:T`), or inside an error literal: the `N` of `#N/A` is a function too.
  */
 export function mangleFunctionValues(formula: string, namesInScope: ReadonlySet<string>): string {
   let out = '';
@@ -307,10 +307,12 @@ export function mangleFunctionValues(formula: string, namesInScope: ReadonlySet<
 }
 
 // What may sit just before a name that makes it something other than a bare name: a sheet or workbook
-// qualifier's `!` or `]`, the `#` of an error literal, and the `$` anchoring the column of an absolute
-// reference (`$T$1`, whose `T` the walk reads alone). A name or number character cannot, since the
-// walk reads a name whole, but the digits of a number can (`1E3`), and a `.` ends one.
-const QUALIFIES_NAME = /[A-Za-z0-9_.$!#\]]/;
+// qualifier's `!` or `]`, the `#` of an error literal, the `$` anchoring the column of an absolute
+// reference (`$T$1`, whose `T` the walk reads alone), and the `:` of a range, whose far end is a
+// reference (`T:T`) and never a function, which the range operator does not take. A name or number
+// character cannot, since the walk reads a name whole, but the digits of a number can (`1E3`), and a
+// `.` ends one.
+const QUALIFIES_NAME = /[A-Za-z0-9_.$:!#\]]/;
 // What may sit just after a name that makes it a sheet (`SUM!A1`), one end of a sheet span
 // (`SUM:Other!A1`), a table (`Rate[Amount]`) or the column of a reference with an absolute row
 // (`T$1`).

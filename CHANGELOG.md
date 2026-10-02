@@ -18,6 +18,9 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   `$T$1`, `T$1`, `Sheet1!$N$2` and `$PI$1:$PI$9` went into the file as `$_xleta.T$1` and the like, since
   the function-value scan read the column alone and took it for `T`, `N` or `PI` passed as a value. A `$`
   on either side of a name now marks it as part of a reference, and the formula is written as typed.
+- **A whole-column range whose column letters spell a function was written with the function at its far
+  end.** `SUM(T:T)`, `SUM(N:N)` and `Sheet1!T:T` went into the file as `T:_xleta.T` and the like. A name
+  after the `:` of a range is now read as a reference, since the range operator takes no function.
 
 ## [3.2.0] — 2026-09-13
 

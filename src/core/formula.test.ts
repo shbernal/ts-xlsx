@@ -383,6 +383,14 @@ test('an absolute reference whose column spells a function is a cell, not a func
   }
 });
 
+// As Excel saved `=SUM(T:T)`, `=SUM(N:N)` and `=SUM(PI:PI)`. The `:` after the first column kept it a
+// cell, but nothing marked the second, so `T:T` was written `T:_xleta.T`, which names no range.
+test('a whole-column range whose column spells a function is a range, not a function value', () => {
+  for (const formula of ['SUM(T:T)', 'SUM(N:N)', 'SUM(PI:PI)', 'Sheet1!T:T', 'SUM($T:$T)']) {
+    assert.equal(mangleFunctionValues(formula, NO_NAMES), formula, formula);
+  }
+});
+
 test('a LET or LAMBDA parameter spelled like a function is a parameter, not a function value', () => {
   // As Excel saved `=LET(SUM,A1:A3,SUM)` and `=LAMBDA(SUM,SUM)(1)`.
   assert.equal(
