@@ -228,6 +228,17 @@ test('the _xlpm. prefix is scoped: a same-named reference outside the binding is
   assert.equal(mangleParams('LET(x,1,x)+x'), 'LET(_xlpm.x,1,_xlpm.x)+x');
 });
 
+// As Excel saved `=LET(T,1,$T$1+T)`, `=LET(T,1,T$1+T)`, `=LET(N,2,SUM($N:$N)+N)` and
+// `=LAMBDA(T,$T$1+T)(1)`: a `$` makes the column a cell, which the parameter does not capture. A bare
+// `T:T` is the parameter, as Excel saved `=LET(T,1,SUM(T:T)+T)`.
+test('a column anchored with $ is a cell, not the parameter spelled like it', () => {
+  assert.equal(mangleParams('LET(T,1,$T$1+T)'), 'LET(_xlpm.T,1,$T$1+_xlpm.T)');
+  assert.equal(mangleParams('LET(T,1,T$1+T)'), 'LET(_xlpm.T,1,T$1+_xlpm.T)');
+  assert.equal(mangleParams('LET(N,2,SUM($N:$N)+N)'), 'LET(_xlpm.N,2,SUM($N:$N)+_xlpm.N)');
+  assert.equal(mangleParams('LAMBDA(T,$T$1+T)(1)'), 'LAMBDA(_xlpm.T,$T$1+_xlpm.T)(1)');
+  assert.equal(mangleParams('LET(T,1,SUM(T:T)+T)'), 'LET(_xlpm.T,1,SUM(_xlpm.T:_xlpm.T)+_xlpm.T)');
+});
+
 test('a parameter name inside a string literal is never mistaken for a reference', () => {
   assert.equal(mangleParams('LET(x,1,"x is one"&x)'), 'LET(_xlpm.x,1,"x is one"&_xlpm.x)');
 });

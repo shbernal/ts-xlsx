@@ -21,6 +21,10 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 - **A whole-column range whose column letters spell a function was written with the function at its far
   end.** `SUM(T:T)`, `SUM(N:N)` and `Sheet1!T:T` went into the file as `T:_xleta.T` and the like. A name
   after the `:` of a range is now read as a reference, since the range operator takes no function.
+- **Inside a LET or LAMBDA, an anchored reference whose column matched a parameter took the parameter's
+  prefix.** In `LET(T,1,$T$1+T)` the `T` of `$T$1` was written `$_xlpm.T$1`. A name with a `$` on either
+  side is now a cell column, which Excel leaves bare. A bare `T:T` still reads as the parameter, as
+  Excel reads it.
 
 ## [3.2.0] — 2026-09-13
 

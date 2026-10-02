@@ -262,8 +262,11 @@ export function mangleParams(formula: string): string {
     // Any other identifier: a bare reference, an ordinary call, or a lambda-valued parameter call.
     // In-scope names (declaration sites included, as they lie inside their own binding's parens) take
     // the prefix and their declared spelling; the rest pass through. Call arguments are covered by the
-    // continuing scan, so a nested LET/LAMBDA within them is still seen.
-    const spelling = declared(name);
+    // continuing scan, so a nested LET/LAMBDA within them is still seen. A `$` on either side makes the
+    // name the column of a cell (`$T$1`, `T$1`), which Excel leaves bare even where a parameter `T` is
+    // bound. A bare `T:T` there is the parameter, so `:` alone does not.
+    const anchored = formula[i - 1] === '$' || formula[nameEnd] === '$';
+    const spelling = anchored ? undefined : declared(name);
     out += spelling === undefined ? name : `${XLPM}${spelling}`;
     i = nameEnd;
   }
