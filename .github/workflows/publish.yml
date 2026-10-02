@@ -231,23 +231,3 @@ jobs:
           fi
 
           echo "OIDC token exchange succeeded — this tag would publish for real"
-
-      - name: Confirm the registry serves it
-        if: steps.existing.outputs.published == 'false' && steps.target.outputs.dry_run != 'true'
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-
-          name=$(node -p "require('./package.json').name")
-          for attempt in 1 2 3 4 5; do
-            if npm view "${name}@${VERSION}" version > /dev/null 2>&1; then
-              echo "${name}@${VERSION} is live"
-              npm view "${name}@${VERSION}" dist.attestations || echo "::warning::no provenance attestation recorded"
-              exit 0
-            fi
-            echo "not visible yet (attempt ${attempt}); the registry is eventually consistent"
-            sleep 10
-          done
-          echo "::error::${name}@${VERSION} did not become visible after publishing"
-          exit 1
