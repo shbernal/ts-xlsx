@@ -12,6 +12,13 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Fixed
+
+- **A reference anchored with `$` whose column letters spell a function was written as the function.**
+  `$T$1`, `T$1`, `Sheet1!$N$2` and `$PI$1:$PI$9` went into the file as `$_xleta.T$1` and the like, since
+  the function-value scan read the column alone and took it for `T`, `N` or `PI` passed as a value. A `$`
+  on either side of a name now marks it as part of a reference, and the formula is written as typed.
+
 ## [3.2.0] — 2026-09-13
 
 Most of this release replaces a plausible answer with the one Excel gives. A row or column splice now

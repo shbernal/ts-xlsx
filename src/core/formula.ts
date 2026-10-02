@@ -307,12 +307,14 @@ export function mangleFunctionValues(formula: string, namesInScope: ReadonlySet<
 }
 
 // What may sit just before a name that makes it something other than a bare name: a sheet or workbook
-// qualifier's `!` or `]`, and the `#` of an error literal. A name or number character cannot, since the
+// qualifier's `!` or `]`, the `#` of an error literal, and the `$` anchoring the column of an absolute
+// reference (`$T$1`, whose `T` the walk reads alone). A name or number character cannot, since the
 // walk reads a name whole, but the digits of a number can (`1E3`), and a `.` ends one.
-const QUALIFIES_NAME = /[A-Za-z0-9_.!#\]]/;
+const QUALIFIES_NAME = /[A-Za-z0-9_.$!#\]]/;
 // What may sit just after a name that makes it a sheet (`SUM!A1`), one end of a sheet span
-// (`SUM:Other!A1`) or a table (`Rate[Amount]`).
-const NAMES_A_CONTAINER = /[!:[]/;
+// (`SUM:Other!A1`), a table (`Rate[Amount]`) or the column of a reference with an absolute row
+// (`T$1`).
+const NAMES_A_CONTAINER = /[!:$[]/;
 
 function isFunctionValue(
   formula: string,
