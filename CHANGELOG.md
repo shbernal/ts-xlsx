@@ -12,6 +12,13 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+## [3.2.1] - 2026-10-02
+
+This release fixes how formulas are written when a column's letters spell a function, such as `T`,
+`N` or `PI`, or match a LET or LAMBDA parameter. A reference like `$T$1` or `T:T` took a prefix that
+belongs to names, and Excel refused to open the workbook. Each formula is now written as Excel writes
+it. There are no API changes.
+
 ### Fixed
 
 - **A reference anchored with `$` whose column letters spell a function was written as the function.**
@@ -2026,7 +2033,8 @@ author a new one ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round
   table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
   (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
 
-[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v3.2.0...HEAD
+[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v3.2.1...HEAD
+[3.2.1]: https://github.com/shbernal/ts-xlsx/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/shbernal/ts-xlsx/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/shbernal/ts-xlsx/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/shbernal/ts-xlsx/compare/v2.1.0...v3.0.0
