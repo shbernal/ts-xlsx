@@ -1,0 +1,39 @@
+{
+  "invariant": "references-spelled-like-functions",
+  "description": "How Excel stores a reference whose column letters spell a function (T, N, PI) or a LET or LAMBDA parameter, and whether it reads this library's write of the same formulas. Formulas were given to Excel through Range.Formula2 in a fresh workbook, then saved and the stored <f> text read out of the package. Excel stores every such reference as typed: a column with a $ on either side, and the far end of a whole-column range, takes neither _xleta. nor _xlpm. A bare T:T inside LET(T,...) is the exception, where Excel reads both ends as the parameter and stores _xlpm.T:_xlpm.T.",
+  "probe": "one-off COM script (Workbooks.Add, Range.Value2, Range.Formula2, SaveAs as .xlsx); tools/excel-oracle/run.ts --xlsx --no-resave on this library's package and on the package written before the fix",
+  "excel": {
+    "version": "16.0",
+    "build": 20326
+  },
+  "capturedAt": "2026-10-02",
+  "openClass": "headless COM (DisplayAlerts off) for the save; run.ts opens read-only",
+  "fixture": {
+    "file": "reference-spelled-like-a-function/excel-saved.xlsx",
+    "values": {"S1!T1": 5, "S1!N2": 7, "S1!PI1": 1, "S1!PI2": 2, "S1!PI3": 3},
+    "cells": {
+      "S1!B1": {"typed": "=IF($T$1>0,1,0)", "stored": "IF($T$1>0,1,0)", "value": "1"},
+      "S1!B2": {"typed": "=T$1+$N$2", "stored": "T$1+$N$2", "value": "12"},
+      "S1!B3": {"typed": "=SUM($PI$1:$PI$3)", "stored": "SUM($PI$1:$PI$3)", "value": "6"},
+      "S1!B4": {"typed": "=SUM(T:T)", "stored": "SUM(T:T)", "value": "5"},
+      "S1!B5": {"typed": "=SUM(N:N)+SUM($PI:$PI)", "stored": "SUM(N:N)+SUM($PI:$PI)", "value": "13"},
+      "S1!B6": {"typed": "=SUM(S1!T:T)", "stored": "SUM('S1'!T:T)", "value": "5"},
+      "S1!B7": {"typed": "=LET(T,1,$T$1+T)", "stored": "_xlfn.LET(_xlpm.T,1,$T$1+_xlpm.T)", "value": "6"},
+      "S1!B8": {"typed": "=LET(T,1,T$1+$T1+T)", "stored": "_xlfn.LET(_xlpm.T,1,T$1+$T1+_xlpm.T)", "value": "11"},
+      "S1!B9": {"typed": "=LET(N,2,SUM($N:$N)+N)", "stored": "_xlfn.LET(_xlpm.N,2,SUM($N:$N)+_xlpm.N)", "value": "9"},
+      "S1!B10": {"typed": "=LAMBDA(T,$T$1+T)(1)", "stored": "_xlfn.LAMBDA(_xlpm.T,$T$1+_xlpm.T)(1), as a dynamic array formula", "value": "6"},
+      "S1!B11": {"typed": "=LET(T,1,SUM(T:T)+T)", "stored": "_xlfn.LET(_xlpm.T,1,SUM(_xlpm.T:_xlpm.T)+_xlpm.T)", "value": "#VALUE!"}
+    }
+  },
+  "writtenByThisLibrary": {
+    "what": "the fixture's values and typed formulas authored through the model, written with fullCalcOnLoad",
+    "opened": true,
+    "repaired": false,
+    "values": {"S1!B1": "1", "S1!B2": "12", "S1!B3": "6", "S1!B4": "5", "S1!B5": "13", "S1!B6": "5", "S1!B7": "6", "S1!B8": "11", "S1!B9": "9", "S1!B10": "6", "S1!B11": "#VALUE!"}
+  },
+  "writtenBeforeTheFix": {
+    "what": "the same model written by the library as it was at 3.2.0, which stored $_xleta.T$1, T:_xleta.T, $_xlpm.T$1 and the like",
+    "opened": false,
+    "error": "Unable to get the Open property of the Workbooks class"
+  }
+}
