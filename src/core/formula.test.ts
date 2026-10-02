@@ -374,6 +374,15 @@ test('a function name called, naming a container, qualified or inside a literal 
   }
 });
 
+// `$` is not a name character, so the walk reads the `T` of `$T$1` alone, and `T` is a function. It
+// was written `$_xleta.T$1`, which names no cell. A column spelled like a function (`T`, `N`, `PI`,
+// `LOG`) is a cell wherever a `$` anchors it: before the column, after it, or both.
+test('an absolute reference whose column spells a function is a cell, not a function value', () => {
+  for (const formula of ['$T$1', 'T$1', 'Sheet1!$N$2', 'SUM($PI$1:$PI$9)', 'IF($LOG$3>0,1,0)']) {
+    assert.equal(mangleFunctionValues(formula, NO_NAMES), formula, formula);
+  }
+});
+
 test('a LET or LAMBDA parameter spelled like a function is a parameter, not a function value', () => {
   // As Excel saved `=LET(SUM,A1:A3,SUM)` and `=LAMBDA(SUM,SUM)(1)`.
   assert.equal(
