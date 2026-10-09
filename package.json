@@ -128,7 +128,7 @@
     "@types/node": "^24.13.3",
     "charcheck": "^0.4.0",
     "jszip": "^3.10.2",
-    "lefthook": "^2.1.12",
+    "lefthook": "^2.1.17",
     "ooxml-validate": "^0.0.3",
     "oxfmt": "^0.67.0",
     "oxlint": "^1.82.0",
