@@ -130,7 +130,7 @@
     "jszip": "^3.10.2",
     "lefthook": "^2.1.17",
     "ooxml-validate": "^0.0.3",
-    "oxfmt": "^0.67.0",
+    "oxfmt": "^0.72.0",
     "oxlint": "^1.82.0",
     "oxlint-tsgolint": "7.0.2003",
     "shiki": "^4.4.3",
