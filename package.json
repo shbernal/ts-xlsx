@@ -129,7 +129,7 @@
     "charcheck": "^0.4.0",
     "jszip": "^3.10.2",
     "lefthook": "^2.1.17",
-    "ooxml-validate": "^0.0.3",
+    "ooxml-validate": "^0.0.4",
     "oxfmt": "^0.72.0",
     "oxlint": "^1.82.0",
     "oxlint-tsgolint": "7.0.2003",
