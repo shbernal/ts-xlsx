@@ -55,8 +55,8 @@ export class RelationshipLedger {
   #next = 1;
 
   /**
-   * @param owner the package path of the part whose `.rels` this is, `''` for the package root.
-   * @param taken the ids the part's `.rels` already holds, none of which a new relationship may take.
+   * @param owner - the package path of the part whose `.rels` this is, `''` for the package root.
+   * @param taken - the ids the part's `.rels` already holds, none of which a new relationship may take.
    */
   constructor(owner: string, taken: ReadonlySet<string> = new Set()) {
     this.#owner = owner;
@@ -469,7 +469,7 @@ export function planPreservedParts(
  * relationship target, where `escapeAttr` throws a bare `TypeError` from inside `relationship()` and
  * says nothing about which part went missing.
  *
- * @throws {InternalError} naming the path, since a miss can only be a bug in this planner.
+ * @throws InternalError naming the path, since a miss can only be a bug in this planner.
  */
 function resolveRemapped(remap: ReadonlyMap<string, string>, path: string): string {
   const resolved = remap.get(path);

@@ -106,7 +106,7 @@ interface BigStream {
  * automatically; `root` is its top-level children. Every stream becomes a directory entry reachable both
  * by linear scan and by tree navigation.
  *
- * @throws {VbaAuthorError} if any name is empty or exceeds 31 characters, sibling names collide, or the
+ * @throws VbaAuthorError if any name is empty or exceeds 31 characters, sibling names collide, or the
  *   project is so large it would need more than 109 FAT sectors (~7 MB, far beyond any real project).
  */
 export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {

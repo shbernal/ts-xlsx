@@ -69,14 +69,19 @@ export class RunAccumulator {
   // above 0 captures nothing, so furigana never reaches a run or the plain text.
   #phoneticDepth = 0;
 
-  /**
-   * @param options.container the element that opens one string: `'si'` for the shared-string pool,
-   * `'is'` for an inline string in a worksheet body, `'text'` for a note's body.
-   * @param options.readRuns whether `<r>`/`<rPr>` open a rich-text run. A cell's string reads them in
-   * both worksheet readers, pooled or inline; a note's body does not, and with runs off every `<t>`
-   * falls through to {@link plainText}, which is the flattening a plain-text note wants.
-   */
-  constructor(options: {readonly container: 'si' | 'is' | 'text'; readonly readRuns: boolean}) {
+  constructor(options: {
+    /**
+     * The element that opens one string: `'si'` for the shared-string pool, `'is'` for an inline
+     * string in a worksheet body, `'text'` for a note's body.
+     */
+    readonly container: 'si' | 'is' | 'text';
+    /**
+     * Whether `<r>`/`<rPr>` open a rich-text run. A cell's string reads them in both worksheet
+     * readers, pooled or inline; a note's body does not, and with runs off every `<t>` falls through
+     * to {@link plainText}, which is the flattening a plain-text note wants.
+     */
+    readonly readRuns: boolean;
+  }) {
     this.#container = options.container;
     this.#readRuns = options.readRuns;
   }

@@ -109,7 +109,7 @@ const GUID = /^\{?([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a
  * The authoring path alone goes through here. A file's own ids are re-emitted as the file wrote them, since
  * a reader that rewrote them would break every reference pointing at them.
  *
- * @throws {SyntaxError} if the value is not a GUID in any spelling.
+ * @throws SyntaxError if the value is not a GUID in any spelling.
  */
 export function commentThreadGuid(value: string, what: string): string {
   const match = GUID.exec(value.trim());
@@ -141,7 +141,7 @@ export const MENTION_OFFSET_MAX = 0xffff_ffff;
  * offset is dropped, keeping the message text and losing only the chip, because a foreign generator's
  * arithmetic is not something a caller can fix, whereas their own is.
  *
- * @throws {SyntaxError} if the value is negative, fractional, or beyond the wire's ceiling.
+ * @throws SyntaxError if the value is negative, fractional, or beyond the wire's ceiling.
  */
 export function commentThreadOffset(value: number, what: string): number {
   if (!Number.isInteger(value) || value < 0 || value > MENTION_OFFSET_MAX) {

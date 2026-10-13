@@ -78,10 +78,10 @@ export interface DirRecord {
 /**
  * Walk a decompressed `dir` stream, yielding each record in order. Consumers may stop early.
  *
- * @param context the phrase a truncated record's error carries, naming what the caller was doing:
+ * @param context - the phrase a truncated record's error carries, naming what the caller was doing:
  *   the message reaches a user who has no idea what a TLV is but does know they were removing a
  *   module.
- * @throws {VbaParseError} when a record's payload runs past the end of the stream.
+ * @throws VbaParseError when a record's payload runs past the end of the stream.
  */
 export function* dirRecords(dir: Uint8Array, context: string): Generator<DirRecord> {
   let pos = 0;

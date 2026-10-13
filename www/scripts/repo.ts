@@ -21,7 +21,7 @@ export const repoRoot = ROOT;
 
 export const pkg = readPackageJson();
 
-/** `https://github.com/owner/repo.git` -> `https://github.com/owner/repo` */
+/** `https://github.com/owner/repo.git` becomes `https://github.com/owner/repo`. */
 export const repoUrl = pkg.repository.url.replace(/^git\+/, '').replace(/\.git$/, '');
 
 /** The default branch. Every blob and edit link has to say it explicitly. */

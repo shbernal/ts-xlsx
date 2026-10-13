@@ -244,11 +244,11 @@ export function parseWorksheet(part: Uint8Array, context: WorksheetReadContext):
  * What reading a worksheet part needs around it: the sheet being filled and the three tables its
  * records resolve through, plus the date system a serial under a date format counts from.
  *
- * One value rather than five positional arguments, two of them arrays and two of those `readonly
- * string[]`/`ReadonlyArray<XfStyle>` -- a run whose order the call site cannot be read against, on a
- * reader that decides what every cell in the sheet says. It is also exactly the half of
- * {@link CellRecordContext} that does not change between records, which is why that one extends it
- * and the record loop spreads this one into it.
+ * One value rather than five positional arguments, two of them arrays and two of those
+ * `readonly string[]`/`ReadonlyArray<XfStyle>` -- a run whose order the call site cannot be read
+ * against, on a reader that decides what every cell in the sheet says. It is also exactly the half
+ * of {@link CellRecordContext} that does not change between records, which is why that one extends
+ * it and the record loop spreads this one into it.
  */
 export interface WorksheetReadContext {
   readonly sheet: Worksheet;

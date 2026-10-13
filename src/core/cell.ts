@@ -51,7 +51,7 @@ export class Cell {
   #namedStyleId: number | undefined;
   #note: string | undefined;
 
-  /** @throws {RangeError} unless both axes are integers within Excel's grid. */
+  /** @throws RangeError unless both axes are integers within Excel's grid. */
   constructor(row: number, col: number) {
     assertRowInBounds(row);
     assertColumnInBounds(col);

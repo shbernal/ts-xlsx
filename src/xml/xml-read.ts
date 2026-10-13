@@ -546,7 +546,7 @@ export class TextCapture {
   #capturing: string | undefined;
   #text = '';
 
-  /** @param names the element local name, or the set of names this instance may capture. */
+  /** @param names - the element local name, or the set of names this instance may capture. */
   constructor(names: string | Iterable<string>) {
     this.#names = new Set(typeof names === 'string' ? [names] : names);
   }

@@ -365,7 +365,7 @@ function describe(value: unknown): string {
  * stored form (no leading `=`) so round-trips are idempotent regardless of how the
  * caller supplied it.
  *
- * @throws {TypeError} if the value is not a recognised cell-value shape.
+ * @throws TypeError if the value is not a recognised cell-value shape.
  */
 export function coerceCellValue(value: CellValue | undefined): CellValue {
   if (value === undefined) return null;

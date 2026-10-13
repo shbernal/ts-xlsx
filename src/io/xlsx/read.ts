@@ -85,10 +85,10 @@ import {worksheetPass} from './read-worksheet.ts';
  * the model produced is the same either way. See `../xlsb/read.ts` for what the binary path does not
  * yet decode.
  *
- * @throws {UnsupportedFormatError} if the input is neither: a legacy `.xls` (`.format === 'xls'`) or
+ * @throws UnsupportedFormatError if the input is neither: a legacy `.xls` (`.format === 'xls'`) or
  *   an unrecognised/non-ZIP blob (`'unknown'`).
- * @throws {XlsbParseError} if a binary `.xlsb` part is malformed.
- * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked: a corrupt or
+ * @throws XlsbParseError if a binary `.xlsb` part is malformed.
+ * @throws PackageReadError if the input is a ZIP that cannot be unpacked: a corrupt or
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
 export function readXlsx(data: Uint8Array, options: ReadPackageOptions = {}): Workbook {

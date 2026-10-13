@@ -17,7 +17,7 @@ export class ConditionalFormattingOverlay {
    * rule set. The block is stored once against the range, defensively copied so the getter never hands
    * back a reference into the caller's object.
    *
-   * @throws {AuthoringError} when `formatting.ref` names no area at all. A rule set attached to
+   * @throws AuthoringError when `formatting.ref` names no area at all. A rule set attached to
    * nothing formats no cell and is written back as the same unreadable text, so it is a mistake worth
    * surfacing at the call. The reader does not reach this: it drops such a block at its own boundary.
    */

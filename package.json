@@ -97,6 +97,7 @@
     "browser:check": "node scripts/check-browser-safe.ts",
     "source-text:check": "node scripts/check-source-text.ts",
     "error-messages:check": "node scripts/check-error-messages.ts",
+    "tsdoc:check": "node scripts/check-tsdoc.ts",
     "chars:check": "charcheck",
     "lint": "node scripts/lint.ts",
     "lint:fix": "pnpm run lint --fix",
@@ -124,6 +125,7 @@
     "fflate": "^0.8.3"
   },
   "devDependencies": {
+    "@microsoft/tsdoc": "0.17.1",
     "@types/node": "^24.19.2",
     "charcheck": "^0.4.0",
     "jszip": "^3.10.2",

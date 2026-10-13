@@ -65,8 +65,8 @@ export interface FormulaAnchor {
  * form writes into `<f>`, `_xlfn.`-prefixed function names included, so the caller applies the same
  * `unmangleFunctions` normalisation to either serialisation.
  *
- * @param rgce the token stream.
- * @param rgcb the trailing extra-data block: the array constants, and the cell ranges a precomputed
+ * @param rgce - the token stream.
+ * @param rgcb - the trailing extra-data block: the array constants, and the cell ranges a precomputed
  *   range token refers to. Its entries are consumed in token order.
  * @returns the formula text, or `undefined` if the stream uses a token this reader does not decode,
  *   or runs off the end of its own record.

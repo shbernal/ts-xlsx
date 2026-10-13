@@ -87,7 +87,7 @@ const UTF8_BOM = Uint8Array.of(0xef, 0xbb, 0xbf);
  * The logical CSV text of one worksheet: no BOM, no byte encoding. Line N holds row N, so an empty
  * row before the last populated one is an empty line.
  *
- * @throws {RangeError} if `delimiter` or `rowDelimiter` is one the output could not be split on.
+ * @throws RangeError if `delimiter` or `rowDelimiter` is one the output could not be split on.
  */
 export function writeCsvText(workbook: Workbook, options: CsvWriteOptions = {}): string {
   const sheet = selectSheet(workbook, options.sheetName);
@@ -125,9 +125,9 @@ export function writeCsvText(workbook: Workbook, options: CsvWriteOptions = {}):
 /**
  * The CSV bytes of one worksheet in the requested encoding, with a UTF-8 BOM by default.
  *
- * @throws {AuthoringError} if a field holds an unpaired surrogate and the encoding is UTF-8, which
+ * @throws AuthoringError if a field holds an unpaired surrogate and the encoding is UTF-8, which
  * cannot represent one. The alternative is a silent U+FFFD substitution.
- * @throws {RangeError} on a delimiter {@link writeCsvText} refuses.
+ * @throws RangeError on a delimiter {@link writeCsvText} refuses.
  */
 export function writeCsv(workbook: Workbook, options: CsvWriteOptions = {}): Uint8Array {
   const text = writeCsvText(workbook, options);

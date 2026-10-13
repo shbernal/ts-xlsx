@@ -24,7 +24,7 @@ function truncated(at: number, need: number, length: number): VbaParseError {
   );
 }
 
-/** Read a little-endian `uint16`. @throws {VbaParseError} if the two bytes are not both in `buf`. */
+/** Read a little-endian `uint16`. @throws VbaParseError if the two bytes are not both in `buf`. */
 export function readU16(buf: Uint8Array, at: number): number {
   const b0 = buf[at];
   const b1 = buf[at + 1];
@@ -32,7 +32,7 @@ export function readU16(buf: Uint8Array, at: number): number {
   return b0 | (b1 << 8);
 }
 
-/** Read a little-endian `uint32`. @throws {VbaParseError} if the four bytes are not all in `buf`. */
+/** Read a little-endian `uint32`. @throws VbaParseError if the four bytes are not all in `buf`. */
 export function readU32(buf: Uint8Array, at: number): number {
   const b0 = buf[at];
   const b1 = buf[at + 1];

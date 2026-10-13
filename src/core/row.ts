@@ -27,7 +27,7 @@ export class Row extends AxisHandle<RowProperties> {
   /** 1-based row number. Fixed for this handle's lifetime. */
   readonly number: number;
 
-  /** @throws {RangeError} unless the number is an integer within Excel's row grid (1..1048576). */
+  /** @throws RangeError unless the number is an integer within Excel's row grid (1..1048576). */
   constructor(sheet: Worksheet, number: number) {
     super();
     assertRowInBounds(number);
@@ -112,8 +112,8 @@ export class Row extends AxisHandle<RowProperties> {
    * Resolves through merges exactly as {@link Worksheet.getCell} does: addressing a cell covered by
    * a merged region yields that region's master.
    *
-   * @throws {RangeError} if the column is not a positive integer.
-   * @throws {SyntaxError} if the column letters do not name a column.
+   * @throws RangeError if the column is not a positive integer.
+   * @throws SyntaxError if the column letters do not name a column.
    */
   getCell(column: number | string): Cell {
     const index = typeof column === 'number' ? column : columnToNumber(column);

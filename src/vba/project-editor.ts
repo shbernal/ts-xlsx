@@ -46,8 +46,8 @@ import {validateReferenceName} from './vba-encoding.ts';
  * this project-level edit has no visibility into. Editing such a module's code-behind is a job for
  * the offline `tools/vba-compiler` (in-place mode), which drives the real host.
  *
- * @throws {VbaParseError} if `bin` is not a parseable VBA project (validated before any edit).
- * @throws {VbaAuthorError} if `name` is not in the project, or names a `document`/`designer` module.
+ * @throws VbaParseError if `bin` is not a parseable VBA project (validated before any edit).
+ * @throws VbaAuthorError if `name` is not in the project, or names a `document`/`designer` module.
  */
 export function removeVbaModule(bin: Uint8Array, name: string): Uint8Array {
   // Parse fail-closed first: validates the container and resolves the module's kind/stream name, so
@@ -217,8 +217,8 @@ function normalizeReference(ref: VbaLibraryReference): NormalizedReference {
  * stream carries no `Reference=` line at all: references live only in `dir` (confirmed against a genuine
  * Excel-authored project).
  *
- * @throws {VbaParseError} if `bin` is not a parseable VBA project (validated before any edit).
- * @throws {VbaAuthorError} if any field of `ref` is invalid (see {@link VbaLibraryReference}), or the
+ * @throws VbaParseError if `bin` is not a parseable VBA project (validated before any edit).
+ * @throws VbaAuthorError if any field of `ref` is invalid (see {@link VbaLibraryReference}), or the
  *   assembled reference text has a character the project's code page cannot represent.
  */
 export function addVbaReference(bin: Uint8Array, ref: VbaLibraryReference): Uint8Array {

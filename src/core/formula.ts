@@ -390,7 +390,7 @@ export function mangleFormula(formula: string, namesInScope: ReadonlySet<string>
  * BIFF12 codec produces it too, and reaching the XML serialiser for it put the whole write half of
  * that module into the closure of an entry that has no XML in it.
  *
- * @throws {AuthoringError} when the value is not finite.
+ * @throws AuthoringError when the value is not finite.
  */
 export function formulaNumberLiteral(value: number): string {
   assertWritableNumber(value);

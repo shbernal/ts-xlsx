@@ -110,11 +110,11 @@ interface FixtureEntry {
 }
 
 /**
- * A minimal MS-CFB container holding `rootStreams` at the root and `vbaStreams` in a `VBA` storage, the
- * layout [MS-OVBA] 2.2 fixes. Every stream here is < 4096 bytes, so all live in the mini stream. Each
- * storage links its children as a chain of right siblings: a tree a reader can walk, though not the
- * balanced, name-ordered one a host binary-searches, which `cfb-writer.ts` builds and this deliberately
- * does not share.
+ * A minimal MS-CFB container holding `rootStreams` at the root and `vbaStreams` in a `VBA` storage,
+ * the layout [MS-OVBA] 2.2 fixes. Every stream here is under 4096 bytes, so all live in the mini
+ * stream. Each storage links its children as a chain of right siblings: a tree a reader can walk,
+ * though not the balanced, name-ordered one a host binary-searches, which `cfb-writer.ts` builds
+ * and this deliberately does not share.
  */
 function buildCfb(
   rootStreams: readonly FixtureStream[],

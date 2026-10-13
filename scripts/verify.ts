@@ -269,6 +269,7 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
           {command: NODE, args: ['scripts/check-browser-safe.ts']},
           {command: NODE, args: ['scripts/check-source-text.ts']},
           {command: NODE, args: ['scripts/check-error-messages.ts']},
+          {command: NODE, args: ['scripts/check-tsdoc.ts']},
           // The docs tree and the site cannot disagree quietly: every page reachable, every
           // link resolvable, every title derivable. Sub-second, where the site build that
           // would also catch it is half a minute.
@@ -302,8 +303,8 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
  * "Runnable" is approximated by "openable for reading". Windows answers no execute question through
  * `fs.access`, and probing by actually spawning each tool would cost more than the gates save; a
  * binary this account cannot read is one it cannot run either, which is the failure actually seen
- * here (a `.pnpm/` executable with correct mode bits that the shell refused with `Permission
- * denied`).
+ * here (a `.pnpm/` executable with correct mode bits that the shell refused with
+ * `Permission denied`).
  */
 async function missingExecutables(
   gates: readonly Gate[],

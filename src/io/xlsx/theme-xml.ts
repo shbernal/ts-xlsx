@@ -195,10 +195,10 @@ export type EverySlotIsInSchemaOrder = AssertNever<
  * as it was, because nobody hand-authors `fillStyleLst` gradient stops from a spreadsheet API and
  * regenerating it would replace a designer's work with the Office default.
  *
- * A slot the caller did not override keeps its **verbatim source element**, not a re-serialisation of
- * its value. That matters for `dk1`/`lt1`, which Excel writes as `<a:sysClr val="windowText"
- * lastClr="000000"/>`: rewriting those as `<a:srgbClr>` would pin them to one machine's resolved
- * window colours and break dark-mode following.
+ * A slot the caller did not override keeps its **verbatim source element**, not a re-serialisation
+ * of its value. That matters for `dk1`/`lt1`, which Excel writes as
+ * `<a:sysClr val="windowText" lastClr="000000"/>`: rewriting those as `<a:srgbClr>` would pin them
+ * to one machine's resolved window colours and break dark-mode following.
  *
  * The edit is made by *offset*, not by pattern. What it replaces was three container-scanning regular
  * expressions in the one file whose own header condemns that pattern, on a path a preserved source

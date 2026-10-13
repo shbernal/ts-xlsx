@@ -182,30 +182,30 @@ function docText(node: ast.Node, href: LinkResolver = NO_LINKS): string {
   return resolveLinks((ast.getTextOfJSDocComment(jsDocOf(node)?.comment) ?? '').trim(), href);
 }
 
-/** A bare type name, possibly qualified: what the brace slot of a `@throws` is allowed to hold. */
-const ERROR_TYPE = /^[A-Za-z_$][\w$.]*$/;
+/** A bare type name, possibly qualified, that a `@throws` opens with; the rest is its prose. */
+const ERROR_TYPE = /^([A-Za-z_$][\w$.]*)\b([\s\S]*)$/;
 
 /**
  * The error type a `@throws` names, and the prose after it.
  *
- * `@throws {ErrorType}` is the only spelling that survives the parse. TypeScript reads the braces
- * after `@throws` as a *type expression*, and `{@link Target}` is not one: the parse runs past the
- * close brace and consumes the rest of the comment, so the tag arrives here as the bare string `{`
- * with its prose already gone, from editor hovers too and not just from this generator. Nothing
- * downstream can recover it, so a slot that is not a type name fails the run rather than
- * publishing the truncation as if it were the whole sentence.
+ * TSDoc leaves a `@throws` body free-form, so the convention here is that its first word is the
+ * error type: `@throws RangeError if the column is not a positive integer.` Not TSDoc's suggested
+ * `@throws {@link RangeError}`, because TypeScript still reads the braces after `@throws` as a JSDoc
+ * *type expression*, and `{@link Target}` is not one: the parse runs past the close brace and
+ * consumes the rest of the comment, so editor hovers show a bare `{` with the prose gone. A plain
+ * first word survives both parsers, and this generator links it. A body that does not open with a
+ * type name fails the run rather than publishing a throw that never says what is thrown.
  */
 function splitThrows(raw: string, symbolName: string): {errorType: string; prose: string} {
-  const close = raw.startsWith('{') ? raw.indexOf('}') : -1;
-  const errorType = close === -1 ? '' : raw.slice(1, close).trim();
-  if (!ERROR_TYPE.test(errorType)) {
+  const [, errorType = '', prose = ''] = ERROR_TYPE.exec(raw) ?? [];
+  if (errorType === '') {
     throw new Error(
-      `${symbolName}: write \`@throws {ErrorType} prose\`, not \`@throws ${raw}\`. ` +
-        "A `{@link …}` in the brace slot is swallowed by TypeScript's JSDoc type-expression " +
-        'parse, and takes the description with it. Links mid-sentence are fine.',
+      `${symbolName}: write \`@throws ErrorType prose\`, not \`@throws ${raw}\`. ` +
+        "The first word names what is thrown; a `{…}` there is swallowed by TypeScript's JSDoc " +
+        'type-expression parse, and takes the description with it. Links mid-sentence are fine.',
     );
   }
-  return {errorType, prose: raw.slice(close + 1).trim()};
+  return {errorType, prose: prose.trim()};
 }
 
 /** Render `@throws`, `@param`, `@returns`, `@example` tags into Markdown, in a stable order. */
@@ -222,8 +222,14 @@ function docTags(symbol: TypeSymbol, checker: Checker, href: LinkResolver = NO_L
     if (tag.name === 'example') {
       lines.push('', '```ts', text, '```');
     } else if (tag.name === 'param') {
-      const [name, ...rest] = text.split(/\s+/);
-      lines.push(`- \`${name}\`: ${rest.join(' ')}`);
+      // TSDoc's `@param name - description`; the hyphen is syntax, not prose.
+      const [, name = '', description = ''] = /^(\S+)\s+-\s+([\s\S]*)$/.exec(text) ?? [];
+      if (name === '') {
+        throw new Error(
+          `${symbol.name}: write \`@param name - description\`, not \`@param ${raw}\`.`,
+        );
+      }
+      lines.push(`- \`${name}\`: ${description}`);
     } else if (tag.name === 'returns') {
       lines.push(`**Returns:** ${text}`);
     } else if (tag.name === 'throws') {
@@ -232,7 +238,8 @@ function docTags(symbol: TypeSymbol, checker: Checker, href: LinkResolver = NO_L
       const {errorType, prose} = splitThrows(raw, symbol.name);
       const named = href(errorType);
       const subject = named === undefined ? `\`${errorType}\`` : `[\`${errorType}\`](${named})`;
-      lines.push(`**Throws:** ${subject}${prose ? ` ${resolveLinks(prose, href)}` : ''}`);
+      const gap = /^[,.;:]/.test(prose) ? '' : ' ';
+      lines.push(`**Throws:** ${subject}${prose ? `${gap}${resolveLinks(prose, href)}` : ''}`);
     }
   }
   return lines;

@@ -112,8 +112,8 @@ export const isConditionalFormattingType = tokenSet<ConditionalFormattingType>({
 /**
  * How a `cellIs` or text rule compares, as `ST_ConditionalFormattingOperator` enumerates it.
  *
- * Overlaps {@link import('./data-validation.ts').DataValidationOperator} in four members and diverges
- * in the rest: this one has the text comparisons a validation has no use for, and spells "does not
+ * Overlaps `DataValidationOperator` (`data-validation.ts`) in four members and diverges in the
+ * rest: this one has the text comparisons a validation has no use for, and spells "does not
  * contain" as `notContains` where nothing else in the format does.
  */
 export type ConditionalFormattingOperator =

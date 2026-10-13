@@ -85,7 +85,7 @@ const XML_REFUSAL =
  * Every escape in this module runs it, including {@link escapeFormatCode}, whose one deliberate
  * divergence from {@link escapeAttr} is about the apostrophe and not about this.
  *
- * @throws {AuthoringError} naming the code point and its offset.
+ * @throws AuthoringError naming the code point and its offset.
  */
 function assertRepresentable(value: string): void {
   const error = unrepresentable(value, XML_UNREPRESENTABLE, XML_REFUSAL);
@@ -220,7 +220,7 @@ export function textAttr(name: string, value: string | undefined): string {
  * guard, discards on read-back. Refusing at the write boundary keeps the two symmetric, garbage out
  * refused exactly as garbage in, so a value the writer accepts is always one that round-trips.
  *
- * @throws {AuthoringError} naming the value and the enumeration.
+ * @throws AuthoringError naming the value and the enumeration.
  */
 export function checkedToken(
   value: string,
@@ -241,7 +241,7 @@ export function checkedToken(
  * as `NaN`. Every attribute on this path is `xsd:double` or `xsd:unsignedInt`, neither of which has a
  * spelling for it, so the alternative is a package Excel reports as damaged.
  *
- * @throws {AuthoringError} when the value is not finite.
+ * @throws AuthoringError when the value is not finite.
  */
 export function numAttr(name: string, value: number | undefined): string {
   return value === undefined ? '' : ` ${name}="${numberText(value)}"`;
@@ -255,7 +255,7 @@ export function numAttr(name: string, value: number | undefined): string {
  * value is refused here rather than written. `min` is the floor the attribute's type implies, `0` for
  * an unsigned one.
  *
- * @throws {AuthoringError} when the value is not finite, not a safe integer, or below `min`.
+ * @throws AuthoringError when the value is not finite, not a safe integer, or below `min`.
  */
 export function intAttr(
   name: string,
@@ -280,7 +280,7 @@ export function intAttr(
  * falsy and was omitted as if it were a default of zero, so a gradient fill with `degree: NaN` was
  * written as an ordinary gradient rather than refused.
  *
- * @throws {AuthoringError} when the value is not finite.
+ * @throws AuthoringError when the value is not finite.
  */
 export function nonDefaultNumAttr(
   name: string,
@@ -304,7 +304,7 @@ export function nonDefaultNumAttr(
  * the lexical space of either type; that one does not throw at all, it writes a package Excel
  * offers to repair.
  *
- * @throws {AuthoringError} naming the property.
+ * @throws AuthoringError naming the property.
  */
 export function assertWritableDate(date: Date, property: string): void {
   const time = date.getTime();

@@ -84,7 +84,7 @@ export function drawingXml(images: readonly DrawingImage[]): string {
  * highest one there. Their `r:embed` and link ids are the caller's, allocated past the relationships
  * the drawing already holds.
  *
- * @throws {AuthoringError} if the kept part has no `<wsDr>` root to add a picture to.
+ * @throws AuthoringError if the kept part has no `<wsDr>` root to add a picture to.
  */
 export function mergePictures(drawing: string, images: readonly DrawingImage[]): string {
   const root = elementRange(drawing, ['wsDr']);

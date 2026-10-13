@@ -59,10 +59,11 @@ interface FormatRun {
 /**
  * Split a number-format code into the runs {@link formatSerialDate} renders.
  *
- * Only the code's first section is read. A format may carry up to four (`positive;negative;zero;
- * text`), and a date is never negative or zero in any sense the sections distinguish, so the first
- * is the one that applies. Bracketed directives -- colour, locale, condition -- are dropped, quoted
- * literals and backslash escapes emit their content, and everything else is literal text.
+ * Only the code's first section is read. A format may carry up to four
+ * (`positive;negative;zero;text`), and a date is never negative or zero in any sense the sections
+ * distinguish, so the first is the one that applies. Bracketed directives -- colour, locale,
+ * condition -- are dropped, quoted literals and backslash escapes emit their content, and
+ * everything else is literal text.
  */
 function formatRuns(code: string): FormatRun[] {
   const runs: FormatRun[] = [];
@@ -161,7 +162,7 @@ function isMinuteRun(runs: readonly FormatRun[], index: number): boolean {
  * (`[$-409]`), which is dropped rather than honoured -- month and weekday names render in English.
  * Both are recorded in ADR 0041.
  *
- * @param utc read the date's fields in UTC rather than in the runner's local time. A serial carries
+ * @param utc - read the date's fields in UTC rather than in the runner's local time. A serial carries
  *   no timezone, so a `Date` that came from one is UTC wall-clock and this should be `true`; a `Date`
  *   a caller assigned may mean either.
  */

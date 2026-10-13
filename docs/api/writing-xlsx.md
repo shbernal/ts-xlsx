@@ -66,7 +66,7 @@ async function writeXlsxAsync(
 ): Promise<Uint8Array>;
 ```
 
-**Throws:** [`AuthoringError`](./errors.md#authoringerror) , as a rejection, under the same conditions as [`writeXlsx`](./writing-xlsx.md#writexlsx);
+**Throws:** [`AuthoringError`](./errors.md#authoringerror), as a rejection, under the same conditions as [`writeXlsx`](./writing-xlsx.md#writexlsx);
 the part-building it shares happens before any worker is involved. A failure raised by the zip
 layer itself (including an environment that cannot spawn a worker) propagates unwrapped, exactly
 as it does from [`writeXlsx`](./writing-xlsx.md#writexlsx).

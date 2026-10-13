@@ -48,9 +48,9 @@ import {hex} from './hex.ts';
 export type XlsxErrorCode = 'unsupported-format' | 'malformed-input' | 'authoring' | 'internal';
 
 /**
- * The common ancestor of every error this library raises deliberately. `catch (e) { if (e instanceof
- * XlsxError) … }` is the one-line answer to "was that us?", and {@link code} then says which kind of
- * failure it was without naming a single subclass.
+ * The common ancestor of every error this library raises deliberately.
+ * `catch (e) { if (e instanceof XlsxError) … }` is the one-line answer to "was that us?", and
+ * {@link code} then says which kind of failure it was without naming a single subclass.
  *
  * Abstract on purpose: a failure always has a kind, so there is never a reason to throw the base.
  * Every subclass fixes {@link code} to a literal, which makes the class hierarchy a discriminated
@@ -167,7 +167,7 @@ export function invalidToken(kind: string, value: string): AuthoringError {
  * be read on the way to the bytes: compared, summed, walked. A comparison against `NaN` or an
  * infinity silently takes the wrong branch long before the value would have been serialised.
  *
- * @throws {AuthoringError} naming the value.
+ * @throws AuthoringError naming the value.
  */
 export function assertWritableNumber(value: number): void {
   if (Number.isFinite(value)) return;
@@ -196,7 +196,7 @@ export function codePointHex(codePoint: number): string {
  * `pattern` must not carry the `g` flag: a stateful `lastIndex` would make the same string answer
  * differently on a second call.
  *
- * @param why the clause explaining the refusal, appended after the offset.
+ * @param why - the clause explaining the refusal, appended after the offset.
  */
 export function unrepresentable(
   text: string,

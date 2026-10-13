@@ -113,6 +113,9 @@ importers:
         specifier: ^0.8.3
         version: 0.8.3
     devDependencies:
+      '@microsoft/tsdoc':
+        specifier: 0.17.1
+        version: 0.17.1
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
@@ -414,6 +417,9 @@ packages:
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
+
+  '@microsoft/tsdoc@0.17.1':
+    resolution: {integrity: sha512-VHyYyyoH63jFoO3shpw9Zfijk5v/9p/VrClW35z0/q6ooK7sSmxpzOkS4iZPxs3vO4XtBW4H38HRAKkAMIK7DA==}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
@@ -1810,6 +1816,8 @@ snapshots:
   '@iconify/types@2.0.0': {}
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
+
+  '@microsoft/tsdoc@0.17.1': {}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
