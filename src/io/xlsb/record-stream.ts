@@ -24,7 +24,7 @@ export interface BiffRecord {
  *
  * Lazy: a caller that stops early (having found what it needs) never frames the rest of the part.
  *
- * @throws {XlsbParseError} if a record header is truncated or a record's declared size runs past the
+ * @throws XlsbParseError if a record header is truncated or a record's declared size runs past the
  *   end of the part.
  */
 export function* readRecords(part: Uint8Array): Generator<BiffRecord> {

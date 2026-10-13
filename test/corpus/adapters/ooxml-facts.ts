@@ -133,8 +133,8 @@ const sharedFormulaFacts = (xml: string) => {
 };
 
 /**
- * @param spec  the workbook spec that produced the package (drives per-sheet lookup)
- * @param partMap  { [zipPath]: xmlString } for every non-directory package part
+ * @param spec - the workbook spec that produced the package (drives per-sheet lookup)
+ * @param partMap - `{ [zipPath]: xmlString }` for every non-directory package part
  */
 export function packageFacts(spec: Untyped, partMap: PartMap) {
   const parts = Object.keys(partMap).sort();

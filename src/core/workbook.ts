@@ -322,7 +322,7 @@ export class Workbook {
    * returned objects changes nothing on write; the original `customUI` XML is re-emitted byte-for-byte
    * regardless. Parsed lazily on first access and memoised.
    *
-   * @throws {CustomUiParseError} if a `customUI` part is present but its XML is malformed.
+   * @throws CustomUiParseError if a `customUI` part is present but its XML is malformed.
    */
   get customUI(): readonly CustomUiDocument[] {
     if (!this.#customUiParsed) {
@@ -347,7 +347,7 @@ export class Workbook {
    * verbatim. Mutating the returned object changes nothing on write; the original macro blob is
    * re-emitted byte-for-byte regardless. Parsed lazily on first access and memoised.
    *
-   * @throws {VbaParseError} if a macro project is present but its `vbaProject.bin` is malformed.
+   * @throws VbaParseError if a macro project is present but its `vbaProject.bin` is malformed.
    */
   get vbaProject(): VbaProject | undefined {
     return this.#vba.project;
@@ -416,9 +416,9 @@ export class Workbook {
    * To author or edit module *source* (which needs real compiled p-code), use the offline
    * `tools/vba-compiler`, then attach its output via {@link vbaProjectBytes}.
    *
-   * @throws {VbaAuthorError} if the workbook has no macro project, or `name` is not in the project,
+   * @throws VbaAuthorError if the workbook has no macro project, or `name` is not in the project,
    *   or names a `document`/`designer` module.
-   * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
+   * @throws VbaParseError if the attached `vbaProject.bin` is malformed.
    */
   removeVbaModule(name: string): void {
     this.#vba.removeModule(name);
@@ -430,9 +430,9 @@ export class Workbook {
    * {@link addVbaReference}). Replacing the project also drops a stale signature, as
    * {@link vbaProjectBytes} does.
    *
-   * @throws {VbaAuthorError} if the workbook has no macro project, or any field of `ref` is invalid
+   * @throws VbaAuthorError if the workbook has no macro project, or any field of `ref` is invalid
    *   (see {@link VbaLibraryReference}).
-   * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
+   * @throws VbaParseError if the attached `vbaProject.bin` is malformed.
    */
   addVbaReference(ref: VbaLibraryReference): void {
     this.#vba.addReference(ref);
@@ -481,10 +481,10 @@ export class Workbook {
    * Registering a name a source file already defined **overrides** that definition rather than adding
    * a second one beside it.
    *
-   * @throws {AuthoringError} if the name is empty, or an element carries a `size` outside the four
+   * @throws AuthoringError if the name is empty, or an element carries a `size` outside the four
    *   stripe types. See {@link checkTableStyle} for why those are refused here rather than silently
    *   dropped.
-   * @throws {RangeError} if a `size` is not a positive integer.
+   * @throws RangeError if a `size` is not a positive integer.
    */
   addTableStyle(style: TableStyle): void {
     checkTableStyle(style);
@@ -519,7 +519,7 @@ export class Workbook {
    * slot left unauthored keeps the source's own encoding, including the `<a:sysClr>` form Excel uses
    * for `dk1`/`lt1` so they follow the viewer's window colours.
    *
-   * @throws {SyntaxError} if a colour is not 6 or 8 hexadecimal digits, with or without a leading `#`.
+   * @throws SyntaxError if a colour is not 6 or 8 hexadecimal digits, with or without a leading `#`.
    *   Every colour is read before any is stored, so a refused call changes nothing.
    */
   setTheme(overrides: ThemeOverrides): void {
@@ -580,7 +580,7 @@ export class Workbook {
    * follows {@link themeFonts}'s minor face, so `setTheme({fonts: {minor}})` already reaches every
    * unstyled cell and needs no second call here. See {@link defaultFont} for the full chain.
    *
-   * @throws {RangeError} if `size` is not a positive finite number, or `name` is empty. Both
+   * @throws RangeError if `size` is not a positive finite number, or `name` is empty. Both
    *   produce a styles part Excel renders from some other font without ever reporting why. Native
    *   rather than {@link AuthoringError}: one argument out of range is what `RangeError` is for.
    */
@@ -690,7 +690,7 @@ export class Workbook {
    * legitimate and is what Excel itself does. See {@link restorePersons}. The id is normalised to the
    * brace-wrapped upper-case GUID form the format requires, so a `crypto.randomUUID()` is accepted as-is.
    *
-   * @throws {SyntaxError} if the id is not a GUID.
+   * @throws SyntaxError if the id is not a GUID.
    */
   addPerson(person: Person): void {
     const id = commentThreadGuid(person.id, 'a person id');
@@ -748,7 +748,7 @@ export class Workbook {
    * never mutates image bytes, and copying every picture would double the memory of an image-heavy
    * workbook to defend against a mutation nothing performs.
    *
-   * @throws {AuthoringError} if the sheet anchors an image id this workbook has not registered,
+   * @throws AuthoringError if the sheet anchors an image id this workbook has not registered,
    *   which is what a sheet from *another* workbook looks like from here. Emitting a package with a
    *   drawing pointing at media that was never registered is the silently-broken-image failure this
    *   refuses to start.
@@ -805,7 +805,7 @@ export class Workbook {
   /**
    * Register a defined name on the workbook.
    *
-   * @throws {AuthoringError} if the name is empty, or if a {@link DefinedName.scope} is given that names no
+   * @throws AuthoringError if the name is empty, or if a {@link DefinedName.scope} is given that names no
    *   existing worksheet. A scoped name must target a sheet that is already part of the workbook.
    */
   defineName(definedName: DefinedName): void {
@@ -823,7 +823,7 @@ export class Workbook {
   /**
    * Create a worksheet and append it to the workbook.
    *
-   * @throws {AuthoringError} if the name is empty, too long, contains a forbidden character,
+   * @throws AuthoringError if the name is empty, too long, contains a forbidden character,
    *   or collides (case-insensitively) with an existing sheet.
    */
   addWorksheet(name: string, options: AddWorksheetOptions = {}): Worksheet {
@@ -869,7 +869,7 @@ export class Workbook {
    * That listing is the whole point: a lookup miss is a typo, a stale template or a renamed tab,
    * and all three are answered by seeing the real names.
    *
-   * @throws {AuthoringError} if no worksheet has that name (case-insensitive) or numeric id.
+   * @throws AuthoringError if no worksheet has that name (case-insensitive) or numeric id.
    */
   requireWorksheet(nameOrId: string | number): Worksheet {
     const sheet = this.getWorksheet(nameOrId);

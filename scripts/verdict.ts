@@ -13,23 +13,27 @@
 // So: the shape is fixed here and the prose stays with the check, which is the half that actually
 // carries information. `process.exitCode` always, never `process.exit`.
 
-/**
- * Report a check's result and set the exit code.
- *
- * @param options.gate the check's name, which prefixes both lines. Matches the `*:check` package
- * script and the gate name `scripts/verify.ts` reports, so a failure names the command to re-run.
- * @param options.problems one entry per finding, already formatted. Indent continuation lines by
- * four spaces; they are printed blank-line separated, so a finding may be several lines.
- * @param options.ok the one-line summary printed when there are none. Say what was checked and how
- * much of it, not merely that it passed: the number is what makes a gate that quietly stopped
- * looking visible.
- * @param options.failure what the count counts, as a noun phrase (`'import(s) cross a layer
- * boundary'`). Printed as `<gate>: <n> <failure>.`
- */
+/** Report a check's result and set the exit code. */
 export function verdict(options: {
+  /**
+   * The check's name, which prefixes both lines. Matches the `*:check` package script and the gate
+   * name `scripts/verify.ts` reports, so a failure names the command to re-run.
+   */
   readonly gate: string;
+  /**
+   * One entry per finding, already formatted. Indent continuation lines by four spaces; they are
+   * printed blank-line separated, so a finding may be several lines.
+   */
   readonly problems: readonly string[];
+  /**
+   * The one-line summary printed when there are none. Say what was checked and how much of it, not
+   * merely that it passed: the number is what makes a gate that quietly stopped looking visible.
+   */
   readonly ok: string;
+  /**
+   * What the count counts, as a noun phrase (`'import(s) cross a layer boundary'`). Printed as
+   * `<gate>: <n> <failure>.`
+   */
   readonly failure: string;
 }): void {
   const {gate, problems, ok, failure} = options;

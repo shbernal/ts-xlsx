@@ -117,7 +117,7 @@ export function isThemeRgb(value: string): boolean {
  * reduced here; anything else is a caller's bug and is refused rather than written as corrupt XML,
  * which Excel does not report; it renders the slot as flat black.
  *
- * @throws {SyntaxError} if the value is not a recognisable RGB or ARGB hex string. Native rather
+ * @throws SyntaxError if the value is not a recognisable RGB or ARGB hex string. Native rather
  * than the library's own `AuthoringError`: a string that does not parse is what `SyntaxError` is
  * for, and it is the same kind of failure a malformed comment GUID raises.
  */

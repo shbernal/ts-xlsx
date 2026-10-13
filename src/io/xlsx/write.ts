@@ -132,7 +132,7 @@ export interface InternalWriteOptions extends WriteOptions {
  * identical archives, because entry timestamps are pinned to a fixed date rather than taken from the
  * clock. A committed `.xlsx` therefore only changes when something about it changed.
  *
- * @throws {AuthoringError} if the workbook has no worksheets (a zero-sheet package is corrupt),
+ * @throws AuthoringError if the workbook has no worksheets (a zero-sheet package is corrupt),
  *   or holds a value the writer cannot yet represent.
  */
 export function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8Array {
@@ -154,7 +154,7 @@ export function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8
  * no worker can take, and the reader's zip-bomb ceiling is enforced by counting output between
  * synchronous input slices. See ADR-0024.
  *
- * @throws {AuthoringError}, as a rejection, under the same conditions as {@link writeXlsx};
+ * @throws AuthoringError, as a rejection, under the same conditions as {@link writeXlsx};
  *   the part-building it shares happens before any worker is involved. A failure raised by the zip
  *   layer itself (including an environment that cannot spawn a worker) propagates unwrapped, exactly
  *   as it does from {@link writeXlsx}.
@@ -707,7 +707,7 @@ function emitPackageParts(context: {
  * The sheets are serialised before the parts are emitted, because interning a style is a side effect
  * of that pass and `xl/styles.xml` is one of the parts emitted in the third step.
  *
- * @throws {AuthoringError} if the workbook has no worksheets, or holds a value the writer cannot represent.
+ * @throws AuthoringError if the workbook has no worksheets, or holds a value the writer cannot represent.
  */
 export function buildPackageParts(
   workbook: Workbook,
@@ -767,7 +767,7 @@ class PackageFiles {
   /**
    * Add a part at `path`.
    *
-   * @throws {InternalError} if a part is already emitted at that path. Two parts on one path is a
+   * @throws InternalError if a part is already emitted at that path. Two parts on one path is a
    *   numbering bug in this writer, never something a caller can cause, and the package it would
    *   produce carries one of them plus a duplicate `PartName` override that violates OPC M2.5.
    */

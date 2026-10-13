@@ -61,7 +61,7 @@ export class Range implements GridRect {
    * Build a handle from inclusive corners, in any order: `(5, 4, 2, 2)` and `(2, 2, 5, 4)` name the
    * same block, exactly as `D5:B2` and `B2:D5` do. Prefer {@link Worksheet.getRange}.
    *
-   * @throws {RangeError} if a corner is not a positive integer or falls outside the sheet's bounds.
+   * @throws RangeError if a corner is not a positive integer or falls outside the sheet's bounds.
    */
   constructor(sheet: Worksheet, top: number, left: number, bottom: number, right: number) {
     assertAxisInBounds('row', top);
@@ -322,7 +322,7 @@ function facetKey(value: unknown): string {
  * as sheet lookup is everywhere else): a range handed out by `sheetA` cannot be a block of `sheetB`,
  * and quietly ignoring the prefix would let a pasted `Sheet2!B2:D5` style the wrong sheet.
  *
- * @throws {SyntaxError} if the reference is unparseable, names another sheet, or leaves an axis
+ * @throws SyntaxError if the reference is unparseable, names another sheet, or leaves an axis
  *   unbounded (`A:A`, `1:1`).
  */
 export function rangeFrom(sheet: Worksheet, reference: string): Range {

@@ -16,9 +16,9 @@ const IDENTIFIER = /^[A-Za-z][A-Za-z0-9_]*$/;
 /**
  * Validate a library reference's name against the VBA identifier contract: a valid identifier, at
  * most 31 characters (the CFB stream-name limit, which VBA also applies to its names). The reference
- * is the one new name {@link project-editor.ts | project-editor}'s structural edits write.
+ * is the one new name `project-editor.ts`'s structural edits write.
  *
- * @throws {VbaAuthorError} if `name` is not a valid VBA identifier or exceeds 31 characters.
+ * @throws VbaAuthorError if `name` is not a valid VBA identifier or exceeds 31 characters.
  */
 export function validateReferenceName(name: string): void {
   if (!IDENTIFIER.test(name) || name.length > MAX_NAME_CHARS) {

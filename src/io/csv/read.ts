@@ -34,7 +34,7 @@ export interface CsvReadOptions {
 /**
  * Parse CSV text (or UTF-8 bytes) into a workbook holding a single worksheet.
  *
- * @throws {CsvParseError} if a record has more fields than a worksheet has columns, or the data
+ * @throws CsvParseError if a record has more fields than a worksheet has columns, or the data
  *   records outnumber a worksheet's rows.
  */
 export function readCsv(input: string | Uint8Array, options: CsvReadOptions = {}): Workbook {

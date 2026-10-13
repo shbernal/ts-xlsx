@@ -42,10 +42,10 @@ export const XLSB_WORKBOOK_PART = 'xl/workbook.bin';
 /**
  * Read an `.xlsb` (binary BIFF12) package into a {@link Workbook}.
  *
- * @throws {UnsupportedFormatError} if the input is not an `.xlsb` package: a legacy `.xls`
+ * @throws UnsupportedFormatError if the input is not an `.xlsb` package: a legacy `.xls`
  *   (`.format === 'xls'`), an XML `.xlsx` or unrecognised blob (`'unknown'`).
- * @throws {XlsbParseError} if a binary part is malformed.
- * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked: a corrupt or
+ * @throws XlsbParseError if a binary part is malformed.
+ * @throws PackageReadError if the input is a ZIP that cannot be unpacked: a corrupt or
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
 export function readXlsb(data: Uint8Array, options: ReadPackageOptions = {}): Workbook {

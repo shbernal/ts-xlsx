@@ -22,7 +22,7 @@ const RESERVED = new Set(['"', '\r', '\n']);
  * A `RangeError` rather than an `AuthoringError`: this is a single scalar out of range, which
  * `src/errors.ts` reserves for the native types on the grounds that they exist for exactly that.
  *
- * @throws {RangeError} if the delimiter is not exactly one character, or is a quote, CR or LF.
+ * @throws RangeError if the delimiter is not exactly one character, or is a quote, CR or LF.
  */
 export function assertDelimiter(delimiter: string): void {
   if (delimiter.length !== 1) {
@@ -44,7 +44,7 @@ export function assertDelimiter(delimiter: string): void {
  * contains the field delimiter reads as an extra field at every row boundary, and one that contains a
  * quote collides with the quoting that is supposed to protect a field from it.
  *
- * @throws {RangeError} if the row delimiter is empty, or contains the field delimiter or a quote.
+ * @throws RangeError if the row delimiter is empty, or contains the field delimiter or a quote.
  */
 export function assertRowDelimiter(rowDelimiter: string, delimiter: string): void {
   if (rowDelimiter === '') {

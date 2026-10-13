@@ -24,7 +24,7 @@ import {BRT} from './record-types.ts';
 /**
  * Read `xl/metadata.bin` as far as a cell's metadata indices reach into it.
  *
- * @throws {XlsbParseError} if a record the model reads is shorter than its fields.
+ * @throws XlsbParseError if a record the model reads is shorter than its fields.
  */
 export function parseMetadataPart(part: Uint8Array | undefined): WorkbookMetadata {
   if (part === undefined) return NO_METADATA;

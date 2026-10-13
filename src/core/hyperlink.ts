@@ -43,8 +43,8 @@ export class HyperlinkOverlay {
   /**
    * Add a link, replacing one over the same cells. The `ref` is stored in its canonical spelling.
    *
-   * @throws {SyntaxError} if `ref` is not a reference.
-   * @throws {AuthoringError} if `ref` names a whole row or column rather than cells.
+   * @throws SyntaxError if `ref` is not a reference.
+   * @throws AuthoringError if `ref` names a whole row or column rather than cells.
    */
   add(link: Hyperlink): void {
     const rect = boundedRect(decodeRange(link.ref));

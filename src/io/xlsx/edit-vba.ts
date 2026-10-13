@@ -47,10 +47,10 @@ const VBA_SIGNATURE_REL_INFIX = 'vbaProjectSignature';
  * what changes within it), and any digital signature over the old project is dropped because it cannot
  * validate the new bytes.
  *
- * @throws {VbaAuthorError} if the package carries no VBA project, `name` is not in the project, or names
+ * @throws VbaAuthorError if the package carries no VBA project, `name` is not in the project, or names
  *   a `document`/`designer` module.
- * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
- * @throws {PackageReadError} if the input is not a readable ZIP, or exceeds the inflate bound
+ * @throws VbaParseError if the attached `vbaProject.bin` is malformed.
+ * @throws PackageReadError if the input is not a readable ZIP, or exceeds the inflate bound
  *   ({@link ReadPackageOptions.maxUncompressedBytes}, defaulting as `readXlsx` does).
  */
 export function editXlsxVbaRemoveModule(
@@ -67,10 +67,10 @@ export function editXlsxVbaRemoveModule(
  * {@link addVbaReference} for what changes within it), and any digital signature over the old project is
  * dropped because it cannot validate the new bytes.
  *
- * @throws {VbaAuthorError} if the package carries no VBA project, or any field of `ref` is invalid (see
+ * @throws VbaAuthorError if the package carries no VBA project, or any field of `ref` is invalid (see
  *   {@link VbaLibraryReference}).
- * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
- * @throws {PackageReadError} if the input is not a readable ZIP, or exceeds the inflate bound
+ * @throws VbaParseError if the attached `vbaProject.bin` is malformed.
+ * @throws PackageReadError if the input is not a readable ZIP, or exceeds the inflate bound
  *   ({@link ReadPackageOptions.maxUncompressedBytes}, defaulting as `readXlsx` does).
  */
 export function editXlsxVbaAddReference(

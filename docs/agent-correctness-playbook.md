@@ -214,12 +214,19 @@ lookalike (U+2015) in authored prose, and it declares no autofix on purpose, bec
 replacement for an em dash is a full stop, a colon, or a pair of commas depending on the
 sentence, and a tool that guessed would turn a red check into worse prose. Two rules: one
 over `docs/**/*.md` (`docs/api/**` included, since those pages are generated from source
-JSDoc that is itself clean) and one over `src/**/*.ts`. The source rule reads whole files,
+doc comments that are themselves clean) and one over `src/**/*.ts`. The source rule reads whole files,
 comments and string literals alike, because charcheck has no comments-only scope; an error
 message is prose too, so that is the right reach rather than a compromise. `scripts/`,
 `test/` and `tools/` are not covered yet and still carry the character. Both trees are at
 zero today, which is what makes the gate a floor rather than a wish. Config and reasoning:
 `charcheck.config.ts`.
+
+**You are writing or editing a doc comment.**
+It is TSDoc, and `pnpm run tsdoc:check` (in the `invariants` gate) parses every one with the
+reference parser. The JSDoc habits it refuses: `@throws {Type}` (write `@throws Type if …`, the
+first word being what is thrown), `@param name text` without the ` - `, `@param options.key` (put a
+doc comment on the property instead), a code span broken across a line, and a bare `<`, `{` or `}`
+in prose (put it in backticks). A new custom tag is declared in `tsdoc.json`. ADR 0044.
 
 **You are adding a throw, or touching the read path's tolerance of a foreign file.**
 Two rules, one gate each. A name inside a message goes through `quoted()` from

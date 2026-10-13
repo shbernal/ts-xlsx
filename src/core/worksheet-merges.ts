@@ -34,7 +34,7 @@ export interface MergeRemoval {
  * made as `$A$1:$B$2` could not be removed as `A1:B2`, and stopped matching its own spelling once an
  * unrelated splice rewrote it.
  *
- * @throws {SyntaxError} if the range is unparseable or carries a sheet prefix. A `<mergeCell>` names a
+ * @throws SyntaxError if the range is unparseable or carries a sheet prefix. A `<mergeCell>` names a
  *   region of the sheet it sits on, so a prefix was either redundant or silently wrong.
  */
 function canonicalMerge(range: string): {
@@ -81,8 +81,8 @@ export class WorksheetMerges {
    * whole-row/column range, which is declared and overlap-checks against nothing. The range is stored
    * in canonical form (see {@link canonicalMerge}).
    *
-   * @throws {SyntaxError} if the range is unparseable or names a worksheet.
-   * @throws {AuthoringError} if the range overlaps an already-merged region. Excel forbids
+   * @throws SyntaxError if the range is unparseable or names a worksheet.
+   * @throws AuthoringError if the range overlaps an already-merged region. Excel forbids
    *   overlapping merges and writes such geometry as a file it then offers to repair.
    */
   add(range: string): MergeRect | undefined {
@@ -104,7 +104,7 @@ export class WorksheetMerges {
    * Drop a declared range and, with it, the rectangle it covers. The inverse of {@link add}, and it
    * matches however the range is spelled, since both sides are compared in canonical form.
    *
-   * @throws {SyntaxError} if the range is unparseable or names a worksheet.
+   * @throws SyntaxError if the range is unparseable or names a worksheet.
    */
   remove(range: string): MergeRemoval {
     const {canonical, rect} = canonicalMerge(range);

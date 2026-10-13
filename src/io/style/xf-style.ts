@@ -29,9 +29,9 @@ import type {NamedCellStyle, TableStyleTable} from '../../core/workbook-styles.t
  * facet silently stopped at the model and never appeared in a file we read back.
  *
  * Read-only throughout: an xf is a resolved snapshot, assembled once and then only consulted. Both
- * readers already build theirs through an explicitly-mutable draft (`{-readonly [K in keyof
- * XfStyle]?: …}`), so the constraint costs nothing and stops a consumer editing a table entry that
- * other cells share.
+ * readers already build theirs through an explicitly-mutable draft
+ * (`{-readonly [K in keyof XfStyle]?: …}`), so the constraint costs nothing and stops a consumer
+ * editing a table entry that other cells share.
  */
 export interface XfStyle extends Readonly<CellStyle> {
   readonly quotePrefix?: boolean;
@@ -186,7 +186,7 @@ export function applyXfToCell(cell: Cell, style: XfStyle | undefined): void {
  * review. The inputs differ (an attribute is tri-state, a bit is not) and the rule does not, so the
  * codecs keep the parsing and share the rule.
  *
- * @param locked the `locked` attribute's tri-state reading, or the bit's boolean; `undefined` where
+ * @param locked - the `locked` attribute's tri-state reading, or the bit's boolean; `undefined` where
  *   the file states nothing.
  */
 export function protectionFrom(flags: {

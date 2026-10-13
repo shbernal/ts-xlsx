@@ -36,7 +36,7 @@ export class WorkbookMedia {
    * is why the message names the sheet rather than the id alone. Emitting a package with a drawing
    * pointing at media nobody registered is the silently-broken-image failure this refuses to start.
    *
-   * @throws {AuthoringError} if no image carries that id.
+   * @throws AuthoringError if no image carries that id.
    */
   require(id: number, forSheetName: string): WorkbookImage {
     const image = this.#images[id];

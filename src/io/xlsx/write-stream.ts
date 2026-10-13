@@ -372,7 +372,7 @@ export class WorksheetStreamWriter {
    * Address a cell by its A1 reference to read or style it before the sheet is committed. The row it
    * names must still be live: a row whose {@link StreamedRow.commit} has run is finished.
    *
-   * @throws {AuthoringError} if the reference names an already-committed row. That row's `<row>` is
+   * @throws AuthoringError if the reference names an already-committed row. That row's `<row>` is
    *   rendered and its cells are released, so the cell this would materialise could only be written
    *   as a second row carrying the same number.
    */
@@ -521,7 +521,7 @@ export interface WorksheetStreamWriterInternals {
    * row is rendered from every cell the model holds for it, including any `getCell` added after
    * `addRow` returned.
    *
-   * @throws {AuthoringError} if the row carries a shared-formula cell: a finished row cannot join the
+   * @throws AuthoringError if the row carries a shared-formula cell: a finished row cannot join the
    *   whole-sheet formula planning, so shared formulas must be authored through
    *   {@link WorksheetStreamWriter.getCell}.
    */

@@ -415,7 +415,7 @@ export class Worksheet {
    * covered address returns the master's. Only the master ever holds an independent
    * value, so the serialized sheet stays well-formed (no stray value on a covered cell).
    *
-   * @throws {SyntaxError} if the reference does not resolve to a single cell.
+   * @throws SyntaxError if the reference does not resolve to a single cell.
    */
   getCell(reference: string): Cell {
     const {col, row} = decodeCellRef(reference);
@@ -433,7 +433,7 @@ export class Worksheet {
    * not extend the used range. Writing through it (`getColumn(2).width = 12`) is what materialises
    * the record.
    *
-   * @throws {RangeError} if the index is not a positive integer.
+   * @throws RangeError if the index is not a positive integer.
    */
   getColumn(index: number): Column {
     return new Column(this, index);
@@ -445,7 +445,7 @@ export class Worksheet {
    * extend the used range. Writing through it (`getRow(3).height = 20`) is what materialises the
    * record.
    *
-   * @throws {RangeError} if the number is not a positive integer.
+   * @throws RangeError if the number is not a positive integer.
    */
   getRow(number: number): Row {
     return new Row(this, number);
@@ -464,10 +464,10 @@ export class Worksheet {
    * million-cell block: OOXML states a whole-axis default in one attribute, and {@link getRow} /
    * {@link getColumn} are how you write it.
    *
-   * @throws {SyntaxError} if the reference is unparseable, names another worksheet, or leaves an
+   * @throws SyntaxError if the reference is unparseable, names another worksheet, or leaves an
    *   axis unbounded.
-   * @throws {AuthoringError} if the numeric form is called with fewer than four corners.
-   * @throws {RangeError} if a numeric corner is not a positive integer within the sheet's bounds.
+   * @throws AuthoringError if the numeric form is called with fewer than four corners.
+   * @throws RangeError if a numeric corner is not a positive integer within the sheet's bounds.
    */
   getRange(reference: string): Range;
   getRange(top: number, left: number, bottom: number, right: number): Range;
@@ -588,7 +588,7 @@ export class Worksheet {
    * name, at least one column, at least one row) are enforced here; conflicts with the
    * rest of the sheet (e.g. an overlapping merge) are the writer's concern.
    *
-   * @throws {AuthoringError} if the name, columns, or geometry are invalid.
+   * @throws AuthoringError if the name, columns, or geometry are invalid.
    */
   addTable(options: TableOptions): Table {
     const table = new Table(options, {
@@ -625,7 +625,7 @@ export class Worksheet {
    * while a row or column splice of the source sheet moves its {@link PivotTable.sourceRef}. The
    * supported shape (one summed value field, at least one row and column field) is enforced here.
    *
-   * @throws {AuthoringError} if the metric, fields, or source shape are unsupported.
+   * @throws AuthoringError if the metric, fields, or source shape are unsupported.
    */
   addPivotTable(options: PivotTableOptions): PivotTable {
     const pivot = new PivotTable(options);
@@ -670,7 +670,7 @@ export class Worksheet {
    * one id is therefore harmless and is not rejected: Excel's ids happen to be globally unique, but
    * nothing resolves across a part boundary.
    *
-   * @throws {SyntaxError} if the anchor does not resolve to a single cell, if any id is not a GUID, if a
+   * @throws SyntaxError if the anchor does not resolve to a single cell, if any id is not a GUID, if a
    * message id is already used on this sheet, or if a mention's span is not a whole number the wire can
    * express.
    */
@@ -692,7 +692,7 @@ export class Worksheet {
    * canonicalized, so an absolute `"$B$2"` finds the same thread as `"B2"`; it names the *anchor* cell,
    * so a cell merely covered by the anchor's merged region is not a match.
    *
-   * @throws {SyntaxError} if the reference does not resolve to a single cell.
+   * @throws SyntaxError if the reference does not resolve to a single cell.
    */
   commentThreadAt(reference: string): CommentThread | undefined {
     return this.#comments.at(reference);
@@ -790,9 +790,9 @@ export class Worksheet {
    * The range is stored in canonical form, `$` anchors dropped and the top-left corner first, so
    * merging `$B$2:$A$1` reports `A1:B2` through {@link merges}.
    *
-   * @throws {SyntaxError} if the range is unparseable or names a worksheet: a merge belongs to the
+   * @throws SyntaxError if the range is unparseable or names a worksheet: a merge belongs to the
    *   sheet it is made on, and a prefix naming another one used to be ignored.
-   * @throws {AuthoringError} if the range overlaps an already-merged region.
+   * @throws AuthoringError if the range overlaps an already-merged region.
    */
   mergeCells(range: string): void {
     // What the merge does to the *grid* stays here, because the grid is this class's: the region
@@ -835,7 +835,7 @@ export class Worksheet {
    * stored and compared in canonical form. The covering rectangle is dropped alongside it, so a cell
    * the merge had masked addresses independently again. The inverse of {@link mergeCells}.
    *
-   * @throws {SyntaxError} if the range is unparseable or names a worksheet.
+   * @throws SyntaxError if the range is unparseable or names a worksheet.
    */
   unmergeCells(range: string): boolean {
     const {existed, rectsChanged} = this.#merges.remove(range);
@@ -870,7 +870,7 @@ export class Worksheet {
    * rule set. The block is stored once against the range, defensively copied so the getter never hands
    * back a reference into the caller's object.
    *
-   * @throws {AuthoringError} when `formatting.ref` names no cells: empty, or no area of it decodes.
+   * @throws AuthoringError when `formatting.ref` names no cells: empty, or no area of it decodes.
    */
   addConditionalFormatting(formatting: ConditionalFormatting): void {
     this.#conditionalFormattings.add(formatting);
@@ -903,8 +903,8 @@ export class Worksheet {
    * A row or column splice moves a link with the cells it covers, growing it when lines are inserted
    * inside it and shrinking it when some of its lines are deleted, as Excel does.
    *
-   * @throws {SyntaxError} if `ref` is not a reference.
-   * @throws {AuthoringError} if `ref` names a whole row or column rather than cells.
+   * @throws SyntaxError if `ref` is not a reference.
+   * @throws AuthoringError if `ref` names a whole row or column rather than cells.
    */
   addHyperlink(link: Hyperlink): void {
     this.#hyperlinks.add(link);
@@ -948,11 +948,11 @@ export class Worksheet {
    * edit and is not moved. A dynamic array whose range the edit leaves holding another formula has its
    * spill blocked, as Excel blocks it: the array formula keeps its own cell alone and caches `#SPILL!`.
    *
-   * @throws {RangeError} if `start` is not a positive integer or `count` is negative.
-   * @throws {RangeError} if an inserted row would land past the last row of the grid. The sheet is
+   * @throws RangeError if `start` is not a positive integer or `count` is negative.
+   * @throws RangeError if an inserted row would land past the last row of the grid. The sheet is
    *   left untouched, so this is a refused edit rather than half of one: a region pushed off the edge
    *   clamps and absorbs the loss, but content pushed off it is what Excel refuses outright.
-   * @throws {AuthoringError} if the edit would cut through a Ctrl+Shift+Enter array formula's range: an
+   * @throws AuthoringError if the edit would cut through a Ctrl+Shift+Enter array formula's range: an
    *   insert strictly inside it, or a delete taking part of it. Excel refuses the same edit, as a change
    *   to part of an array, and the sheet is left untouched. An edit moving or deleting the whole range,
    *   and any edit through a dynamic array's range, goes ahead.
@@ -971,7 +971,7 @@ export class Worksheet {
    * `values` takes either {@link RowInput} shape (positional array or keyed object), like
    * {@link addRow}. Shorthand for {@link spliceRows}`(pos, 0, values)`.
    *
-   * @throws {RangeError} if `pos` is not a positive integer.
+   * @throws RangeError if `pos` is not a positive integer.
    */
   insertRow(pos: number, values: RowInput): void {
     this.spliceRows(pos, 0, values);
@@ -1026,7 +1026,7 @@ export class Worksheet {
    * beneath them. `freeze(1)` pins a header row; `freeze(0, 1)` pins the first column. Passing both
    * zero clears the freeze (equivalent to {@link unfreeze}).
    *
-   * @throws {RangeError} if either split is a negative or non-integer count, or leaves no row or
+   * @throws RangeError if either split is a negative or non-integer count, or leaves no row or
    *   column of the grid to scroll. The view is left as it was.
    */
   freeze(ySplit = 1, xSplit = 0): void {
@@ -1070,9 +1070,9 @@ export class Worksheet {
    * over the source's cells; an inserted copy is taken from the source as the insert left it. A copy
    * landing in a dynamic array's range blocks its spill, as {@link spliceRows} says.
    *
-   * @throws {RangeError} if `start` is not a positive integer or `count` is negative, or if a copy
+   * @throws RangeError if `start` is not a positive integer or `count` is negative, or if a copy
    *   would land past the last row. The sheet is left untouched.
-   * @throws {AuthoringError} if a copy would land inside a Ctrl+Shift+Enter array formula's range, or
+   * @throws AuthoringError if a copy would land inside a Ctrl+Shift+Enter array formula's range, or
    *   replace part of one, which Excel refuses as a change to part of an array. The sheet is left
    *   untouched.
    */
@@ -1126,12 +1126,12 @@ export class Worksheet {
    *
    * Formulas move with the columns, by the rules {@link spliceRows} gives for rows.
    *
-   * @throws {RangeError} if `start` is not a positive integer or `count` is negative.
-   * @throws {RangeError} if an inserted column would land past the last column, or one of its values
+   * @throws RangeError if `start` is not a positive integer or `count` is negative.
+   * @throws RangeError if an inserted column would land past the last column, or one of its values
    *   past the last row. The sheet is left untouched, so this is a refused edit rather than half of
    *   one: a region pushed off the edge clamps and absorbs the loss, but content pushed off it is
    *   what Excel refuses outright, and {@link addColumn} refuses the same argument identically.
-   * @throws {AuthoringError} if the edit would cut through a Ctrl+Shift+Enter array formula's range, by
+   * @throws AuthoringError if the edit would cut through a Ctrl+Shift+Enter array formula's range, by
    *   the rule {@link spliceRows} gives for rows. The sheet is left untouched.
    */
   spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void {
@@ -1147,7 +1147,7 @@ export class Worksheet {
    * by one. `values` is an array of values indexed by row (index 0 → row 1), like
    * {@link addColumn}. Shorthand for {@link spliceColumns}`(pos, 0, values)`.
    *
-   * @throws {RangeError} if `pos` is not a positive integer, or if the column would land past the
+   * @throws RangeError if `pos` is not a positive integer, or if the column would land past the
    *   last column or one of its values past the last row; see {@link spliceColumns}.
    */
   insertColumn(pos: number, values: CellValue[]): void {

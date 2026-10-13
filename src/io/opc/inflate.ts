@@ -29,12 +29,12 @@ const INPUT_SLICE = 1 << 14;
  * Inflate every part of an `.xlsx` zip package, enforcing a hard ceiling on total
  * decompressed output.
  *
- * @param data The raw zip bytes.
- * @param cap  Maximum total uncompressed output, in bytes, across all parts. Enforced
+ * @param data - The raw zip bytes.
+ * @param cap - Maximum total uncompressed output, in bytes, across all parts. Enforced
  *   against bytes actually produced, never against the archive's declared sizes.
  * @returns A map of part path to inflated bytes.
- * @throws {PackageReadError} if inflation would exceed `cap`, a probable zip bomb.
- * @throws {Error} raised by the zip layer if the archive is malformed or a part uses an unsupported
+ * @throws PackageReadError if inflation would exceed `cap`, a probable zip bomb.
+ * @throws Error raised by the zip layer if the archive is malformed or a part uses an unsupported
  *   compression method. Callers reach this through {@link inflateSpreadsheetPackage}, which is where
  *   those are classified; the raw error is deliberately not re-typed here, because its text is the
  *   one thing that must not reach a caller unfiltered.

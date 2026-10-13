@@ -71,7 +71,7 @@ export function buildRowCells(
 /**
  * The 1-based index of the column carrying `key` (see {@link ColumnProperties.key}).
  *
- * @throws {AuthoringError} if no column declares that key.
+ * @throws AuthoringError if no column declares that key.
  */
 function columnIndexByKey(columns: ReadonlyMap<number, ColumnProperties>, key: string): number {
   for (const [index, properties] of columns) {

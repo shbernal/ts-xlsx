@@ -113,9 +113,10 @@ export interface FlushedSheet {
   readonly extent: Extent;
   /**
    * Each flushed row's outline level and hidden flag. Carried across the eviction because both feed
-   * whole-sheet derivations made long after the row is gone from the model: `<sheetFormatPr
-   * outlineLevelRow>` is the deepest level on the sheet, and `collapsed="1"` rides a summary row only
-   * when its whole detail group is hidden, which is a question about *other* rows.
+   * whole-sheet derivations made long after the row is gone from the model:
+   * `<sheetFormatPr outlineLevelRow>` is the deepest level on the sheet, and `collapsed="1"` rides
+   * a summary row only when its whole detail group is hidden, which is a question about *other*
+   * rows.
    *
    * Carried as the two inputs rather than the derived flag, because the derivation is a look-ahead a
    * row being finalised cannot do, while its inputs are per-row and known exactly when the row flushes.

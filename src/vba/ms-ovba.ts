@@ -36,7 +36,7 @@ const DEFAULT_MAX_OUTPUT = 64 * 1024 * 1024;
 
 /**
  * Decompress an MS-OVBA CompressedContainer beginning at `start` in `buf`.
- * @param maxOutput hard ceiling on decompressed bytes; exceeding it throws (bomb guard).
+ * @param maxOutput - hard ceiling on decompressed bytes; exceeding it throws (bomb guard).
  */
 export function decompressContainer(
   buf: Uint8Array,

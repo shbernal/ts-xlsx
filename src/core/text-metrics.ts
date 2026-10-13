@@ -33,7 +33,7 @@
  * state *a* height rather than leave one to the application that opens the file, and being within a
  * line of the truth is what that needs.
  *
- * @throws {RangeError} if `width` is not a positive finite number - a column of zero width wraps
+ * @throws RangeError if `width` is not a positive finite number - a column of zero width wraps
  *   nothing, and silently answering `Infinity` or `NaN` would put that straight into a row height.
  */
 export function estimateWrappedLines(text: string, width: number): number {

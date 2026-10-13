@@ -47,7 +47,7 @@ const INVALID_SHEET_NAME_CHARS_GLOBAL = new RegExp(INVALID_SHEET_NAME_CHARS.sour
  * can expose an interior apostrophe at the new edge. An empty result becomes `Sheet{n}`, and a
  * collision takes a ` (2)` suffix that is itself made to fit inside the 31-character limit.
  *
- * @param taken the lower-cased names already in the workbook; sheet names collide
+ * @param taken - the lower-cased names already in the workbook; sheet names collide
  *   case-insensitively, which is the comparison `Workbook.getWorksheet` makes.
  */
 export function repairSheetName(name: string, taken: ReadonlySet<string>): string {

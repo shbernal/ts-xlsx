@@ -113,8 +113,8 @@ export interface TableStyle {
  * `size` outside a stripe is ignored. Neither shows up as a repair prompt or a schema error, so the
  * only place to catch them is the call that made them.
  *
- * @throws {AuthoringError} if the name is empty, or a non-stripe element carries a `size`.
- * @throws {RangeError} if a `size` is not a positive integer.
+ * @throws AuthoringError if the name is empty, or a non-stripe element carries a `size`.
+ * @throws RangeError if a `size` is not a positive integer.
  */
 export function checkTableStyle(style: TableStyle): void {
   if (style.name === '') {

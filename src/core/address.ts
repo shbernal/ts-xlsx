@@ -58,7 +58,7 @@ const AXIS_BOUND = {row: MAX_ROW, column: MAX_COLUMN} as const;
 /**
  * Refuse a coordinate that names no position on the grid.
  *
- * @throws {RangeError} unless `value` is an integer within the axis's bounds.
+ * @throws RangeError unless `value` is an integer within the axis's bounds.
  */
 export function assertAxisInBounds(axis: 'row' | 'column', value: number): void {
   const bound = AXIS_BOUND[axis];
@@ -67,12 +67,12 @@ export function assertAxisInBounds(axis: 'row' | 'column', value: number): void 
   }
 }
 
-/** @throws {RangeError} unless `n` is an integer in `1..MAX_COLUMN`. */
+/** @throws RangeError unless `n` is an integer in `1..MAX_COLUMN`. */
 export function assertColumnInBounds(n: number): void {
   assertAxisInBounds('column', n);
 }
 
-/** @throws {RangeError} unless `n` is an integer in `1..MAX_ROW`. */
+/** @throws RangeError unless `n` is an integer in `1..MAX_ROW`. */
 export function assertRowInBounds(n: number): void {
   assertAxisInBounds('row', n);
 }
@@ -136,7 +136,7 @@ const SHEET_PREFIX = /^(?:(?:'((?:[^']|'')*)')|([^'!]+))!(.*)$/;
 
 /** Convert a 1-based column number to its letters (`1 → "A"`, `27 → "AA"`).
  *
- * @throws {RangeError} unless `n` is an integer in `1..MAX_COLUMN`. */
+ * @throws RangeError unless `n` is an integer in `1..MAX_COLUMN`. */
 export function numberToColumn(n: number): string {
   // Through the guard rather than a second copy of its four lines: the note above
   // `assertColumnInBounds` says these two refuse the same mistake in the same words, and a call is
@@ -174,7 +174,7 @@ export function tryColumnToNumber(letters: string): number | undefined {
 /**
  * Convert column letters to a 1-based number (`"A" → 1`, `"AA" → 27`).
  *
- * @throws {RangeError} if the letters are malformed or name a column past `XFD`. The two are
+ * @throws RangeError if the letters are malformed or name a column past `XFD`. The two are
  *   separate messages because a caller fixes them differently.
  */
 export function columnToNumber(letters: string): number {
@@ -204,11 +204,11 @@ export function encodeCornerRef(col: number | undefined, row: number | undefined
  * A bounded rectangle as its canonical `tl:br` A1 range, `"B2:D5"`. A one-cell rectangle still reads
  * as `"B2:B2"`, which is the form Excel writes and the form every consumer of these refs parses.
  *
- * The rendering half of {@link boundedRect}, and it belongs beside it for the same reason: ten sites
- * spelled `` `${encodeAddress(left, top)}:${encodeAddress(right, bottom)}` `` by hand, and the risk in
- * that expression is not its length but its argument order. `encodeAddress` takes column first and a
- * rectangle names its rows first, so the two orders are transposed with respect to each other at every
- * one of those sites.
+ * The rendering half of {@link boundedRect}, and it belongs beside it for the same reason: ten
+ * sites spelled the template `${encodeAddress(left, top)}:${encodeAddress(right, bottom)}` by hand,
+ * and the risk in that expression is not its length but its argument order. `encodeAddress` takes
+ * column first and a rectangle names its rows first, so the two orders are transposed with respect
+ * to each other at every one of those sites.
  */
 export function encodeRect(rect: GridRect): string {
   return `${encodeAddress(rect.left, rect.top)}:${encodeAddress(rect.right, rect.bottom)}`;
@@ -236,8 +236,8 @@ function makeCellAddress(col: number | undefined, row: number | undefined): Cell
  * Decode a single cell/row/column reference into `{address, col, row}`. Anchoring
  * `$` signs are accepted and dropped; an absent axis is `undefined`.
  *
- * @throws {SyntaxError} if the reference mentions neither a column nor a row.
- * @throws {RangeError} if it names a column past `XFD` or a row outside `1..1048576`.
+ * @throws SyntaxError if the reference mentions neither a column nor a row.
+ * @throws RangeError if it names a column past `XFD` or a row outside `1..1048576`.
  */
 export function decodeAddress(reference: string): CellAddress {
   const match = SINGLE_REF.exec(reference);
@@ -272,8 +272,8 @@ export interface CellPosition {
 /**
  * Decode a reference that must name a single cell. Anchoring `$` signs are accepted and dropped.
  *
- * @throws {SyntaxError} if the reference is unparseable, or parses but omits an axis (`"A"`, `"1"`).
- * @throws {RangeError} if it names a position off the grid (`"A0"`, `"XFE1"`).
+ * @throws SyntaxError if the reference is unparseable, or parses but omits an axis (`"A"`, `"1"`).
+ * @throws RangeError if it names a position off the grid (`"A0"`, `"XFE1"`).
  */
 export function decodeCellRef(reference: string): CellPosition {
   const {col, row} = decodeAddress(reference);
@@ -375,8 +375,8 @@ export function tryDecodeAnchoredRange(
  * canonical dimensions. A single reference collapses to a degenerate range whose
  * corners coincide.
  *
- * @throws {SyntaxError} if an endpoint is unparseable.
- * @throws {RangeError} if an endpoint names a column past `XFD` or a row outside `1..1048576`.
+ * @throws SyntaxError if an endpoint is unparseable.
+ * @throws RangeError if an endpoint names a column past `XFD` or a row outside `1..1048576`.
  */
 export function decodeRange(reference: string): RangeAddress {
   const prefix = SHEET_PREFIX.exec(reference);

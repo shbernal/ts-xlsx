@@ -317,7 +317,7 @@ function mentionOf(
  * A message with no author is written under the null GUID, Excel's own spelling for one. `personById` is
  * the workbook's registry, and a message naming an id it does not hold is refused.
  *
- * @throws {AuthoringError} if a message's author is not a registered person.
+ * @throws AuthoringError if a message's author is not a registered person.
  */
 export function threadedCommentsXml(
   threads: readonly CommentThread[],

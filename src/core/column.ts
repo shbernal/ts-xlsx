@@ -22,7 +22,7 @@ export class Column extends AxisHandle<ColumnProperties> {
   /** 1-based column index. Fixed for this handle's lifetime. */
   readonly index: number;
 
-  /** @throws {RangeError} unless the index is an integer within Excel's column grid (1..16384). */
+  /** @throws RangeError unless the index is an integer within Excel's column grid (1..16384). */
   constructor(sheet: Worksheet, index: number) {
     super();
     assertColumnInBounds(index);
@@ -160,7 +160,7 @@ export class Column extends AxisHandle<ColumnProperties> {
    * The cell at a 1-based row number in this column, creating it on first access. Resolves through
    * merges exactly as {@link Worksheet.getCell} does.
    *
-   * @throws {RangeError} if the row is not a positive integer.
+   * @throws RangeError if the row is not a positive integer.
    */
   getCell(row: number): Cell {
     // Straight to the merge-resolving lookup, as `Range` goes, rather than through an A1 string that

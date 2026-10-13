@@ -61,9 +61,9 @@ class InternalError extends XlsxError {
 
 <sub>class</sub>
 
-The common ancestor of every error this library raises deliberately. `catch (e) { if (e instanceof
-XlsxError) … }` is the one-line answer to "was that us?", and `code` then says which kind of
-failure it was without naming a single subclass.
+The common ancestor of every error this library raises deliberately.
+`catch (e) { if (e instanceof XlsxError) … }` is the one-line answer to "was that us?", and
+`code` then says which kind of failure it was without naming a single subclass.
 
 Abstract on purpose: a failure always has a kind, so there is never a reason to throw the base.
 Every subclass fixes `code` to a literal, which makes the class hierarchy a discriminated
