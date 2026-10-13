@@ -18,7 +18,7 @@ import {parseVbaProject} from './project.ts';
 // ── Fixture builders ──────────────────────────────────────────────────────────────────────────────
 // These construct a genuine, spec-valid `vbaProject.bin` from scratch: an MS-OVBA "store" encoder
 // (literal-only chunks: valid compression that happens not to compress) and a minimal MS-CFB writer.
-// No third-party bytes, no Excel. This exercises the real parse pipeline; the decoder is additionally
+// No third-party bytes, no Excel. This exercises the real parse pipeline; the decoder is also
 // pinned against an independent hand-verified vector (see the first decompress test) so the fixture and
 // the code under test are not a closed loop on the copy-token path.
 
@@ -419,7 +419,7 @@ const v3Signature = (bytes: Uint8Array): SignatureGeneration => ({
   bytes,
 });
 
-// A minimal macro-enabled package around a vbaProject.bin. Pass one or more `sigs` to additionally wire
+// A minimal macro-enabled package around a vbaProject.bin. Pass one or more `sigs` to also wire
 // digital signatures over the project: sibling parts reached from the project part's own rels, the
 // shape an authoring replace must invalidate (a signature over old bytes cannot vouch for new ones).
 function xlsmPackage(vbaBin: Uint8Array, sigs: readonly SignatureGeneration[] = []): Uint8Array {
@@ -1014,7 +1014,7 @@ test('addVbaReference rejects a malformed container as a parse error', () => {
   assert.throws(() => addVbaReference(Uint8Array.from([1, 2, 3, 4]), SCRIPTING_REF), VbaParseError);
 });
 
-// ── Structural edits through the public surface: Workbook.removeVbaModule / addVbaReference ───────────
+// ── Structural edits through the public API: Workbook.removeVbaModule / addVbaReference ───────────
 
 test('Workbook.removeVbaModule removes a module from a read workbook and preserves references end-to-end', () => {
   const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
@@ -1260,7 +1260,7 @@ test('editXlsxVbaAddReference propagates VbaAuthorError for an invalid reference
   );
 });
 
-// ── Byte primitives ───────────────────────────────────────────────────────────────────────────────
+// ── Byte helpers ──────────────────────────────────────────────────────────────────────────────────
 // The bound belongs to the read, not to each caller remembering to guard: a `vbaProject.bin` comes out
 // of an untrusted `.xlsm`, and a truncated one must fail closed rather than parse as zeros.
 

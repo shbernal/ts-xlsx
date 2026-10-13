@@ -1033,7 +1033,7 @@ test('a sheet autofilter round-trips through write then read, and drops no user 
     {ref: 'A1:C10', columns: []},
     'the filter range survives the round-trip',
   );
-  // The system-generated _FilterDatabase is reconstructed from the sheet, never surfaced as a name…
+  // The system-generated _FilterDatabase is reconstructed from the sheet, never exposed as a name…
   assert.deepEqual(
     back.definedNames.map((n) => n.name),
     ['TaxRate'],

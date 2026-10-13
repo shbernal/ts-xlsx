@@ -4,7 +4,7 @@ import {test} from 'node:test';
 import {AuthoringError} from '../errors.ts';
 import {type AutoFilter, canonicalizeAutoFilter, shiftAutoFilter} from './autofilter.ts';
 
-// The most intricate re-anchoring in the model, and the one with the least visible failure: a
+// The most involved re-anchoring in the model, and the one with the least visible failure: a
 // filter's criteria are addressed by their offset from the filter's own left edge, not by an
 // absolute column. A column splice therefore has to move the range *and* re-base every offset
 // against the new edge. Left alone, the offsets keep their old numbers and each criterion silently

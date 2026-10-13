@@ -18,7 +18,7 @@
 // element the writer emits from it. That is the same boundary `workbook-theme.ts` describes from its
 // side; the accessor now closes over this slice instead of over `Workbook` itself.
 //
-// The doc comments for the public surface stay on `Workbook`'s accessors, which is what the API
+// The doc comments for the public API stay on `Workbook`'s accessors, which is what the API
 // reference is generated from and what a consumer reads. See `docs/architecture.md`.
 
 import {replaceContents} from './containers.ts';
@@ -91,8 +91,8 @@ export class WorkbookStyleTables {
     return [...this.#customTableStyles.values()];
   }
 
-  // Validation lives on `Workbook.addTableStyle`, the authoring surface a caller's mistake has to
-  // surface at; by here the style is already known good.
+  // Validation lives on `Workbook.addTableStyle`, where a caller's mistake has to be reported; by
+  // here the style is already known good.
   addCustomTableStyle(style: TableStyle): void {
     this.#customTableStyles.set(style.name, style);
   }

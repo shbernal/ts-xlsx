@@ -3,7 +3,7 @@
 // itself is protected; this module models that sheet-level switch and the optional
 // password credential that guards lifting it.
 //
-// The option surface is stated in the AUTHOR's terms: each flag answers "may a user do
+// The options are stated in the AUTHOR's terms: each flag answers "may a user do
 // this while the sheet is protected?" (`sort: true` = sorting stays available). OOXML
 // encodes the inverse ("1" LOCKS an operation, "0"/omission PERMITS it) and its per-
 // attribute defaults differ; that encoding table is {@link SHEET_PROTECTION_FLAGS} below,
@@ -98,10 +98,10 @@ export const SHEET_PROTECTION_FLAGS: readonly {
 // the salt for the first hash, then re-hashed `spinCount` times with a little-endian uint32
 // iteration counter mixed in. SHA-512 is the modern choice Excel writes.
 //
-// Both primitives are deliberately platform-neutral: `src/sha512.ts` rather than `node:crypto`,
-// and the Web Crypto `getRandomValues` that browsers and Node both carry as a global. Protecting
-// a sheet is therefore something a browser can do, and nothing on the package's entry graph
-// imports a Node built-in to make it possible.
+// Both the hash and the salt source are deliberately platform-neutral: `src/sha512.ts` rather than
+// `node:crypto`, and the Web Crypto `getRandomValues` that browsers and Node both carry as a global.
+// Protecting a sheet is therefore something a browser can do, and nothing on the package's entry
+// graph imports a Node built-in to make it possible.
 const ALGORITHM_NAME = 'SHA-512';
 const DEFAULT_SPIN_COUNT = 100000;
 const SALT_BYTES = 16;

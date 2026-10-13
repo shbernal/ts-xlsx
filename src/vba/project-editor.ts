@@ -43,7 +43,7 @@ const VBA_STORAGE = 'VBA';
  * Only `procedural` and `class` modules can be removed this way. Removing a `document` module (e.g.
  * `ThisWorkbook`) or a `designer` module (a UserForm) would leave the host referencing code that no
  * longer exists, since their names are tied to a worksheet/workbook `codeName` or a designer storage
- * this project-level primitive has no visibility into. Editing such a module's code-behind is a job for
+ * this project-level edit has no visibility into. Editing such a module's code-behind is a job for
  * the offline `tools/vba-compiler` (in-place mode), which drives the real host.
  *
  * @throws {VbaParseError} if `bin` is not a parseable VBA project (validated before any edit).
@@ -59,7 +59,7 @@ export function removeVbaModule(bin: Uint8Array, name: string): Uint8Array {
   if (module.kind !== 'procedural' && module.kind !== 'class') {
     throw new VbaAuthorError(
       `cannot remove module '${name}': its kind '${module.kind}' is tied to host linkage this ` +
-        'primitive cannot verify',
+        'edit cannot verify',
     );
   }
 

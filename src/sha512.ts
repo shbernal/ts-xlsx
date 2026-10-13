@@ -9,7 +9,7 @@
 //
 // Web Crypto would have been the obvious replacement and is not usable here: `crypto.subtle.digest`
 // is asynchronous, and the agile scheme feeds each digest into the next for a hundred thousand
-// rounds, so an async primitive would make `Worksheet.protect()` async for every caller: an API
+// rounds, so an async digest would make `Worksheet.protect()` async for every caller: an API
 // cost far larger than the one this module pays. Salt generation does use the platform
 // (`crypto.getRandomValues`), which is synchronous and present in browsers and Node alike.
 //

@@ -92,7 +92,7 @@ export type ValueGuardContracts = [
   Expect<Equal<typeof isHyperlinkValue, (value: CellValue) => value is HyperlinkValue>>,
 ];
 
-// The buffered I/O surface is synchronous: writeXlsx returns bytes and readXlsx a
+// The buffered I/O API is synchronous: writeXlsx returns bytes and readXlsx a
 // Workbook directly, never a Promise. getWorksheet is partial (a miss is undefined).
 export type IoContracts = [
   Expect<Equal<ReturnType<typeof writeXlsx>, Uint8Array>>,
@@ -116,7 +116,7 @@ export type GridRectContracts = [
 ];
 
 // Export-presence guards for the core feature types now on the barrel: importing each locks it into
-// the public surface (its removal would break this compilation), and a self-`Extends` references it.
+// the public API (its removal would break this compilation), and a self-`Extends` references it.
 // FilterColumn/FilterCriteria come along so a constructed AutoFilter is fully nameable by callers.
 export type FeatureSurface = [
   Expect<Extends<AutoFilter, AutoFilter>>,

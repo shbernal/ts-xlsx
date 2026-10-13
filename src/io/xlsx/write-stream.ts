@@ -7,8 +7,7 @@
 // `Writable` sink (an outbound upload), or a `filename` the writer opens. In every case `commit()`
 // settles: it resolves once a supplied sink has flushed the whole package and rejects if that sink
 // errors (an unopenable file), never hanging on a finish signal that will not come. The output rides a
-// genuinely
-// streamed zip container (fflate's `Zip`/`ZipDeflate`), which computes each entry's CRC-32
+// genuinely streamed zip container (fflate's `Zip`/`ZipDeflate`), which computes each entry's CRC-32
 // incrementally, so the archive is well-formed by construction, and the defect the upstream "streaming
 // writer emits a corrupt zip" reports describe is structurally absent here. The bytes reload
 // identically to a whole-file write because both writers share `buildPackageParts` for every part.

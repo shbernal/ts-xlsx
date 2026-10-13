@@ -73,7 +73,7 @@ test('a `<row>` past the last row is dropped rather than clamped onto it', () =>
 });
 
 test('a `<pane>` split that is not a non-negative integer is dropped, not carried to the writer', () => {
-  // Each of these used to land in `view` verbatim and surface later out of the serializer, as a
+  // Each of these used to land in `view` verbatim and fail later in the serializer, as a
   // RangeError naming a column the file never mentioned.
   for (const attrs of ['xSplit="abc"', 'xSplit="1.5" ySplit="2"', 'ySplit="-3"']) {
     const worksheet = sheet(

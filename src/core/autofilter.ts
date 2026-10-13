@@ -78,7 +78,7 @@ export function isCustomFilterOperator(value: string): value is CustomFilterOper
  * is the common case (dropdowns, no criteria); an {@link AutoFilter} object carries per-column
  * criteria too. Throws when the range is not a bounded rectangle, or a column's `colId` falls
  * outside it, or a custom filter does not carry one or two predicates: a filter authored wrong is
- * a bug to surface, not to silently repair. (The reader sanitises hostile input before it reaches
+ * a bug to report, not to silently repair. (The reader sanitises hostile input before it reaches
  * here, so load never trips these guards.)
  */
 export function canonicalizeAutoFilter(input: string | AutoFilter): AutoFilter {

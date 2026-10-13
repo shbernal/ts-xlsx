@@ -76,7 +76,7 @@ export function inflateSpreadsheetPackage(
   try {
     return inflatePackage(data, cap);
   } catch (err) {
-    // The bomb guard already throws the right type with a better message, so surface it. Anything else
+    // The bomb guard already throws the right type with a better message, so rethrow it. Anything else
     // is fflate reporting a malformed archive: same classification (a ZIP we cannot unpack), but its
     // raw text is replaced wholesale rather than wrapped or attached as `cause`, because it comes from
     // a layer whose strings may name internals, or an absolute path, that must not reach a caller.

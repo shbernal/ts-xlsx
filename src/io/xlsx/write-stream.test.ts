@@ -220,7 +220,7 @@ test('commit to a valid filename writes a re-openable package to disk', async ()
 
 test('commit to an unopenable filename rejects with the underlying I/O error rather than hanging', async () => {
   // A path whose parent directory does not exist cannot be opened for writing; the write stream errors
-  // on a later tick and commit must surface it.
+  // on a later tick and commit must reject with it.
   const badPath = join(tmpdir(), 'ts-xlsx-no-such-dir', `${'x'.repeat(300)}.xlsx`);
   const writer = new WorkbookStreamWriter({filename: badPath});
   writer.addWorksheet('S').addRow(['a']).commit();

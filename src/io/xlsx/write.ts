@@ -208,7 +208,7 @@ interface SheetPlan {
 // Resolve one sheet's tail reference ids (the `<drawing>`/`<legacyDrawing>`/`<legacyDrawingHF>`/
 // `<picture>` slots and the slicer list) from its plan. A preserved `<drawing>` and a modeled one are
 // mutually exclusive, so the drawing slot takes whichever exists; a comment's VML rides the legacy-
-// drawing slot; and each preserved slicer surfaces its rel id so the `<x14:slicerList>` can reactivate
+// drawing slot; and each preserved slicer exposes its rel id so the `<x14:slicerList>` can reactivate
 // the widget rather than orphan its part.
 function resolveSheetReferences(plan: SheetPlan): SheetReferences {
   const refs = plan.preservedRefs;

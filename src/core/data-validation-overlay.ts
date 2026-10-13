@@ -29,7 +29,7 @@ export class DataValidationOverlay {
    * round-trip writes it back there instead of silently corrupting the cross-sheet reference.
    *
    * @throws {AuthoringError} when `sqref` names no area at all. A rule attached to nothing covers no
-   * cell and is written back as the same unreadable text, so it is a mistake worth surfacing at the
+   * cell and is written back as the same unreadable text, so it is a mistake worth reporting at the
    * call. The reader does not reach this: it drops such an entry at its own boundary, where a foreign
    * file's malformed attribute is supposed to be dropped.
    */

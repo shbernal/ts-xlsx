@@ -1,6 +1,6 @@
 // Bounded, streaming inflation of an OPC (`.xlsx`) zip package.
 //
-// Decompression is the reader's first hostile-input surface: a "zip bomb" ships a few
+// Decompression is the first place the reader meets hostile input: a "zip bomb" ships a few
 // kilobytes that inflate to gigabytes. The zip's own size headers cannot be trusted to
 // bound this: they are attacker-controlled. A header that declares a *large* size makes a
 // naïve reader preallocate that much (an amplifier: tiny input, huge allocation); a header

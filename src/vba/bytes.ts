@@ -1,4 +1,4 @@
-// Read-side byte primitives for the VBA subsystem: the counterpart to the write-side `vba-encoding.ts`
+// Read-side byte helpers for the VBA subsystem: the counterpart to the write-side `vba-encoding.ts`
 // (`u16`, `u32`, `utf16le`, `push`). Every structure under `src/vba/` is a little-endian binary record
 // ([MS-CFB] sectors and directory entries, [MS-OVBA] `dir` TLVs and compressed chunks), so these four
 // are what its parsers are built from.

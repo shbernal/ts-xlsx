@@ -202,7 +202,7 @@ export interface TableOptions {
 
 // Excel's table-name grammar: start with a letter, underscore, or backslash; every later
 // character a letter, digit, period, or underscore. Unicode letters/digits are allowed.
-// Excel additionally forbids a name that *is* a cell reference (`A1`, `R1C1`); we defer
+// Excel also forbids a name that *is* a cell reference (`A1`, `R1C1`); we defer
 // that rule deliberately: the regression corpus treats cell-reference-shaped names like
 // `T1` as valid table names, so enforcing the collision rule here would reject a fixture
 // the contract accepts.

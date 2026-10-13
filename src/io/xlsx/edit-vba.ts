@@ -66,9 +66,8 @@ export function editXlsxVbaAddReference(xlsx: Uint8Array, ref: VbaLibraryReferen
 }
 
 // Shared plumbing for every package-level VBA edit: unzip, locate `xl/vbaProject.bin`, replace it with
-// whatever `apply` produces, drop a now-stale signature, and re-zip. `apply` is expected to validate
-// fail-closed itself (every project-editor primitive does), so a bad edit throws before `files` is
-// touched.
+// whatever `apply` produces, drop a now-stale signature, and re-zip. `apply` must validate fail-closed
+// itself (every VBA project editor function does), so a bad edit throws before `files` is touched.
 function applyToVbaProjectPart(
   xlsx: Uint8Array,
   apply: (bin: Uint8Array) => Uint8Array,

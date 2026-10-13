@@ -17,7 +17,7 @@ import {numberText} from '../../xml/xml.ts';
 
 // The write side of the ARGB grammar `parseArgb` states: this is the single choke point through
 // which every fill/font/border/tab colour flows on its way into the file, so a value that does not
-// parse is a programming error at the API surface and throws with the offending value rather than
+// parse is a programming error at the public API and throws with the offending value rather than
 // writing corrupt XML. Excel does not report a malformed `rgb`; it silently renders flat black,
 // which is why this is loud and the reader's counterpart is silent.
 function normalizeArgb(argb: string): string {

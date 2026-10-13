@@ -523,7 +523,7 @@ export class Worksheet {
   /**
    * The rows to serialise, as handles, in ascending row order: the union of rows holding cells and
    * rows holding only metadata (a hidden or grouped row need carry no data). Mirrors how OOXML
-   * serialises (`<row>` wrapping `<c>`) and is the writer's row surface.
+   * serialises (`<row>` wrapping `<c>`) and is what the writer iterates over.
    *
    * A handle yields its cells only when asked, so a pass that reads nothing but row attributes
    * never assembles a cell array it will not look at.
@@ -679,7 +679,7 @@ export class Worksheet {
 
   /**
    * Anchor an image with a pre-built model anchor in the model's own units (EMUs). This is the
-   * low-level primitive {@link addImage} builds on and the reader uses to re-pin an image parsed from
+   * low-level call {@link addImage} builds on and the reader uses to re-pin an image parsed from
    * a drawing part without a lossy pixel round-trip.
    */
   addImageAnchor(imageId: number, anchor: ImageAnchor): void {

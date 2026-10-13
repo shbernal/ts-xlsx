@@ -1,4 +1,4 @@
-// Shared low-level encoders for the VBA `dir` stream and name validation: the primitives the structural
+// Shared low-level encoders for the VBA `dir` stream and name validation: the helpers the structural
 // splices in `project-editor.ts` build on. ([MS-OVBA] 2.3.4.2 record TLVs, and the VBA identifier rules.)
 //
 // There is no from-scratch `vbaProject.bin` synthesizer here. Excel does not recompile VBA from source

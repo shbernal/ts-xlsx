@@ -216,7 +216,7 @@ export function* xmlEvents(source: string): Generator<XmlEvent> {
   }
 }
 
-/** An element start surfaced by {@link openElements}: its qualified `name`, the namespace-stripped
+/** An element start yielded by {@link openElements}: its qualified `name`, the namespace-stripped
  * `local` name the filter matched on, and its already-decoded `attrs`. */
 export interface OpenElement {
   readonly name: string;

@@ -1,6 +1,6 @@
 // Decoding a worksheet cell's on-disk `<c>` payload into a model {@link CellValue}.
 //
-// This is the single value-decoding surface both readers share: the buffered reader
+// This is the one value decoder both readers share: the buffered reader
 // (`./read.ts`) and the streaming row reader (`./read-rows.ts`). Keeping it in one place is
 // what guarantees a cell read one row at a time decodes identically to the same cell read as
 // part of a whole workbook. A divergence here would be a silent data bug in exactly one path.
@@ -53,13 +53,13 @@ export function decodeCellContent(
     const result = raw.hasValue ? decodeFormulaResult(raw.type, raw.valueText, numFmt) : undefined;
     return result === undefined ? {formula: stored} : {formula: stored, result};
   }
-  // An inline string built from `<r>` runs is rich text: surface its runs rather than flattening
+  // An inline string built from `<r>` runs is rich text: return its runs rather than flattening
   // them to the concatenated `inlineText` a plain string would decode to.
   if (raw.type === 'inlineStr' && raw.richTextRuns !== undefined && raw.richTextRuns.length > 0) {
     return {richText: raw.richTextRuns};
   }
   const value = decodeValue(raw.type, raw.valueText, raw.inlineText, raw.hasValue, sharedStrings);
-  // A number stored under a date format is a date serial: surface it as a Date so a written
+  // A number stored under a date format is a date serial: return it as a Date so a written
   // date round-trips as a date, not a bare number. Only plain numeric cells qualify; a string,
   // boolean, or formula result under a date format keeps its own kind.
   return typeof value === 'number' && numFmt !== undefined && isDateFormat(numFmt)
@@ -87,7 +87,7 @@ function decodeValue(
       return valueText === '' ? null : new Date(valueText);
     case 's': {
       // A `t="s"` cell indexes the shared pool; the entry is a plain string or, when Excel pooled a
-      // rich value, a {@link RichTextValue} whose runs surface here rather than being flattened.
+      // rich value, a {@link RichTextValue} whose runs are kept rather than flattened.
       const index = Number(valueText);
       return Number.isInteger(index) ? (sharedStrings[index] ?? '') : '';
     }

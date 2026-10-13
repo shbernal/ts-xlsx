@@ -755,8 +755,8 @@ test('an underline font round-trips: single stays single, a named variant keeps 
 });
 
 test('a foreign font’s <u val="none"/> reads back as not underlined, not the truthy string "none"', () => {
-  // Real producers write <u val="none"/> for the explicit ABSENCE of an underline. Surfacing the
-  // literal "none" would be truthy: a consumer’s `if (font.underline)` would mistake it for an
+  // Real producers write <u val="none"/> for the explicit ABSENCE of an underline. Returning the
+  // literal "none" would be truthy: a consumer's `if (font.underline)` would mistake it for an
   // underline, so the reader must read it back falsy.
   const files: Record<string, Uint8Array> = {
     'xl/workbook.xml': strToU8(

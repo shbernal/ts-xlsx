@@ -612,7 +612,7 @@ function readSheetPivotTables(
 // Excel forbids a merged range inside a formatted table and repairs such a file on load by dropping
 // the merge. A worksheet's merges are read before its tables, so a real file carrying that invalid
 // geometry lands in the model intact; this applies the same repair once the tables are known, so a
-// re-write does not surface the Excel-invalid geometry the writer (correctly) rejects.
+// re-write does not hit the Excel-invalid geometry the writer (correctly) rejects.
 function dropMergesInsideTables(sheet: Worksheet): void {
   const regions = sheet.tables.map((table) => table.region);
   if (regions.length === 0) return;

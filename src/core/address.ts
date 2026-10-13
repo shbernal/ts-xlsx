@@ -1,8 +1,8 @@
-// Address decoding: the foundational spreadsheet primitive.
+// Address decoding: the base every other spreadsheet module builds on.
 //
 // Every higher layer (cells, ranges, defined names, formulas) is ultimately
 // addressed by a `col`/`row` pair, so this module is the first thing the rewrite
-// builds and the bedrock everything else stands on. It is pure, allocation-bounded,
+// builds. It is pure, allocation-bounded,
 // and has no I/O or platform dependency.
 //
 // The honesty rule that drives the shape here: an axis that a reference does not

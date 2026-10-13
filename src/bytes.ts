@@ -1,4 +1,4 @@
-// The byte primitive every layer needs. It sits beside `errors.ts`, below all of them: the ZIP
+// The byte helper every layer needs. It sits beside `errors.ts`, below all of them: the ZIP
 // container, the XLSX write stream and the CFB reader all end up holding a list of chunks and
 // wanting one buffer, and none of them is the right owner of that for the others.
 

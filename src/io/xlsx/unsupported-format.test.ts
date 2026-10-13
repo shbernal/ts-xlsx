@@ -141,7 +141,7 @@ test('a truncated archive is a PackageReadError, not an unsupported format', () 
 test('a truncated archive leaks neither raw zip internals nor a filesystem path', () => {
   const err = catchError(() => readXlsx(truncatedZipBlob()));
   assert.ok(err instanceof PackageReadError);
-  // The fflate failure ("… end of central directory …", "invalid zip data") must never surface, nor
+  // The fflate failure ("… end of central directory …", "invalid zip data") must never reach the caller, nor
   // any filesystem path, neither in the message nor through a `cause` chain a logger would print.
   // `inspect` rather than `String`: a logger printing an error prints its `cause` chain in full,
   // and that whole rendering is what must not leak; `String(cause)` would show only its top line.

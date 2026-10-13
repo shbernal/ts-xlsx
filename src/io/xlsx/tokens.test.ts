@@ -1,6 +1,6 @@
 // A token from a closed OOXML enumeration is checked on the way out and dropped on the way in.
 //
-// Every attribute here is typed as a union on the public surface, so an out-of-union value reaches
+// Every attribute here is typed as a union in the public API, so an out-of-union value reaches
 // the writer only through untyped JavaScript, a `JSON.parse`, or a cast. That is not a reason to
 // interpolate it: the compiler having been bypassed is exactly the case the runtime is for, and the
 // document a bogus token produces is not merely invalid but structurally broken, since nothing

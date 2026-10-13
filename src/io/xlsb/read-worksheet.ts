@@ -10,7 +10,7 @@
 // A formula cell carries both halves of what the XML form spells in `<f>` and `<v>`: a `Ptg` token
 // stream, decoded back to text by `./formula.ts`, and the result Excel last computed. The two are
 // filled independently: a formula whose stream uses a token this reader does not decode still
-// surfaces its cached value, which is exactly what the reader could see before the decoder existed.
+// returns its cached value, which is exactly what the reader could see before the decoder existed.
 //
 // One shape needs a second look at the sheet. An array formula's member cells hold a `PtgExp`
 // pointing at the group's top-left, and the `BrtArrFmla` record carrying the group's actual formula
@@ -171,7 +171,7 @@ function groupKey(row: number, column: number): string {
 
 // Pair a decoded formula with its cached result, in the shape the XML reader produces for the same
 // cell. A formula the decoder could not read leaves the value alone: the cached result is still true,
-// and is what this reader surfaced before formulas were decoded at all.
+// and is what this reader returned before formulas were decoded at all.
 function formulaValue(formula: string | undefined, result: FormulaResult | undefined): CellValue {
   if (formula === undefined) return result ?? null;
   // Strip the `_xlfn.`/`_xlpm.` on-disk mangling, as the XML reader does, so the model never holds it.
@@ -249,7 +249,7 @@ function decodeCell(
   }
 }
 
-// A number stored under a date format is a date serial: surface it as a Date so a date read from an
+// A number stored under a date format is a date serial: return it as a Date so a date read from an
 // `.xlsb` is the same value the `.xlsx` twin yields, not a bare number.
 function asNumberOrDate(value: number, numFmt: string | undefined): number | Date {
   return numFmt !== undefined && isDateFormat(numFmt) ? serialToDate(value) : value;

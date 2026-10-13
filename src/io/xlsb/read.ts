@@ -208,7 +208,7 @@ const NAME_IS_FUNCTION = 0x00000002;
 // friends); its target is the placeholder `#NAME?`, not a range. And `_xlnm._FilterDatabase` is the
 // built-in Excel derives from a sheet's autofilter, which the model reconstructs from the autofilter
 // itself. A name whose target uses a token this reader cannot decode is dropped too, rather than
-// surfaced with a target that is a guess.
+// returned with a target that is a guess.
 function definedNames(declaration: WorkbookDeclaration, scope: FormulaScope): DefinedName[] {
   const names: DefinedName[] = [];
   for (const declared of declaration.names) {

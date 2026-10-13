@@ -17,7 +17,7 @@
 // narrow accessor over them. Moving it in would drag that whole table along and turn a theme overlay
 // into a colour-and-styles overlay, which is not a slice.
 //
-// The doc comments for the public surface stay on `Workbook`'s accessors, which is what the API
+// The doc comments for the public API stay on `Workbook`'s accessors, which is what the API
 // reference is generated from and what a consumer reads.
 
 import {resolveColor} from './color-resolution.ts';
@@ -81,7 +81,7 @@ export class WorkbookTheme {
   }
 
   author(overrides: ThemeOverrides): void {
-    // Validated eagerly rather than at write time: a colour the writer would reject surfaces far
+    // Validated eagerly rather than at write time: a colour the writer would reject fails far
     // from the call that supplied it, and by then the caller has moved on.
     for (const value of Object.values(overrides.colors ?? {})) normalizeThemeColor(value);
     Object.assign(this.#authored.colors, overrides.colors ?? {});

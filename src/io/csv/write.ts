@@ -33,8 +33,8 @@ import {AuthoringError} from '../../errors.ts';
  * meaning the same bytes.
  *
  * Named here rather than taken from Node's `BufferEncoding`, which is what this option used to be:
- * that type is part of `@types/node`, so it made a browser consumer's public API surface depend on
- * Node's types, and it offered `base64` and `hex` as if they were output encodings for a text
+ * that type is part of `@types/node`, so it made a browser consumer's public API depend on Node's
+ * types, and it offered `base64` and `hex` as if they were output encodings for a text
  * format. The list is what a CSV consumer actually asks for.
  */
 export type CsvEncoding =

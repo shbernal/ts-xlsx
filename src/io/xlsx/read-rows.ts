@@ -15,7 +15,7 @@
 // Scope of this slice: the package is still inflated whole (bounded by the running counter in
 // `./inflate.ts`) and shared strings / styles are read as whole parts, both being legitimately
 // document-sized and cheap. What this avoids is retaining N materialised cells. A later slice can
-// make the inflate itself per-part lazy; the pull primitive this stands on (`xmlEvents`) is the
+// make the inflate itself per-part lazy; the pull parser this stands on (`xmlEvents`) is the
 // same one that path will use.
 
 import {MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
@@ -153,7 +153,7 @@ export function* readWorkbookStream(
 ): Generator<StreamedSheet, void, undefined> {
   const pkg = openPackage(data, options.maxUncompressedBytes);
   for (const sheet of pkg.sheets) {
-    // A named sheet whose part is missing (truncated/foreign package) still surfaces, with no rows,
+    // A named sheet whose part is missing (truncated/foreign package) still appears, with no rows,
     // no hidden columns, and no merges, rather than vanishing from the workbook's sheet list.
     const xml = pkg.sheetXml(sheet.relId) ?? '';
     yield new StreamedSheetReader(sheet.name, xml, pkg.sharedStrings, pkg.xfStyles);

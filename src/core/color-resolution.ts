@@ -3,7 +3,7 @@
 // A `<color>` in a spreadsheet states its value in one of three ways, and two of them are references
 // that mean nothing on their own: `indexed="n"` points into a 64-entry legacy palette carried over
 // from the BIFF era, and `theme="n"` points into the workbook theme's colour scheme. Either may
-// additionally carry a `tint`, which lightens or darkens whatever it resolved to.
+// also carry a `tint`, which lightens or darkens whatever it resolved to.
 //
 // Resolution is deliberately a *derived* view. Nothing here writes back into the model: a `Color`
 // keeps the encoding its file used, so a round-trip re-emits `theme="4" tint="0.4"` rather than

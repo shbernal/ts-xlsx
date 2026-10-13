@@ -275,7 +275,7 @@ export function applyCellStyle(cell: Cell, style: Readonly<CellStyle>): void {
 }
 
 // Copy a cell's value and every style facet onto a target cell. The source is a {@link CellModel},
-// which a live {@link Cell} structurally satisfies, so this one primitive serves both directions that
+// which a live {@link Cell} structurally satisfies, so this one function serves both directions that
 // load content into a cell: a structural edit shifting a cell to fresh coordinates (`Cell` fixes its
 // `(row, col)` at construction, so the shifted cell is a new cell carrying the original's content) and
 // assigning a {@link WorksheetModel} onto a sheet. Position is never copied: the target keeps its own

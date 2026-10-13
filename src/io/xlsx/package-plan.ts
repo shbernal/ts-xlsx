@@ -191,7 +191,7 @@ interface PreservedNumbering {
 // Gather the workbook images actually referenced by some sheet, either anchored in a drawing or set
 // as a sheet background (an unreferenced image is not written), number them in first-use order, and
 // record the extensions in play. A sheet referencing an id with no registered image is a programming
-// error the writer surfaces rather than emitting a dangling relationship.
+// error the writer throws rather than emitting a dangling relationship.
 export function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): MediaPlan {
   const usedIds: number[] = [];
   const seen = new Set<number>();
