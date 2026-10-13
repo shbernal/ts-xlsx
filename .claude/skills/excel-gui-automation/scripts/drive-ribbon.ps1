@@ -6,10 +6,10 @@
   window-scoped screenshot to confirm the result.
 
 .DESCRIPTION
-  For the rare Excel feature with NO COM surface, where a fixture can only be
+  For the rare Excel feature with NO COM equivalent, where a fixture can only be
   authored by driving the real GUI. Reach for this only after confirming the
-  feature truly has no COM equivalent - check the real Application/Workbook/
-  Worksheet/Shapes object model first (Excel's COM surface is broad; most
+  feature truly has no COM equivalent. Check the real Application/Workbook/
+  Worksheet/Shapes object model first (Excel's COM object model is broad; most
   features ARE reachable). This path is slower and less deterministic than COM;
   for ordinary authoring and readback use tools/excel-oracle instead.
 
@@ -22,11 +22,11 @@
   Semicolon-separated SendKeys tokens sent SEQUENTIALLY (not chorded) to walk
   the ribbon's KeyTip overlay, e.g. '{ESC};{ESC};%;N' = clear stray state, then
   Alt, then N (Insert tab). Discover the letters by screenshotting after each
-  Alt press - KeyTips are drawn as small overlay badges on the ribbon.
+  Alt press. KeyTips are drawn as small overlay badges on the ribbon.
 
 .PARAMETER UiaMenuItem
   Name of a MenuItem control to Invoke via UI Automation after the KeyTips open
-  its popup - for submenu entries keyboard KeyTips do not reach.
+  its popup, for submenu entries keyboard KeyTips do not reach.
 
 .PARAMETER DialogTitleLike
   Wildcard to scope the FOLLOW-ON dialog. Required with -Dump/-Toggle/-InvokeButton

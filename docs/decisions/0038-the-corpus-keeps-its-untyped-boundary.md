@@ -9,7 +9,7 @@
 ADR 0036 left an open question: sixteen type-aware rules were off across `test/**`,
 `scripts/**` and `tools/**`, and the reason given for all of them was
 `test/corpus/untyped.ts`, the module that declares `type Untyped = any` on purpose. If a
-declared `any` costs sixteen rules over the whole harness, the declaration is worth
+declared `any` costs sixteen rules over all the test and tooling code, the declaration is worth
 re-examining. So the question was put as "should the corpus adapter still have an `any`
 boundary?" and parked.
 
@@ -37,7 +37,7 @@ that counts the balance.
 
 ## Decision
 
-The boundary stands. The exemption it earns is narrowed to what it actually reaches:
+The boundary stands. The exemption it earns is narrowed to what it reaches:
 `test/corpus/**` only, and six rules rather than sixteen.
 
 | rule                      | findings | why it is off                                                                        |
@@ -65,7 +65,7 @@ failure output.
 
 ## Why not type it
 
-An adapter returning fully typed values would let those six rules run over the harness,
+An adapter returning fully typed values would let those six rules run over the corpus,
 which is where a regression in the corpus itself would show up. That is a real gain and it
 is not free: it is a rewrite of `test/corpus/adapters/ts-xlsx/**` and of the report shapes
 all 282 cases are written against, and the case-spec DSL would have to be designed rather

@@ -86,9 +86,9 @@ further mutation after that is rejected with a legible error rather than silentl
 `commit()` on the writer assembles the package.
 
 `commit()` is therefore also a deadline. A row stays reachable through `getCell` for as long
-as it is uncommitted, which is when to style it or fill a cell you skipped; once committed,
-its `<row>` is rendered and its cells are released, so the same call is refused rather than
-emitting a second row carrying that number.
+as it is uncommitted, and that is when to style it or fill a cell you skipped. Once you
+commit it, the writer renders its `<row>` and releases its cells. The same call is then
+refused rather than emitting a second row carrying that number.
 
 ```ts
 import {AuthoringError} from '@shbernal/ts-xlsx';
@@ -139,7 +139,7 @@ just streamed away.
 
 ## What streaming costs you
 
-It is a genuinely narrower surface, and pretending otherwise would waste your afternoon.
+The streaming API does less than the buffered one. Here is what it gives up.
 
 - The streaming **writer is Node-only**, which is why it is published from `/node` and not
   from the root specifier: it writes to a Node stream. A browser build that imports it links

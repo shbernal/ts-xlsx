@@ -1,6 +1,6 @@
-// Cell style primitives.
+// Cell style types.
 //
-// Styles are a large surface in OOXML (fonts, fills, borders, alignment, number
+// Styles are a large part of OOXML (fonts, fills, borders, alignment, number
 // formats, protection). The rewrite grows them corpus-first; this module models the
 // facets landed so far: colours, fills, borders, fonts, alignment, and protection.
 

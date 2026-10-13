@@ -2,9 +2,9 @@
 //
 // Real-world scenario: a caller reads an existing macro-enabled workbook and wants to shape its macro
 // project, drop a module that's no longer needed, wire up a COM reference, using the public Workbook
-// API, not the low-level project-editor primitives. Workbook.removeVbaModule/addVbaReference exist
+// API, not the low-level project-editor functions. Workbook.removeVbaModule/addVbaReference exist
 // precisely so a caller never has to reach past the model into raw vbaProject.bin bytes for this. Each
-// method must inherit the same splice guarantees the underlying primitive proved in isolation (see
+// method must inherit the same splice guarantees the underlying function proved in isolation (see
 // xlsm-vba-remove-module-preserves-references, xlsm-vba-add-reference-preserves-modules) once routed
 // through readXlsx -> Workbook -> writeXlsx: a real package round-trip, not just a bare-bin call.
 //

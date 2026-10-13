@@ -1,6 +1,6 @@
 # Dot-source this file: . '...\uia-lib.ps1'
 # UI Automation helpers for controls that keyboard SendKeys and synthetic mouse
-# (SetCursorPos + mouse_event) BOTH fail to activate - verified on Office ribbon
+# (SetCursorPos + mouse_event) BOTH fail to activate, verified on Office ribbon
 # dropdown popups and their follow-on dialogs, which run on a separate input
 # queue (UIPI-isolated from the calling process). InvokePattern/TogglePattern
 # operate on the accessibility tree directly and bypass the input queue entirely,
@@ -21,7 +21,7 @@ function Find-UiaDialog {
   # Scope subsequent searches to ONE dialog window instead of the whole desktop.
   # Unscoped RootElement.FindAll(Descendants) enumerates every open window on the
   # machine, including unrelated apps (this can and did incidentally capture
-  # content from other open windows) - always scope by dialog title before
+  # content from other open windows). Always scope by dialog title before
   # dumping/invoking.
   param([Parameter(Mandatory)][string]$TitleLike)
   $wcond = New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Window)
@@ -88,8 +88,8 @@ function Get-UiaControlDump {
 }
 
 function Invoke-UiaElement {
-  # Works for menu items, buttons, split-button dropdown entries - anything
-  # exposing InvokePattern - regardless of whether keyboard/mouse reach it.
+  # Works for menu items, buttons, split-button dropdown entries (anything
+  # exposing InvokePattern), regardless of whether keyboard/mouse reach it.
   param([Parameter(Mandatory)][string]$Name, $ControlType = $null, $Scope = $null)
   $el = Find-UiaElementByName -Name $Name -ControlType $ControlType -Scope $Scope
   if ($null -eq $el) { Write-Host "UIA INVOKE: '$Name' NOT FOUND"; return $false }

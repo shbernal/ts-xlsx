@@ -1,5 +1,5 @@
 # Dot-source this file: . '...\xl-window-lib.ps1'
-# Shared foreground/screenshot/keytip primitives for driving desktop Excel's GUI.
+# Shared foreground/screenshot/keytip helpers for driving desktop Excel's GUI.
 # Ported from the verified PowerPoint equivalent (ppt-window-lib.ps1); the Win32
 # foreground-lock workaround, window-rect-scoped capture, and sequential-KeyTip
 # rule are app-agnostic. Only the process name (EXCEL) differs.
@@ -27,7 +27,7 @@ public class Win32Gui {
 }
 
 function Get-ExcelHwnd {
-  # $xl.Hwnd (late-bound COM property) is unreliable in this environment - read
+  # $xl.Hwnd (late-bound COM property) is unreliable in this environment. Read
   # the HWND from the process instead. Optionally pin to one PID when several
   # EXCEL.EXE instances are running (e.g. an open-verdict run that just spawned
   # its own), so this never foregrounds an instance you did not start.
@@ -62,7 +62,7 @@ function Set-ExcelForeground {
 }
 
 function Save-WindowScreenshot {
-  # Captures ONLY the given window's rect, not the whole virtual screen -
+  # Captures ONLY the given window's rect, not the whole virtual screen:
   # a full-desktop capture leaks whatever else is open (other apps, chat
   # panes, unrelated windows) into the image. Falls back to the virtual
   # screen only if the rect comes back degenerate.
@@ -85,7 +85,7 @@ function Save-WindowScreenshot {
 
 function Send-KeyTipSequence {
   # Ribbon KeyTips MUST be sent as SEPARATE sequential SendKeys calls with a
-  # settle gap - e.g. '%' then 'N' then 'V'. Sending them as one chord ("%N")
+  # settle gap, e.g. '%' then 'N' then 'V'. Sending them as one chord ("%N")
   # fires the OLD Alt+letter accelerator instead of walking the KeyTip overlay.
   # A too-short gap (~600ms) can also miss a submenu's KeyTips before they've
   # armed; 700-900ms was reliable for Office ribbons. Prefix with '{ESC}';'{ESC}'

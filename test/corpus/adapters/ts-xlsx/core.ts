@@ -682,13 +682,13 @@ export const core = {
     return {names, count: Object.keys(names).length, modelCount: wb.definedNames.length};
   },
 
-  // Read a real fixture `.xlsx` and report the fill and font colour the reader surfaces for each
+  // Read a real fixture `.xlsx` and report the fill and font colour the reader returns for each
   // requested `<sheet>!<address>` cell → { [key]: { fill, fontColor } | null }. Mirrors the oracle:
   // a solid-pattern fill's visible colour lives on fgColor while bgColor is the automatic indexed
   // placeholder, and the font colour is a wholly separate facet; the two are never conflated.
   // Read a real fixture `.xlsx` and report each requested cell's observable type, value, number
   // format, and note → { <addr>: {type, value, numFmt, note} | null }, on the first sheet. Mirrors
-  // the oracle: a date-formatted numeric serial surfaces as a Date (value { date: iso }), not a raw
+  // the oracle: a date-formatted numeric serial reads as a Date (value { date: iso }), not a raw
   // number, honouring the 1900 date-system leap-year quirk. `type` is a stable label.
   readFixtureCells(rel: string, cells: Untyped = []) {
     const wb = readFixture(rel);
@@ -1070,7 +1070,7 @@ export const core = {
   // can have, then read the result back -> one row per mutation
   // { mutation, threw, isXlsxError, errorName, keptSiblingCell, sheetsRead }. A `.xlsx` the library
   // did not write is allowed to be wrong: a malformed `r`/`ref`/`sqref` must cost the element that
-  // carried it, never the sheet, and must never surface as a native RangeError/SyntaxError from
+  // carried it, never the sheet, and must never escape as a native RangeError/SyntaxError from
   // outside the XlsxError taxonomy one `catch` clause is supposed to answer.
   malformedReferenceReport() {
     const wb = new Workbook();

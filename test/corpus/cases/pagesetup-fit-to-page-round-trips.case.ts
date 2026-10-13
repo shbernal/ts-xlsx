@@ -32,7 +32,7 @@ export default {
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 388},
   cluster: 'page-setup',
   description:
-    'A worksheet’s fit-to-page print scaling, the fitToPage flag together with the ' +
+    "A worksheet's fit-to-page print scaling, the fitToPage flag together with the " +
     'fitToWidth/fitToHeight page counts (and scale), survives a write→read round-trip so the ' +
     'reopened sheet prints with the requested fit behavior.',
 

@@ -24,7 +24,7 @@ export default {
   cluster: 'streaming',
   description:
     'A package assembled by the streaming writer is a valid zip archive: every declared part is ' +
-    'present and non-empty, every entry’s CRC matches its bytes, and the output re-reads to the ' +
+    "present and non-empty, every entry's CRC matches its bytes, and the output re-reads to the " +
     'same sheet names and cell values as a whole-file write: no repair step required.',
 
   behavior: [

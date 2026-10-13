@@ -16,7 +16,7 @@
 The project's machine-checkable safety net is deep: the corpus (well-formedness, package
 structure, regression), the Microsoft `OpenXmlValidator` oracle, vendored ECMA-376
 XSDs, the microsoft-learn MCP, and the `docs/knowledge/specs/` notes. But the knowledge
-of _which check to run when_ was spread across CLAUDE.md, `docs/architecture.md`, four
+of _which check to run when_ was spread across AGENTS.md, `docs/architecture.md`, four
 ADRs, two skill files, and two READMEs. An agent mid-task had to reconstruct that
 decision tree every time, and the highest-value tool, the schema oracle, had no skill
 wrapping it and the most operational friction (.NET requirement, emit-a-file-first,
@@ -25,15 +25,15 @@ Stop hook ran only typecheck plus test:src, so a turn could end "green" while re
 the corpus; and the microsoft-learn MCP was enabled only in the git-ignored
 `settings.local.json`, so a fresh clone or agent didn't get it.
 
-The gap was **dispatch and discoverability, not capability.** The fix is to surface the
-existing net, not to add new validators.
+The gap was **dispatch and discoverability, not capability.** The fix is to make the
+existing net easy to find, not to add new validators.
 
 ## Decision
 
 ### A dispatch table agents actually reach for
 
 `docs/agent-correctness-playbook.md` maps _what you are doing_ → _the check that proves
-it correct_ → _the exact command_, cheapest-to-most-authoritative. CLAUDE.md §3 points
+it correct_ → _the exact command_, cheapest-to-most-authoritative. AGENTS.md §3 points
 to it from the "Verify, don't assume" rule, and the closing See-also lists it beside
 `architecture.md` and the ADRs.
 
@@ -49,7 +49,7 @@ advertise themselves by description, so this is the primary streamlining win. It
 
 `.claude/settings.json` Stop hook now runs typecheck, test:src and **corpus** when `src/`
 is dirty (timeout 120 s raised to 180 s; measured ~23 s combined, 671 green, 0
-regressions). Corpus defaults to the `rewrite` adapter, so it genuinely exercises `src`.
+regressions). Corpus defaults to the `rewrite` adapter, so it exercises `src`.
 This closes the "finished green but regressed" gap. The .NET oracle is deliberately
 **not** added to the hook, because it needs .NET and is slower; CI's `ooxml-validation`
 workflow enforces it on every PR regardless.

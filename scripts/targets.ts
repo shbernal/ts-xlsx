@@ -51,7 +51,7 @@ export const NON_LIBRARY_GLOBS = [
   'src/type-tests/**',
 ] as const;
 
-// CLAUDE.md admits no warnings, and oxlint exits 0 on them. Nothing in .oxlintrc.jsonc is set to
+// AGENTS.md admits no warnings, and oxlint exits 0 on them. Nothing in .oxlintrc.jsonc is set to
 // "warn" today, so this changes no current outcome. It is here so that the first rule adopted at
 // warning severity, to stage a migration, is still a gate rather than a message.
 export const LINT_STRICT = '--deny-warnings';

@@ -9,7 +9,7 @@
 // Scope (v1): the `<ribbon>` subtree only, tabs → groups → controls, plus each control's callback
 // names (the `onAction` a click invokes is the whole reason a macro workbook ships a ribbon). A
 // customUI document's `<commands>`, `<backstage>`, `<contextMenus>`, and the ribbon's `qat`/
-// `contextualTabs` are NOT parsed; they still round-trip byte-for-byte, they are just not surfaced here.
+// `contextualTabs` are NOT parsed; they still round-trip byte-for-byte, they are just not modelled here.
 //
 // Security posture: the part is untrusted input. The underlying `xmlEvents` scanner never expands
 // entities or DTDs (see `xml-scan.ts`); on top of that this parser caps nesting depth and fails closed
@@ -48,7 +48,7 @@ export function isCustomUiRelType(type: string): boolean {
 
 /**
  * A control element inside a ribbon group. `kind` is the element's local name, narrowed to the closed
- * set of RibbonX control elements ({@link RibbonControlKind}); an element outside that set is surfaced
+ * set of RibbonX control elements ({@link RibbonControlKind}); an element outside that set is kept
  * as `unknown` rather than dropped. The three identity attributes (`id` a document-defined control,
  * `idQ` a qualified id, `idMso` a built-in control) and the two most-consulted display/behaviour
  * attributes (`label`, `onAction`) are lifted out as typed conveniences; every attribute the element

@@ -14,7 +14,7 @@
 //
 // Scope is `raw`, not `markdown`, so fenced code blocks are read too. The `markdown` scope
 // would be the more precise instrument, but it needs `micromark` and its ~25 transitive
-// packages to skip regions that today hold not one banned character, and CLAUDE.md section 2
+// packages to skip regions that today hold not one banned character, and AGENTS.md section 2
 // keeps the dependency tree small.
 //
 // `raw` is also the only shape the source rule below could take, and that one is not a
@@ -54,21 +54,28 @@ export default defineConfig({
       chars: EM_DASHES,
       message:
         'em dash in authored prose: recast the sentence (full stop, colon, or commas) rather than swapping the dash',
-      // Every include names a directory, so no root-level `.md` is in scope. That is a decision for
-      // the files it is usually about: an ephemeral plan and its follow-up list live at the root
-      // (`.git/info/exclude` names them), and they are scaffolding deleted when the work lands, so
-      // holding them to the prose bar of a page someone will read next year buys nothing, and a
-      // finding on a file git is already told to ignore reads as noise.
+      // No glob pattern reaches the root, and that is on purpose. An ephemeral plan and its
+      // follow-up list live at the root (`.git/info/exclude` names them). They are temporary files,
+      // deleted when the work lands, so holding them to the prose bar of a page someone will read
+      // next year buys nothing, and a finding on a file git already ignores reads as noise.
       //
-      // It is not yet a decision for `README.md`, `CLAUDE.md` and `CHANGELOG.md`, which the sweep
-      // that seeded this rule never reached and which hold 161 findings between them. Widening the
-      // glob before recasting that prose would only redden the gate. Do the sweep first, then add
-      // those three by name; do not reach for a bare `*.md`, which would pull the plans back in.
+      // The root documents a reader does meet are named one by one below. The first sweep never
+      // reached them, and they held 161 findings until a later one recast the prose. Add a new
+      // root page by name; do not reach for a bare `*.md`, which would pull the plans back in.
+      //
       // `www/*.md` is the site's own pages, prose a reader meets on the way in. The glob is
       // one level deep on purpose: `www/docs/` is the generated mirror of `docs/`, whose
       // source the same rule already checks, so scanning the copy would report every finding
       // twice and name the file nobody should edit.
-      include: ['docs/**/*.md', 'test/**/*.md', 'tools/**/*.md', 'www/*.md'],
+      include: [
+        'README.md',
+        'AGENTS.md',
+        'CHANGELOG.md',
+        'docs/**/*.md',
+        'test/**/*.md',
+        'tools/**/*.md',
+        'www/*.md',
+      ],
     },
     {
       id: 'no-em-dash-in-source',

@@ -56,7 +56,7 @@ check(
 );
 
 // One binding per subpath: enough to prove the specifier resolves to the right module, not a
-// re-listing of the export surface (`scripts/check-entries.ts` owns that).
+// re-listing of every export (`scripts/check-entries.ts` owns that).
 const SUBPATH_BINDINGS: Readonly<Record<string, string>> = {
   core: 'Workbook',
   xlsx: 'readXlsx',

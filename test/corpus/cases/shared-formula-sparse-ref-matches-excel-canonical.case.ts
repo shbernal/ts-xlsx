@@ -7,7 +7,7 @@
 // materialize the translated formula across the whole rectangle? LibreOffice does exactly that; the
 // fear was that Excel might too, or might reject the geometry with a repair prompt.
 //
-// It was seeded through the Excel-oracle harness (ADR 0013) on Excel 16.0 build 20131: sidecar
+// It was seeded through the Excel oracle (ADR 0013) on Excel 16.0 build 20131: sidecar
 // `test/corpus/fixtures/excel-oracle/shared-formula-sparse-ref.json`. The verdict: BENIGN. Excel
 // treats the `ref` as a *bounding-box hint*, not an assertion that every enclosed cell is a clone. It
 // opened the package without repair, did NOT materialize the empty interior cells, and re-saved a

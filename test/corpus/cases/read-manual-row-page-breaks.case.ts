@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a worksheet has manual horizontal page breaks (row breaks) so the print
 // layout splits at chosen rows. These are persisted in the worksheet XML as a rowBreaks section (a
-// set of <brk> elements). On read, the library should surface those manual row page breaks on the
+// set of <brk> elements). On read, the library should expose those manual row page breaks on the
 // loaded worksheet; today the reader ignores the rowBreaks section entirely, so a freshly loaded
 // worksheet reports none and a load→save round-trip silently drops the print-pagination the user
 // configured.
@@ -19,7 +19,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'xlsx-io',
   description:
-    'Manual horizontal page breaks (rowBreaks) declared in a worksheet are surfaced on load and ' +
+    'Manual horizontal page breaks (rowBreaks) declared in a worksheet are exposed on load and ' +
     'preserved through a load→save round-trip, rather than being ignored on read and dropped on write.',
 
   behavior: [

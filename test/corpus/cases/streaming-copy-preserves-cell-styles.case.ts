@@ -13,7 +13,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'streaming',
   description:
-    'Copying a cell’s value and style from the streaming reader onto the streaming writer (with ' +
+    "Copying a cell's value and style from the streaming reader onto the streaming writer (with " +
     'styles enabled) preserves the per-cell font, fill, and number format through the round-trip, ' +
     'and the emitted styles part loads cleanly.',
 

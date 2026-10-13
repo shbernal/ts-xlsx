@@ -140,7 +140,7 @@ const REVISION_NS_ATTRS = ` xmlns:mc="${MARKUP_COMPATIBILITY_NS}" mc:Ignorable="
  *
  * Authors are laid out the way Excel lays them out: one synthetic `tc={headId}` entry per threaded
  * conversation first, then a single anonymous author shared by every note (the model carries no note
- * author). Each comment points at its own author by index, and a fallback additionally carries the
+ * author). Each comment points at its own author by index, and a fallback also carries the
  * `xr:uid` naming its thread: the pair that keeps Excel treating the cell as threaded.
  */
 export function commentsXml(comments: readonly CommentCell[]): string {

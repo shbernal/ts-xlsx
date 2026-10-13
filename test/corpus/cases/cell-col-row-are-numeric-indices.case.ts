@@ -5,7 +5,7 @@
 // (comparing positions, computing offsets, indexing parallel arrays). The runtime has always returned
 // numbers, but the legacy published TypeScript declared the accessors as `string`, so strict code
 // treating them as numbers failed to type-check against a runtime that was already numeric. This
-// locks the runtime contract (numeric 1-based indices) the type surface must match; the declaration
+// locks the runtime contract (numeric 1-based indices) the public types must match; the declaration
 // honesty itself is tracked in `cell-full-address-descriptor-numeric-row-col`.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

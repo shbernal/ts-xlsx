@@ -19,7 +19,7 @@
 // idempotent: reloading a file re-registers the table after its cells are loaded, so the already-present
 // totals cells are authoritative and must survive a write→read→write cycle untouched.
 //
-// This was confirmed against Excel Desktop through the Excel-oracle harness (ADR 0013) on Excel 16.0
+// This was confirmed against Excel Desktop through the Excel oracle (ADR 0013) on Excel 16.0
 // build 20131: sidecar `test/corpus/fixtures/excel-oracle/table-totals-row-materialized.json`. Excel
 // opened the materialized totals row without repair and computed both uncached SUBTOTAL cells on open
 // (COUNTA→2, SUM→30), so the no-cached-`<v>` emission is safe and `fullCalcOnLoad` is not required. It

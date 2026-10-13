@@ -16,11 +16,11 @@ opaque?" as a deferred question: round-trip fidelity was solved, but no consumer
 
 This mirrors exactly the position VBA was in before ADR 0016. Preservation proved the bytes were there;
 a typed read view was a bounded, self-contained slice that did not need a downstream caller to justify
-existing, the same way `Workbook.vbaProject` did not. CLAUDE.md §3 ("bias to action… make the
+existing, the same way `Workbook.vbaProject` did not. AGENTS.md §3 ("bias to action… make the
 reasonable call") authorises building it now.
 
 The schema was pinned against the Microsoft-published references (MS-CUSTOMUI / MS-CUSTOMUI2 via the
-Microsoft Learn docs), **not** guessed. Doing so surfaced a latent wrong fact in the existing fixture
+Microsoft Learn docs), **not** guessed. Doing so exposed a latent wrong fact in the existing fixture
 (see Consequences).
 
 ## Decision
@@ -41,19 +41,19 @@ Microsoft Learn docs), **not** guessed. Doing so surfaced a latent wrong fact in
    namespace is the authoritative signal; the OPC relationship type is only used to _discover_ which
    root references are ribbon parts (`isCustomUiRelType`, matching the `/ui/extensibility` suffix that
    both real rel types share, `.../2006/relationships/ui/extensibility` for 2007 and, confusingly,
-   `.../2007/relationships/ui/extensibility` for 2010). This was a deliberate robustness call:
+   `.../2007/relationships/ui/extensibility` for 2010). This was deliberate:
    the relationship type is frequently mis-copied (see Consequences), the namespace is not.
 
 4. **Scope is the `<ribbon>` subtree only.** Tabs, groups and controls, plus each control's callback
    names (`onAction` is the whole reason a macro workbook ships a ribbon). A document's `<commands>`,
    `<backstage>`, `<contextMenus>`, and the ribbon's `qat` and `contextualTabs` are **not** parsed. They
-   still round-trip byte-for-byte, they are simply not surfaced. `CustomUiDocument.ribbon` is `undefined`
+   still round-trip byte-for-byte, they are just not exposed. `CustomUiDocument.ribbon` is `undefined`
    for a document that customises only those. The shape leaves room to add `backstage` and `qat` later
    without breaking callers.
 
 5. **The control model is a discriminated union keyed by element name, over a shared base.**
    `RibbonControl.kind` is the closed set of RibbonX control element local-names, with `'unknown'` as
-   the fallback so an unrecognised element is surfaced rather than dropped. The common attributes
+   the fallback so an unrecognised element is reported rather than dropped. The common attributes
    (`id` / `idQ` / `idMso` / `label` / `onAction`) are lifted onto the typed view; container controls
    carry `children`; and the **full raw attribute map is preserved on every control**, so nothing is
    lost. _Exhaustive per-control attribute typing is deliberately deferred._ Pinning the exact schema of
@@ -61,7 +61,7 @@ Microsoft Learn docs), **not** guessed. Doing so surfaced a latent wrong fact in
    covers the many `get*` dynamic callbacks and layout hints the typed fields don't. When a consumer
    needs a specific control's exotic attributes typed, that's an additive refinement.
 
-6. **The parser is treated as hostile-input-facing (CLAUDE.md §3).** It builds on the entity-safe
+6. **The parser is treated as hostile-input-facing (AGENTS.md §3).** It builds on the entity-safe
    `xmlEvents` scanner (no DTD or entity expansion), caps nesting depth so a deeply-nested part cannot
    overflow the recursive walk, and fails closed with `CustomUiParseError` on malformed XML, an
    unbalanced tree, a missing `<customUI>` root, or an unrecognised namespace, never a crash or a

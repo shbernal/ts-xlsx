@@ -56,7 +56,7 @@ export const ONE_PX_PNG = Uint8Array.from(
  * It used to carry a `notImplemented` flag that made the runner report the behavior as **skipped**,
  * built when the library was incomplete and a case could legitimately outrun it. It cannot happen for
  * that reason any more, so a skip now means only one thing: a case asked for a key nobody wired, and
- * the corpus quietly declined to test it. That is the silent cap CLAUDE.md §3 forbids, so this is an
+ * the corpus quietly declined to test it. That is the silent cap AGENTS.md §3 forbids, so this is an
  * ordinary loud failure and the message says what to extend.
  *
  * It stays a distinct class because one caller still needs to tell it apart: `tryWriteWorkbook`

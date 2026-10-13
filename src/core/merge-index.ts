@@ -5,7 +5,7 @@
 // run once per item. `mergeCells` overlap-checks each new region, and the reader calls it once per
 // `<mergeCell>` in the part, so a file's merges cost O(n^2) to load: 20,000 of them took 1.4 seconds
 // where 2,000 took 58 ms. Merged regions are cheap to write and capped only by the grid itself, so
-// the input that makes that hurt is a few megabytes of XML, and `CLAUDE.md` does not let a parser
+// the input that makes that hurt is a few megabytes of XML, and `AGENTS.md` does not let a parser
 // path carry work that grows like that. `getCell` pays the same scan on every call, resolving a
 // covered address to its region's master.
 //

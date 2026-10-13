@@ -15,7 +15,7 @@ export default {
   cluster: 'streaming',
   description:
     'The streaming worksheet writer can append a batch of rows in one call, materializing ' +
-    'each row’s values with correct sequential row numbers, identically to adding rows one ' +
+    "each row's values with correct sequential row numbers, identically to adding rows one " +
     'at a time.',
 
   behavior: [

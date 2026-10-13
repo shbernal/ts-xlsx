@@ -57,7 +57,7 @@ opposite.
    - **`Workbook.setVbaModuleSource(name, source)`** (model level) reads `vbaProjectBytes`, splices, and
      routes the result back through the `vbaProjectBytes` **setter**, inheriting fail-closed validation,
      preserved-ref rebuild, signature-drop, and macro content-type with zero writer changes. It throws if
-     no project is attached. The map-shaped primitive `editVbaModuleSources` is also barrel-exported for
+     no project is attached. The map-shaped function `editVbaModuleSources` is also barrel-exported for
      the batch/functional path.
    - **`editXlsxVbaModuleSource(xlsx, name, source)` / `editXlsxVbaModuleSources(xlsx, edits)`** (package
      level, `src/io/xlsx/edit-vba.ts`) unzip the package, locate `xl/vbaProject.bin` via the reader's
@@ -113,7 +113,7 @@ untouched code-page-1251 module stays byte-identical, and `_VBA_PROJECT` resets 
   _not_ in this slice (edit-existing-source only); executing macros remains permanently out of scope
   (ADR 0013).
 - **Flagged separately, now diagnosed and largely closed:** the general `writeXlsx` whole-package
-  repair-prompt on rich real workbooks (surfaced by the no-edit control probe) was a broader
+  repair-prompt on rich real workbooks (found by the no-edit control probe) was a broader
   writer-fidelity investigation, independent of this feature. Diagnosed since: a referential-integrity
   sweep of the re-emitted package found the _sole_ structural break to be a **dropped external-workbook
   link**, where the writer dropped `xl/externalLinks/*` and the workbook's `<externalReferences>` while

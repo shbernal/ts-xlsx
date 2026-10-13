@@ -72,13 +72,13 @@ road went the way it did, including the ones that were later retracted.
 
 ## Emitted files are validated, not assumed
 
-"It opens in Excel" is not a test. Generated packages are checked against Microsoft's own
-`OpenXmlValidator`, schema and semantics both, as an independent oracle rather than as this
+"It opens in Excel" is not a test. A separate gate checks generated packages against Microsoft's
+own `OpenXmlValidator`, schema and semantics both, as an independent oracle rather than as this
 library grading its own homework
 ([ADR-0002](/docs/decisions/0002-ooxml-validation-oracle)).
 
 The bytes are also a pure function of the model: an unchanged workbook written twice produces
-two identical archives, because entry timestamps are pinned rather than clocked
+two identical archives, because the writer pins entry timestamps instead of reading the clock
 ([ADR-0032](/docs/decisions/0032-package-output-is-reproducible)). A committed `.xlsx`
 therefore changes only when something about it changed.
 
@@ -120,9 +120,9 @@ than after adopting this one.
 
 ## Every parser path assumes the file is hostile
 
-Reading a spreadsheet means running someone else's bytes through your process. Inflation is
-bounded by counting the output actually produced, never by trusting the archive's declared
-sizes, so a zip bomb that lies about its size is refused all the same. XML entities are
+Reading a spreadsheet means running someone else's bytes through your process. The reader
+bounds inflation by counting the output it actually produces, never by trusting the archive's
+declared sizes, so a zip bomb that lies about its size is refused all the same. XML entities are
 decoded but never expanded. Neither defence is configurable, and neither can be switched off.
 
 <p class="xlsx-kicker">See for yourself</p>

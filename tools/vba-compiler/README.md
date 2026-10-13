@@ -1,12 +1,12 @@
 # tools/vba-compiler
 
-Turns VBA module **source** into a genuinely-compiled `vbaProject.bin` (or a whole `.xlsm`) by driving
+Turns VBA module **source** into a compiled `vbaProject.bin` (or a whole `.xlsm`) by driving
 a real, headless Excel through the VBIDE object model.
 
 ## Why this exists
 
 Excel does **not** recompile VBA from source on open. Every module ships its compiled p-code
-(PerformanceCache) inside `vbaProject.bin`, and Excel runs **that**. The source text is only recompiled
+(PerformanceCache) inside `vbaProject.bin`, and Excel runs **that**. Excel recompiles the source text only
 when a human opens the VBE and forces it. So a `vbaProject.bin` synthesized from source alone, or
 byte-spliced with absent/mismatched p-code, does one of two bad things when macros are enabled:
 
@@ -14,12 +14,12 @@ byte-spliced with absent/mismatched p-code, does one of two bad things when macr
 - **silently runs stale p-code** and ignores the new source entirely (mismatched p-code). That is the
   worst case, because the file "opens clean".
 
-(Recorded finding, 2026-07-24; see `docs/decisions/0019-*`.) The only way to get genuinely compiled,
+(Recorded finding, 2026-07-24; see `docs/decisions/0019-*`.) The only way to get compiled,
 source-matched p-code is to let a real Excel compile it. This offline tool does exactly that; the shipped
-`@shbernal/ts-xlsx` library stays **pure-TS with zero Office dependency** and simply attaches the
+`@shbernal/ts-xlsx` library stays **pure-TS with zero Office dependency** and attaches the
 emitted bytes via `Workbook.vbaProjectBytes`.
 
-## This is a PROBE / build tool, never CI
+## This is a probe and build tool, never CI
 
 Same contract as `tools/excel-oracle`: Windows + a licensed Excel Desktop, inherently slow, never wired
 into CI. Its output is a **recorded artifact that seeds a committed corpus fixture** (ADR 0012/0013

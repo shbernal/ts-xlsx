@@ -16,7 +16,7 @@ export default {
   cluster: 'merged-cells',
   description:
     'Merging a horizontal range with a value + alignment on the anchor emits the merge exactly once ' +
-    'with no populated covered cells, so the package opens without a repair prompt, and the anchor’s ' +
+    "with no populated covered cells, so the package opens without a repair prompt, and the anchor's " +
     'value and alignment survive a round-trip.',
 
   behavior: [

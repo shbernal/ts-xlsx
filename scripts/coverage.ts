@@ -51,8 +51,8 @@
 // script with that flag. That coupling is deliberate and bounded: it fails *loudly*, with the
 // require throwing `Cannot find module` and this script stopping on the message below, rather than
 // quietly producing numbers that no longer mean what they say. Given the failure being fixed is
-// precisely
-// "confident wrong numbers", a loud break on a node upgrade is the cheaper risk. See ADR 0035.
+// precisely "confident wrong numbers", a loud break on a node upgrade is the cheaper risk. See
+// ADR 0035.
 
 import {spawn} from 'node:child_process';
 import {mkdir, readFile, rm, writeFile} from 'node:fs/promises';
@@ -83,7 +83,7 @@ const INCLUDE = ['src/**/*.ts'];
 const EXCLUDE = NON_LIBRARY_GLOBS;
 
 /**
- * Floors, not targets (CLAUDE.md §2). Set just under the measured union so a real regression trips
+ * Floors, not targets (AGENTS.md §2). Set just under the measured union so a real regression trips
  * them and ordinary churn does not; raise them when the true number rises, never lower them to fit
  * a change. Totals only, deliberately: a per-file floor would have to be either so low it proves
  * nothing or so exact it fails on every honest refactor, and the per-file table below is already

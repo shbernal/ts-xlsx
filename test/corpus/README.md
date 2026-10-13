@@ -52,7 +52,7 @@ export default {
 } satisfies Case;
 ```
 
-`CorpusApi` is the adapter's capability surface, **derived** from the adapter object
+`CorpusApi` is the type of the adapter's capabilities, **derived** from the adapter object
 (`typeof impl`) rather than declared, so it cannot drift from what the adapter actually
 offers. Annotate `api` with it; both `expect` params need explicit annotations (`assert`'s
 assertion signatures require it). Values you pull _out_ of a capability are typed by its
@@ -74,7 +74,7 @@ in `canonical-json.ts` sorts keys at every depth so two structurally equal value
 equal after `JSON.stringify`. For a value the library itself types, `runtime.ts` exports
 `WorkbookInstance`, `WorksheetInstance` and `CellInstance`.
 
-The harness is type-checked, so a case must be green there too: a capability typo is a
+The corpus tree is type-checked, so a case must be green there too: a capability typo is a
 compile error naming the capability, not a silent skip. `pnpm run typecheck` covers both
 this tree and `src/`; `typecheck:test` is the narrower loop.
 

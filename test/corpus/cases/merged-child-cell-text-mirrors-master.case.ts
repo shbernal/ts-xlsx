@@ -13,7 +13,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'core-model',
   description:
-    'Reading the display text of a merged child (non-master) cell returns the master cell’s text ' +
+    "Reading the display text of a merged child (non-master) cell returns the master cell's text " +
     'and does not throw, so text reads are consistent across every cell of a merged range.',
 
   behavior: [

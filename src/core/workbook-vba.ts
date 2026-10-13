@@ -6,7 +6,7 @@
 // accessors that delegate here, exactly as `Worksheet` keeps the accessors in front of its
 // validation, conditional-formatting and grid-edit overlays.
 //
-// The doc comments for the public surface stay on `Workbook`'s accessors, which is what the API
+// The doc comments for the public API stay on `Workbook`'s accessors, which is what the API
 // reference is generated from and what a consumer reads. What is written here is what the
 // implementation needs said.
 

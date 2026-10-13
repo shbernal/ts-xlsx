@@ -33,8 +33,8 @@ export default {
   cluster: 'formulas',
   description:
     'A shared-formula clone (a cell that references a master by shared index rather than ' +
-    'carrying formula text) reads back a concrete formula that is the master’s formula ' +
-    'translated to the clone’s address, with its cached result preserved.',
+    "carrying formula text) reads back a concrete formula that is the master's formula " +
+    "translated to the clone's address, with its cached result preserved.",
 
   behavior: [
     {

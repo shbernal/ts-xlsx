@@ -9,7 +9,7 @@
 // flipped between TypeScript 6 and 7. `check-layering` and `check-browser-safe` matched single quotes
 // only, so the same flip in the *source* formatter would have made both gates see zero imports and
 // report a clean graph. A gate that silently stops checking is worse than no gate, and these two are
-// named in CLAUDE.md as part of what makes the machine-checkable net the primary guarantor of
+// named in AGENTS.md as part of what makes the machine-checkable net the primary guarantor of
 // correctness. Four answers to "what does this module import" is four definitions of the graph that
 // net is guaranteeing.
 //

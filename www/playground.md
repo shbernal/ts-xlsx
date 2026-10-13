@@ -35,9 +35,9 @@ thing it had to show you.
 ## Nothing you drop leaves this tab
 
 There is no upload here, and no server to upload to. The site is static files on GitHub
-Pages, and the modules this page runs contain no `fetch`, no form and no url. Your file is
-read with `FileReader`, handed to the library as a `Uint8Array`, and dropped when you pick
-something else.
+Pages, and the modules this page runs contain no `fetch`, no form and no url. The page reads
+your file with `FileReader`, hands it to the library as a `Uint8Array`, and drops it when you
+pick something else.
 
 That is a property of the code rather than a promise about it. If you would rather check
 than take it on trust, open your browser's network panel and drop a file: nothing is
@@ -62,12 +62,12 @@ real check, and it is the weaker of the two available.
 The stronger one is a file this library did not write. Drop one, and you are testing the
 reader against a producer with its own habits, which is where a spreadsheet library actually
 gets hard. Nothing on this page can tell you whether the workbook you get back opens cleanly
-in Excel, because your browser cannot ask Excel. That question is answered elsewhere: the
+in Excel, because your browser cannot ask Excel. Two other checks answer it: the
 regression corpus runs every case against real fixtures, and a separate gate validates
 generated packages against Microsoft's own schema and semantic validator. This page is the
 part of that you can watch happen.
 
-The sheet is painted with the value's own text and the cell's font, fill and alignment. The
-number format is shown when you hover a cell, and is deliberately not applied: this library
+The sheet is painted with the value's own text and the cell's font, fill and alignment. Hovering
+a cell shows its number format, which the page deliberately does not apply: this library
 models formats and does not implement a formatting engine, so rendering `$1,234.50` here
 would be showing you a cell it cannot actually produce.

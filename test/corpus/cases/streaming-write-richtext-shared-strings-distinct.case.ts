@@ -23,7 +23,7 @@ export default {
   description:
     'Streaming a workbook with shared strings enabled, two cells with distinct rich-text ' +
     'values read back as their own distinct rich text: they must not be deduplicated onto ' +
-    'the first cell’s value.',
+    "the first cell's value.",
 
   behavior: [
     {

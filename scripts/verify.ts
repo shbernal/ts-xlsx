@@ -4,7 +4,7 @@
 // The gates are independent processes with no shared state, so running them in
 // sequence only buys the illusion of tidiness: it costs the sum of their times
 // instead of the maximum. Assembling the chain by hand also lets gates go missing:
-// `docs:check` and `constitution:check` are the two that get forgotten, because they
+// `docs:check` and the invariants gate are the two that get forgotten, because they
 // are the two that rarely fail.
 //
 // Usage:
@@ -260,7 +260,6 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
         // own: each finishes in well under a second.
         name: 'invariants',
         steps: [
-          {command: NODE, args: ['scripts/check-constitution.ts']},
           {command: NODE, args: ['scripts/check-layering.ts']},
           {command: NODE, args: ['scripts/check-corpus-blind.ts']},
           {command: NODE, args: ['scripts/check-entries.ts']},

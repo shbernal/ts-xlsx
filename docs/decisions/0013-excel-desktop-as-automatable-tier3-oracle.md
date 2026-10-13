@@ -24,10 +24,10 @@ with a sharply drawn boundary."
 ## Decision
 
 **On a Windows+Excel host, Tier 3 is scriptable for state-observable behaviors and is
-run through a dedicated probe harness. But it is never a test, never runs in CI, and
+run through a dedicated probe tool. But it is never a test, never runs in CI, and
 never replaces the Tier-2 seam fact that locks a behavior.**
 
-### The harness
+### The probe tool
 
 `tools/excel-oracle/` is a standalone probe tool, outside the corpus run path:
 
@@ -97,7 +97,7 @@ harness lowers the _cost_ of a Tier-3 seed; it does not move Tier 3 into the CI 
 
 ### Seeding provenance convention
 
-A case seeded from a harness run carries
+A case seeded from a probe run carries
 `provenance: {source: 'excel-desktop-verification', ref: '<sidecar path>'}`, so the audit
 trail points from the CI-run seam fact back to the one-time Excel observation that justified
 it. The sidecar in turn carries `probeSpecRef` back to the probe that produced it.
@@ -106,7 +106,7 @@ it. The sidecar in turn carries `probeSpecRef` back to the probe that produced i
 
 The open hazard in ADR 0012, where `planSharedFormulas` emits `ref="B1:D5"` for a non-contiguous
 group (master `B1`, clones `B2` and `D5`), covering empty interior cells, was seeded through the
-harness (sidecar: `test/corpus/fixtures/excel-oracle/shared-formula-sparse-ref.json`, Excel
+probe tool (sidecar: `test/corpus/fixtures/excel-oracle/shared-formula-sparse-ref.json`, Excel
 16.0 build 20131). The verdict inverts the presumed fix direction:
 
 **Excel treats the shared-formula `ref` as a bounding-box hint, not an assertion that every

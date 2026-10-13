@@ -109,7 +109,7 @@ export const validation = {
   // Read a fixture and report each sheet's data-validation rules, de-duplicated by content with a
   // per-rule coverage count → { sheets: { name: { rules: [{rule, coverageCount}], ruleCount } } }.
   // Reads the worksheet overlay (not populated cells), so a rule over an empty range is still seen,
-  // and surfaces a reference source (a defined name, a cross-sheet range) as its verbatim formula
+  // and returns a reference source (a defined name, a cross-sheet range) as its verbatim formula
   // text rather than "[object Object]".
   readFixtureValidationRules(rel: string) {
     const wb = readFixture(rel);

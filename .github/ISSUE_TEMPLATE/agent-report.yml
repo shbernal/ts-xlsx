@@ -1,5 +1,5 @@
 name: Agent-assisted report
-description: A defect found while using ts-xlsx in another project — the form the library's own error messages link to.
+description: A defect found while using ts-xlsx in another project. The library's own error messages link to this form.
 title: '<area>: <one specific symptom>'
 labels: ['agent-reported']
 body:
@@ -12,7 +12,7 @@ body:
 
         **Do not attach a workbook containing real data.** Spreadsheets carry salaries,
         customer lists, and unreleased numbers, and this tracker is public. Reduce the
-        failure to a script that builds its own input — the "Minimal reproduction" field
+        failure to a script that builds its own input. The "Minimal reproduction" field
         below is the one that decides whether this gets fixed.
 
         The `ts-xlsx-upstream` skill walks through all of this:
@@ -84,7 +84,7 @@ body:
     attributes:
       label: What should have happened
       description: >-
-        And why you believe that — a clause of ECMA-376, what Excel itself does with the
+        And why you believe that: a clause of ECMA-376, what Excel itself does with the
         same input, or what the docs promise. "Why" is what makes this actionable rather
         than a matter of opinion.
     validations:
@@ -115,7 +115,7 @@ body:
     attributes:
       label: Is a file attached, and where did it come from?
       options:
-        - No file — the reproduction builds its own input
+        - No file; the reproduction builds its own input
         - Synthesized file, contains no real data
         - Redacted file, shared with the owner's explicit permission
       description: >-
@@ -133,7 +133,7 @@ body:
         - label: I searched open and closed issues for this error message and found no match.
           required: true
         - label: >-
-            This still reproduces on the latest published version — or "What happened" says why
+            This still reproduces on the latest published version, or "What happened" says why
             I could not upgrade to check.
           required: true
         - label: No confidential data appears in this report or its attachments.

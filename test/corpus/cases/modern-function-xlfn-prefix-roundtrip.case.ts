@@ -68,7 +68,7 @@ export default {
     },
     {
       // LET and the lambda family (LAMBDA/BYROW) are modern functions too, so they need the _xlfn.
-      // prefix; additionally LET's own parameter names are stored with a _xlpm. prefix. A real-world
+      // prefix, and LET's own parameter names are stored with a _xlpm. prefix. A real-world
       // formula combining them (LET + BYROW + LAMBDA + FILTER) that is written verbatim, with none of
       // these prefixes, is rejected by Excel as corrupt.
       name: 'a LET/LAMBDA formula is stored with the _xlfn. function prefix Excel requires',

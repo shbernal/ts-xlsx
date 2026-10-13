@@ -35,11 +35,11 @@ functions are exercised by the corpus (`test/corpus/adapters/ts-xlsx/styles.ts`)
 the report said nothing tested them. A zero that means _"the other suite covers this"_ is
 indistinguishable from a zero that means _"nothing tests this"_, so the table actively
 misdirects: an agent auditing the worst rows spends its time on modules that were never
-uncovered, while a genuinely untested function sits mid-table looking fine. That is
-precisely what happened to `iconSetXml`, a documented conditional-formatting rule type
+uncovered, while an untested function sits mid-table looking fine. That is exactly
+what happened to `iconSetXml`, a documented conditional-formatting rule type
 that no test anywhere named, which the report showed as part of a 96.97 %-covered file.
 
-This matters more here than in a human-paced repo. CLAUDE.md §6 optimizes for agents
+This matters more here than in a human-paced repo. AGENTS.md §1.6 optimizes for agents
 working with low supervision, and §2 makes the machine-checkable net the primary
 guarantor of correctness. A signal that is _confidently wrong_ costs more than no signal,
 because it is acted on.

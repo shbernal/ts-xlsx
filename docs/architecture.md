@@ -1,6 +1,6 @@
 # Architecture
 
-How `ts-xlsx` is built and why. `CLAUDE.md` is the constitution (the principles every
+How `ts-xlsx` is built and why. `AGENTS.md` is the constitution (the principles every
 change answers to); this document describes the library as it stands and the working
 agreements that keep it coherent. Point-in-time decisions live under
 [`docs/decisions/`](decisions/) as ADRs.
@@ -32,8 +32,8 @@ _behavior_ and not the code, so it validated the new implementation the same way
 indicted the old one.
 
 The rule that follows: when in doubt, add a case. A bug without a corpus case is a bug
-that will return. A missing feature is best reported as a corpus case so it is fixed once
-and never regresses.
+that will return. Report a missing feature as a corpus case, so it gets fixed once and
+never regresses.
 
 ## Test topology
 
@@ -468,7 +468,7 @@ taken deliberately once the list-driven form was costed. The facet lists elsewhe
 generating accessors is a different thing, and its price is paid twice. `gen-docs.ts` reads class
 members, so each property would still need a declared member carrying its doc comment, leaving only
 the four-line body to save. And the members would have to be installed at runtime rather than
-declared, which trades a surface the compiler checks for one it merely believes. That is the
+declared, which trades members the compiler checks for members it merely believes exist. That is the
 `AssertNever` proof above spending its own guarantee. A slice that is not one costs more than the
 lines it removes, and so does an abstraction.
 
@@ -506,7 +506,7 @@ it, which is the slice-that-is-not-one test failing again.
 
 If that is ever taken up, the honest shape is not a base class but a free function both `shift`
 methods call, `shiftSqrefEntries(entries, refOf, withRef, axis, start, count, delta)`. That is the
-part which is genuinely one rule, and it is the part where a drift would silently re-aim a
+part that is one rule, and it is the part where a drift would silently re-aim a
 validation or a highlight at cells nobody chose.
 
 **Costed and declined once, on the grounds that the rule was better placed elsewhere.** The rule at
@@ -559,7 +559,7 @@ typed rejection), `read-opc.ts` (resolving relationships and walking a part clos
 
 A `PageSetup`, a `Color`, a `ConditionalFormattingRule` and a dozen shapes like them are plain data
 the model stores verbatim, with no accessor to validate through. That is deliberate: making them
-classes to catch a mistake would change the public surface of every one to guard a moment that has
+classes to catch a mistake would change the public API of every one to guard a moment that has
 not happened yet, and a `Color` that never reaches a file never had a problem. So the check belongs
 at the single point where the value becomes bytes, and `src/xml/xml.ts` states all three forms of it:
 
@@ -631,7 +631,7 @@ and a missing one would shift every column after it. A `sqref` is dropped _per a
 areas are independent and one unreadable area says nothing about its neighbours. Where the
 authoring path shares the code, the guard stays on the authoring side and the reader filters before
 reaching it, so `addDataValidation` still refuses a range naming no cells while a file carrying one
-simply loses that validation.
+loses that validation.
 
 ## How a failure is reported
 
@@ -772,7 +772,7 @@ exactly one entry, so the root barrel is a union of `export *` lines rather than
 to keep in step.
 
 `/node` is the one the root barrel leaves out, and the reason is its imports rather than its
-size. It carries the streaming writer, the only public surface reaching a Node built-in
+size. It carries the streaming writer, the only public export reaching a Node built-in
 (`node:fs`, `node:stream`); unioning it would put those on every browser consumer's graph for a
 symbol they never named. `scripts/check-browser-safe.ts` walks the graph from the other seven
 entries and fails on any `node:` specifier or Node-only global, and a `browser` condition in
@@ -911,7 +911,7 @@ The subsystem is built as encode/decode pairs over two formats plus a project la
   `errors.ts` holds the two failure types. There is deliberately no from-source synthesizer;
   see below.
 
-**The reader is hostile-input-facing (CLAUDE.md §3).** Every CFB sector index, chain, and
+**The reader is hostile-input-facing (AGENTS.md §3).** Every CFB sector index, chain, and
 stream size is bounds-checked and cycle-guarded; the header's layout fields (both shifts, the
 mini-stream cutoff) are checked against the values [MS-CFB] fixes rather than believed, because a
 crafted cutoff routes every stream through the other allocator and both are bounds-checked enough
@@ -943,14 +943,14 @@ The public API layers by fidelity and intent, each slice fail-closed:
   `_VBA_PROJECT` byte-for-byte. They are safe _precisely because_ they never touch a module's
   compiled p-code: the `dir` stream, authoritative for the module/reference list, carries the
   change (ADR 0018/0019).
-- **Author or edit module source, offline and not in the shipped library.** This is done by
-  `tools/vba-compiler`, which drives a real headless Excel through the VBIDE object model to emit
-  genuinely compiled, source-matched p-code (a `vbaProject.bin`, or a whole edited `.xlsm` for
+- **Author or edit module source, offline and not in the shipped library.** `tools/vba-compiler`
+  does this: it drives a real headless Excel through the VBIDE object model to emit
+  compiled, source-matched p-code (a `vbaProject.bin`, or a whole edited `.xlsm` for
   document code-behind). It is a Windows+Excel build tool, never in CI, whose output seeds
   committed fixtures (ADR 0019).
 
 **Why source authoring cannot be pure TS.** Excel does not recompile VBA from source on open. A
-module runs the compiled p-code (PerformanceCache) it ships, and the source is only recompiled
+module runs the compiled p-code (PerformanceCache) it ships, and Excel recompiles the source only
 when a human opens the VBE. A `vbaProject.bin` synthesized from source alone, with no p-code or
 mismatched p-code, either throws "Invalid data format" or _silently runs stale code_, so "opens
 clean" is not proof of correctness. Only a real Excel can produce runnable p-code, hence the

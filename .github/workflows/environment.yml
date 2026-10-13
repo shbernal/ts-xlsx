@@ -8,18 +8,18 @@ name: Environment
 # and silently editable by anyone with admin. This file is the declaration of what they must
 # be; this job fails when the live environment disagrees with it.
 #
-# It used to *provision* them, which needed `ENV_ADMIN_TOKEN` — a PAT with Administration
+# It used to *provision* them, which needed `ENV_ADMIN_TOKEN`, a PAT with Administration
 # rights, because `administration` is not among the permissions a workflow may request for
 # GITHUB_TOKEN and the environments API is an administration endpoint. That secret was never
 # created after the reviewer removal of 2026-08-05 was applied by hand, so the file spent its
 # life unable to run: a control that cannot execute is documentation wearing a workflow's
 # clothes. *Reading* an environment, unlike writing one, needs no more than read access to the
-# repository — so the check runs on the built-in token and no long-lived credential exists in
+# repository, so the check runs on the built-in token and no long-lived credential exists in
 # this repository at all, which is the property publish.yml already had. See ADR-0026.
 #
 # The trade is that drift is now detected rather than corrected: a failure here prints what
 # differs and you set it by hand under Settings → Environments. Detection is the half that
-# was load-bearing — the failure mode this guards against is a settings edit nobody sees.
+# was load-bearing: the failure mode this guards against is a settings edit nobody sees.
 
 on:
   workflow_dispatch:
@@ -79,12 +79,12 @@ jobs:
             echo "${environment}"
             echo "If it is missing, create it under Settings -> Environments. publish.yml names"
             echo "it and npm's trusted publisher pins the name, so a publish cannot run without"
-            echo "it — and an absent environment fails open, admitting any ref."
+            echo "it, and an absent environment fails open, admitting any ref."
             exit 1
           fi
           # The policies endpoint exists only while custom policies are switched on: with them
           # off it answers 404, not an empty list. Asking anyway turns the drift that matters
-          # most — the tag rule removed — into a bare "gh: Not Found" with nothing to read, so
+          # most (the tag rule removed) into a bare "gh: Not Found" with nothing to read, so
           # the switch is consulted first and "off" is spelled as the empty list it means.
           if [ "$(jq -r '.deployment_branch_policy.custom_branch_policies // false' <<<"${environment}")" = true ]; then
             policies=$(gh api "/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}/deployment-branch-policies")
@@ -94,7 +94,7 @@ jobs:
 
           # Every field is read through a list-and-default rather than a bare stream: a rule
           # that is absent must be reported as absent, not silently drop the line that would
-          # have carried it. That is the same reason `deployment_branch_policy` is defaulted —
+          # have carried it. That is the same reason `deployment_branch_policy` is defaulted:
           # GitHub reports "no policy at all" as null, and null admits everything.
           configured=$(jq -n --argjson env "${environment}" --argjson policies "${policies}" '{
             wait_timer_minutes: ([$env.protection_rules[] | select(.type == "wait_timer") | .wait_timer] | first // 0),
@@ -112,6 +112,6 @@ jobs:
             echo "::error::environment ${ENV_NAME} has drifted from .github/workflows/environment.yml"
             echo "Above, '-' is what this file declares and '+' is how the repository is set."
             echo "Reconcile under Settings -> Environments -> ${ENV_NAME}, or edit this file if"
-            echo "the new configuration is the intended one — but say why in ADR-0026."
+            echo "the new configuration is the intended one, but say why in ADR-0026."
             exit 1
           fi

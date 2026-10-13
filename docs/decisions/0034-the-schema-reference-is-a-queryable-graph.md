@@ -17,8 +17,8 @@ its **Rejected** list:
 > by vendoring.
 
 One exists now. `ooxml-ai-tooling` ingests the ECMA-376 XSDs into a SQLite graph and serves
-it through two surfaces, an MCP server and an agent skill, both fully local, both with no
-account and no network. The premise that forced the choice is gone.
+it two ways, as an MCP server and as an agent skill. Both run locally and need no account and
+no network. The premise that forced the choice is gone.
 
 Which matters, because vendoring the raw XSDs has a cost ADR 0007 counted as a benefit.
 "Greppable" is the word it used. In practice greppable is the failure mode: `rg tblPr
@@ -69,7 +69,7 @@ Repo-only, like the XSDs before it: the `package.json` `files` allowlist (`dist`
   the agent has to have loaded (`.mcp.json` plus `enabledMcpjsonServers`, with a silent
   degradation to "no answer" when it is not) whereas a vendored skill is present for
   anyone who clones the repo, which is exactly the property ADR 0007 was protecting. Two
-  consumers on two surfaces also means both surfaces get real use.
+  consumers on the two forms also means both forms get real use.
 - **Install from ClawHub without committing** (`clawhub install @shbernal/ooxml-lookup`,
   gitignored). Zero repo weight and a one-line version bump, but it makes the capability a
   per-contributor setup step and reintroduces the dependency on a service being reachable,

@@ -8,8 +8,8 @@
 // that understood only the outer range historically threw on these children, "Unexpected xml node
 // in parseOpen: filter" / "parseClose: customFilters", making the entire workbook unreadable.
 //
-// The filter criteria are metadata about which rows are hidden; a robust reader must at minimum
-// tolerate them and still surface every cell, through both the buffered and the streaming path.
+// The filter criteria are metadata about which rows are hidden; a reader must at minimum
+// tolerate them and still return every cell, through both the buffered and the streaming path.
 // The fixture is a minimal foreign-shaped package carrying both a value filter and a custom
 // comparison filter, exactly the shapes a real save produces.
 

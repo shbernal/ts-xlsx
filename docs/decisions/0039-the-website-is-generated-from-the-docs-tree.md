@@ -8,7 +8,7 @@
 page, 44 API pages generated from the public types (ADR-0006), 39 records under `decisions/`,
 and 160 behaviour notes under `knowledge/specs/` (ADR-0007). It is written for someone
 standing in a checkout. It carries no frontmatter, it links to its neighbours by relative
-path, and it links out to files a website would not publish, such as `CLAUDE.md` and
+path, and it links out to files a website would not publish, such as `AGENTS.md` and
 `test/corpus/`.
 
 A published site needs a different shape from all three of those: a title and description
@@ -111,7 +111,7 @@ so a `{{ ... }}` inside it stays literal, which the note on template placeholder
 **The site gets no size budget.** Declined, not deferred.
 
 `scripts/size-budget.ts` guards what a consumer installs, where a byte is paid for by every
-dependant and a ratchet is the only thing that stops slow growth. The site is downloaded by a
+dependant and a hard limit is the only thing that stops slow growth. The site is downloaded by a
 reader who chose to open it, over a link, once. A budget there would gate a build on a number
 nobody is harmed by, and the first time it failed it would be edited rather than obeyed,
 which is worse than not having it: a gate people learn to raise teaches that every gate is

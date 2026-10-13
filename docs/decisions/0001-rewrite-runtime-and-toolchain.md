@@ -19,7 +19,7 @@ changed the cheapest correct path for the _first_ modules:
 Standing up Vitest plus Biome plus a bundler now is real dependency and config weight for
 no correctness gain on a single pure module, and it is the highest-drift work in the
 plan (`PROGRESS.md` guardrail). Deferring it keeps the first slices lean and
-dependency-clean (`CLAUDE.md` §2).
+dependency-clean (`AGENTS.md` §2).
 
 ## Decision
 
@@ -89,7 +89,7 @@ Decisions that rode along:
 
 The stripping-against-transpilation question was revisited. No `.ts`-execution-free
 runtime materialized, so type-stripping stays the dev/test inner loop, per §0's
-framing. But it surfaced the one real gap: `test:src` and the corpus's default
+framing. But it exposed the one real gap: `test:src` and the corpus's default
 adapter only ever exercise **stripped `src/`**, while consumers run the
 **`tsc`-emitted `dist/`**. `smoke:dist` guarded a single round-trip against that
 divergence; the full 671-behavior corpus did not.

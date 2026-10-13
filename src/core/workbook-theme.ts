@@ -17,7 +17,7 @@
 // narrow accessor over them. Moving it in would drag that whole table along and turn a theme overlay
 // into a colour-and-styles overlay, which is not a slice.
 //
-// The doc comments for the public surface stay on `Workbook`'s accessors, which is what the API
+// The doc comments for the public API stay on `Workbook`'s accessors, which is what the API
 // reference is generated from and what a consumer reads.
 
 import {resolveColor} from './color-resolution.ts';

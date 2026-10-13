@@ -101,8 +101,8 @@ console.log(table?.columnCount); // 2
 ```
 
 `ref` is the table's top-left corner, and `rowCount` is its data rows: the range is derived
-rather than stated twice. A style name is not validated, deliberately, because a reader has
-to accept a name from a newer Excel than the gallery this library was built against, and a
+rather than stated twice. The library does not validate a style name, on purpose. A reader has to
+accept a name from a newer Excel than the gallery this library was built against, and a
 writer that threw would make such a file impossible to round-trip.
 
 ## Autofilter and data validation

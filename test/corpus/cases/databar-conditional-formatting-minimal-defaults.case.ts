@@ -17,7 +17,7 @@ export default {
   description:
     'A dataBar conditional-formatting rule with only type + priority (no cfvo, no color) writes ' +
     'without throwing and gains default min/max cfvo anchors and a default bar color, the same as ' +
-    'Excel’s default data bar, rather than crashing on the absent cfvo collection.',
+    "Excel's default data bar, rather than crashing on the absent cfvo collection.",
 
   behavior: [
     {

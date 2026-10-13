@@ -111,7 +111,7 @@ interface Ribbon {
 <sub>interface</sub>
 
 A control element inside a ribbon group. `kind` is the element's local name, narrowed to the closed
-set of RibbonX control elements ([`RibbonControlKind`](./customui-ribbon.md#ribboncontrolkind)); an element outside that set is surfaced
+set of RibbonX control elements ([`RibbonControlKind`](./customui-ribbon.md#ribboncontrolkind)); an element outside that set is kept
 as `unknown` rather than dropped. The three identity attributes (`id` a document-defined control,
 `idQ` a qualified id, `idMso` a built-in control) and the two most-consulted display/behaviour
 attributes (`label`, `onAction`) are lifted out as typed conveniences; every attribute the element

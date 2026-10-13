@@ -9,7 +9,7 @@
 //
 // Unlike the reader, this is not a hostile-input path: we are the producer. It still validates its
 // contract (name length, sibling-name uniqueness, size bound) and fails closed with VbaAuthorError,
-// because a silently malformed container would surface far downstream as an unopenable workbook.
+// because a silently malformed container would show up far downstream as an unopenable workbook.
 //
 // `writeCompoundFile` is the longest function in the tree and stays one: it is a single algorithm over
 // shared mutable state, sectioned by the banner comments below (directory build, sector layout,

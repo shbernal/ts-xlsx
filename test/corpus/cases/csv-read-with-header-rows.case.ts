@@ -14,7 +14,7 @@ export default {
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 1695},
   cluster: 'csv',
   description:
-    'Reading a CSV with the parser’s header mode enabled must not throw: header-keyed row ' +
+    "Reading a CSV with the parser's header mode enabled must not throw: header-keyed row " +
     'objects must be handled rather than assumed to be arrays. Reading without header mode ' +
     'splits every line into array fields and is the working control.',
 

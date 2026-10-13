@@ -1,8 +1,8 @@
 /**
  * One box per lane, reporting what it produced and how long it took.
  *
- * A failed lane is content, not an absence. The library's errors are a documented public
- * surface, so the box shows the message verbatim; a demo that folded them into "something
+ * A failed lane is content, not an absence. The library's errors are a documented part of the
+ * public API, so the box shows the message verbatim; a demo that folded them into "something
  * went wrong" would be throwing away the best thing it had to show. The lanes after a
  * failure say they did not run, rather than sitting empty and looking broken too.
  */

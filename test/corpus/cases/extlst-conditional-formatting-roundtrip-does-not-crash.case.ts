@@ -20,7 +20,7 @@ export default {
   cluster: 'styles',
   description:
     'A workbook whose conditional formatting lives only in the x14 extension list loads and writes ' +
-    'back without the writer crashing on the extension rule’s formula.',
+    "back without the writer crashing on the extension rule's formula.",
 
   behavior: [
     {

@@ -48,7 +48,7 @@ records) onto the public model so the "drops nothing" claim became true.
 4. **A faithful whole-sheet/package copy primitive is deferred pending a consumer.**
    Transferring attached parts (a chart, a pivot, an image) between sheets would be a
    _new_ public API, not a change to `model`. Nothing in the codebase needs it yet, and
-   building it now would be speculative abstraction (CLAUDE.md §4). It waits for a real
+   building it now would be speculative abstraction (AGENTS.md §4). It waits for a real
    use-case to force its shape.
 
 ## Consequences
@@ -62,14 +62,14 @@ records) onto the public model so the "drops nothing" claim became true.
   means, and no such API yet exists.
 - **Revisit when:** a concrete consumer needs to copy a sheet's attached parts (chart,
   pivot, image) to another sheet or workbook. At that point design the dedicated copy
-  primitive around that use-case rather than retrofitting byte closures onto
+  API around that use-case rather than retrofitting byte closures onto
   `WorksheetModel`.
 
 ---
 
 ## Amendment (2026-08-25): the frozen-pane view joins the model; threaded comments do not
 
-Analysing the deferred copy primitive (§4) turned up a second field in exactly the position
+Analysing the deferred copy API (§4) turned up a second field in exactly the position
 `autoFilter` had been in. `Worksheet.view`, the frozen/split pane, was absent from
 `WorksheetModel` for no stated reason, so `dst.model = src.model` reproduced every other
 sheet-level field and silently unfroze the header row. That is the same silent-loss shape this

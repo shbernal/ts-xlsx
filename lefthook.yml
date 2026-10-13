@@ -1,8 +1,8 @@
 # Git hooks, managed by lefthook. Installed automatically on `pnpm install` by
-# the `prepare` script — except where `core.hooksPath` points outside this repo,
+# the `prepare` script, except where `core.hooksPath` points outside this repo,
 # which `scripts/install-hooks.ts` reports and steps around rather than failing
-# the install. These mirror the CI gates so a failure surfaces locally instead of
-# on the runner — the same "green checks are the moat" contract from CLAUDE.md,
+# the install. These mirror the CI gates so a failure shows up locally instead of
+# on the runner: the same "we trust green checks" contract from AGENTS.md,
 # enforced one step earlier.
 #
 # Bypass a hook when you genuinely must: `git commit --no-verify` /
@@ -12,7 +12,7 @@
 # `node_modules/.bin` shim. A hook pays that wrapper on every single invocation,
 # and it is not small: `pnpm exec` re-verifies the whole dependency tree before
 # the tool sees an argument. Measured on this machine with a `--version` call,
-# which does no work at all — ~0.94 s through `pnpm exec`, ~0.51 s through the
+# which does no work at all: ~0.94 s through `pnpm exec`, ~0.51 s through the
 # `.bin` shim, ~0.21 s direct. That is overhead, not lint, and it now dwarfs the
 # work: oxlint takes a fraction of a second over the whole tree.
 
@@ -22,13 +22,13 @@
 # `install` (not on `dump`), caches it under `.git/info/lefthook-remotes/`, and
 # merges its jobs into the same hook. `prepare` already runs install.
 #
-# `ref:` is a tag, never a branch — a branch would let any push to the rules
+# `ref:` is a tag, never a branch. A branch would let any push to the rules
 # repo change what this repo runs. `refetch_frequency` is what lets a fix reach
 # here at all: without it the cached copy is permanent.
 #
 # A sync failure is not fatal. Lefthook prints "Couldn't sync … Will continue
-# anyway" and still exits 0, so an offline install does not take `prepare` down
-# — but it also leaves the rules unenforced until the next successful fetch.
+# anyway" and still exits 0, so an offline install does not take `prepare` down,
+# but it also leaves the rules unenforced until the next successful fetch.
 # Verify after a fresh clone: `git commit` should show the remote jobs run.
 #
 # `no-shell-quoting-leak` is not theoretical here. Two commits in this history
@@ -47,14 +47,14 @@ remotes:
 # Fast, staged-scoped: format + lint only what you're committing, and re-stage
 # any autofixes so the commit is always clean.
 #
-# Each tool is invoked at the `bin` entry from its own package.json — the file the
-# `.bin` shim is generated from and would have run, so this is the published
-# contract rather than a reach into the package. `scripts/install-hooks.ts`
+# Each job invokes its tool at the `bin` entry from the tool's own package.json. That
+# is the file the `.bin` shim is generated from and would have run, so this is the
+# published contract rather than a reach into the package. `scripts/install-hooks.ts`
 # resolves lefthook the same way, for the same reason.
 #
 # `parallel: true` and both tools writing means two jobs could touch one staged
-# file at once. They cannot conflict in practice — oxfmt only moves whitespace and
-# oxlint's fixes are all within a statement — but if a third writer ever joins,
+# file at once. They cannot conflict in practice (oxfmt only moves whitespace and
+# oxlint's fixes are all within a statement), but if a third writer ever joins,
 # serialize them rather than hoping.
 pre-commit:
   parallel: true
@@ -67,7 +67,7 @@ pre-commit:
     # No `json`/`jsonc` on this glob, unlike oxfmt's above: oxlint reads no JSON.
     #
     # No `--type-aware` here either, and .oxlintrc.jsonc leaves `options.typeAware` unset so
-    # that this stays true — set there it would apply to every invocation, and oxlint has no
+    # that this stays true. Set there, it would apply to every invocation, and oxlint has no
     # flag to switch it back off. The reason is not mainly the cost (0.27 s to 0.64 s on a
     # three-file commit): a type-aware finding depends on files outside the staged set, so a
     # staged-scoped run reports differently from CI for reasons that have nothing to do with
@@ -81,7 +81,7 @@ pre-commit:
 
     # No `glob:`, deliberately. `--staged` reads the index itself and filters it through the
     # rules' own include globs, so a glob here would be a second, drifting copy of the
-    # targeting that already lives in charcheck.config.ts -- and the copy that goes stale
+    # targeting that already lives in charcheck.config.ts, and the copy that goes stale
     # silently, since a rule aimed at a tree the hook never triggers on reports nothing and
     # a scan that reads nothing looks exactly like a scan that passed. The cost of running
     # unconditionally is process startup on commits that touch no prose.
@@ -94,7 +94,7 @@ pre-commit:
 #
 # One job, because scripts/verify.ts already defines the gate set and schedules it.
 # Re-listing the gates here would be a second definition of "everything" to keep in
-# sync — and the one that silently drifts, since a hook is the copy nobody reads.
+# sync, and the one that silently drifts, since a hook is the copy nobody reads.
 # CI runs the same single command, for the same reason.
 pre-push:
   jobs:

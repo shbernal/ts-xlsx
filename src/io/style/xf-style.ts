@@ -47,7 +47,7 @@ export interface StyleTable {
   readonly namedStyles: ReadonlyArray<NamedCellStyle>;
   /**
    * Font id 0: the workbook's declared default font, the face every cell naming no font renders in.
-   * Surfaced separately from the fonts it was flattened onto because it is workbook-level state, not a
+   * Kept separately from the fonts it was flattened onto because it is workbook-level state, not a
    * cell format: a re-write must emit *this* face as font 0 rather than an assumed Calibri, or every
    * empty cell changes face and every character-unit column width changes meaning. Absent when the
    * file declares no font table.

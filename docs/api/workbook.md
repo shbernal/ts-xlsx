@@ -54,7 +54,7 @@ const DEFAULT_WORKBOOK_VIEW: { readonly x: -110; readonly y: -110; readonly widt
 
 <sub>interface</sub>
 
-A named reference in the workbook, one of the entries Excel surfaces in its Name Manager. A name
+A named reference in the workbook, one of the entries Excel lists in its Name Manager. A name
 maps an identifier to a formula (`refersTo`), most often a cell range like `Sheet1!$A$1:$B$2` but
 possibly any formula. A name is global to the workbook unless it names a sheet in `scope`,
 which restricts it to that sheet and lets another sheet reuse the same name independently.
@@ -105,17 +105,21 @@ interface PreservedTheme {
 
 <sub>interface</sub>
 
-A workbook-level reference to package content the model does not model: a pivot cache
-(`pivotCacheDefinition`) or a slicer cache (`slicerCache`), preserved verbatim across a round-trip
-instead of being dropped. `relType` is the workbook relationship Type URI to re-emit; `entryPath`
-is the part it points at; `parts` is the transitive closure that reference reaches (the entry
-included). `pivotCacheId` carries the `<pivotCache cacheId>` a pivot cache is registered under in
-the workbook's `<pivotCaches>`, so the wiring a pivot table resolves its cache through is re-emitted
-too; it is absent for a slicer cache, which the workbook lists in an extension block instead.
+A workbook-level reference to package content the model does not interpret: a pivot cache
+(`pivotCacheDefinition`), a slicer cache (`slicerCache`) or an external link. The reader keeps it
+verbatim so a round-trip re-emits it instead of dropping it.
+
+`relType` is the workbook relationship Type URI to re-emit, `entryPath` is the part it points at,
+and `parts` is the transitive closure that reference reaches, the entry included.
+
+`pivotCacheId` is the `<pivotCache cacheId>` a pivot cache is registered under in the workbook's
+`<pivotCaches>`. A pivot table finds its cache through that id, so the writer re-emits it too. A
+slicer cache has none, because the workbook lists slicer caches in an extension block instead.
+
 `externalReferenceIndex` is the 0-based position of an `externalLink` within the workbook's
-`<externalReferences>`, the `[n]` a formula or defined name resolves an external cell through, so
-the block is re-emitted in the original order and every `[n]` still points at the same linked
-workbook; it is absent for a pivot/slicer cache.
+`<externalReferences>`: the `[n]` through which a formula or defined name reaches an external
+cell. The writer re-emits the block in its original order, so every `[n]` still points at the same
+linked workbook. A pivot or slicer cache has none.
 
 ```ts
 interface PreservedWorkbookReference {
@@ -541,8 +545,8 @@ cell that names no font of its own renders in. `undefined` for a workbook author
 read from a package carrying no styles part: nothing was declared, and the library does not
 fabricate a declaration on the file's behalf.
 
-This is the *round-trip* surface. [`defaultFont`](./workbook.md#workbookdefaultfont) is what the workbook actually renders in,
-which is this once anything has been authored over it.
+This is the value a round-trip preserves. [`defaultFont`](./workbook.md#workbookdefaultfont) is what the workbook actually
+renders in, which is this once anything has been authored over it.
 
 #### `Workbook.setDefaultFont`
 
@@ -728,14 +732,14 @@ importImages(sheet: Worksheet, images: WorksheetImages): void;
 
 Show `images` on `sheet`, a worksheet of this workbook, registering each picture's bytes here
 and re-anchoring it against the id they land on. The counterpart to [`exportImages`](./workbook.md#workbookexportimages), and
-the affordance that lets a picture cross workbooks at all: an [`AnchoredImage`](./images.md#anchoredimage)'s `imageId`
-indexes one workbook's registry and means nothing in the next, so a raw anchor moved between
-workbooks points at media that does not exist there.
+the only way a picture can cross workbooks: an [`AnchoredImage`](./images.md#anchoredimage)'s `imageId` indexes one
+workbook's registry and means nothing in the next, so a raw anchor moved between workbooks
+points at media that does not exist there.
 
 The sheet's existing pictures are replaced, not appended to, so `importImages` is a transfer
-rather than an accumulation: the same direction [`Worksheet.model`](./worksheet.md#worksheetmodel) assignment goes, and
-what makes re-importing a sheet's own export leave it unchanged. An import whose `background` is
-absent clears the destination's background for the same reason.
+rather than an accumulation. [`Worksheet.model`](./worksheet.md#worksheetmodel) assignment works the same way, and it is why
+re-importing a sheet's own export leaves the sheet unchanged. For the same reason, an import with
+no `background` clears the destination's background.
 
 Registration is content-addressed: a picture whose bytes are already here is re-used at its
 existing id rather than stored twice, so importing the same sheet repeatedly, or twenty sheets
@@ -788,7 +792,7 @@ requireWorksheet(nameOrId: string | number): Worksheet;
 [`getWorksheet`](./workbook.md#workbookgetworksheet), for a caller who knows the sheet is there: the miss throws instead of
 returning `undefined`, and the message names every sheet the workbook does have.
 
-The partial lookup is the right primitive for asking *whether* a sheet exists, and the wrong
+The partial lookup is the right call for asking *whether* a sheet exists, and the wrong
 one for reaching a sheet a template is expected to carry: `undefined` flows on into a `?.`
 chain and fails several steps later with nothing left to say about which name was missing.
 That listing is the whole point: a lookup miss is a typo, a stale template or a renamed tab,

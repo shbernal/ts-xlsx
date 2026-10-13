@@ -97,7 +97,7 @@ test('models a container control as children, and preserves every attribute verb
   assert.equal(controls[2]?.kind, 'separator');
 
   const unknown = controls[3];
-  assert.equal(unknown?.kind, 'unknown'); // an element outside the known set is surfaced, never dropped
+  assert.equal(unknown?.kind, 'unknown'); // an element outside the known set is kept, never dropped
   assert.equal(unknown?.id, 'w');
   assert.equal(unknown?.attributes.foo, 'bar');
 });

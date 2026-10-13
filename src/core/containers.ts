@@ -2,7 +2,7 @@
 //
 // Several model fields are `readonly` fields holding a mutable object or array: a caller (or a live
 // getter) may hold a durable reference to the container, so importing a model must replace what the
-// container *holds* without swapping the container itself. These two primitives do that, one for an
+// container *holds* without swapping the container itself. These two functions do that, one for an
 // object's keys and one for an array's elements, so the field's identity survives a wholesale reload.
 
 // Replace an object's contents in place: clear every own key, then copy `source`'s keys over. Used for

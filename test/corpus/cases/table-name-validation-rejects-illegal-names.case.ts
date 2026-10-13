@@ -23,7 +23,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'tables',
   description:
-    'A table name that violates Excel’s identifier rules (spaces, apostrophes/punctuation, a leading ' +
+    "A table name that violates Excel's identifier rules (spaces, apostrophes/punctuation, a leading " +
     'digit) is rejected at write time with an error, rather than being written into the table part ' +
     'and producing a repair-prompting file; a valid identifier name is accepted and round-trips.',
 

@@ -311,7 +311,7 @@ function groupMembersByName(
  * A method declared more than once is an overload set whose last declaration is the
  * implementation, an artefact of how TypeScript spells overloading, and not a signature any
  * caller may pass. Accessors are excluded from that collapse: a get/set pair is also two
- * body-bearing declarations of one name, but *both* are the caller's surface.
+ * body-bearing declarations of one name, but a caller uses *both*.
  */
 function shownSignatures(group: readonly NamedMember[]): readonly NamedMember[] {
   if (group.length < 2 || !group.every(ast.isMethodDeclaration)) return group;

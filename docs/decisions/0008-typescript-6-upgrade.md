@@ -14,7 +14,7 @@ The tree was on `typescript@^5.9.3` and `@types/node@^22`. Two newer TypeScript
 lines are now published: **6.0.x**, the transitional release and the last of the
 classic C#/JS-hosted compiler, which turns on deprecation warnings for what the
 native compiler removes; and **7.0.x**, npm's new `latest`, which is the native
-Go port ("tsgo"). CLAUDE.md §3 authorizes tooling modernization with bias to
+Go port ("tsgo"). AGENTS.md §3 authorizes tooling modernization with bias to
 action, so the question was simply which line the toolchain can actually move to
 while every gate stays green.
 
@@ -29,8 +29,8 @@ All seven gates pass unchanged: `typecheck` (strict config), `build` (tsc ESM pl
 `.d.ts` with `rewriteRelativeImportExtensions`), `smoke:dist`, `lint` (Biome, which
 is TS-version-independent), `test:src` (647 unit tests), `corpus` (671 behaviors),
 and `docs:check`. No source or config change was required. 6.0 is a clean lift,
-and being the deprecation-surfacing bridge release it is the right place to sit
-before any eventual 7 move.
+and as the bridge release that turns on deprecation warnings it is the right place
+to sit before any eventual 7 move.
 
 ### `@types/node` matched to the runtime, not to `latest`
 
@@ -74,7 +74,7 @@ the codebase, both of which TS 7 accepts.
 
 - **Positive:** the toolchain is on the current classic line with zero source
   changes and every gate green; deprecation warnings for the 7 transition now
-  surface early; the ambient Node types match the runtime we test on.
+  show up early; the ambient Node types match the runtime we test on.
 - **Negative / deferred:** TS 7 is blocked on the docs step alone. When we want it,
   the fix is to rework `scripts/gen-docs.mjs` to reconstruct signatures from source
   text spans (`node.getText(sourceFile)` plus a manual body-strip via the body

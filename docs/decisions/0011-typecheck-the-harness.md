@@ -5,10 +5,10 @@
 ## Context
 
 The `src/` tree was held to the full strict bar (`strict` plus the strict-adjacent
-`tsc` flags, Biome `recommended`), but the **harness was not type-checked at all**.
+`tsc` flags, Biome `recommended`), but **`test/` and `scripts/` were not type-checked at all**.
 261 `.mjs` files, 8 tooling scripts and 253 under `test/` (249 regression-corpus
 cases, the corpus runner, two adapters, the OpenXmlValidator runner), were
-Biome-linted but never seen by `tsc`. A type error in the corpus surfaced only at
+Biome-linted but never seen by `tsc`. A type error in the corpus showed up only at
 runtime under `pnpm run corpus`, and the highest-value seam in the whole project,
 the `rewrite` adapter that binds the corpus to the `src` API, had zero compile-time
 coupling to the types it exercised.
@@ -21,11 +21,11 @@ The first instinct was `checkJs` plus JSDoc as the "80/20". It was reversed afte
 measuring the delta: **both paths fix the same ~877 type errors at the same
 strictness**, so that cost is shared. `checkJs`'s only _saving_ is avoiding a
 mechanical rename, and in this repo that rename is tiny and measured (261 `git mv`;
-cross-harness import seams were two patterns; the corpus runner had two loader
+cross-directory import seams were two patterns; the corpus runner had two loader
 strings; nine `package.json` paths). Against that saving, `checkJs` would
 institutionalize a permanent two-language halfway state (src = `.ts`,
-harness = JS plus JSDoc) exactly where typing value is highest (adapters against `src`)
-and JSDoc is weakest. CLAUDE.md ("TypeScript-first", "no half-migrations landed on
+tests and scripts = JS plus JSDoc) exactly where typing value is highest (adapters against `src`)
+and JSDoc is weakest. AGENTS.md ("TypeScript-first", "no half-migrations landed on
 main", "legacy is not a reason to keep") points unambiguously to `.ts`. There is
 no CI risk: Node runs `.ts` directly via type-stripping with no build step, the same
 way `src/` already runs ([ADR 0001](./0001-rewrite-runtime-and-toolchain.md)).
@@ -43,7 +43,7 @@ must never couple to one implementation. That contract is now _typed_: a shared
 for `any`, carrying a single `biome-ignore` and a comment explaining why. Every
 case pins its default export with `satisfies Case`; implementation-blind values are
 annotated `CorpusApi` (the named alias passes Biome's `noExplicitAny`; a literal
-`any` would not). What the gate buys for the cases is real but modest: harness
+`any` would not). What the gate buys for the cases is real but modest: test-code
 typos, misused `assert` calls, and unguarded index access, not implementation
 coupling. Behavior callbacks carry explicit param annotations because `assert`'s
 assertion signatures reject contextually-typed call targets (TS2775).
@@ -58,7 +58,7 @@ mirrors src's public API, so the src type is accurate under the load-time cast. 
 handful of documented `as` casts reach past a src object's _public_ API (two-cell
 image anchors, data-table formula fields, pattern-fill `fgColor`); the corpus reads
 those internals deliberately, and we cast at the read site rather than widen `src`
-to expose them. **We never change `src` to satisfy the harness.**
+to expose them. **We never change `src` to satisfy the test code.**
 
 ## Consequences
 

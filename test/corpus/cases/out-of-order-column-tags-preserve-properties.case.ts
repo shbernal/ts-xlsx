@@ -15,7 +15,7 @@ export default {
   cluster: 'styles',
   description:
     'A worksheet whose <col> entries appear out of ascending index order (as foreign generators ' +
-    'emit) still binds each column’s width and hidden flag to the correct column index on read.',
+    "emit) still binds each column's width and hidden flag to the correct column index on read.",
 
   behavior: [
     {

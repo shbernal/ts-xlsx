@@ -6,7 +6,7 @@
 
 An audit of the lint/type configuration asked a narrow question: are there checks we
 could enable that would add real safety without paying for a backlog of pre-existing
-violations? The gates were already green at the strict bar CLAUDE.md §2 mandates
+violations? The gates were already green at the strict bar AGENTS.md §2 mandates
 (`strict` plus the seven strict-adjacent `tsc` flags, Biome `recommended`). The audit
 measured each candidate by actually running it against the tree rather than reasoning
 about it, and sorted candidates by _current violation count_. A rule that fires zero
@@ -60,7 +60,7 @@ satisfy a check whose payoff is already covered.
 
 This is the inverse of the three checks we _did_ adopt: those lock in a guarantee at
 zero code cost. `isolatedDeclarations` would make the code worse to satisfy a
-redundant check, the opposite of CLAUDE.md §5's "harder, better thing", since here
+redundant check, the opposite of AGENTS.md §5's "harder, better thing", since here
 the better thing is _not_ contorting `relationships.ts`.
 
 ## Consequences

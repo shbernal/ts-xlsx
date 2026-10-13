@@ -11,7 +11,7 @@ forcing consumer" clause of ADR 0016 (and the parallel gate in ADR 0014) for the
 
 ADRs 0013/0014/0016 share one governing move: an authoring API stays _deferred_ until a concrete
 **forcing consumer** exists, meaning a caller whose real use pins down the API shape, the invariants, and
-the edge cases. The reasoning (CLAUDE.md §4, no premature abstraction) is sound: you cannot validate the
+the edge cases. The reasoning (AGENTS.md §4, no premature abstraction) is sound: you cannot validate the
 ergonomics of a write path in a vacuum, and a guessed-at API is a guaranteed future break. For VBA
 specifically, ADR 0016 shipped a **read-only** view and listed a value-to-cost forward map for
 authoring, from attach-blob to first-class source-to-bytes, each item gated on that consumer.
@@ -60,7 +60,7 @@ It satisfies its underlying requirement by a different, and arguably stronger, m
        run-length overlap collapsing repetitive data, and by re-expanding to the exact bytes of a real
        Excel-compressed `dir` stream (it even edges out Excel's own output on that stream). Internal.
      - **§2.3c `dir`/`PROJECT`/module synthesis (`writeVbaProject`, done):** assembles a complete
-       `vbaProject.bin` from a module list (name, kind, source) using the two primitives: the `dir`
+       `vbaProject.bin` from a module list (name, kind, source) using those two functions: the `dir`
        record stream, `_VBA_PROJECT` version header, `PROJECT`/`PROJECTwm` text, and one compressed
        source stream per module under a `VBA` storage. Each module carries its source at MODULEOFFSET 0
        with no p-code, and `_VBA_PROJECT` advertises an unmatchable version, so Excel recompiles from
@@ -100,7 +100,7 @@ It satisfies its underlying requirement by a different, and arguably stronger, m
   still binds. It is now met by fixtures plus the strict suite rather than by waiting. Slices that would
   bound coverage still say so; nothing ships un-green.
 - **The big reversal is still ahead and still gets its own ADR.** §2.3 making an authoring API the
-  emission authority is the genuine shape-change to ADR 0016; this ADR only opens the door and lands the
+  emission authority is the real shape change to ADR 0016; this ADR only opens the door and lands the
   thin, non-authority-shifting first slice.
 - **Revisit when:** §2.3 lands (amend ADR 0016), or if a real consumer's needs contradict a shape a
   fixture led us to, in which case the fixture was too weak a proxy and the API breaks, cheaply,

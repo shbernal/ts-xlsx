@@ -20,7 +20,7 @@ export default {
   cluster: 'images',
   description:
     'A fractional image anchor coordinate (e.g. col 3.5) must map to a sub-cell EMU offset ' +
-    'proportional to the referenced column’s actual width, so halfway across a wide column ' +
+    "proportional to the referenced column's actual width, so halfway across a wide column " +
     'is a larger offset than halfway across a narrow default column; a whole-integer anchor ' +
     'sits exactly on the cell boundary with zero offset.',
 

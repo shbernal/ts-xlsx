@@ -24,7 +24,7 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 `tsconfig.test.json` over `test/`, `scripts/` and `tools/`, and the `verify` gate has always run
 both. The `typecheck` _script_ used to run only the first, which made the obvious command silently
 blind to the tree the regression corpus lives in: edit an adapter, get a green `typecheck`, and
-learn nothing. It now runs both, and `typecheck:src` is there for when you genuinely want one.
+learn nothing. It now runs both, and `typecheck:src` is there for when you want only one.
 The `tsconfig.json` inside `test/`, `scripts/` and `tools/` is not a third gate and nothing runs
 `tsc` against it; it exists so the linter reads the same options `tsc` does, and the note under
 the planted control below says what happens when it does not.
@@ -119,7 +119,7 @@ three different things, and a lower one cannot stand in for a higher one:
   conformance**.
 - **Excel behavior.** What Excel Desktop actually does. The only ground truth for cross-part
   invariants the spec omits, for example that a table's header cells must exist and match its
-  column names. On a Windows+Excel host, scriptable via the Excel-oracle harness for
+  column names. On a Windows+Excel host, scriptable via the Excel oracle (`tools/excel-oracle`) for
   state-observable behavior (ADR 0013); recorded as
   `provenance: {source: 'excel-desktop-verification'}`.
 
@@ -129,9 +129,9 @@ vocabulary is partitioned by part and cannot phrase most cross-part relationship
 lists the open ones.
 
 **To run the whole net at once, use `node scripts/verify.ts`.** That is every gate above plus
-`docs:check` and `constitution:check`, run concurrently, reported as one table with
+`docs:check` and the invariants, run concurrently, reported as one table with
 per-gate timing (~14 s wall against ~27 s of serial work). Prefer it over assembling the
-chain by hand, which is how `docs:check` and `constitution:check` get silently dropped.
+chain by hand, which is how `docs:check` and the invariants get silently dropped.
 `--quick` is the inner loop: types, unit tests, and lint scoped to your changed files, no
 corpus (~5 s). Faster, but **not** a substitute for the full run. Invoke it with `node`,
 not `pnpm run`, to skip ~1 s of package-manager wrapper. `pnpm test`, lefthook's `pre-push`
@@ -149,7 +149,7 @@ turn that changed nothing verifiable costs ~0.3 s; one that changed anything pay
 external binary. Invoke it yourself; see below.
 
 **Write scratch to `.tmp/`.** Probes, dumps, generated workbooks, anything regenerable
-(`$SCRATCH` and `$TMPDIR` both point there; CLAUDE.md makes it the rule). It is git-ignored,
+(`$SCRATCH` and `$TMPDIR` both point there; AGENTS.md makes it the rule). It is git-ignored,
 so probing leaves `git status` clean _and_ costs nothing at the turn boundary: an untracked
 file anywhere else is part of the cache key and buys you a full re-verify.
 
@@ -296,7 +296,7 @@ Test-first. Write an implementation-blind corpus case that reproduces it
 fail, then fix until `pnpm run corpus` is green. We never fix the same bug twice.
 
 **You need a cross-part or Excel-quirk invariant seeded, and the only ground truth is what Excel Desktop does.**
-On a Windows host with Excel installed, don't do it by hand: run the Excel-oracle harness.
+On a Windows host with Excel installed, don't do it by hand: run the Excel oracle.
 Write a probe (`tools/excel-oracle/probes/<invariant>.json`: a cell spec plus the cells to
 observe), then `node tools/excel-oracle/run.ts <probe.json> --out test/corpus/fixtures/excel-oracle/<invariant>.json`.
 It opens the file headless over COM, reads formula/value per cell, re-saves to reveal the
@@ -309,7 +309,7 @@ typed cell without `<v>` or a hand-patched part, skip the spec and open it as it
 `"xlsx": "<path relative to the probe>"` in the probe file in place of `"spec"`. This
 **seeds** the invariant only. Then **lock** it with a Tier-2 seam fact that runs in CI and
 a case carrying `provenance: {source: 'excel-desktop-verification', ref: '<sidecar>'}`. The
-harness is a probe, not a test: it needs Windows+Excel+`pwsh`, self-guards to a loud refusal
+oracle is a probe, not a test: it needs Windows+Excel+`pwsh`, self-guards to a loud refusal
 without them, and **never** runs in CI (`pnpm run corpus` must not depend on Excel).
 
 If the invariant is _geometry_, such as whether an over-limit `ht`/`width` is clamped, quantized
@@ -334,8 +334,8 @@ and a "fix" to the writer would be a guess that outlives the report. Two such re
 settled this way: `docs/knowledge/specs/frozen-pane-header-ink-is-an-excel-repaint-fault.md` (a
 frozen header row whose ink goes missing until clicked, which reproduces in Excel's own re-save) and
 `docs/knowledge/specs/dark-mode-repaints-authored-cell-colors.md` (Dark Mode overrides every
-encoding of an authored colour). Read both before opening a rendering investigation; when a genuinely
-new one needs pixels, the interactive tier is the `excel-gui-automation` skill, and sampling the
+encoding of an authored colour). Read both before opening a rendering investigation; when a new one
+does need pixels, the interactive tier is the `excel-gui-automation` skill, and sampling the
 rendered pixels beats describing a screenshot.
 
 **You are unsure how an OOXML element / attribute / enum / child-ordering should look.**
@@ -383,7 +383,7 @@ and nowhere else (ADR-0023).
 `node scripts/check-browser-safe.ts` (also in `verify --full`) walks the module graph from all
 seven browser-facing entries and fails on either. A bundler resolves imports rather than call
 graphs, so one such import in a module a browser never calls is still enough to break a browser
-build (ADR-0040). If the code genuinely needs Node, it is published from `src/entries/node.ts`
+build (ADR-0040). If the code needs Node, it is published from `src/entries/node.ts`
 and named in `src/entries/node-unavailable.ts`, the stub a `browser` condition resolves to;
 if it does not, write the platform version (`crypto.getRandomValues`, `TextEncoder`,
 `src/sha512.ts`) instead.

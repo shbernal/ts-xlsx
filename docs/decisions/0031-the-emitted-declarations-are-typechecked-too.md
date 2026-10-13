@@ -88,13 +88,13 @@ a flag that duplicates an existing guarantee is config to maintain for no new in
   workflow; a dependency's broken declarations now fail a gate instead of being skipped; the
   published `.d.ts` is checked as a consumer sees it, through the `exports` map, every build.
 - **Positive:** ADR 0009's `isolatedDeclarations` rejection keeps its "do not re-litigate"
-  standing and now has the safety net it was implicitly assuming, on the consumer-facing
+  standing and now has the safety net it was assuming, on the consumer-facing
   declarations only, without contorting `relationships.ts`.
 - **Neutral:** a third tsconfig. It earns its place by having a subject the other two cannot
   have: an artifact that does not exist until `build` runs.
 - **Negative / accepted:** `typecheck:dist` is reachable locally only after `pnpm run build`,
   so it is absent from `verify --full` and runs on CI alone. That is deliberate, since `verify`
-  must work on a never-built tree, but it does mean a declaration regression surfaces on the
+  must work on a never-built tree, but it does mean a declaration regression shows up on the
   runner rather than at pre-push.
 - **Revisit when:** the `unstable/*` API or a future compiler makes `skipLibCheck: false`
   measurably expensive again (re-measure before reverting; do not assume the old cost), or the

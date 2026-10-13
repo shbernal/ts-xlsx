@@ -1,14 +1,14 @@
-# Blank issues are off. The form is not bureaucracy — every field in it is something the
+# Blank issues are off. The form is not bureaucracy. Every field in it is something the
 # maintainers would otherwise have to ask for in a round trip, and a report that skips them
 # usually dies waiting for a reply. Human attention is the scarcest resource this project
-# spends (CLAUDE.md §1.6); the form is how a report survives without needing any.
+# spends (AGENTS.md §1.6); the form is how a report survives without needing any.
 blank_issues_enabled: false
 
 contact_links:
   - name: Security vulnerability
     url: https://github.com/shbernal/ts-xlsx/security/advisories/new
     about: >-
-      Anything exploitable by a hostile workbook — unbounded allocation, a zip bomb, a path
+      Anything exploitable by a hostile workbook: unbounded allocation, a zip bomb, a path
       escaping extraction. Report it privately here, never in a public issue.
 
   - name: Coming from ExcelJS, and something no longer works

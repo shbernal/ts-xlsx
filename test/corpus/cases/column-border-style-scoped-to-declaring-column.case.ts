@@ -12,7 +12,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'styles',
   description:
-    'A border style declared on one column applies only to that column’s cells; later columns with ' +
+    "A border style declared on one column applies only to that column's cells; later columns with " +
     'no style of their own get no border: column styles are independent, not bled into subsequent ' +
     'columns.',
 

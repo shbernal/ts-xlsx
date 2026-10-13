@@ -186,7 +186,7 @@ export default {
         // Excel writes a legacy fallback `<comment>` beside every thread so a pre-2018 reader sees
         // something: boilerplate ("[Threaded comment] Your version of Excel allows you to read...")
         // wrapping a copy of the conversation. It is not an annotation anybody wrote, so it must not
-        // surface as one: a caller iterating notes would otherwise get that paragraph on B1 and B2
+        // read as one: a caller iterating notes would otherwise get that paragraph on B1 and B2
         // while the real conversation sat elsewhere. D4's note is a real one and stays.
         const {sheets} = api.readFixtureCommentThreads(RESOLVED_MULTI_AUTHOR);
         assert.deepStrictEqual(sheets[0]!.notes, {D4: 'A genuine legacy note.'});

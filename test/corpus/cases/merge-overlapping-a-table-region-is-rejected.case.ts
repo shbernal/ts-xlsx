@@ -3,7 +3,7 @@
 // Real-world scenario: a worksheet has a formatted table, and the author then merges a cell range
 // that overlaps the table's region. Excel forbids merged cells inside a formatted table, so the
 // resulting package opens as corrupt (Excel repairs it, dropping the merge or the table). The write
-// path should treat an overlapping merge as a conflict and surface it, rather than silently emitting
+// path should treat an overlapping merge as a conflict and report it, rather than silently emitting
 // Excel-invalid geometry. A merge that lies entirely outside every table is valid and must keep
 // working, and a table with no overlapping merge must round-trip cleanly.
 
@@ -32,8 +32,8 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'tables',
   description:
-    'A merged range that overlaps a formatted table’s region is a conflict the write path should ' +
-    'surface (Excel forbids merges inside a table and treats the file as corrupt), while a merge ' +
+    "A merged range that overlaps a formatted table's region is a conflict the write path should " +
+    'report (Excel forbids merges inside a table and treats the file as corrupt), while a merge ' +
     'entirely outside every table writes cleanly and a table with no overlapping merge round-trips.',
 
   behavior: [

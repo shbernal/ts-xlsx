@@ -3,13 +3,13 @@
 //
 // The streaming reader's entry points are public; the granular per-row/cell/sheet output shapes
 // (`StreamedRow`/`StreamedCell`/`StreamedSheet` as *read*) are intentionally left as inferred
-// structural types rather than named commitments while that surface settles.
+// structural types rather than named commitments while that API settles.
 //
 // Streaming is not its own entry point. Measured, `read-rows` + `write-stream` reach every module
 // `read` + `write` do plus three, and an entry that costs what the codec costs is an alias, not a
 // packaging boundary. The streaming *writer* is nonetheless published from `/node` rather than
 // here, and that is not a second opinion about size: it imports `node:fs` and `node:stream`, and an
-// entry a browser can resolve may not reach a Node built-in (ADR 0040). Its whole surface is named
+// entry a browser can resolve may not reach a Node built-in (ADR 0040). Its whole API is named
 // over there; a styled row hands back `Cell`, which belongs to `/core`.
 
 export {editXlsxVbaAddReference, editXlsxVbaRemoveModule} from '../io/xlsx/edit-vba.ts';

@@ -8,7 +8,7 @@ import {attrsOf} from './xml-probes.ts';
 
 export const conditionalFormatting = {
   // Author a conditional-formatting rule, write it, and report the emitted CF XML facts plus what the
-  // reader surfaces on reload → { writeOk, writeError, xml:{blockCount, sqrefs, ruleCount, hasDataBar,
+  // reader returns on reload → { writeOk, writeError, xml:{blockCount, sqrefs, ruleCount, hasDataBar,
   // cfvoCount, hasColor, wellFormed}, reload:{type, color, gradient, cfvo} }.
   authorConditionalFormatting(cf: Untyped) {
     const workbook = new Workbook();

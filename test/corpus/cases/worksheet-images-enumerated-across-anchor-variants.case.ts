@@ -5,7 +5,7 @@
 // the surrounding row data. The enumeration must return one entry per embedded image, for both a
 // two-cell (from/to) anchor and a one-cell (from + extent) anchor, with its anchor coordinates,
 // rather than an empty result when the media parts are present. This locks that the image-enumeration
-// read surface works across anchor variants.
+// read API works across anchor variants.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -14,7 +14,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'images',
   description:
-    'Enumerating a worksheet’s images after a round-trip returns one entry per embedded image across ' +
+    "Enumerating a worksheet's images after a round-trip returns one entry per embedded image across " +
     'anchor variants (a two-cell and a one-cell anchor), each with its top-left cell coordinates, ' +
     'rather than an empty result.',
 

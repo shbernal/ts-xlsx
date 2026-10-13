@@ -22,8 +22,7 @@ bug in your code or in your runtime, and this library will not have wrapped it.
 
 ## The four codes, and what you would do about each
 
-The taxonomy is deliberately coarse, because four is the number of genuinely different next
-actions.
+The taxonomy is coarse on purpose: there are four different things a caller does next.
 
 | `code`                 | What happened                                      | What you do                                    |
 | ---------------------- | -------------------------------------------------- | ---------------------------------------------- |

@@ -4,7 +4,7 @@
   instance) and extract its .xlsx package to a fresh directory, so you can read
   the actual generated OOXML rather than trusting the screenshot alone. A
   screenshot proves the UI reacted; it does not prove the XML is correct or
-  wired up (relationships, ids, namespaces) - always close the loop by reading
+  wired up (relationships, ids, namespaces), so always close the loop by reading
   the parts this script extracts.
 
 .PARAMETER NameLike
@@ -13,7 +13,7 @@
 
 .PARAMETER DestDir
   Extraction target. If it already exists, a fresh "<DestDir>-<random>" is used
-  instead of deleting anything - do not delete-and-recreate: this sandbox's
+  instead of deleting anything. Do not delete-and-recreate: this sandbox's
   Bash/PowerShell guard can false-positive-block Remove-Item when the
   surrounding command text also contains regex-like substrings (e.g. a literal
   "r:" from an XML namespace or "\w+"), so a fresh directory per run is more

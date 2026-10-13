@@ -78,7 +78,7 @@ function present(path: string): boolean {
 // keeps its name, size and bytes, and only opening it is refused. Every `-h` probe in that list
 // failed on an access error rather than a missing file, the wrapper fell through to the echo, and
 // ten commits landed with pre-commit and commit-msg inert -- including `no-shell-quoting-leak`,
-// the rule CLAUDE.md names. Nothing in the output distinguished that from a clean run.
+// the rule AGENTS.md names. Nothing in the output distinguished that from a clean run.
 //
 // A gate that cannot start must not read as a gate that passed, so the last branch is rewritten
 // to fail. Deleting the binary is the *recoverable* case; this is the quiet one.

@@ -48,7 +48,7 @@ export function readPackageJson(): PackageJson {
 /**
  * A fresh scratch directory under the repo's own `.tmp/`, and never under the system temp.
  *
- * CLAUDE.md puts scratch in `.tmp/` so it is inspectable and already git-ignored, and three callers
+ * AGENTS.md puts scratch in `.tmp/` so it is inspectable and already git-ignored, and three callers
  * reached for `os.tmpdir()` instead. `$TMPDIR` is pointed at `.tmp/` only in an agent's environment,
  * so on a CI runner or a plain shell that constraint silently did not apply at all. One of them named
  * its file by process id with no `mkdtemp`, which is a stray `.xlsx` left in system temp forever

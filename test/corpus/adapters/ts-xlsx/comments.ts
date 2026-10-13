@@ -323,7 +323,7 @@ export const comments = {
   // and report each reading -> { pooled, inline, identical }. The two are separate grammars in the
   // format and were separate copies of one grammar in the reader, kept in step only by a comment
   // saying they agreed. Nothing measured it: each reader is exercised through its own path, so a
-  // drift would surface as the same cell content reading two ways, decided by an encoding choice the
+  // drift would show up as the same cell content reading two ways, decided by an encoding choice the
   // author never made.
   richStringPooledVersusInlineReport() {
     const runs =

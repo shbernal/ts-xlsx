@@ -16,7 +16,7 @@ export default {
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 1224},
   cluster: 'styles',
   description:
-    'A workbook’s custom <indexedColors> palette survives a no-op round-trip so indexed color ' +
+    "A workbook's custom <indexedColors> palette survives a no-op round-trip so indexed color " +
     'references keep their intended RGB, instead of the palette being dropped and colors shifting.',
 
   behavior: [

@@ -17,7 +17,7 @@ builds its own input.** Everything below is in service of that.
 
 ## 1. Decide whether it is actually ours
 
-Catch the error and read `code` — the taxonomy is deliberately coarse and each answer
+Catch the error and read `code`. The taxonomy is deliberately coarse, and each answer
 means something different about whose bug it is.
 
 | `error.code`         | Whose bug        | Report it?                                                      |
@@ -45,14 +45,14 @@ node -v                                                       # runtime
 ```
 
 Also capture, verbatim: the error `name`, its `code`, the full message, and the stack.
-Do not paraphrase the message — the throw site is often identifiable from its exact text.
+Do not paraphrase the message: the throw site is often identifiable from its exact text.
 
 ## 3. Build a minimal reproduction
 
 **Never attach or paste the user's workbook.** Spreadsheets in a real project carry
 salaries, customer lists, and unreleased numbers. Treat every file in this repo as
 confidential unless the user tells you otherwise, and never upload one to a public
-tracker — including "just a screenshot of the sheet".
+tracker, including "just a screenshot of the sheet".
 
 Instead, write a self-contained script that _constructs_ its input and fails:
 
@@ -80,7 +80,7 @@ from that description; they can never unsee an attachment.
 
 If you need a file attached, build one: reproduce the _structure_ you suspect in a workbook
 you generate, with invented values. A synthesized file is always safe to attach. A redacted
-one is not yours to judge — redaction fails quietly, and a public tracker is permanent.
+one is not yours to judge: redaction fails quietly, and a public tracker is permanent.
 
 ## 4. Check it is not already filed
 
@@ -167,7 +167,7 @@ this project and leave a comment pointing at the issue, so the stopgap is remova
 the fix ships:
 
 ```ts
-// Workaround for ts-xlsx#<N> — remove once fixed upstream.
+// Workaround for ts-xlsx#<N>: remove once fixed upstream.
 ```
 
 ## If `gh` is unavailable

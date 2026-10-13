@@ -15,7 +15,7 @@
 // references live only in the binary dir stream. So this case also locks that the PROJECT stream is left
 // completely untouched by the add.
 //
-// The surface under test is the project-editor primitive addVbaReference(bin, ref): it parses the
+// The function under test is the project-editor addVbaReference(bin, ref): it parses the
 // existing project fail-closed, assembles the [MS-OVBA] LibidReference string
 // (`*\G{GUID}#Major.Minor#LCID#Path#Name`), and inserts REFERENCENAME + REFERENCEREGISTERED into the dir
 // stream immediately before MODULES_COUNT (references have no count field of their own). It leaves

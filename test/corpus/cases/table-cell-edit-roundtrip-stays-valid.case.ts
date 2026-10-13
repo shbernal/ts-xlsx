@@ -12,7 +12,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'tables',
   description:
-    'Editing a cell inside a table’s range and writing the workbook produces a valid, openable ' +
+    "Editing a cell inside a table's range and writing the workbook produces a valid, openable " +
     'package: the table part and its unique worksheet relationship survive and the edited value ' +
     'reads back.',
 

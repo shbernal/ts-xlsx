@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a workbook authored in a desktop app colors cells two ways: some with an
 // explicit RGB fill, some with a theme color plus a tint (a shade derived from a palette entry).
-// A reader must surface both faithfully: an RGB fill's foreground carries the concrete argb, and
+// A reader must report both faithfully: an RGB fill's foreground carries the concrete argb, and
 // a theme+tint fill's foreground carries the theme index and its tint, so no fill color is lost
 // or flattened on read.
 

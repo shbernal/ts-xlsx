@@ -15,7 +15,7 @@ export default {
   cluster: 'streaming',
   description:
     "The streaming reader reports a column's hidden flag, agreeing with the eager read: a worksheet " +
-    'written with a hidden column is not surfaced as all-visible when streamed.',
+    'written with a hidden column is not reported as all-visible when streamed.',
 
   behavior: [
     {

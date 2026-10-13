@@ -6,7 +6,7 @@
 
 The public API is a single curated barrel (`src/index.ts`, ~86 exported symbols)
 that is already richly documented in TSDoc-style leading summaries. `worksheet.ts`
-alone carries 119 doc blocks, over strict, precise types. CLAUDE.md §2 states the goal
+alone carries 119 doc blocks, over strict, precise types. AGENTS.md §2 states the goal
 plainly: _the types are the docs_. Slice 3 of the Phase 4 plan asks for first-class API
 docs generated from that surface, plus migration notes framed as "a different, better
 library" rather than a compatibility shim.
@@ -14,7 +14,7 @@ library" rather than a compatibility shim.
 The obvious move is TypeDoc. We reject it, for the same reason ADR-0029 rejected Vitest:
 it is a large transitive dependency tree (its own TS wrapper, themes, a markdown plugin)
 carried to produce output whose shape we do not control, to document _one_ barrel. This
-fork exists to shed exactly that kind of weight (CLAUDE.md §2, §4), and every prior
+fork exists to shed exactly that kind of weight (AGENTS.md §2, §4), and every prior
 toolchain call has been the hand-rolled, zero-dependency one: a hand-written SAX reader,
 hand-rolled `Expect<Equal>` type tests, pure `tsc` over a bundler, `node --test` over
 Vitest.

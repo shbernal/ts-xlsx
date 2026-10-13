@@ -13,7 +13,7 @@ true and it is not a curiosity. It means the type-aware rules were reading compi
 options from somewhere, and nothing in the repo said where.
 
 Where, it turns out, is **the nearest `tsconfig.json` that includes the file being
-linted**. Every gate config this repo owns for the harness has a non-standard name,
+linted**. Every gate config this repo owns for test and tooling code has a non-standard name,
 `tsconfig.test.json`, which that search does not look for, and the one file actually
 called `tsconfig.json` includes `src/**` and nothing else. So for `test/`, `scripts/` and
 `tools/` the search found nothing that claimed the file and fell back to TypeScript's
@@ -44,12 +44,12 @@ That is the whole diagnosis. Everything below is what it cost.
 `tsconfig.test.json`, narrows `include` to its own directory, and turns incrementality
 off with a nulled `tsBuildInfoFile` so it can never race the gate's cache. They exist for
 tsgolint and for editors. Nothing runs `tsc` against them; `pnpm typecheck` still runs
-`tsconfig.test.json` over all three directories at once, so there is exactly one place
-the harness's options are written down.
+`tsconfig.test.json` over all three directories at once, so the options for that code
+are written down in exactly one place.
 
 ## What it changed
 
-Re-measuring the type-aware surface with the linter and the typechecker finally agreeing:
+Re-measuring the type-aware rules with the linter and the typechecker finally agreeing:
 
 |                                                                                  | before the configs | after them | after the fixes |
 | -------------------------------------------------------------------------------- | ------------------ | ---------- | --------------- |

@@ -30,7 +30,7 @@ conveniences behind an export condition a browser never resolves, and no Node-on
 ## Decision
 
 **The boundary is drawn by imports, and it is an entry point.** `@shbernal/ts-xlsx/node` is a
-new subpath entry carrying the streaming writer, which is the only public surface that needs a
+new subpath entry carrying the streaming writer, which is the only public API that needs a
 Node built-in. `src/index.ts` unions every entry barrel except that one, so the root specifier
 (the specifier nearly every consumer writes) reaches no Node built-in at all.
 
@@ -85,4 +85,4 @@ the same property on the emitted JavaScript, which is the only form a consumer's
   headroom their comment describes.
 - **What is still open:** a browser-native streaming _writer_ (`browser-streaming-workbook-write`,
   `web-streams-io-surface`) is unaffected by this record. When one exists it belongs on `/xlsx`
-  with the rest of the codec, and `/node` keeps whatever genuinely needs a filesystem.
+  with the rest of the codec, and `/node` keeps whatever needs a filesystem.

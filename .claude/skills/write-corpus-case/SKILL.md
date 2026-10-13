@@ -28,15 +28,15 @@ how the corpus outlived the rewrite it was built to survive. Full reference:
    put upstream issue/PR numbers in that durable text (they die with the fork). A
    number may sit in the optional `provenance` block as a disposable trace only.
 3. **A behavior asserts what must be true, and nothing weaker.** There is no field for
-   "what the code does today". If the behavior does not hold, the case reddens the build —
-   that is the whole point of putting it here. Never soften an assertion to land it green;
+   "what the code does today". If the behavior does not hold, the case reddens the build.
+   That is the whole point of putting it here. Never soften an assertion to land it green;
    either the library is wrong and this is the failing reproduction that proves it, or the
    assertion is wrong and does not belong in the corpus.
 
 ## Shape
 
 `test/corpus/cases/<descriptive-slug>.case.ts` (a slug like
-`whole-column-defined-names` — no number prefix) imports the shared `Case` type and
+`whole-column-defined-names`, no number prefix) imports the shared `Case` type and
 default-exports an object pinned to it with `satisfies Case`:
 
 ```ts
@@ -97,7 +97,7 @@ reference it by path:
 test/corpus/fixtures/<case-slug>/<file>.xlsx
 ```
 
-Load it inside `expect` via a capability the adapter provides (add one if needed —
+Load it inside `expect` via a capability the adapter provides (add one if needed;
 see below), never by reaching into an implementation's reader directly.
 
 ## Extending the adapter contract
@@ -106,7 +106,7 @@ If a case needs a capability the contract doesn't have yet:
 
 1. Add the capability to the module that owns its concern under
    `test/corpus/adapters/ts-xlsx/` (or `adapters/ooxml-facts.ts` for package-level OOXML
-   facts). Each returns plain JSON-serializable data — corners, dimensions, cell values —
+   facts). Each returns plain JSON-serializable data (corners, dimensions, cell values),
    never a live model object.
 2. Give it a return shape a case can _use_: build a keyed map with `Object.fromEntries` over
    a mapped list rather than filling a pre-declared `Record<string, unknown>`, so the shape

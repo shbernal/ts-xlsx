@@ -317,7 +317,7 @@ export class CellAccumulator {
   }
 
   // Commit the gathered cell to the sheet with its already-resolved style (the caller applies the
-  // cell → row → column inheritance order). A data-table cell surfaces its declaration; a shared-formula
+  // cell → row → column inheritance order). A data-table cell keeps its declaration; a shared-formula
   // master seeds the group before finalising, and a clone resolves to the master translated to its own
   // position. Everything else decodes as an ordinary `<c>` payload. An address-less cell is a no-op.
   finalize(

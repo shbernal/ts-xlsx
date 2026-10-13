@@ -1,5 +1,5 @@
 // oxfmt configuration. JSONC rather than JSON because the values below are not
-// preferences — they are a deliberate mirror of the `formatter` and
+// preferences. They are a deliberate mirror of the `formatter` and
 // `javascript.formatter` blocks of the biome.json this replaced, and that fact has to
 // survive. oxfmt auto-discovers `.oxfmtrc.jsonc` exactly as it does `.oxfmtrc.json`.
 //
@@ -16,7 +16,7 @@
 //
 // The directive must be the LAST comment line before the declaration it protects. Biome
 // let the reason trail on the same comment block; oxfmt does not, and a directive with an
-// explanation after it is silently inert — the file reformats and the comment still reads
+// explanation after it is silently inert: the file reformats and the comment still reads
 // as though it were doing something. Put the reason above the directive, not after it.
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
@@ -33,8 +33,8 @@
   // the 47-file diff this option landed: oxfmt sorts module specifiers by codepoint, so
   // `workbook-protection.ts` precedes `workbook.ts` where Biome sorted the other way; and
   // it separates node builtins, external packages and relative imports with a blank line,
-  // where Biome ran them together. That diff is a commit of its own on purpose — a
-  // reordering hidden inside a reflow is a reordering nobody reads.
+  // where Biome ran them together. That diff is a commit of its own on purpose:
+  // a reordering hidden inside a reflow is a reordering nobody reads.
   "sortImports": true,
 
   // A safety net, not the definition of what gets formatted: `scripts/format.ts` still hands

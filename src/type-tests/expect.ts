@@ -1,4 +1,4 @@
-// Compile-time assertions for the public API's type surface.
+// Compile-time assertions for the public API's types.
 //
 // These types have no runtime footprint: they are verified by `npm run typecheck`
 // (tsc over the whole src/ tree) and excluded from the published build. When a

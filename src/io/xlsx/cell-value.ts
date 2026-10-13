@@ -1,6 +1,6 @@
 // Decoding a worksheet cell's on-disk `<c>` payload into a model {@link CellValue}.
 //
-// This is the single value-decoding surface both readers share: the buffered reader
+// This is the one value decoder both readers share: the buffered reader
 // (`./read.ts`) and the streaming row reader (`./read-rows.ts`). Keeping it in one place is
 // what guarantees a cell read one row at a time decodes identically to the same cell read as
 // part of a whole workbook. A divergence here would be a silent data bug in exactly one path.
@@ -82,7 +82,7 @@ export function decodeCellContent(
     }
     return {formula: stored, ...cached};
   }
-  // An inline string built from `<r>` runs is rich text: surface its runs rather than flattening
+  // An inline string built from `<r>` runs is rich text: return its runs rather than flattening
   // them to the concatenated `inlineText` a plain string would decode to.
   if (raw.type === 'inlineStr' && raw.richTextRuns !== undefined && raw.richTextRuns.length > 0) {
     return {richText: raw.richTextRuns};

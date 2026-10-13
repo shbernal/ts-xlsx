@@ -11,7 +11,7 @@ now here: almost every remaining corpus capability (`roundtripWorkbook`,
 a package that is _read back_, so the model cannot light them up without a reader.
 
 The deferred decision was `fast-xml-parser` (a DOM-building dependency) against a lean
-hand-written SAX. Two forces from the constitution (`CLAUDE.md`) decide it:
+hand-written SAX. Two forces from the constitution (`AGENTS.md`) decide it:
 
 1. **A spreadsheet reader parses untrusted input.** "No unbounded allocation, no
    zip-bomb naïveté, no eval-shaped surprises." A DOM parser materialises the _entire_
@@ -80,7 +80,7 @@ On that component sits the first streaming _read_ API: `readSheetRows(data, opti
 cell read as part of a full workbook, and the divergence such a split would otherwise invite is
 closed by construction. This slice still inflates the package whole (bounded as above) and reads
 shared strings and styles as whole parts, both legitimately document-sized; a later slice can make
-the inflate itself per-part lazy on the same pull primitive.
+the inflate itself per-part lazy on the same pull parser.
 
 ## Update (2026-07-20): the reader consumes the pull parser through a small helper vocabulary
 
@@ -132,7 +132,7 @@ can never be _gathered_ differently depending on which reader saw it.
 Finalisation, by contrast, deliberately diverges, and that split is the point. The buffered reader
 calls `finalize`, which resolves shared-formula masters/clones and data-table cells and opens rich
 `<r>` runs; the streaming reader calls `decode`, the plain-decode subset, which must **not** resolve
-shared formulas (it surfaces the clone's own cached result) and must **not** open rich runs (a
+shared formulas (it returns the clone's own cached result) and must **not** open rich runs (a
 streamed inline string flattens to text). `finalize`'s plain path is itself routed through `decode`,
 so there is exactly one `RawCell`-build and one decode. Sharing gathering while forking finalisation
 is what lets the two readers stay honest to their different contracts without duplicating the fragile

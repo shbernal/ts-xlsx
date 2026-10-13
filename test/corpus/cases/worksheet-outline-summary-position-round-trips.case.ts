@@ -5,7 +5,7 @@
 // the default right). These are the OOXML sheetPr/outlinePr attributes summaryBelow and summaryRight.
 // Setting them via the worksheet's outline properties must serialize into the sheet properties and
 // read back, so an author who inverts summary placement gets a file that honors it. This locks the
-// runtime write/read path (the public TypeScript type surface exposing outlineProperties is a
+// runtime write/read path (the public TypeScript type exposing outlineProperties is a
 // separate, type-level concern).
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

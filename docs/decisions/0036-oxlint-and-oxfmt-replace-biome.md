@@ -23,7 +23,7 @@ four of them, `noFloatingPromises`, `noMisusedPromises`, `useAwaitThenable` and
 opted into by name. `nursery` is by definition a moving target, so the most important
 gates in the file were the least stable ones in the tool.
 
-oxlint reaches the real `typescript-eslint` type-aware surface by shelling out to
+oxlint reaches the real `typescript-eslint` type-aware rule set by shelling out to
 tsgolint, a Go build of the TypeScript checker. That is the whole argument. Everything
 else below is measurement.
 
@@ -89,13 +89,13 @@ would panic anyone reading them cold. Both are configuration, not code:
 - **The `no-unsafe-*` family, 1406**, plus `await-thenable` at 699 and
   `no-unnecessary-type-assertion` at 301. All in `test/corpus/**`, all traceable to
   `test/corpus/untyped.ts`, which declares `Untyped = any` on purpose because a corpus
-  case describes behaviour against a deliberately untyped adapter surface. The rules are
-  off across the harness and the config says why at length.
+  case describes behaviour against a deliberately untyped adapter interface. The rules are
+  off across the test and tooling code, and the config says why at length.
 
 ## What the migration found out about the source
 
 This is the strongest single result and it belongs on the record. Across the entire
-44-rule type-aware surface, including every rule this ADR declines, production `src/**`
+44-rule type-aware set, including every rule this ADR declines, production `src/**`
 reports **zero** for the whole `no-unsafe-*` family, `no-floating-promises`,
 `await-thenable`, `no-misused-promises`, `only-throw-error`, `restrict-plus-operands`,
 `no-deprecated`, `no-confusing-void-expression` and `return-await`, and zero non-null
@@ -147,6 +147,6 @@ Use it before believing any zero in this document.
   still opt out.
 - ~~The corpus adapter's `any` boundary is revisited.~~ Done 2026-08-26 in
   [0038](./0038-the-corpus-keeps-its-untyped-boundary.md): the boundary stands, and it costs
-  six rules over `test/corpus/**` rather than sixteen across the whole harness. The other ten
+  six rules over `test/corpus/**` rather than sixteen across all the test and tooling code. The other ten
   were [0037](./0037-the-linter-and-the-typechecker-read-the-same-tsconfig.md)'s tsconfig
   mismatch wearing the boundary's clothes.

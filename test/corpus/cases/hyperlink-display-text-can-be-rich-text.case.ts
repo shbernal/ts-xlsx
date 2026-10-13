@@ -29,7 +29,7 @@ export default {
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 1988},
   cluster: 'types',
   description:
-    'A hyperlink cell’s display text may be a plain string or rich text; both survive a ' +
+    "A hyperlink cell's display text may be a plain string or rich text; both survive a " +
     'write→read round-trip with the link target intact, and a workbook mixing the two ' +
     'preserves each kind independently.',
 

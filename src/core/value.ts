@@ -1,4 +1,4 @@
-// The cell value model: the second bedrock primitive after addressing.
+// The cell value model: the second building block after addressing.
 //
 // A cell holds exactly one value, and that value's *type* is observable and drives
 // everything downstream (serialization, number-format application, formula results).

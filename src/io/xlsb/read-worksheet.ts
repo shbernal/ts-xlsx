@@ -10,7 +10,7 @@
 // A formula cell carries both halves of what the XML form spells in `<f>` and `<v>`: a `Ptg` token
 // stream, decoded back to text by `./formula.ts`, and the result Excel last computed. The two are
 // filled independently: a formula whose stream uses a token this reader does not decode still
-// surfaces its cached value, which is exactly what the reader could see before the decoder existed.
+// returns its cached value, which is exactly what the reader could see before the decoder existed.
 //
 // One shape needs a second look at the sheet. An array formula's member cells hold a `PtgExp`
 // pointing at the group's top-left, and the `BrtArrFmla` record carrying the group's actual formula
