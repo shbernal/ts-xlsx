@@ -31,7 +31,7 @@ published yet; this ADR settles the policy so it is ready the moment it is.
    `1.0.0` as the point a public API is declared stable. This library does not have
    an unstable-exploration phase to signal. Everything landed already clears
    the CLAUDE.md §2 bar (strict types, lint-clean, unit plus regression corpus tested,
-   docs generated from types) before it merges to `master`. An extended `0.x`
+   docs generated from types) before it merges to `main`. An extended `0.x`
    period would understate that bar, not reflect it. `1.0.0` is therefore the
    correct first tag, not an aspirational one to grow into.
 

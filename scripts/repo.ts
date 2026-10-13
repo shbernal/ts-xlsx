@@ -32,6 +32,7 @@ export function fromRoot(...segments: readonly string[]): string {
  */
 export interface PackageJson {
   readonly name: string;
+  readonly version: string;
   readonly description: string;
   readonly author: string;
   readonly license: string;

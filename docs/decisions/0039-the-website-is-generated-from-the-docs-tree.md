@@ -70,9 +70,9 @@ produced it. Generating it in the job that publishes it means the only artefact 
 is the source.
 
 The build job runs on every pull request and publishes nothing, so a docs page that breaks
-the mirror goes red on the branch rather than on `master`. The deploy job is gated three
+the mirror goes red on the branch rather than on `main`. The deploy job is gated three
 times: by its own `if`, by `needs: build`, and by the `github-pages` environment, whose
-deployment branch policy admits `master` alone. Three locks for one door on purpose, because
+deployment branch policy admits `main` alone. Three locks for one door on purpose, because
 the workflow's own condition is the one a careless edit can remove.
 
 **External links are not checked, and should not be.** `ignoreDeadLinks` is off, so every

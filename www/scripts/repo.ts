@@ -24,8 +24,8 @@ export const pkg = readPackageJson();
 /** `https://github.com/owner/repo.git` -> `https://github.com/owner/repo` */
 export const repoUrl = pkg.repository.url.replace(/^git\+/, '').replace(/\.git$/, '');
 
-/** The default branch. Ours is `master`; every blob and edit link has to say so. */
-export const branch = 'master';
+/** The default branch. Every blob and edit link has to say it explicitly. */
+export const branch = 'main';
 
 /**
  * Where the site is served from, defined once.

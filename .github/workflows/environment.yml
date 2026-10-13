@@ -2,8 +2,9 @@ name: Environment
 
 # The gate that guards publishing, declared here and checked against reality.
 #
-# `publish.yml` names the `npm-publish` deployment environment, which is where the tags-only
-# restriction lives. Those settings are repo *settings* — invisible in a diff, unreviewable,
+# `publish.yml` names the `npm-publish` deployment environment, which admits release tags and the
+# `main` branch that publishes `next`. Those settings are repo *settings* — invisible in a diff,
+# unreviewable,
 # and silently editable by anyone with admin. This file is the declaration of what they must
 # be; this job fails when the live environment disagrees with it.
 #
@@ -33,7 +34,7 @@ on:
   # And editing the declaration re-checks it against what the repository is actually set to,
   # so the two cannot be changed apart without a red run.
   push:
-    branches: [master]
+    branches: [main]
     paths: ['.github/workflows/environment.yml']
 
 # Reading an environment needs read access to the repository and nothing else.
@@ -57,8 +58,9 @@ jobs:
           #
           # No required reviewer, deliberately: on a single-maintainer project the only login
           # that could approve a release was the one that had just cut it. What the click
-          # genuinely stopped was an *accidental* publish, and the tag rule now carries that
-          # alone — ADR-0026 records what that trades away.
+          # genuinely stopped was an *accidental stable publish*, and the tag rule carries that
+          # for releases. The main rule admits the automated `next` channel. ADR-0043 records
+          # the distinction.
           #
           # protected_branches false with custom_branch_policies true is what lets a *tag* rule
           # exist at all; the two are one setting reported as two fields, so both are asserted.
@@ -68,7 +70,7 @@ jobs:
             "reviewers": [],
             "protected_branches": false,
             "custom_branch_policies": true,
-            "deploys_from": ["tag v*"]
+            "deploys_from": ["branch main", "tag v*"]
           }
           JSON
 

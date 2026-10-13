@@ -1,6 +1,7 @@
 name: Publish
 
-# Publishing a GitHub release publishes the package to npm.
+# Publishing a GitHub release publishes the package to npm under `latest`. A push to `main`
+# publishes the same gated package under `next`, with a generated prerelease version.
 #
 # There is no npm credential anywhere in this repository. npm mints a short-lived token from
 # this workflow's OIDC identity (trusted publishing), which is why `id-token: write` is here
@@ -30,6 +31,18 @@ name: Publish
 on:
   release:
     types: [published]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish.yml'
+      - 'LICENSE'
+      - 'README.md'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/**'
+      - 'skills/**'
+      - 'src/**'
+      - 'tsconfig*.json'
   workflow_dispatch:
     inputs:
       tag:
@@ -45,15 +58,21 @@ permissions:
   contents: read
   id-token: write
 
+# A registry write is never cancelled in flight. Pushes share one group, so `next` builds queue in
+# commit order. A release or rehearsal has its own ref-scoped group.
+concurrency:
+  group: publish-${{ github.event_name == 'push' && 'next' || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     name: npm publish
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # The tags-only restriction lives here, declared by environment.yml — and is the whole
-    # gate, since there is no required reviewer: a release publishes unattended. npm's trusted
-    # publisher config names this environment too, so a job that is not this one cannot borrow
-    # the identity.
+    # The release's tag restriction lives in the environment declared by environment.yml. There is
+    # no required reviewer: a release publishes unattended. npm's trusted publisher config names
+    # this environment too, so a job outside this workflow cannot borrow the identity.
     environment:
       name: npm-publish
       url: https://www.npmjs.com/package/@shbernal/ts-xlsx
@@ -90,7 +109,7 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The tag, never the branch the release was cut from: master moves on, and what
+          # The tag, never the branch the release was cut from: main moves on, and what
           # ships must be the commit the release names.
           ref: ${{ steps.target.outputs.tag }}
           persist-credentials: false
@@ -180,16 +199,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          args=""
-          [ "${PRERELEASE}" = "true" ] && args="--tag next"
-          [ "${DRY_RUN}" = "true" ] && args="${args} --dry-run"
+          args=()
+          [ "${PRERELEASE}" = "true" ] && args+=(--tag next)
+          [ "${DRY_RUN}" = "true" ] && args+=(--dry-run)
 
           # Verbose because this is the one step whose failure mode is opaque: npm reports a
           # rejected identity as a 404, indistinguishable from a package that does not exist.
           # The verbose log names the trusted-publishing exchange, which is the difference —
           # and the next step reads this log to hold a rehearsal to the same standard.
-          echo "npm publish ${args}"
-          npm publish ${args} --loglevel verbose 2>&1 | tee "${RUNNER_TEMP}/npm-publish.log"
+          echo "npm publish ${args[*]}"
+          npm publish "${args[@]}" --loglevel verbose 2>&1 | tee "${RUNNER_TEMP}/npm-publish.log"
 
       # `npm publish --dry-run` demotes a rejected identity from an error to a warning and exits
       # 0. That is precisely backwards for a rehearsal: the one failure it exists to catch is the
@@ -231,3 +250,57 @@ jobs:
           fi
 
           echo "OIDC token exchange succeeded — this tag would publish for real"
+
+  next:
+    name: npm publish next
+    if: github.event_name == 'push' && github.repository == 'shbernal/ts-xlsx'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: npm-publish
+      url: https://www.npmjs.com/package/@shbernal/ts-xlsx
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Use an npm that can exchange an OIDC token
+        run: |
+          set -euo pipefail
+          npm install -g npm@11
+          npm --version
+
+      - run: pnpm install --frozen-lockfile
+
+      # This edits only the runner checkout. The repository keeps the last stable version, while
+      # every `next` package gets a unique SemVer version that names its workflow run and commit.
+      - name: Set the prerelease version
+        id: version
+        env:
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          version=$(node scripts/next-version.ts --run "$GITHUB_RUN_NUMBER" --sha "$HEAD_SHA")
+          npm version "$version" --no-git-tag-version --ignore-scripts
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      # No `--ignore-scripts`: `prepublishOnly` is the stable release's gate and is deliberately
+      # reused here. `--tag next` keeps this prerelease away from ordinary installs.
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ''
+        run: npm publish --tag next --loglevel verbose
+
+      - name: Summary
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: echo "Published \`@shbernal/ts-xlsx@$VERSION\` under the \`next\` dist-tag." >> "$GITHUB_STEP_SUMMARY"

@@ -9,9 +9,9 @@ name: Site
 #
 # Two jobs, and the split is the point. `build` runs on every pull request and proves the site
 # is buildable without publishing anything, so a docs page that breaks the mirror goes red on
-# the PR rather than on master. `deploy` runs only on a push to master, and is gated three
+# the PR rather than on main. `deploy` runs only on a push to main, and is gated three
 # times over: by its `if`, by `needs: build`, and by the `github-pages` environment, whose
-# deployment branch policy admits master alone. Three locks for one door is deliberate. The
+# deployment branch policy admits main alone. Three locks for one door is deliberate. The
 # workflow's own condition is the one a careless edit can remove.
 #
 # The site's base is `/ts-xlsx/` and it comes from `www/scripts/repo.ts`, not from a workflow
@@ -19,7 +19,7 @@ name: Site
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
     branches: ['**']
 
@@ -59,7 +59,7 @@ jobs:
   deploy:
     name: Publish to GitHub Pages
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # `pages: write` to publish and `id-token: write` because deploy-pages authenticates with

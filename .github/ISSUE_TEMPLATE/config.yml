@@ -12,13 +12,13 @@ contact_links:
       escaping extraction. Report it privately here, never in a public issue.
 
   - name: Coming from ExcelJS, and something no longer works
-    url: https://github.com/shbernal/ts-xlsx/blob/master/docs/migrating-from-exceljs.md
+    url: https://github.com/shbernal/ts-xlsx/blob/main/docs/migrating-from-exceljs.md
     about: >-
       This is a hard fork with no compatibility guarantee, so an API that moved is usually a
       documented break rather than a bug. The migration guide names the new shape.
 
   - name: About to open a pull request
-    url: https://github.com/shbernal/ts-xlsx/blob/master/docs/agent-correctness-playbook.md
+    url: https://github.com/shbernal/ts-xlsx/blob/main/docs/agent-correctness-playbook.md
     about: >-
       The situation → check → command dispatch table: what you are changing, and the check
       that proves it correct before you send it.

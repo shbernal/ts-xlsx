@@ -12,6 +12,11 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Changed
+
+- The default branch is now `main`. Package-affecting pushes publish a gated prerelease under the
+  npm `next` dist-tag without moving `latest`.
+
 ## [3.2.1] - 2026-10-02
 
 This release fixes how formulas are written when a column's letters spell a function, such as `T`,

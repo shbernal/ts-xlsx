@@ -868,7 +868,7 @@ this commit's own `src/` rather than against whatever version happens to be inst
 
 The site is served at <https://shbernal.github.io/ts-xlsx/> and is generated in CI, never
 committed: `.github/workflows/site.yml` builds it on every pull request and publishes it only
-from `master`. ADR-0039 records the arrangement, including the size budget declined on
+from `main`. ADR-0039 records the arrangement, including the size budget declined on
 purpose.
 
 ## The VBA subsystem

@@ -84,7 +84,7 @@ a flag that duplicates an existing guarantee is config to maintain for no new in
 
 ## Consequences
 
-- **Positive:** non-erasable syntax can no longer reach `master` and break the no-build
+- **Positive:** non-erasable syntax can no longer reach `main` and break the no-build
   workflow; a dependency's broken declarations now fail a gate instead of being skipped; the
   published `.d.ts` is checked as a consumer sees it, through the `exports` map, every build.
 - **Positive:** ADR 0009's `isolatedDeclarations` rejection keeps its "do not re-litigate"

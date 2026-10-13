@@ -1,6 +1,6 @@
 # ADR 0026: Releasing is a GitHub release, and npm follows with no credential
 
-**Status:** Accepted (2026-07-29) · release slice, immediately after 1.0.0
+**Status:** Accepted (2026-07-29) · amended 2026-10-13 by ADR-0043
 
 ## Context
 
@@ -29,11 +29,11 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
    same exchange emits a provenance attestation, so the registry can state which commit
    and which run built what it serves. There is nothing to leak and nothing to rotate.
 
-3. **The publish job runs in the `npm-publish` environment, and that environment is
-   code.** `.github/workflows/environment.yml` declares it, allowing deployments only from
-   `v*` **tags** and no required reviewer, so the gate guarding a publish is reviewable in a
-   diff instead of being a settings page nobody reads, and the workflow fails when the live
-   environment disagrees with the declaration.
+3. **The publish jobs run in the `npm-publish` environment, and that environment is
+   code.** `.github/workflows/environment.yml` declares it, allowing deployments from `v*`
+   **tags** for stable releases and `main` for the opt-in `next` channel. There is no required
+   reviewer. The gate guarding a publish is reviewable in a diff instead of being a settings page
+   nobody reads, and the workflow fails when the live environment disagrees with the declaration.
 
    It _provisioned_ the environment through 1.1.0 and now only checks it (**amended
    2026-08-08**). Writing an environment is an administration endpoint, and `administration`
@@ -58,6 +58,10 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
    taken back: a tag whose name disagrees with the version its own commit declares fails
    the run; a version already on the registry is a no-op rather than a red X, so re-running
    a workflow is safe; and a pre-release tag takes the `next` dist-tag, never `latest`.
+
+6. **A package-affecting push to `main` publishes an opt-in prerelease** under the `next` dist-tag.
+   ADR-0043 defines its generated version, gate and branch policy. It does not change the stable
+   release ritual above or grant a branch push a path to `latest`.
 
 ## Consequences
 
