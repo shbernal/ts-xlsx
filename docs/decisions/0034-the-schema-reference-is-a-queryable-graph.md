@@ -17,16 +17,16 @@ its **Rejected** list:
 > by vendoring.
 
 One exists now. `ooxml-ai-tooling` ingests the ECMA-376 XSDs into a SQLite graph and serves
-it through two surfaces, an MCP server and an agent skill, both fully local, both with no
-account and no network. The premise that forced the choice is gone.
+it two ways, as an MCP server and as an agent skill. Both run locally and need no account and
+no network. The premise that forced the choice is gone.
 
 Which matters, because vendoring the raw XSDs has a cost ADR 0007 counted as a benefit.
 "Greppable" is the word it used. In practice greppable is the failure mode: `rg tblPr
 schemas/` returns a matching line with no declaration around it, so the next move is `Read`
-on a file of several hundred KB, and the question an agent actually has (*what may go
-inside `x:c`, in what order, with what attributes*) is a four-hop join across element,
-type, base type, `attributeGroup` and `simpleType` facets, spread over several files, done
-by hand, in context, every time. It works. It is enormous, and it is silently wrong when the
+on a file of several hundred KB. The question an agent actually has (_what may go inside
+`x:c`, in what order, with what attributes_) is a four-hop join across element, type, base
+type, `attributeGroup` and `simpleType` facets. The agent does that join by hand, across
+several files, in context, every time. It works. It is enormous, and it is silently wrong when the
 agent stops one hop early at an unresolved base type.
 
 A binary `.db` has no cheap wrong path. `rg` says `binary file matches` and stops, `Read`
@@ -69,7 +69,7 @@ Repo-only, like the XSDs before it: the `package.json` `files` allowlist (`dist`
   the agent has to have loaded (`.mcp.json` plus `enabledMcpjsonServers`, with a silent
   degradation to "no answer" when it is not) whereas a vendored skill is present for
   anyone who clones the repo, which is exactly the property ADR 0007 was protecting. Two
-  consumers on two surfaces also means both surfaces get real use.
+  consumers on the two forms also means both forms get real use.
 - **Install from ClawHub without committing** (`clawhub install @shbernal/ooxml-lookup`,
   gitignored). Zero repo weight and a one-line version bump, but it makes the capability a
   per-contributor setup step and reintroduces the dependency on a service being reachable,

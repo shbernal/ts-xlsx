@@ -7,7 +7,7 @@ the common ExcelJS patterns to their `ts-xlsx` equivalents so a port is mechanic
 is honest about what has not been rebuilt yet.
 
 Treat this as a translation guide, not a compatibility promise. Pin a version; the API
-is still moving toward a `0.x` release.
+still breaks between major versions.
 
 ## The three shifts that cover most code
 
@@ -82,8 +82,8 @@ The rewrite is corpus-driven: an API lands only once it is strict-typed and pinn
 tests. Some ExcelJS features are still on the way, and the buffered writer refuses a
 value it cannot represent faithfully rather than emitting a lossy package. If you depend
 on a feature not yet in the [API reference](api/README.md), then, per the project's
-working agreement (see [`architecture.md`](architecture.md)), a missing behavior is best
-reported as a corpus case so it is fixed once and never regresses.
+working agreement (see [`architecture.md`](architecture.md)), report a missing behavior
+as a corpus case, so it gets fixed once and never regresses.
 
 **Charts, vector shapes, slicers, and legacy form controls are round-trip-only, by
 decision, not by omission.** ExcelJS let you create these from scratch, with varying
@@ -94,9 +94,9 @@ reasoning and what it would take to pick one up.
 
 ## Why break compatibility at all?
 
-Because keeping the old surface would make the library worse but easier, and replacing it
+Because keeping the old API would make the library worse but easier, and replacing it
 makes the library better but harder, and the fork exists to do the harder, better thing
 ([`CLAUDE.md`](../CLAUDE.md) §5). What you get for the port: `.d.ts` types precise enough
 that the API reference is generated from them, an I/O path with no Node built-ins in it
-so the same code runs in a browser, and a behavior set that is pinned by the regression
-corpus rather than assumed.
+so the same code runs in a browser, and behavior that the regression corpus pins rather than
+assumes.

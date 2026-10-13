@@ -1,8 +1,8 @@
 # Reading a workbook
 
 `readXlsx` takes bytes and gives you a `Workbook`. It is synchronous, and it accepts both
-OOXML serialisations: an XML `.xlsx` and a binary `.xlsb`. The two are told apart from the
-package itself rather than from a file extension, so you never branch on which one you are
+OOXML serialisations: an XML `.xlsx` and a binary `.xlsb`. The reader tells the two apart from
+the package itself rather than from a file extension, so you never branch on which one you are
 holding, and the model you get is the same either way.
 
 ```ts
@@ -94,7 +94,7 @@ This library models number formats; it does not implement a formatting engine, a
 
 A real workbook contains parts this library does not model: a pivot cache, a slicer, a
 chart, a linked-workbook reference. It reads those bytes, keeps them, and writes them back
-untouched, so a load and save does not quietly delete them. They surface as *preserved*
+untouched, so a load and save does not quietly delete them. They show up as *preserved*
 references, and each one carries the package parts it reaches.
 
 ```ts
@@ -120,8 +120,8 @@ it in
 Assume every file you did not write is hostile, because the format makes that cheap for an
 attacker. Two defences are on by default and are not optional.
 
-Inflation is bounded by counting the bytes actually produced, never by trusting the
-archive's declared sizes, so a zip bomb that lies about its uncompressed size is refused all
+The reader bounds inflation by counting the bytes it actually produces, never by trusting
+the archive's declared sizes. A zip bomb that lies about its uncompressed size is refused all
 the same. The ceiling defaults to 512 MiB and you can lower it:
 
 ```ts

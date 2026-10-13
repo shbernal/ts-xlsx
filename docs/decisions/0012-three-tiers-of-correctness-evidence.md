@@ -63,7 +63,7 @@ code, so it cannot share our blind spot.
 
 What Excel Desktop actually does with the file. The **only** ground truth for Excel's
 quirks and for cross-part invariants the spec omits. On a Windows+Excel host it is
-**scriptable for state-observable behavior** via the Excel-oracle harness
+**scriptable for state-observable behavior** via the Excel-oracle probe tool
 ([ADR 0013](./0013-excel-desktop-as-automatable-tier3-oracle.md)), covering auto-fill,
 canonical re-save, and value/formula readback, though the interactive repair-dialog
 experience is not. It is captured as provenance
@@ -118,14 +118,14 @@ built to cross the seam. An audit of the current vocabulary (2026-07-21) found t
 **Structural ceiling:** `worksheetRels` reads only `sheet1.xml.rels`, and tables and drawings
 are not tied to an owning sheet. Every *multi-sheet* cross-part chain and every
 "reference-in-sheet → rel → target part" resolution is unstateable until that is lifted.
-It is the precondition for several rows above, so it is the highest-leverage fix.
+It is the precondition for several rows above, so it is the highest-value fix.
 
 These are not scheduled here; they are the backlog this ADR makes visible. Close each
 the same way: Tier-3 seed, then a seam fact that locks it.
 
 ### Tier-3 hazard (closed, verdict benign, locked in CI): shared-formula `ref` over-covers a non-contiguous clone set
 
-> **Seeded 2026-07-21 via the Excel-oracle harness ([ADR 0013](./0013-excel-desktop-as-automatable-tier3-oracle.md)); locked the same day.**
+> **Seeded 2026-07-21 via the Excel-oracle probe tool ([ADR 0013](./0013-excel-desktop-as-automatable-tier3-oracle.md)); locked the same day.**
 > **Verdict: BENIGN. The presumed fix direction was wrong.** Excel treats the shared-formula
 > `ref` as a *bounding-box hint*, not an instruction to materialize the interior. On Excel 16.0
 > build 20131 it opened the `ref="B1:D5"` package **without repair**, did **not** auto-fill the
@@ -160,7 +160,7 @@ why it is called out rather than left implicit.
 The two candidate fixes this framing implied were **split the group into maximal contiguous runs**
 (each its own master, each needing the formula **translated** to its new anchor, which is
 R1C1/relative-offset machinery we do not yet have) and **degrade non-fill clones to standalone
-`<f>` cells**. Both are real work, and crucially the seed proved neither is *correct*: Excel keeps
+`<f>` cells**. Both are real work, and the seed proved neither is *correct*: Excel keeps
 the group whole and the over-wide `ref` intact, so either would make ts-xlsx diverge from the
 application it must match. The right move was to seed the Tier-3 question before touching the
 writer, and the seed's answer was "the writer is already right." That is why the resolution is a
@@ -169,7 +169,7 @@ seam fact, not a code change.
 **How the seed was taken.** The tier is irreducible, since there is no local oracle for it (the
 schema validator passed the analogous table bug), so the probe file (master `B1`, clones `B2` and
 `D5`, `ref="B1:D5"`) was emitted, opened headless in Excel Desktop, and re-saved via the
-Excel-oracle harness ([ADR 0013](./0013-excel-desktop-as-automatable-tier3-oracle.md)): probe
+Excel-oracle probe tool ([ADR 0013](./0013-excel-desktop-as-automatable-tier3-oracle.md)): probe
 `tools/excel-oracle/probes/shared-formula-sparse-ref.json` produced sidecar
 `test/corpus/fixtures/excel-oracle/shared-formula-sparse-ref.json`. Excel *ignored* the empty interior
 (no auto-fill) and re-saved the identical group, and the verdict box above records the result. The seam
@@ -179,7 +179,7 @@ geometry so CI catches any regression without re-opening Excel.
 ## Consequences
 
 - **Positive:** "the corpus is green" is no longer mistaken for "Excel accepts this."
-  The playbook's defense-in-depth table now carries the epistemic distinction, not just
+  The playbook's defense-in-depth table now carries the epistemic distinction as well as
   a cost ordering. New cross-part invariants have a named recipe (seed plus seam fact) and a
   visible backlog.
 - **Neutral:** cross-part correctness still costs a manual Excel verification to seed.

@@ -111,7 +111,7 @@ so a `{{ ... }}` inside it stays literal, which the note on template placeholder
 **The site gets no size budget.** Declined, not deferred.
 
 `scripts/size-budget.ts` guards what a consumer installs, where a byte is paid for by every
-dependant and a ratchet is the only thing that stops slow growth. The site is downloaded by a
+dependant and a hard limit is the only thing that stops slow growth. The site is downloaded by a
 reader who chose to open it, over a link, once. A budget there would gate a build on a number
 nobody is harmed by, and the first time it failed it would be edited rather than obeyed,
 which is worse than not having it: a gate people learn to raise teaches that every gate is

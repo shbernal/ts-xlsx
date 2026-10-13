@@ -32,8 +32,8 @@ regress. This is why the corpus outlived the rewrite. It was written against the
 indicted the old one.
 
 The rule that follows: when in doubt, add a case. A bug without a corpus case is a bug
-that will return. A missing feature is best reported as a corpus case so it is fixed once
-and never regresses.
+that will return. Report a missing feature as a corpus case, so it gets fixed once and
+never regresses.
 
 ## Test topology
 
@@ -122,7 +122,7 @@ them. `Worksheet` holds `DataValidationOverlay`, `ConditionalFormattingOverlay`,
 `WorksheetPictures` (`core/worksheet-pictures.ts`) and `WorksheetComments`
 (`core/worksheet-comments.ts`); `Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`),
 `WorkbookTheme` (`core/workbook-theme.ts`) and `WorkbookStyleTables` (`core/workbook-styles.ts`).
-The public surface does not move: an accessor stays on the model class, keeps its name, its type
+The public API does not move: an accessor stays on the model class, keeps its name, its type
 and its full doc comment, and becomes a one-line delegation. The doc comment staying put is not
 incidental, since it is what `scripts/gen-docs.ts` reads and what a consumer sees; the slice
 carries implementation notes only.
@@ -180,10 +180,10 @@ The row and column axes are deliberately not mirror images, and where they diver
 rather than a gap someone forgot to close. A row takes either input shape, a positional array or an
 object keyed by `ColumnProperties.key`; a column takes only the positional one, because a column's
 values are indexed by *row* and a row carries no key for the other shape to name. `duplicateRow` has
-no column counterpart for a mechanical reason rather than a matter of taste: a row insert carries
-pre-built `Cell`s, so a duplicate keeps the source's per-cell styles, while a column insert carries
-raw `CellValue`s that materialise fresh cells, so the same verb on that axis would silently drop the
-styles it claims to be copying. What is missing is the machinery, not the verb, and adding it means
+no column counterpart for a mechanical reason, not a matter of taste. A row insert carries pre-built
+`Cell`s, so a duplicate keeps the source's per-cell styles. A column insert carries raw `CellValue`s
+that materialise fresh cells, so the same verb on that axis would silently drop the styles it claims
+to be copying. What is missing is the machinery, not the verb, and adding it means
 giving `spliceColumns` a cell-shaped insert path first.
 
 ### Inside `src/io/xlsx/`: three kinds of module, deliberately flat
@@ -273,15 +273,15 @@ geometry plus the six inherited `CellStyle` facets), so `row.height = 20` is the
 path rather than a hop through a properties bag. That mirror is proved complete at compile time the
 same way the model registry is: a field added to `RowProperties` or `ColumnProperties` with no
 accessor fails the build naming the field, because otherwise the record would carry it, the codecs
-would read and write it, and the public handle would simply never mention it.
+would read and write it, and the public handle would never mention it.
 
-Those sixteen pairs are spelled out rather than generated from a facet list, and the decision was
-taken deliberately once the list-driven form was costed. The facet lists elsewhere in `core/`
+Those sixteen pairs are spelled out rather than generated from a facet list, and we decided that
+after costing the list-driven form. The facet lists elsewhere in `core/`
 (`CELL_STYLE_FACETS`, `WORKSHEET_MODEL_FACETS`) drive *loops* over state a caller never names;
 generating accessors is a different thing, and its price is paid twice. `gen-docs.ts` reads class
 members, so each property would still need a declared member carrying its doc comment, leaving only
 the four-line body to save. And the members would have to be installed at runtime rather than
-declared, which trades a surface the compiler checks for one it merely believes. That is the
+declared, which trades members the compiler checks for members it merely believes exist. That is the
 `AssertNever` proof above spending its own guarantee. A slice that is not one costs more than the
 lines it removes, and so does an abstraction.
 
@@ -316,7 +316,7 @@ it, which is the slice-that-is-not-one test failing again.
 
 If that is ever taken up, the honest shape is not a base class but a free function both `shift`
 methods call, `shiftSqrefEntries(entries, refOf, withRef, axis, start, count, delta)`. That is the
-part which is genuinely one rule, and it is the part where a drift would silently re-aim a
+part that is one rule, and it is the part where a drift would silently re-aim a
 validation or a highlight at cells nobody chose.
 
 **Costed and declined once, on the grounds that the rule was better placed elsewhere.** The rule at
@@ -361,7 +361,7 @@ typed rejection), `read-opc.ts` (resolving relationships and walking a part clos
 
 A `PageSetup`, a `Color`, a `ConditionalFormattingRule` and a dozen shapes like them are plain data
 the model stores verbatim, with no accessor to validate through. That is deliberate: making them
-classes to catch a mistake would change the public surface of every one to guard a moment that has
+classes to catch a mistake would change the public API of every one to guard a moment that has
 not happened yet, and a `Color` that never reaches a file never had a problem. So the check belongs
 at the single point where the value becomes bytes, and `src/xml/xml.ts` states all three forms of it:
 
@@ -407,7 +407,7 @@ the coordinate every other field is read relative to. A `sqref` is dropped *per 
 areas are independent and one unreadable area says nothing about its neighbours. Where the
 authoring path shares the code, the guard stays on the authoring side and the reader filters before
 reaching it, so `addDataValidation` still refuses a range naming no cells while a file carrying one
-simply loses that validation.
+loses that validation.
 
 ## How a failure is reported
 
@@ -472,7 +472,7 @@ exactly one entry, so the root barrel is a union of `export *` lines rather than
 to keep in step.
 
 `/node` is the one the root barrel leaves out, and the reason is its imports rather than its
-size. It carries the streaming writer, the only public surface reaching a Node built-in
+size. It carries the streaming writer, the only public export reaching a Node built-in
 (`node:fs`, `node:stream`); unioning it would put those on every browser consumer's graph for a
 symbol they never named. `scripts/check-browser-safe.ts` walks the graph from the other seven
 entries and fails on any `node:` specifier or Node-only global, and a `browser` condition in
@@ -554,7 +554,7 @@ run-length-compressed ([MS-OVBA]) module source and p-code. OOXML treats it as a
 blob referenced by a workbook relationship; the ZIP package is otherwise identical to a plain
 `.xlsx`. `src/vba/` is the self-contained, dependency-free subsystem that reads that blob and
 applies pure-TS structural edits natively, with no `fflate` and no runtime dependency, just bytes.
-Authoring or editing module *source* is not here: it needs genuinely compiled p-code only a real
+Authoring or editing module *source* is not here: it needs compiled p-code only a real
 Excel can emit, so it lives in the offline `tools/vba-compiler` (see below, and ADR 0019).
 
 **Preservation is the safety floor, and every VBA feature is additive over it.** Read captures
@@ -607,19 +607,19 @@ The public API layers by fidelity and intent, each slice fail-closed:
   `_VBA_PROJECT` byte-for-byte. They are safe *precisely because* they never touch a module's
   compiled p-code: the `dir` stream, authoritative for the module/reference list, carries the
   change (ADR 0018/0019).
-- **Author or edit module source, offline and not in the shipped library.** This is done by
-  `tools/vba-compiler`, which drives a real headless Excel through the VBIDE object model to emit
-  genuinely compiled, source-matched p-code (a `vbaProject.bin`, or a whole edited `.xlsm` for
+- **Author or edit module source, offline and not in the shipped library.** `tools/vba-compiler`
+  does this: it drives a real headless Excel through the VBIDE object model to emit
+  compiled, source-matched p-code (a `vbaProject.bin`, or a whole edited `.xlsm` for
   document code-behind). It is a Windows+Excel build tool, never in CI, whose output seeds
   committed fixtures (ADR 0019).
 
 **Why source authoring cannot be pure TS.** Excel does not recompile VBA from source on open. A
-module runs the compiled p-code (PerformanceCache) it ships, and the source is only recompiled
+module runs the compiled p-code (PerformanceCache) it ships, and Excel recompiles the source only
 when a human opens the VBE. A `vbaProject.bin` synthesized from source alone, with no p-code or
 mismatched p-code, either throws "Invalid data format" or *silently runs stale code*, so "opens
 clean" is not proof of correctness. Only a real Excel can produce runnable p-code, hence the
-offline compiler. Authoring artifacts are verified with `execute-verdict.ps1`, which opens with
-macros enabled and *runs* a known authored macro, not merely by an open verdict (ADR 0019).
+offline compiler. We verify an authored artifact with `execute-verdict.ps1`, which opens it with
+macros enabled and *runs* a known authored macro; an open verdict alone proves nothing (ADR 0019).
 *Executing* macros in-process stays out of scope forever. That needs a live host, and this is a
 document tool, not a VBA interpreter (ADR 0013).
 
@@ -653,7 +653,7 @@ The stack is deliberately small and each choice is recorded as an ADR under
 - **Security- and correctness-first.** Every parser path is hostile-input-facing: no
   unbounded allocation, no zip-bomb naïveté. Entities are decoded but never expanded;
   inflation is bounded by a running output counter, not any declared size.
-- **On a round-tripping surface, ask whether input is safe to *write back*.** Bounding what a
+- **On a round-tripping path, ask whether input is safe to *write back*.** Bounding what a
   parser will hold is only half of it. What the reader accepts, the writer re-emits, so a value
   a foreign part carries can leave *our* output invalid, and one invalid attribute is enough for
   Excel to offer to repair the feature away. A wire bound therefore lives in the parser, the

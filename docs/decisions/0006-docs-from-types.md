@@ -8,7 +8,7 @@ The public API is a single curated barrel (`src/index.ts`, ~86 exported symbols)
 that is already richly documented in TSDoc-style leading summaries. `worksheet.ts`
 alone carries 119 doc blocks, over strict, precise types. CLAUDE.md §2 states the goal
 plainly: *the types are the docs*. Slice 3 of the Phase 4 plan asks for first-class API
-docs generated from that surface, plus migration notes framed as "a different, better
+docs generated from that barrel, plus migration notes framed as "a different, better
 library" rather than a compatibility shim.
 
 The obvious move is TypeDoc. We reject it, for the same reason ADR-0029 rejected Vitest:

@@ -22,8 +22,7 @@ bug in your code or in your runtime, and this library will not have wrapped it.
 
 ## The four codes, and what you would do about each
 
-The taxonomy is deliberately coarse, because four is the number of genuinely different next
-actions.
+The taxonomy is coarse on purpose: there are four different things a caller does next.
 
 | `code` | What happened | What you do |
 | --- | --- | --- |
@@ -88,7 +87,7 @@ sees, so no lower-layer string can leak into a log or a user-facing error.
 
 ## Errors that are your fault
 
-`AuthoringError` is raised when the *document you described* cannot exist: a workbook with no
+`AuthoringError` means the *document you described* cannot exist: a workbook with no
 worksheets, a table whose columns do not span its range, a merge overlapping another.
 
 ```ts

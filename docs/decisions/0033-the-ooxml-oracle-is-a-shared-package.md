@@ -32,7 +32,7 @@ fetched on first use, checksum- and provenance-verified, cached in `~/.cache/oox
 the `Microsoft365` conformance pin; batching; and the CI gate that turns an unobtainable
 oracle into a hard failure instead of a silent skip.
 
-This repo keeps what is actually about *this* project: `test/ooxml-validation/run.ts`, which
+This repo keeps what is about *this* project: `test/ooxml-validation/run.ts`, which
 emits the buffered and both streaming writers' real output plus the negative controls, and
 `allowed-errors.json`, the frozen baseline it holds them against.
 

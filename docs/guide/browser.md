@@ -46,23 +46,23 @@ the environment provides them. It produces the same package byte for byte.
 ## What does not
 
 The streaming writer. It opens files and pipes Node streams, so it is published from
-`@shbernal/ts-xlsx/node` and the root specifier does not carry it; a browser build that
-imports that subpath anyway links a module whose classes throw by name, which is the honest
-answer rather than a bundler error about `node:fs`. The streaming reader is a generator over
+`@shbernal/ts-xlsx/node` and the root specifier does not carry it. A browser build that
+imports that subpath anyway links a module whose classes throw by name. That is a clearer
+answer than a bundler error about `node:fs`. The streaming reader is a generator over
 Node buffers and is not available in a tab either. If your browser code needs either, it
 needs a server.
 
-Everything else runs, including the two things that used to be listed here. Sheet-protection
-passwords are hashed by this library's own SHA-512 rather than by `node:crypto`, and the CSV
-encoders are the platform's `TextEncoder` and two small loops rather than `Buffer`.
+Everything else runs, including the two things that used to be listed here. This library hashes
+sheet-protection passwords with its own SHA-512 rather than `node:crypto`, and the CSV
+encoders use the platform's `TextEncoder` and two small loops rather than `Buffer`.
 
 ## Nothing to configure
 
 There is no bundler alias to write and no `node:` specifier to stub out. Nothing reachable
 from `@shbernal/ts-xlsx`, `/core`, `/xlsx`, `/xlsb`, `/csv`, `/vba`, `/customui` or `/errors`
-imports a Node built-in or reads a Node global, and that is a gate rather than a claim:
+imports a Node built-in or reads a Node global. A CI check enforces that:
 `scripts/check-browser-safe.ts` walks the module graph from every one of those entries on
-every run, and the published build is walked again from the emitted JavaScript. If a Node
+every run, then walks the published build again from the emitted JavaScript. If a Node
 import ever reaches the browser entries, CI says so before you do.
 
 The one subpath that does reach them, `/node`, is resolved by a bundler's `browser`

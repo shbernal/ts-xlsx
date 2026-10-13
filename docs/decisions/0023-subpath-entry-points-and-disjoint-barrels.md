@@ -38,7 +38,7 @@ cannot be a dynamic import.
 1. **Seven entry barrels under `src/entries/`, one per published subpath** (`/core`, `/xlsx`,
    `/xlsb`, `/csv`, `/vba`, `/customui`, `/errors`), with `src/index.ts` unioning them so the bare
    package name still carries everything. The entries are *not* the existing internal barrels:
-   `src/vba/index.ts` and `src/customui/index.ts` carry the CFB writer, the MS-OVBA primitives and
+   `src/vba/index.ts` and `src/customui/index.ts` carry the CFB writer, the MS-OVBA compress/decompress functions and
    the part-path constants that the model and the codecs need, and those are implementation. A
    public face has to be able to be narrower than the module it fronts.
 
@@ -107,7 +107,7 @@ cannot be a dynamic import.
 - **`/core` carrying the VBA codec is the next honest target.** ~150 KB of the model's 299 KB is
   VBA and ribbon parsing, because `Workbook` owns `parseVbaProject`/`addVbaReference`/
   `removeVbaModule` directly. Moving that behind a boundary the model does not import at value level
-  would halve the model's cost, and would be a breaking change to `Workbook`. It is deliberately
-  out of scope here: this ADR is about how the package is published, not about what the model owns.
+  would halve the model's cost, and would be a breaking change to `Workbook`. It is out of scope
+  here: this ADR is about how the package is published, not about what the model owns.
 - **Revisit when:** an async read path exists (a dynamic import could then make the BIFF12 codec
   optional on the `/xlsx` path), or a consumer needs a subpath finer than a codec.

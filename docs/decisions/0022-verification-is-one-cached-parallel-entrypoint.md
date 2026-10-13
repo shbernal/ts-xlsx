@@ -52,8 +52,8 @@ they both re-read all of `src/` and were the worst-contending pair.
 ### Incremental typecheck, but not `composite`
 
 Both configs set `incremental` with buildinfo under `node_modules/.cache/`, which halves a
-warm `tsc`. `composite` plus `references`, which would let the harness project consume src's
-declarations instead of re-elaborating them, **is not available here**: a referenced
+warm `tsc`. `composite` plus `references`, which would let the `test/` + `scripts/` project consume
+src's declarations instead of re-elaborating them, **is not available here**: a referenced
 project may not disable emit (`TS6310`), and these configs exist to gate a tree that is
 never built ([ADR 0001](./0001-rewrite-runtime-and-toolchain.md)). Do not revisit without
 also giving up the build-free dev path.
@@ -117,8 +117,8 @@ with no lockfile change.
 `dotnet run --project` re-evaluates the project on every call, taking ~2 to 6 s for a tool whose
 actual work is under a second. `scripts/ooxml-validator.ts` compares the DLL's mtime
 against the newest source beside the project, builds only if stale, and otherwise hands
-`dotnet` the assembly path. `resolveValidator()` is exported so the baseline harness
-resolves the same assembly rather than keeping a second copy of the staleness rule.
+`dotnet` the assembly path. `resolveValidator()` is exported so the validation baseline
+runner (`test/ooxml-validation/run.ts`) resolves the same assembly rather than keeping a second copy of the staleness rule.
 
 The locked restore is folded in as `-p:RestoreLockedMode=true` on that build, which is
 sound only because `packages.lock.json` is itself a staleness input. When it fails it

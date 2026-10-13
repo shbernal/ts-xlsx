@@ -47,7 +47,7 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
    (**amended 2026-08-05**). On a single-maintainer project it was never a second pair of
    eyes: the only login that could approve was the one that had just cut the release, so it
    asked the releaser to confirm a decision they had made one command earlier. Consent that
-   only the decider can give is a delay, not a control. What it genuinely stopped was an
+   only the decider can give is a delay, not a control. What it did stop was an
    *accidental* publish; see the consequences below for what now carries that.
 
 4. **The workflow enumerates no gates.** `npm publish` runs `prepublishOnly`, which is
@@ -113,7 +113,7 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
   placeholder instead of exchanging an OIDC token, and dropped the option. That inference
   was wrong, and 1.0.1 failed `ENEEDAUTH` proving it: `registry-url` writes the .npmrc
   entry naming the registry this publish authenticates against, and without it npm does not
-  begin the exchange at all. The placeholder is genuinely unused, because that variable is
+  begin the exchange at all. The placeholder is unused, because that variable is
   read when *installing* private dependencies, not when publishing. The lesson generalises: a
   plausible reading of an observed value is not evidence, and the release path is one place
   where the difference is a burned version number.

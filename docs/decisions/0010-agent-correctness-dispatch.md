@@ -25,8 +25,8 @@ Stop hook ran only typecheck plus test:src, so a turn could end "green" while re
 the corpus; and the microsoft-learn MCP was enabled only in the git-ignored
 `settings.local.json`, so a fresh clone or agent didn't get it.
 
-The gap was **dispatch and discoverability, not capability.** The fix is to surface the
-existing net, not to add new validators.
+The gap was **dispatch and discoverability, not capability.** The fix is to make the
+existing net easy to find, not to add new validators.
 
 ## Decision
 
@@ -49,7 +49,7 @@ advertise themselves by description, so this is the primary streamlining win. It
 
 `.claude/settings.json` Stop hook now runs typecheck, test:src and **corpus** when `src/`
 is dirty (timeout 120 s raised to 180 s; measured ~23 s combined, 671 green, 0
-regressions). Corpus defaults to the `rewrite` adapter, so it genuinely exercises `src`.
+regressions). Corpus defaults to the `rewrite` adapter, so it exercises `src`.
 This closes the "finished green but regressed" gap. The .NET oracle is deliberately
 **not** added to the hook, because it needs .NET and is slower; CI's `ooxml-validation`
 workflow enforces it on every PR regardless.

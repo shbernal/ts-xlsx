@@ -22,7 +22,7 @@ there is real code to measure against, rather than inherit the pre-rewrite defau
 
 ### Biome is the lint and format toolchain
 
-One binary, zero transitive dependencies, covering TS and the `.mjs` corpus harness.
+One binary, zero transitive dependencies, covering TS and the `.mjs` corpus runner.
 `biome.json` mirrors the style the tree was hand-authored in (2-space, single quote,
 semicolons, `bracketSpacing: false`, trailing commas, 100-col), so adoption was a
 near-no-op format pass rather than a restyle. The linter runs Biome's `recommended`
@@ -50,7 +50,7 @@ Two deliberate config choices:
 > it applies, but overrides vanish, so the test-file rule relaxation evaporates and
 > ~50 warnings reappear. `biome.json` is therefore kept as **comment-free JSON**;
 > rationale lives here instead. Do not add comments to it. CI would catch the
-> regression as a wall of warnings, but the cause is deeply non-obvious.
+> regression as a wall of warnings, but nothing in the warnings points at the cause.
 
 ### `node --test` is kept; Vitest is rejected
 

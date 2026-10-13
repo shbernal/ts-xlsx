@@ -24,10 +24,10 @@ with a sharply drawn boundary."
 ## Decision
 
 **On a Windows+Excel host, Tier 3 is scriptable for state-observable behaviors and is
-run through a dedicated probe harness. But it is never a test, never runs in CI, and
+run through a dedicated probe tool. But it is never a test, never runs in CI, and
 never replaces the Tier-2 seam fact that locks a behavior.**
 
-### The harness
+### The probe tool
 
 `tools/excel-oracle/` is a standalone probe tool, outside the corpus run path:
 
@@ -60,19 +60,19 @@ threw, and whether the workbook name carries `[Repaired]`.
 
 **Not scriptable (interactive-only):** the modal *repair dialog experience* itself.
 `DisplayAlerts=$false` **suppresses** that modal, which is what keeps the agent from
-deadlocking, so the harness can *detect that a repair happened* (Open throws, the name
+deadlocking, so the probe tool can *detect that a repair happened* (Open throws, the name
 carries `[Repaired]`, re-saved content diverges) but cannot reproduce what a human clicking
 through the dialog would see. **Automation-open is not interactive-open.** Every observation
 records which class it is (`openClass` field).
 
 ### The seed-once / lock-in-CI split is unchanged (ADR 0012)
 
-Excel is **Windows/machine-bound and never runs in CI.** A harness observation is captured
+Excel is **Windows/machine-bound and never runs in CI.** A probe observation is captured
 **once** as recorded provenance that *seeds* a case; a **Tier-2 seam fact is what locks it**
 and runs in CI. `node test/corpus/run.ts` must never depend on Excel being installed. The
-harness lowers the *cost* of a Tier-3 seed; it does not move Tier 3 into the CI gate.
+probe tool lowers the *cost* of a Tier-3 seed; it does not move Tier 3 into the CI gate.
 
-### The five standing pitfalls (the contract for using the harness)
+### The five standing pitfalls (the contract for using the probe tool)
 
 1. **Automation is not interactive.** Suppressed modals mean detectable-but-not-reproducible
    repair. Record `openClass`; never claim the interactive experience from an automation run.
@@ -86,13 +86,13 @@ harness lowers the *cost* of a Tier-3 seed; it does not move Tier 3 into the CI 
 4. **Provenance is the deliverable.** The point of a run is a durable, auditable sidecar
    (`test/corpus/fixtures/excel-oracle/<invariant>.json`), not console output. It carries
    `{excel:{version,build}, capturedAt, probeSpecRef, cells, resave, verdict}`.
-5. **Don't over-claim.** The harness answers *state-observable* questions on *this build*.
+5. **Don't over-claim.** The probe tool answers *state-observable* questions on *this build*.
    It is not a conformance oracle (that is Tier 2, ADR 0002) and it is not proof of what
    every consumer does (LibreOffice materializes shared-`ref` interiors where Excel does not).
 
 ### Seeding provenance convention
 
-A case seeded from a harness run carries
+A case seeded from a probe run carries
 `provenance: {source: 'excel-desktop-verification', ref: '<sidecar path>'}`, so the audit
 trail points from the CI-run seam fact back to the one-time Excel observation that justified
 it. The sidecar in turn carries `probeSpecRef` back to the probe that produced it.
@@ -101,7 +101,7 @@ it. The sidecar in turn carries `probeSpecRef` back to the probe that produced i
 
 The open hazard in ADR 0012, where `planSharedFormulas` emits `ref="B1:D5"` for a non-contiguous
 group (master `B1`, clones `B2` and `D5`), covering empty interior cells, was seeded through the
-harness (sidecar: `test/corpus/fixtures/excel-oracle/shared-formula-sparse-ref.json`, Excel
+probe tool (sidecar: `test/corpus/fixtures/excel-oracle/shared-formula-sparse-ref.json`, Excel
 16.0 build 20131). The verdict inverts the presumed fix direction:
 
 **Excel treats the shared-formula `ref` as a bounding-box hint, not an assertion that every
@@ -122,9 +122,9 @@ re-save and runs in CI without re-opening Excel. ADR 0012's hazard is closed.
   ADR 0012 is now seeded (verdict: benign), not folklore.
 - **Positive:** the capability is discoverable. A playbook dispatch row points to it and
   this ADR states its limits, so a fresh agent finds both the tool and its boundary.
-- **Neutral / unchanged:** Tier 3 is still irreducible and still never in CI. The harness
+- **Neutral / unchanged:** Tier 3 is still irreducible and still never in CI. The probe tool
   makes the *seed* cheap; the **seam fact is still what keeps a behavior locked**. On a
-  non-Windows or non-Excel host the harness self-guards to a clear refusal, so the seed simply
+  non-Windows or non-Excel host the probe tool self-guards to a clear refusal, so the seed simply
   cannot be taken there, which is honest, not a regression.
 - **Negative:** a second machine dependency (Windows plus Excel plus `pwsh`) now exists for
   *seeding*. It is quarantined to `tools/` and gated only by typecheck and lint, never by the

@@ -20,8 +20,8 @@ and already carries a runtime dependency, five devDependencies that *are* the qu
 gates, a .NET oracle, a pinned package manager, and four workflows' worth of GitHub
 Actions. Nothing about being young protects it from the same failure.
 
-The obvious counter, "we'll update them when we touch them", is precisely the policy
-upstream had. It fails silently, and the moment it has failed is not observable.
+The obvious counter, "we'll update them when we touch them", is the policy upstream
+had. It fails silently, and the moment it has failed is not observable.
 
 The complication is that this project is deliberately human-minimal. A bot that opens
 fifteen pull requests a month solves the rot and replaces it with a review queue nobody
@@ -73,7 +73,7 @@ automate the updates; it is **who reviews them**, given that the answer cannot u
 - **Positive:** the tree stays current by default rather than by remembering; the failure
   mode of an update is a red check on a pull request instead of a discovery two years
   later; the actions that run with publish rights are immutable references; and the
-  decisions that are genuinely ours (the runtime floor, what consumers install, what the
+  decisions that are ours (the runtime floor, what consumers install, what the
   oracle is) are the short list a human actually reads.
 - **Negative / deferred:** automerge makes the gate set load-bearing in a new way. A gap in
   coverage that a human reviewer might have caught by reading a changelog now merges

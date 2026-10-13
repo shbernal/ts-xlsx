@@ -1,6 +1,6 @@
 # ADR 0024: Async is one writer, not a mirrored pair
 
-**Status:** Accepted (2026-07-29) · I/O surface · the deferred `mtime` question was answered by [ADR 0032](./0032-package-output-is-reproducible.md) (2026-08-11)
+**Status:** Accepted (2026-07-29) · I/O API · the deferred `mtime` question was answered by [ADR 0032](./0032-package-output-is-reproducible.md) (2026-08-11)
 
 ## Context
 

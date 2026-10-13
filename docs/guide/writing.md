@@ -80,9 +80,9 @@ console.log(sheet.getCell('A4').type); // 'date'
 ```
 
 Two things are worth knowing about formulas. A formula carries an optional cached `result`,
-which is the value a consumer sees before anything recalculates; this library computes
-nothing, so if you leave the result out, the cell reads as blank until the file is opened by
-something that calculates. If you would rather ask every consumer to recalculate, say so on
+which is the value a consumer sees before anything recalculates. This library computes
+nothing. If you leave the result out, the cell reads as blank until something that
+calculates opens the file. If you would rather ask every consumer to recalculate, say so on
 the workbook:
 
 ```ts
@@ -131,8 +131,8 @@ console.log(writeXlsx(workbook).length > 0); // true
 
 ## The bytes are a pure function of the model
 
-An unchanged workbook written twice produces two identical archives: entry timestamps are
-pinned to a fixed date rather than taken from the clock. A committed `.xlsx` therefore
+An unchanged workbook written twice produces two identical archives: the writer pins
+entry timestamps to a fixed date rather than taking them from the clock. A committed `.xlsx` therefore
 changes only when something about it changed, which is what makes one reviewable in a diff
 and cacheable by content.
 

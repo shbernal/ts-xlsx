@@ -27,7 +27,7 @@ same generic mechanism as charts and shapes and the same reasoning applies.
 
 ADR-0005 already set precedent for a closely related question, whether to carry
 attached-part byte closures on `WorksheetModel`, and declined it while deferring the
-*authoring* question generally: "a faithful whole-sheet/package copy primitive is
+*authoring* question generally: "a faithful whole-sheet/package copy API is
 deferred pending a consumer... it waits for a real use-case to force its shape." This ADR
 extends that same reasoning from the model-copy API to the public authoring API.
 

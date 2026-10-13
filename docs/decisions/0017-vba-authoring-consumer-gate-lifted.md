@@ -45,12 +45,12 @@ It satisfies its underlying requirement by a different, and arguably stronger, m
      edited or created module source. This makes `VbaProject` (or a sibling authoring API) an **emission
      authority**, which reverses ADR 0016's "read-only view, not a source of truth" core. It therefore
      gets its own ADR amending 0016 when the *authoring API* lands (§2.3d), not a silent extension of
-     this one. It is built as internal encode primitives first, each provable in isolation before any
+     this one. It is built as internal encode functions first, each provable in isolation before any
      public shape changes:
      - **§2.3a CFB writer (`writeCompoundFile`, done):** the encode counterpart to `cfb.ts`, turning a
        hierarchy of storages and streams into a v3 [MS-CFB] container. It emits each storage's children
-       as the name-ordered balanced tree a host *navigates*, not just the linear scan our own reader
-       uses, so the modules resolve under the `VBA` storage in Excel. Proven by re-encoding a real 156 KB
+       as the name-ordered balanced tree a host *navigates*, rather than only the linear scan our own
+       reader uses, so the modules resolve under the `VBA` storage in Excel. Proven by re-encoding a real 156 KB
        Excel-authored project stream-identical, by an independent directory-tree walk reaching every
        entry, and by `parseVbaProject` decoding the result. Internal to `src/vba`; not on the public
        barrel yet.
@@ -60,7 +60,7 @@ It satisfies its underlying requirement by a different, and arguably stronger, m
        run-length overlap collapsing repetitive data, and by re-expanding to the exact bytes of a real
        Excel-compressed `dir` stream (it even edges out Excel's own output on that stream). Internal.
      - **§2.3c `dir`/`PROJECT`/module synthesis (`writeVbaProject`, done):** assembles a complete
-       `vbaProject.bin` from a module list (name, kind, source) using the two primitives: the `dir`
+       `vbaProject.bin` from a module list (name, kind, source) using those two functions: the `dir`
        record stream, `_VBA_PROJECT` version header, `PROJECT`/`PROJECTwm` text, and one compressed
        source stream per module under a `VBA` storage. Each module carries its source at MODULEOFFSET 0
        with no p-code, and `_VBA_PROJECT` advertises an unmatchable version, so Excel recompiles from
@@ -82,7 +82,7 @@ It satisfies its underlying requirement by a different, and arguably stronger, m
        for *un-re-authored* projects are unchanged.
 
 3. **The read/attach path stays the safety floor.** §2.1 leaves ADR 0016's read invariant intact:
-   preservation is still the sole emission authority, and `vbaProjectBytes` simply lets a caller *supply*
+   preservation is still the sole emission authority, and `vbaProjectBytes` lets a caller *supply*
    those preserved bytes instead of only receiving them from a read. Nothing about the read view or the
    byte-faithful passthrough regresses.
 
@@ -100,7 +100,7 @@ It satisfies its underlying requirement by a different, and arguably stronger, m
   still binds. It is now met by fixtures plus the strict suite rather than by waiting. Slices that would
   bound coverage still say so; nothing ships un-green.
 - **The big reversal is still ahead and still gets its own ADR.** §2.3 making an authoring API the
-  emission authority is the genuine shape-change to ADR 0016; this ADR only opens the door and lands the
+  emission authority is the real shape change to ADR 0016; this ADR only opens the door and lands the
   thin, non-authority-shifting first slice.
 - **Revisit when:** §2.3 lands (amend ADR 0016), or if a real consumer's needs contradict a shape a
   fixture led us to, in which case the fixture was too weak a proxy and the API breaks, cheaply,

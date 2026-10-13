@@ -66,7 +66,7 @@ evidence: a dependency-free CFB plus MS-OVBA plus `dir`/`PROJECT` parser that de
   `isSigned` accessor on the assumption that a signed `.xlsm` lost its `vbaProjectSignature`
   part on round-trip. A reproduction disproved that: the signature is a sibling part reached
   from `xl/_rels/vbaProject.bin.rels`, so the closure walk already carries it. But the
-  reproduction surfaced a *different* real bug. The content-types writer collapsed all
+  reproduction turned up a *different* real bug. The content-types writer collapsed all
   same-extension binary preserved parts to one `<Default>`, mis-typing a
   `vbaProjectSignature.bin` sitting next to a `vbaProject.bin` (both `.bin`, different
   types). Fixed in `workbook-xml.ts` (per-part `<Override>` for any preserved binary part

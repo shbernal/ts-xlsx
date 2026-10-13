@@ -88,7 +88,7 @@ Decisions that rode along:
 
 The stripping-against-transpilation question was revisited. No `.ts`-execution-free
 runtime materialized, so type-stripping stays the dev/test inner loop, per §0's
-framing. But it surfaced the one real gap: `test:src` and the corpus's default
+framing. But it exposed the one real gap: `test:src` and the corpus's default
 adapter only ever exercise **stripped `src/`**, while consumers run the
 **`tsc`-emitted `dist/`**. `smoke:dist` guarded a single round-trip against that
 divergence; the full 671-behavior corpus did not.

@@ -61,7 +61,7 @@ reaching a reader. ADR-0039 records why it is arranged this way.
   `scripts/repo.ts`, which reads `package.json`.
 - **The default theme is extended, never replaced.** The documentation is the bulk of the
   site and the default layout is what makes 248 pages navigable. Colour is expressed through
-  VitePress's own custom properties; a class name of theirs is reached for only where nothing
+  VitePress's own custom properties; we reach for a class name of theirs only where nothing
   else will do, and only for something cosmetic enough that a rename costs a background
   rather than a layout.
 

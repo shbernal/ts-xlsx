@@ -2,7 +2,7 @@
 
 A cell's appearance is six independent facets: `font`, `fill`, `border`, `alignment`,
 `numFmt` and `protection`. Each is set on its own, each is absent until you set it, and an
-absent facet is genuinely absent rather than an empty placeholder.
+absent facet reads as `undefined` rather than as an empty placeholder object.
 
 ```ts
 import {Workbook} from '@shbernal/ts-xlsx';

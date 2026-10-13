@@ -44,14 +44,14 @@ Conclusions, now facts rather than hypotheses:
    without any error and silently run the wrong (stale) code, which is strictly worse than a loud failure.
 
 There is therefore **no synthesizable placeholder** that makes Excel both accept the file and run the
-authored source. Genuinely valid, **source-matched p-code is a hard requirement**, and only a real Excel
+authored source. Valid, **source-matched p-code is a hard requirement**, and only a real Excel
 can produce it.
 
 ## Decision
 
 1. **Authoring and editing VBA module *source* moves out of the shipped library into an offline build
    tool, `tools/vba-compiler`.** It drives a real, headless Excel through the VBIDE object model
-   (`VBComponents.Add`, then `CodeModule.AddFromString`, then `SaveAs`) to produce genuinely compiled,
+   (`VBComponents.Add`, then `CodeModule.AddFromString`, then `SaveAs`) to produce compiled,
    source-matched p-code, emitting either a `vbaProject.bin` (from-scratch, procedural or class) or a whole
    edited `.xlsm` (in-place, any module kind including document code-behind). It is a **probe/build tool,
    never in CI** (same contract as `tools/excel-oracle`), needs a licensed Excel and
@@ -85,7 +85,7 @@ can produce it.
 
 - **Breaking API change** (welcome, per the constitution): the source-authoring functions above are gone
   from the public API. There is no deprecation shim, because they produced silently-wrong output.
-- Authoring VBA now requires an offline Excel build step. This is an honest reflection of reality: no
+- Authoring VBA now requires an offline Excel build step. This is a hard limit, not a gap: no
   pure-code path can produce runnable VBA, because runnable VBA *is* compiled p-code only Excel emits.
 - ADR 0016's read view is unchanged. Byte-for-byte macro **preservation** on round-trip, the safety
   floor, is untouched and remains the default for any `.xlsm` the library reads and rewrites.

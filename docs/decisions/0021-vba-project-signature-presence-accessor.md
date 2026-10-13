@@ -12,13 +12,13 @@ successors ([MS-OFFMACRO2]; V3 added by KB5000676 to close a tampering hole). Th
 preserved byte-for-byte. The closure walk (`capturePartClosure`) is purely relationship-driven, so it
 carries any part reachable from `vbaProject.bin` regardless of relationship type, and the content-types
 writer keeps each part's own type (ADR 0016 §Consequences fixed the `<Default>`-collapse bug that had
-mis-typed a signature part). The bytes are also correctly **dropped** whenever the project is
-replaced or edited (ADRs 0017/0018), because a signature over the old bytes cannot vouch for new ones.
+mis-typed a signature part). The library also **drops** the bytes whenever the project is replaced
+or edited (ADRs 0017/0018), because a signature over the old bytes cannot vouch for new ones.
 
 What was missing was a *read* of that captured state. ADR 0016 left an `isSigned` accessor "cleanly
-sourceable from the preserved closure once a consumer needs it." Per CLAUDE.md §3, exposing a read of
-already-captured data is a bounded, low-risk slice rather than speculative infrastructure, so it is built
-now without waiting for a named consumer.
+sourceable from the preserved closure once a consumer needs it." Per CLAUDE.md §3, a read of data the
+library already captures is a small, low-risk slice, not speculative infrastructure, so we built it now
+without waiting for a named consumer.
 
 ## Decision
 
@@ -26,7 +26,7 @@ now without waiting for a named consumer.
    blob is *attached*; `Workbook.vbaProjectSignatures: readonly VbaProjectSignature[]` exposes each
    signature's generation (`'legacy' | 'agile' | 'v3'`) and its raw bytes, passed through verbatim.
    The library does **not** parse the PKCS#7/CMS structure, validate the certificate chain, or extract
-   signer identity. That is a materially larger effort (ASN.1/CMS, trust-store semantics) with real
+   signer identity. That is a much larger job (ASN.1/CMS, trust-store semantics) with real
    security-review weight and no consumer. The TSDoc and the naming say "a signature is attached,"
    never "this signature is valid." A caller who needs cryptographic validation hands `bytes` to an
    external verifier.
@@ -67,4 +67,4 @@ now without waiting for a named consumer.
   regardless of whether the accessor names them.
 - **Revisit when:** a consumer needs actual cryptographic verification (CMS parse, chain validation,
   signer identity). That is a distinct, security-heavy slice and gets its own ADR. This one
-  deliberately stops at presence.
+  stops at presence.

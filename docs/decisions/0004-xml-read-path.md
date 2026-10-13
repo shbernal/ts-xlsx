@@ -79,7 +79,7 @@ On that component sits the first streaming *read* API: `readSheetRows(data, opti
 cell read as part of a full workbook, and the divergence such a split would otherwise invite is
 closed by construction. This slice still inflates the package whole (bounded as above) and reads
 shared strings and styles as whole parts, both legitimately document-sized; a later slice can make
-the inflate itself per-part lazy on the same pull primitive.
+the inflate itself per-part lazy on the same pull parser.
 
 ## Update (2026-07-20): the reader consumes the pull parser through a small helper vocabulary
 
@@ -87,7 +87,7 @@ The hand-written SAX was right, but the *consumption* side had drifted into thre
 naming so they don't return: ~30 no-op `onText(){}`/`onClose(){}` stubs, ~20 inline
 `=== '1' || === 'true'` boolean idioms in three incompatible forks, and every parser hand-coding
 both a self-closing branch *and* an on-close branch for the same element. The read path now consumes
-events through a settled set of helpers built on the same primitive, so a parser states only what it
+events through a settled set of helpers built on `xmlEvents`, so a parser states only what it
 means:
 
 - **`SaxHandlers.onText`/`onClose` are optional.** A handler declares only the events it consumes.
@@ -131,7 +131,7 @@ can never be *gathered* differently depending on which reader saw it.
 Finalisation, by contrast, deliberately diverges, and that split is the point. The buffered reader
 calls `finalize`, which resolves shared-formula masters/clones and data-table cells and opens rich
 `<r>` runs; the streaming reader calls `decode`, the plain-decode subset, which must **not** resolve
-shared formulas (it surfaces the clone's own cached result) and must **not** open rich runs (a
+shared formulas (it returns the clone's own cached result) and must **not** open rich runs (a
 streamed inline string flattens to text). `finalize`'s plain path is itself routed through `decode`,
 so there is exactly one `RawCell`-build and one decode. Sharing gathering while forking finalisation
 is what lets the two readers stay honest to their different contracts without duplicating the fragile

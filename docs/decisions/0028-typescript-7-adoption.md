@@ -5,7 +5,7 @@
 ## Context
 
 [ADR 0008](./0008-typescript-6-upgrade.md) moved the toolchain to `typescript@^6.0.3` and
-explicitly declined TypeScript 7, the native Go compiler ("tsgo"), for exactly one reason:
+declined TypeScript 7, the native Go compiler ("tsgo"), for exactly one reason:
 `scripts/gen-docs.ts` rendered signatures with `ts.createPrinter()` over a `ts.transform()`
 body-stripping pass, and 7 ships neither. Every other gate already passed under 7.
 
