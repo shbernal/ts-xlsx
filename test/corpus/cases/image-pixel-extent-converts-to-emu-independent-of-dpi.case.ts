@@ -23,7 +23,7 @@ export default {
   description:
     'An image anchored with an explicit pixel extent serializes to a oneCellAnchor whose ext ' +
     'cx/cy are the requested pixels converted at the fixed 96-DPI rate (1 px = 9525 EMU): the ' +
-    'rendered size follows the requested pixels only, never the source image’s embedded DPI.',
+    "rendered size follows the requested pixels only, never the source image's embedded DPI.",
 
   behavior: [
     {

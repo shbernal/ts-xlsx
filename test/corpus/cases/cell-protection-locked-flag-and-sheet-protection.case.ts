@@ -3,7 +3,7 @@
 // Real-world scenario: an author wants some cells editable and the rest read-only. In OOXML the
 // per-cell "locked" flag defaults to TRUE, so marking a cell locked=true is a no-op relative to the
 // default, and the only per-cell state that actually carries information is locked=FALSE (an
-// explicitly *unlocked* cell). Crucially, the locked flag does nothing on its own: it is enforced
+// explicitly *unlocked* cell). The locked flag does nothing on its own: it is enforced
 // only when the worksheet itself is protected (a <sheetProtection> element). A common confusion is
 // setting locked=true and expecting cells to become read-only without ever protecting the sheet.
 //

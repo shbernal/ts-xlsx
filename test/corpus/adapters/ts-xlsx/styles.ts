@@ -403,7 +403,7 @@ export const styles = {
   },
 
   // Inject an xf whose alignment element carries only an explicit-false boolean (wrapText="0" /
-  // shrinkToFit="0"), point A1 at it, and report the alignment the reader surfaces → { wrapTextZero,
+  // shrinkToFit="0"), point A1 at it, and report the alignment the reader returns → { wrapTextZero,
   // shrinkZero }. An all-false alignment carries no information and must read back as no alignment
   // at all: the raw "0" is a truthy JS string, so a reader guarding on the raw value rather than the
   // parsed boolean would wrongly report a present alignment.
@@ -437,7 +437,7 @@ export const styles = {
     };
   },
 
-  // Assign a vertical-alignment enum token to a cell, routed through the untyped adapter surface so a
+  // Assign a vertical-alignment enum token to a cell, routed through the untyped adapter API so a
   // value TypeScript would reject at compile time (e.g. the ExcelJS-era "middle") reaches the writer as
   // an untyped caller would smuggle it, then attempt a full write→read cycle → { writeThrew,
   // writeError, readBackVertical }. Captures the writer-boundary contract: a value the writer accepts
@@ -476,7 +476,7 @@ export const styles = {
     const back = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
     const filled = back.getCell('B2');
     const bordered = back.getCell('C3');
-    // fgColor lives on the pattern-fill variant, past the general Fill union surface.
+    // fgColor lives on the pattern-fill variant, past what the general Fill union exposes.
     const filledFill = filled.fill as Untyped;
     return {
       filledArgb: filledFill?.fgColor ? filledFill.fgColor.argb : null,
@@ -1010,7 +1010,7 @@ export const styles = {
     const fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: sharedFill}} as Untyped;
     s.getCell('A1').fill = fill;
     s.getCell('B1').fill = fill; // identical formatting → one shared style index on disk
-    // fgColor lives on the pattern-fill variant, past the general Fill union surface.
+    // fgColor lives on the pattern-fill variant, past what the general Fill union exposes.
     const fgOf = (cell: CellInstance) =>
       (cell.fill as Untyped)?.fgColor ? ((cell.fill as Untyped).fgColor.argb ?? null) : null;
 

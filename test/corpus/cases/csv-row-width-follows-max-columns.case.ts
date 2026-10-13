@@ -15,8 +15,8 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'csv',
   description:
-    'CSV export sizes each row by the sheet’s maximum column extent, so a wide row following a ' +
-    'narrow first row keeps all its fields instead of being truncated to the first row’s width.',
+    "CSV export sizes each row by the sheet's maximum column extent, so a wide row following a " +
+    "narrow first row keeps all its fields instead of being truncated to the first row's width.",
 
   behavior: [
     {

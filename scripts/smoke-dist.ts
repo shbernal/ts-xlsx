@@ -40,7 +40,7 @@ assert.equal(sheet.getCell('B2').value, 42, 'B2 did not survive round-trip');
 assert.deepEqual(decodeAddress('B2'), {address: 'B2', col: 2, row: 2}, 'address decode wrong');
 
 // One binding per subpath: enough to prove the specifier resolves to the right module, not a
-// re-listing of the export surface (`scripts/check-entries.ts` owns that).
+// re-listing of every export (`scripts/check-entries.ts` owns that).
 const SUBPATH_BINDINGS: Readonly<Record<string, string>> = {
   core: 'Workbook',
   xlsx: 'readXlsx',

@@ -15,7 +15,7 @@ export default {
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 816},
   cluster: 'styles',
   description:
-    'A no-op read→write round-trip preserves each column’s exact fractional width and the ' +
+    "A no-op read→write round-trip preserves each column's exact fractional width and the " +
     'worksheet pageSetup (scale, fit-to-width/height, page order, orientation) rather than ' +
     'corrupting or dropping them.',
 

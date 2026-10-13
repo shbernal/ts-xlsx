@@ -5,7 +5,7 @@
 // is opened, the reader resolves that colId against the table's column model, finds nothing, and
 // crashes ("Cannot set properties of undefined") while trying to mark the filter button, aborting
 // the entire workbook load. The reader must tolerate the out-of-range reference, ignoring or
-// clamping it, and still surface the worksheet and its data, rather than letting one bad index
+// clamping it, and still return the worksheet and its data, rather than letting one bad index
 // reject a whole
 // otherwise-valid package.
 //

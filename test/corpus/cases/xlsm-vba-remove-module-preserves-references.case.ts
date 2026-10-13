@@ -10,14 +10,14 @@
 // original bytes, mirroring how adding a reference already does (see
 // xlsm-vba-add-reference-preserves-modules).
 //
-// The surface under test is the project-editor primitive removeVbaModule(bin, name): it parses the
+// The function under test is the project-editor removeVbaModule(bin, name): it parses the
 // existing project fail-closed, resolves the module's kind and stream name, drops its MODULE record block
 // from the dir stream (decrementing MODULES_COUNT), drops its declaration from PROJECT/PROJECTwm, and
 // drops its compressed source stream from the VBA storage. It leaves _VBA_PROJECT completely untouched:
 // Excel runs the surviving modules' existing compiled p-code, and resetting the stream to an "unmatchable
 // version" cookie does not force a recompile from source: on a project that carries real p-code it
 // actively crashes the load (ADR 0019). Only procedural/class modules can be removed this way:
-// removing a document module (ThisWorkbook) or a designer module would break host linkage the primitive
+// removing a document module (ThisWorkbook) or a designer module would break host linkage the function
 // has no visibility into, so it is rejected fail-closed.
 // This case asserts the removed module is gone from every stream it touched, the hand-crafted
 // PROJECTREFERENCES record and an untouched module survive byte-for-byte, and _VBA_PROJECT is preserved
@@ -31,7 +31,7 @@ export default {
   provenance: {},
   description:
     'Removing a standard module from an existing VBA project via removeVbaModule must drop it from ' +
-    'every stream it touched, while the project’s reference and its other modules (byte-for-byte) are ' +
+    "every stream it touched, while the project's reference and its other modules (byte-for-byte) are " +
     'preserved and _VBA_PROJECT is preserved untouched.',
 
   behavior: [

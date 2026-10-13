@@ -13,7 +13,7 @@ import {attrsOf, hexBytes, imageXmlWellFormed, parseAnchorSide} from './xml-prob
 export const images = {
   // Build a workbook whose sheets place images at the spec's ranges, write it, and report the
   // serialized drawing-anchor geometry (type, editAs, from/to, one-cell extent, spPr transform) as
-  // plain numbers: the surface a case asserts against for anchor correctness.
+  // plain numbers: the values a case asserts against for anchor correctness.
   inspectImageAnchors(spec: Untyped) {
     const parts = partMapOf(writeXlsx(buildFrom(spec)));
     const drawingParts = Object.keys(parts)

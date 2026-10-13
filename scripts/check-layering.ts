@@ -76,7 +76,7 @@ const RULES: readonly Rule[] = [
 
 /**
  * The entry barrels are the package's public faces, not modules to build on. Only the root barrel
- * composes them; an internal import of one would route a dependency through the public surface.
+ * composes them; an internal import of one would route a dependency through the public API.
  * The module graph's shape would then follow what we chose to export, and a cycle would be one
  * re-export away. Their own contents are checked by `scripts/check-entries.ts`.
  */

@@ -10,7 +10,7 @@ export const normalizeCsvValue = (v: Untyped) => {
 };
 
 // A declarative CSV write-spec cell → a live model value: { date } → Date, { formula, result } →
-// formula value, { error } → error value, primitive passes through.
+// formula value, { error } → error value, a primitive value passes through.
 export const specCsvValue = (c: Untyped) => {
   if (c && typeof c === 'object') {
     if (c.date) return new Date(c.date);

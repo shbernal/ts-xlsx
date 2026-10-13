@@ -2,7 +2,7 @@
 
 // The OOXML gate: emit the writers' real output and hold it against a frozen baseline,
 // using `ooxml-validate`, the shared oracle this project and `ts-pptx` both validate
-// against. Everything this harness used to own below the assertions (the .NET build, the
+// against. Everything this runner used to own below the assertions (the .NET build, the
 // process spawn, the conformance pin, the report types) belongs to that package now; the
 // two repos had each grown their own validator on a different Open XML SDK version, so
 // they enforced different rule sets while appearing to enforce the same one.
@@ -226,7 +226,7 @@ async function main(): Promise<void> {
     );
 
     // The other half of that distinction: an input the oracle cannot even dispatch on is a
-    // tool failure (its exit 2), and the package surfaces it by rejecting rather than by
+    // tool failure (its exit 2), and the package reports it by rejecting rather than by
     // handing back a report with a made-up verdict in it.
     await assert.rejects(validate([unsupported]), /Unsupported file extension/);
 

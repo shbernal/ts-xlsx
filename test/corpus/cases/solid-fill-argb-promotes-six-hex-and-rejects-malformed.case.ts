@@ -5,7 +5,7 @@
 // a value that is not a colour at all ('12345', 'red'). OOXML's rgb attribute is a bare 8-hex ARGB;
 // a 6-char value renders as flat black in Excel, and a malformed value does too, with no error to
 // warn the author. A 6-hex RGB must be promoted to an opaque 8-hex ARGB ('FF00FF00'), and a value
-// that is neither 6 nor 8 hex digits must be rejected at the API surface rather than written as a
+// that is neither 6 nor 8 hex digits must be rejected by the public API rather than written as a
 // colour the consumer silently renders black.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -16,8 +16,8 @@ export default {
   cluster: 'styles',
   description:
     'A solid fill given a 6-hex RGB is promoted to an opaque 8-hex ARGB rather than emitted as a ' +
-    '6-char rgb that renders black; a value that is neither 6 nor 8 hex digits is rejected at the ' +
-    'API surface rather than passed through as a colour the consumer silently renders black.',
+    '6-char rgb that renders black; a value that is neither 6 nor 8 hex digits is rejected by the ' +
+    'public API rather than passed through as a colour the consumer silently renders black.',
 
   behavior: [
     {

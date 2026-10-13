@@ -18,7 +18,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'styles',
   description:
-    'Assigning one base style object to two cells and then mutating one cell’s font color affects ' +
+    "Assigning one base style object to two cells and then mutating one cell's font color affects " +
     'only that cell: the sibling given the same base style keeps its original font, with no ' +
     'aliasing bleed.',
 

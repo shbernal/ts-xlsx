@@ -1,4 +1,4 @@
-# Excel-oracle harness: geometry readback probe.
+# Excel oracle: geometry readback probe.
 #
 # Sibling of observe.ps1. Where that one asks "what formula/value does Excel see in these cells?",
 # this one asks "what does Excel think the GEOMETRY of this sheet is?": per-row RowHeight, per-column

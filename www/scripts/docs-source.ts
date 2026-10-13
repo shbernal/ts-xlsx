@@ -3,8 +3,8 @@
  *
  * `docs/` is written for someone standing in a checkout: it carries no frontmatter, it
  * links to its neighbours by relative path, and it links out to files the site does not
- * publish. This module translates that into what VitePress needs, and **fails rather than
- * guesses** at every step. A page the manifest does not reach, a manifest entry with no
+ * publish. This module translates that into what VitePress needs, and fails rather than
+ * guesses at every step. A page the manifest does not reach, a manifest entry with no
  * file, a link that resolves to nothing: each one throws. The value of a generated mirror
  * is precisely that `docs/` cannot rot behind the site, and it can only deliver that if
  * drift is an error instead of a warning.

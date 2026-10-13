@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a large file is read row-by-row with the streaming reader, and a column
 // holds dates (numeric cells whose style resolves to a date number format). The full (buffered)
-// read surfaces those cells as Date values; the streaming read surfaces the raw serial number
+// read returns those cells as Date values; the streaming read returns the raw serial number
 // instead, because it does not apply cell styles when deciding a cell's type. A date read as a
 // bare number breaks every downstream consumer. Streaming read must resolve a date-formatted
 // numeric cell to a date, exactly as the full read does, while genuinely numeric and string
@@ -23,7 +23,7 @@ export default {
   cluster: 'streaming',
   description:
     'The streaming reader applies cell number formats when typing cells, so a date-formatted ' +
-    'numeric cell is surfaced as a date (matching the full read) rather than as a raw serial ' +
+    'numeric cell is read as a date (matching the full read) rather than as a raw serial ' +
     'number, while plain numeric and string cells keep their types.',
 
   behavior: [

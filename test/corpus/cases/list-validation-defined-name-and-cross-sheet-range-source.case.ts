@@ -3,7 +3,7 @@
 // Real-world scenario: a dropdown (list) data validation is very often driven not by an inline
 // literal list but by a *reference*: a workbook defined name pointing at a column on another
 // sheet, or an explicit cross-sheet range like `Options!A1:B1`. Both are the standard way to
-// keep the allowed values on a separate "options" sheet. Reading such a file must surface each
+// keep the allowed values on a separate "options" sheet. Reading such a file must return each
 // validation's source as its reference text (the defined name, or the range), never stringified
 // to "[object Object]", and a read/write round-trip must preserve that reference and the target
 // cell so the dropdown still resolves to the same options.

@@ -1,11 +1,11 @@
-// Excel-oracle harness: probe emitter.
+// Excel oracle: probe emitter.
 //
 // Turns a probe's declarative `spec` into a real `.xlsx` on disk, so the COM driver (observe.ps1) has
 // something for Excel Desktop to open. It is a deliberately narrow, strictly-typed re-expression of the
 // corpus adapter's `buildFrom`, NOT a reuse of it: that builder is `any`-typed corpus-internal
 // machinery wired to JSZip and a module loader we do not want to drag into a standalone probe tool.
 // The oracle only ever probes the handful of cell shapes below, so a small typed builder is the honest
-// surface. Extend it as new invariants need new vocabulary.
+// choice. Extend it as new invariants need new vocabulary.
 
 import {mkdirSync, writeFileSync} from 'node:fs';
 import {dirname} from 'node:path';

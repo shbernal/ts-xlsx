@@ -21,7 +21,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'images',
   description:
-    'A range-anchored image honors the caller’s explicit anchor-edit mode: twoCell (move+resize), ' +
+    "A range-anchored image honors the caller's explicit anchor-edit mode: twoCell (move+resize), " +
     'oneCell (move only), or absolute (neither), emitting the requested editAs in the drawing XML.',
 
   behavior: [

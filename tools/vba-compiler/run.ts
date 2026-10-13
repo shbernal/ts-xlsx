@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// vba-compiler harness: orchestrator.
+// vba-compiler: orchestrator.
 //
 // Turns a declarative spec of VBA module source into a genuinely-compiled artifact by driving a real,
 // headless Excel through the VBIDE object model (compile.ps1):

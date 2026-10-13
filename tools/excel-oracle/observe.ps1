@@ -1,4 +1,4 @@
-# Excel-oracle harness: COM driver.
+# Excel oracle: COM driver.
 #
 # Opens a .xlsx in headless Excel Desktop, reads formula/value per requested cell, optionally re-saves
 # a copy (so the caller can read back the ref Excel itself canonicalizes), and emits ONE JSON
@@ -10,7 +10,7 @@
 #   - the job's own finally always Quit()s, ReleaseComObject()s, and GCs, whether or not Open threw.
 #
 # Automation-open is not interactive-open: these guards suppress the modal *repair dialog*, so this
-# harness can DETECT that a repair happened (Open throws / the workbook name carries "[Repaired]") but
+# driver can DETECT that a repair happened (Open throws / the workbook name carries "[Repaired]") but
 # cannot reproduce the interactive dialog experience. Callers must record which class an observation is.
 
 param(

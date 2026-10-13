@@ -9,7 +9,7 @@ import {buildFrom, isoOrNull} from './spec-model.ts';
 
 export const formulas = {
   // Inject a `<f t="dataTable">` into a written sheet, read it back, and re-write → { reloadOk,
-  // readShareType, readRef, readResult, outHasDataTable }. The reader must surface the data-table
+  // readShareType, readRef, readResult, outHasDataTable }. The reader must expose the data-table
   // kind/range/result, and a read-modify-write must re-emit t="dataTable" rather than dropping it.
   dataTableFormulaRoundtrip() {
     const seed = new Workbook();

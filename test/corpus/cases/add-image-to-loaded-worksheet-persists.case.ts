@@ -3,7 +3,7 @@
 // Real-world scenario: a user opens an existing file (parsed from bytes into an in-memory workbook),
 // registers a new image on the workbook, and anchors it onto an existing worksheet of the loaded
 // file. On re-serialization the added image must actually be present: the media part, a drawing part
-// describing the anchor, and the worksheet-to-drawing relationship, and re-reading must surface it.
+// describing the anchor, and the worksheet-to-drawing relationship, and re-reading must return it.
 // The same add-image flow must behave identically whether the target worksheet came from a loaded
 // package or was created fresh, guarding against loaded worksheets silently dropping new drawings.
 

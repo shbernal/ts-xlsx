@@ -50,7 +50,7 @@ const impl = {
 };
 
 /**
- * The capability surface a case calls, derived from the assembled adapter rather than declared
+ * The set of capabilities a case calls, derived from the assembled adapter rather than declared
  * alongside it.
  *
  * Derived, because a hand-written contract interface would be a second list of ~180 signatures to keep
@@ -60,7 +60,7 @@ const impl = {
  *
  * This is what the cases are blind to and what they are not. They still cannot see `src` internals:
  * they reach the library only through the capabilities below, which is the decoupling that let the
- * corpus outlive the rewrite. What they no longer pretend not to see is the *shape of this surface*:
+ * corpus outlive the rewrite. What they no longer pretend not to see is the *shape of this API*:
  * a capability's name, its arguments and what it returns are the contract a case is written against,
  * so hiding them behind `any` bought no independence and cost every case its type-checking.
  */

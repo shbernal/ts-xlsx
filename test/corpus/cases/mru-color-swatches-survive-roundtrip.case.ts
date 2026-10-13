@@ -18,8 +18,8 @@ export default {
   provenance: {source: 'round-trip-fidelity-audit'},
   cluster: 'styles',
   description:
-    'A workbook’s recent-colour swatches (`<colors><mruColors>`) survive a no-op round-trip, in ' +
-    'the schema’s child order beside the custom indexed palette, instead of being reset on save.',
+    "A workbook's recent-colour swatches (`<colors><mruColors>`) survive a no-op round-trip, in " +
+    "the schema's child order beside the custom indexed palette, instead of being reset on save.",
 
   behavior: [
     {

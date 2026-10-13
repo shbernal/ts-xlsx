@@ -51,8 +51,8 @@
 // script with that flag. That coupling is deliberate and bounded: it fails *loudly*, with the
 // require throwing `Cannot find module` and this script stopping on the message below, rather than
 // quietly producing numbers that no longer mean what they say. Given the failure being fixed is
-// precisely
-// "confident wrong numbers", a loud break on a node upgrade is the cheaper risk. See ADR 0035.
+// precisely "confident wrong numbers", a loud break on a node upgrade is the cheaper risk. See
+// ADR 0035.
 
 import {spawn} from 'node:child_process';
 import {mkdir, readFile, rm, writeFile} from 'node:fs/promises';
@@ -69,8 +69,8 @@ const SELF = fileURLToPath(import.meta.url);
 const RESPAWNED = 'TS_XLSX_COVERAGE_RESPAWNED';
 
 /**
- * The library is what gets measured. Test files, the corpus harness, and `scripts/` are the
- * instrument, and an instrument that reports on itself flatters itself.
+ * The library is what gets measured. Test files, the corpus runner and its adapters, and
+ * `scripts/` are the instrument, and an instrument that reports on itself flatters itself.
  */
 const INCLUDE = ['src/**/*.ts'];
 const EXCLUDE = ['src/**/*.test.ts'];

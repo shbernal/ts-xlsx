@@ -15,7 +15,7 @@ export default {
   cluster: 'tables',
   description:
     'Adding a table (and a data validation) to each of many worksheets in a loop produces a valid ' +
-    'package with unique table part ids that reloads cleanly, with each sheet’s validation preserved.',
+    "package with unique table part ids that reloads cleanly, with each sheet's validation preserved.",
 
   behavior: [
     {

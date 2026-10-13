@@ -5,7 +5,7 @@
 // name whose value is a column-only reference like 'S'!$A:$D, which is a perfectly valid OOXML
 // range. On write the library emits exactly that. The bug is on the READ path: the reader decodes
 // each endpoint as a full cell address and, finding no row number on a column-only reference,
-// substitutes NaN, so reopening the file surfaces the print area back as the corrupt string
+// substitutes NaN, so reopening the file returns the print area as the corrupt string
 // "ANaN:DNaN". A caller inspecting or re-emitting that value gets a malformed reference that a
 // spreadsheet app rejects. A bounded rectangular range (A1:D10) has both a column and a row at each
 // endpoint, so it round-trips unmangled, which isolates the defect to column-/row-only references.
@@ -19,7 +19,7 @@ export default {
   description:
     'A whole-column (or whole-row) print area is a valid column-only OOXML reference (e.g. $A:$D); ' +
     'reading the written file back must recover that reference intact, not decode the missing row ' +
-    'bound as NaN and surface a corrupt "ANaN:DNaN" address. A bounded rectangular print area, ' +
+    'bound as NaN and return a corrupt "ANaN:DNaN" address. A bounded rectangular print area, ' +
     'which carries a row at each endpoint, round-trips cleanly either way.',
 
   behavior: [

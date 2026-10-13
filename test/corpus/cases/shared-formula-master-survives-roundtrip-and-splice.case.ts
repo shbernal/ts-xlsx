@@ -17,7 +17,7 @@ export default {
   cluster: 'formulas',
   description:
     'A shared-formula master/slave group survives a read/write round-trip without throwing and keeps ' +
-    'its dependent cells’ formulas; splicing a column into a sheet that holds shared formulas must ' +
+    "its dependent cells' formulas; splicing a column into a sheet that holds shared formulas must " +
     'likewise not throw the "master must exist above/left of clone" error.',
 
   behavior: [

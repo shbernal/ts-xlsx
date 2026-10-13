@@ -25,7 +25,7 @@ export default {
   provenance: {source: 'round-trip-fidelity-audit'},
   cluster: 'styles',
   description:
-    'A workbook’s custom `<tableStyle>` definitions, and the default table/pivot styles it ' +
+    "A workbook's custom `<tableStyle>` definitions, and the default table/pivot styles it " +
     'nominates, survive a no-op round-trip, so a table referencing a custom style by name still ' +
     'resolves to a real definition instead of rendering unstyled.',
 

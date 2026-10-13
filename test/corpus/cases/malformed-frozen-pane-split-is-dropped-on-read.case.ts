@@ -3,7 +3,7 @@
 // Real-world scenario: a `<pane>` element spells its split as a fraction, a negative, or a word --
 // the shapes a hand-edited file or a foreign generator produces. `Worksheet.freeze()` refuses all
 // three as non-negative integers, so a reader that stores the attribute verbatim leaves the model
-// holding a value its own authoring API would not accept, and the failure surfaces much later out
+// holding a value its own authoring API would not accept, and the failure shows up much later out
 // of the serializer as a RangeError naming a column the file never mentioned. A malformed split
 // must be dropped at the point it is read, leaving the rest of the sheet view intact.
 

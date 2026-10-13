@@ -64,7 +64,7 @@ export default {
       },
     },
     {
-      // The gradient flag is written but the reader does not surface it on the round-tripped rule,
+      // The gradient flag is written but the reader does not return it on the round-tripped rule,
       // so it comes back unset, a fidelity gap distinct from the color/anchor preservation above.
       name: 'the gradient flag survives the round-trip',
       async expect(api: CorpusApi, assert: Assert) {

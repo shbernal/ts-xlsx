@@ -24,7 +24,7 @@ export default {
   provenance: {source: 'round-trip-fidelity-audit'},
   cluster: 'styles',
   description:
-    'A workbook’s theme part, its colour scheme and font scheme, plus any parts it references, ' +
+    "A workbook's theme part, its colour scheme and font scheme, plus any parts it references, " +
     'survives a no-op round-trip, instead of being overwritten by the default Office theme and ' +
     'silently re-rendering every themed colour and font in the file.',
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Excel-oracle harness: orchestrator.
+// Excel oracle: orchestrator.
 //
 // One command turns a declarative probe into a recorded Excel-Desktop observation:
 //   emit (spec -> .xlsx)  ->  observe (headless COM readback + re-save)  ->  collect (parse + canonical
@@ -120,7 +120,7 @@ function runPwsh(args: readonly string[], timeoutMs: number): Promise<PwshResult
   });
 }
 
-// Refuse to run on a host without pwsh or a registered Excel COM server, so the harness never
+// Refuse to run on a host without pwsh or a registered Excel COM server, so the tool never
 // masquerades a missing dependency as an empty observation.
 async function assertExcelAvailable(): Promise<void> {
   const probe = await runPwsh(

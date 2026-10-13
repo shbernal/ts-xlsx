@@ -35,7 +35,7 @@ export default {
   cluster: 'styles',
   description:
     'A colour stated as a theme slot or a palette index resolves to a concrete ARGB the caller can ' +
-    'render, through the workbook’s own theme and its own custom palette, with any tint applied, ' +
+    "render, through the workbook's own theme and its own custom palette, with any tint applied, " +
     'while the model keeps the original reference so a round-trip re-emits it unchanged.',
 
   behavior: [

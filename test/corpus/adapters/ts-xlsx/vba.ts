@@ -72,7 +72,7 @@ export const vba = {
   },
 
   // Add a registered (COM type-library) reference to an existing macro project's vbaProject.bin via the
-  // project-editor primitive addVbaReference. Adds "Microsoft Scripting Runtime" (the real GUID/path,
+  // project-editor function addVbaReference. Adds "Microsoft Scripting Runtime" (the real GUID/path,
   // verified against a genuine Excel-authored project) to the three-module, one-reference fixture, and
   // asserts the new REFERENCENAME + REFERENCEREGISTERED records read back correctly, the hand-crafted
   // pre-existing reference and every module survive byte-for-byte, PROJECT/PROJECTwm are untouched (no
@@ -128,7 +128,7 @@ export const vba = {
   },
 
   // Remove a standard module from an existing macro project's vbaProject.bin via the project-editor
-  // primitive removeVbaModule. Removes the procedural Module1 from the three-module, one-reference
+  // function removeVbaModule. Removes the procedural Module1 from the three-module, one-reference
   // fixture, and asserts: Module1 is gone from the module list; the untouched document module
   // (ThisWorkbook) and the hand-crafted PROJECTREFERENCES record survive byte-for-byte; Module1's
   // declaration line is gone from PROJECT while the other modules' lines survive; Module1's name pair is
@@ -188,10 +188,10 @@ export const vba = {
     };
   },
 
-  // Chain the two structural edits through the *public, package-level* surface: Workbook.removeVbaModule,
-  // Workbook.addVbaReference, rather than calling the project-editor primitives directly, the way
-  // xlsmVbaRemoveModule/xlsmVbaAddReference do. Those cases lock the splice primitives; this one locks
-  // that the primitives are actually wired to Workbook and survive a real readXlsx -> edit -> writeXlsx ->
+  // Chain the two structural edits through the *public, package-level* API: Workbook.removeVbaModule,
+  // Workbook.addVbaReference, rather than calling the project-editor functions directly, the way
+  // xlsmVbaRemoveModule/xlsmVbaAddReference do. Those cases lock the splice functions; this one locks
+  // that the functions are actually wired to Workbook and survive a real readXlsx -> edit -> writeXlsx ->
   // readXlsx package round-trip, not only a bare-bin call. Removes the pre-existing Module1 and adds a
   // reference to the three-module, one-reference fixture, then asserts: the final module set/kinds are as
   // expected; the hand-crafted PROJECTREFERENCES record AND the newly added reference are both present;

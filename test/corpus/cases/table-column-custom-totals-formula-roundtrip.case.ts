@@ -95,7 +95,7 @@ export default {
           'SUM(T[Amount])*1.1',
           `B4 should hold the custom totals formula, got ${formulas.B4}`,
         );
-        // No cached <v>: a cached formula result would surface in cellText. Excel recomputes on open.
+        // No cached <v>: a cached formula result would show up in cellText. Excel recomputes on open.
         assert.strictEqual(
           cellText.B4,
           undefined,

@@ -485,7 +485,7 @@ export const grid = {
 
   // Build a workbook from a spec, round-trip it, and for each requested row report the column indices
   // an include-empty iteration yields → { rows: { <n>: { cols } }, columnCount }. Positional iteration
-  // walks 1..columnCount (the sheet's declared width), so interior *and* trailing empties are surfaced
+  // walks 1..columnCount (the sheet's declared width), so interior *and* trailing empties are yielded
   // and every row reconstructs to the header width, the alignment invariant a positional consumer needs.
   async readRowCellPresence(spec: Untyped, rowNumbers: number[] = []) {
     const sheet = readXlsx(writeXlsx(buildFrom(spec))).worksheets[0]!;

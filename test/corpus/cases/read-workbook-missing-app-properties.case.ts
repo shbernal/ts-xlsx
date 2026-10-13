@@ -3,7 +3,7 @@
 // Real-world scenario: spreadsheet editors and export libraries other than Excel frequently produce
 // .xlsx packages that omit the docProps/app.xml part entirely, or ship a minimal one without the
 // extended application properties (company, manager). Opening such a workbook must degrade
-// gracefully: surface whatever core content is present and leave the absent app-properties fields
+// gracefully: return whatever core content is present and leave the absent app-properties fields
 // unset, rather than dereferencing an undefined properties object and throwing. Re-saving through
 // Excel (which injects a full app.xml) happens to sidestep the crash, confirming the missing part is
 // the trigger; the library must read valid foreign-generated files without needing that round-trip.

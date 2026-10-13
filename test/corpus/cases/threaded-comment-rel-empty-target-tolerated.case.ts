@@ -12,7 +12,7 @@
 // case pins for the notes relationship. And the *text* must survive, which is the less obvious half.
 // Excel writes a legacy fallback `<comment>` beside every conversation, the "[Threaded comment] Your
 // version of Excel..." boilerplate wrapping a copy of the messages, and we normally suppress that on
-// read, since surfacing it as `cell.note` would hand the caller garbage and re-emitting it as a plain
+// read, since returning it as `cell.note` would hand the caller garbage and re-emitting it as a plain
 // note would destroy the `tc=`/`xr:uid` binding Excel resolves the thread through. Suppression is
 // therefore conditioned on holding the conversation the fallback *names*, not merely on the cell having
 // been threaded once: with the thread part out of reach the boilerplate is the last remaining record of

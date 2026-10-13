@@ -37,7 +37,7 @@ export const notesOf = (sheet: WorksheetInstance) => {
 // The modern threaded conversations a workbook holds → the person registry plus, per sheet, each thread's
 // anchor/resolved state and its messages in order (author resolved through the registry, the raw author id
 // alongside so an unresolved one is visible, and each @mention's resolved identity + text span). `refs`
-// additionally probes the per-cell lookup, reporting the anchor of the thread found at each reference (null
+// also probes the per-cell lookup, reporting the anchor of the thread found at each reference (null
 // for none), so a case can assert a noted cell is not mistaken for a threaded one.
 //
 // Persons are sorted by id because the registry's order is meaningless: Excel re-sorts the part by person
@@ -84,7 +84,7 @@ export const commentThreadFacts = (wb: WorkbookInstance, refs: string[] = []) =>
       at: Object.fromEntries(refs.map((ref) => [ref, sheet.commentThreadAt(ref)?.ref ?? null])),
       // Every legacy note the sheet reads back as `{<ref>: <text>}`. Reported alongside the threads because
       // the interesting fact is what is NOT here: Excel writes a boilerplate fallback comment beside every
-      // thread, and surfacing that as a note would hand the caller garbage.
+      // thread, and reporting that as a note would hand the caller garbage.
       notes: notesOf(sheet),
     })),
   };

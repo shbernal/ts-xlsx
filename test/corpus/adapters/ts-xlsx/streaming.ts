@@ -214,7 +214,7 @@ export const streaming = {
 
   // Stream-read a styled workbook and rebuild it through the streaming writer, copying each cell's
   // value AND resolved style onto the new sheet → { copyError, loadOk, fontBold, fontColor, numFmt,
-  // hasFill }. The streaming reader surfaces each cell's style facets, so the per-cell font, fill, and
+  // hasFill }. The streaming reader exposes each cell's style facets, so the per-cell font, fill, and
   // number format survive the streaming read→write copy and the emitted styles part loads cleanly.
   async streamingStyleCopyReport() {
     const src = new Workbook();
@@ -513,7 +513,7 @@ export const streaming = {
   },
 
   // Read a fixture both eagerly and through the streaming reader, reporting the sheet names each
-  // surfaces → { eager, streaming }. The streaming reader joins each worksheet part to the
+  // returns → { eager, streaming }. The streaming reader joins each worksheet part to the
   // workbook-level declaration, so it exposes the real names, not positional placeholders.
   streamVsEagerSheetNames(rel: string) {
     const eager = readFixture(rel).worksheets.map((s) => s.name);
@@ -537,7 +537,7 @@ export const streaming = {
   },
 
   // Report each populated first-sheet row's { number, hidden } from both paths → { eager, streaming }.
-  // The streaming reader must surface a row's hidden flag (in the string form "true"/"false" some
+  // The streaming reader must report a row's hidden flag (in the string form "true"/"false" some
   // generators write), agreeing with the eager read rather than reporting every row visible.
   streamVsEagerRowHidden(rel: string) {
     const es = readFixture(rel).worksheets[0];
@@ -556,7 +556,7 @@ export const streaming = {
 
   // Write a sheet with a hidden column, then read it eagerly and through the streaming reader,
   // reporting each path's per-column hidden flags → { eager, stream, error }. The streaming reader
-  // parses <col hidden> and surfaces it after the rows are drained, matching the eager oracle.
+  // parses <col hidden> and reports it after the rows are drained, matching the eager oracle.
   streamVsEagerColumnHidden() {
     const wb = new Workbook();
     const s = wb.addWorksheet('S');
@@ -723,7 +723,7 @@ export const streaming = {
   },
 
   // Stream-read a fixture's first sheet, reporting each requested cell's { type, value } | null. The
-  // type is the model's stable label; a date-formatted numeric cell surfaces as a Date because the
+  // type is the model's stable label; a date-formatted numeric cell reads as a Date because the
   // streaming reader applies the cell's number format when decoding, exactly as the eager read does.
   streamReadFixture(rel: string, cells: Untyped = []) {
     const wanted = new Map(cells.map((a: Untyped) => [a, null]));

@@ -25,9 +25,9 @@ export default {
   provenance: {source: 'round-trip-fidelity-audit'},
   cluster: 'styles',
   description:
-    'Authoring the workbook theme’s colour scheme and typefaces reaches the emitted theme part and ' +
+    "Authoring the workbook theme's colour scheme and typefaces reaches the emitted theme part and " +
     'every cell that references a slot by `theme="n"`, while the format scheme, the unauthored ' +
-    'slots’ encoding, and the theme’s own relationships ride through untouched.',
+    "slots' encoding, and the theme's own relationships ride through untouched.",
 
   behavior: [
     {
@@ -53,7 +53,7 @@ export default {
         assert.strictEqual(report.scheme.accent2, 'ED7D31');
         assert.strictEqual(report.scheme.accent6, '70AD47');
         assert.strictEqual(report.scheme.hlink, '0563C1');
-        // And, crucially, their *encoding*: dk1/lt1 stay system colours.
+        // And their *encoding*: dk1/lt1 stay system colours.
         assert.deepStrictEqual(report.encodings, {
           dk1: 'sysClr',
           lt1: 'sysClr',

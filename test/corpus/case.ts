@@ -1,8 +1,8 @@
 // The shared shape of a regression-corpus case.
 //
-// A case asserts observable behavior through the adapter surface (`api`), and it stays blind to how
+// A case asserts observable behavior through the adapter API (`api`), and it stays blind to how
 // the library is built: it can reach `src` only through a named capability, which is the decoupling
-// that let the corpus outlive the rewrite (see test/corpus/README.md). That surface is now *typed*:
+// that let the corpus outlive the rewrite (see test/corpus/README.md). That API is now *typed*:
 // blindness to an implementation's internals is the contract, blindness to the capability list never
 // was, and pretending not to know it cost every case its type-checking.
 
@@ -10,7 +10,7 @@ import type assert from 'node:assert/strict';
 
 import type {CorpusApi} from './adapters/ts-xlsx.ts';
 
-/** The strict `node:assert` surface handed to every behavior. */
+/** The strict `node:assert` module handed to every behavior. */
 export type Assert = typeof assert;
 
 export type {CorpusApi};

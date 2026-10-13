@@ -45,7 +45,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'styles',
   description:
-    'Assigning alignment (e.g. textRotation) to one column applies to that column’s cells only, and ' +
+    "Assigning alignment (e.g. textRotation) to one column applies to that column's cells only, and " +
     'setting alignment on a single cell leaves its neighbours untouched: no shared-style leak that ' +
     'bleeds the alignment across the whole sheet.',
 
