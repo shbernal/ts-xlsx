@@ -1,7 +1,7 @@
 {
-  "//": "Strict type-safety gate for the harness tree (test/, scripts/, tools/) plus the root tool configs that are authored TypeScript. Extends the same strict config as src/ so the regression corpus, its adapters, and the tooling scripts are held to the identical bar. Node 24 runs these .ts files directly via type-stripping; this config exists to ENFORCE the gate (tsc --noEmit), not to build.",
+  "//": "Strict type-safety gate for the test and tooling tree (test/, scripts/, tools/) plus the root tool configs that are authored TypeScript. Extends the same strict config as src/ so the regression corpus, its adapters, and the tooling scripts are held to the identical bar. Node 24 runs these .ts files directly via type-stripping; this config exists to ENFORCE the gate (tsc --noEmit), not to build.",
   "extends": "./tsconfig.json",
-  "//tsBuildInfoFile": "Its own file, never the inherited one — see the note in tsconfig.json.",
+  "//tsBuildInfoFile": "Its own file, never the inherited one. See the note in tsconfig.json.",
   "compilerOptions": {
     "tsBuildInfoFile": "node_modules/.cache/ts-xlsx/harness.tsbuildinfo"
   },

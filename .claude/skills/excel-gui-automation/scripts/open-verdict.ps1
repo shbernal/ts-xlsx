@@ -6,7 +6,7 @@
 
 .DESCRIPTION
   tools/excel-oracle/observe.ps1 opens files with DisplayAlerts=$false, which
-  SUPPRESSES the modal repair dialog - it can infer a repair happened (Open
+  SUPPRESSES the modal repair dialog. It can infer a repair happened (Open
   throws, or the name carries "[Repaired]") but never reproduces the dialog a
   real user sees. This script is the interactive counterpart: it launches Excel
   with /x (a separate process, for clean PID isolation), watches that PID's own
@@ -14,7 +14,7 @@
   screenshots it, and emits ONE JSON verdict blob on stdout.
 
   It is a PROBE, not a test (same contract as excel-oracle): its output is a
-  recorded fact that SEEDS a corpus case. Never wire it into CI - it needs a
+  recorded fact that SEEDS a corpus case. Never wire it into CI: it needs a
   licensed Excel, an interactive desktop session, and is inherently slower and
   less deterministic than the Node corpus runner.
 
@@ -43,7 +43,7 @@
   inspect the window; when off, remember it leaves an EXCEL.EXE running.
 
 .PARAMETER Shot
-  Screenshot output path (defaults to a temp file - never the repo/skill dir).
+  Screenshot output path (defaults to a temp file, never the repo/skill dir).
 
 .EXAMPLE
   # Read-only verdict on a suspect file

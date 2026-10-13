@@ -1,6 +1,6 @@
 ---
 name: excel-gui-automation
-description: Use on Windows with desktop Microsoft Excel installed when you need something the headless COM oracle (tools/excel-oracle) cannot give you - the INTERACTIVE open verdict (does Excel open a file clean, prompt to repair, auto-repair, warn on a format mismatch, or reject it) that DisplayAlerts=$false suppresses; the repair log Excel writes; a fixture for a feature with no COM surface authored by driving the real ribbon; or a visual check of how a file renders in the actual app. Escalation from tools/excel-oracle and the validate-ooxml skill, not a replacement - try those first.
+description: Use on Windows with desktop Microsoft Excel installed when you need something the headless COM oracle (tools/excel-oracle) cannot give you: the INTERACTIVE open verdict (does Excel open a file clean, prompt to repair, auto-repair, warn on a format mismatch, or reject it) that DisplayAlerts=$false suppresses; the repair log Excel writes; a fixture for a feature with no COM equivalent, authored by driving the real ribbon; or a visual check of how a file renders in the actual app. Escalation from tools/excel-oracle and the validate-ooxml skill, not a replacement; try those first.
 metadata:
   # For working *on* ts-xlsx, not *with* it: it drives this repo's PowerShell scripts. `npx skills
   # add shbernal/ts-xlsx` walks .claude/skills/ too, and this flag is what keeps it out of the menu
@@ -8,7 +8,7 @@ metadata:
   internal: true
 ---
 
-# Excel GUI Automation
+# Excel GUI automation
 
 Drives the real, visible desktop Excel window: foreground control, ribbon
 KeyTips over SendKeys, and UI Automation (`InvokePattern`/`TogglePattern`) for
@@ -16,7 +16,7 @@ anything keyboard and synthetic mouse can't reach. The foreground/screenshot/
 KeyTip/UIA machinery is a port of the **verified** PowerPoint equivalent
 (`ts-pptx/.agents/skills/powerpoint-gui-automation`); the Excel-specific
 `open-verdict.ps1` and the repair-dialog patterns are **new and unverified until
-their first real run** - treat the timings and English-locale dialog strings in
+their first real run**. Treat the timings and English-locale dialog strings in
 the scripts as starting points to confirm with `-Dump`, not gospel.
 
 ## When this is the right tool (and when it is not)
@@ -25,12 +25,12 @@ Three cheaper oracles come first; reach here only for what they structurally can
 
 | Tool | Answers | Cannot |
 |---|---|---|
-| `validate-ooxml` skill (OpenXmlValidator) | Is the XML ECMA-376 conformant? | Whether *Excel* accepts it - Excel tolerates many invalid files and rejects some valid ones. |
-| `tools/excel-oracle` (headless COM) | Formula recalc, canonical re-save, model readback; *detects* that a repair happened. | The **interactive** repair experience - `DisplayAlerts=$false` suppresses the modal, so it never reproduces the dialog or captures the repair log. |
-| **this skill** (interactive GUI) | The open verdict a user actually sees; the repair log; no-COM-surface authoring; visual render. | Nothing fast, deterministic, or CI-able - see below. |
-| **this skill** (`execute-verdict.ps1`) | Whether an authored/edited VBA module actually LOADS and RUNS its source once macros are enabled (Workflow C). | Same PROBE contract - never CI. |
+| `validate-ooxml` skill (OpenXmlValidator) | Is the XML ECMA-376 conformant? | Whether *Excel* accepts it. Excel tolerates many invalid files and rejects some valid ones. |
+| `tools/excel-oracle` (headless COM) | Formula recalc, canonical re-save, model readback; *detects* that a repair happened. | The **interactive** repair experience: `DisplayAlerts=$false` suppresses the modal, so it never reproduces the dialog or captures the repair log. |
+| **this skill** (interactive GUI) | The open verdict a user actually sees; the repair log; authoring what COM cannot reach; visual render. | Nothing fast, deterministic, or CI-able (see below). |
+| **this skill** (`execute-verdict.ps1`) | Whether an authored/edited VBA module actually LOADS and RUNS its source once macros are enabled (Workflow C). | Same PROBE contract: never CI. |
 
-**This is a PROBE, not a test** - same contract as `tools/excel-oracle` (ADR 0012,
+**This is a PROBE, not a test**, with the same contract as `tools/excel-oracle` (ADR 0012,
 seed+lock split). Its output is a *recorded fact that seeds a corpus case*. **Never
 wire it into CI**: it needs a licensed Excel, an interactive desktop session, and
 is inherently slow and flaky. The committed fixture + a Tier-2 seam fact are what
@@ -38,8 +38,8 @@ run in CI; the live GUI never does.
 
 **Prefer COM.** For golden fixtures (Excel's own Save-As), formula recalc, and
 model round-trips, `tools/excel-oracle` is strictly more reliable. Before ribbon-
-driving a "no COM surface" feature, verify that claim against the real
-`Application`/`Workbook`/`Worksheet`/`Shapes` object model - Excel's COM surface
+driving a feature with "no COM equivalent", verify that claim against the real
+`Application`/`Workbook`/`Worksheet`/`Shapes` object model. Excel's COM object model
 is broad and most features are reachable.
 
 ## Prerequisites
@@ -52,7 +52,7 @@ is broad and most features are reachable.
   ```
   Look for `>console ... N  Active` (the `>` marks the current session). If it
   shows `services`/session 0 or a `Disc` state, GUI automation is impossible
-  here - stop and say so rather than producing plausible-but-empty screenshots.
+  here. Stop and say so rather than producing plausible-but-empty screenshots.
 - **Desktop Excel installed and COM-registered** (verified present: `Excel.Application`
   = 16.0). `open-verdict.ps1` launches it with `/x` (a separate process) itself;
   the ribbon/screenshot scripts need a visible Excel window already open.
@@ -70,7 +70,7 @@ is broad and most features are reachable.
   parse error far from the real problem. (All shipped scripts are ASCII;
   verified with the AST parser.)
 
-## Workflow A - the open verdict (the headline Excel use)
+## Workflow A: the open verdict (the headline Excel use)
 
 The one thing no other oracle can produce. Read-only by default (dismisses any
 prompt with the safe negative, rewriting nothing).
@@ -80,9 +80,9 @@ prompt with the safe negative, rewriting nothing).
    & '.claude\skills\excel-gui-automation\scripts\open-verdict.ps1' `
        -Path .\test\corpus\fixtures\suspect.xlsx -Shot .tmp\verdict.png -CloseAfter
    ```
-   `verdict` is one of: `clean`, `repaired` (Excel silently fixed it - title
+   `verdict` is one of: `clean`, `repaired` (Excel silently fixed it; the title
    carries `[Repaired]`), `repair-prompt` (the modal "We found a problem with
-   some content..." - the case COM hides), `format-mismatch`, `rejected`
+   some content...", the case COM hides), `format-mismatch`, `rejected`
    (Excel refuses the file), or `timeout`. Read the PNG to confirm the classifier
    matched reality.
 2. **If you need Excel's recovered output and the repair log,** accept the repair
@@ -92,7 +92,7 @@ prompt with the safe negative, rewriting nothing).
        -SaveRepairedTo .\test\corpus\fixtures\broken.recovered.xlsx -CloseAfter
    ```
    `repairLog` in the JSON lists any `error*.xml` Excel wrote next to the file;
-   `repairedPath` is Excel's canonicalized recovery of your content - gold for a
+   `repairedPath` is Excel's canonicalized recovery of your content, which makes a good
    regression fixture. Read both.
 3. **Seed a corpus case** from the recorded verdict (see the `write-corpus-case`
    skill): the fixture + the expected `verdict` become the durable, CI-runnable
@@ -101,10 +101,10 @@ prompt with the safe negative, rewriting nothing).
 The classifier keys off Excel's English-locale dialog strings (encoded as regexes
 at the top of `open-verdict.ps1`). On first real run, if a verdict comes back
 `timeout` or `unknown` when the screenshot clearly shows a dialog, dump the real
-text and widen the patterns - do not assume the wording.
+text and widen the patterns. Do not assume the wording.
 
 > **`open-verdict.ps1` is structurally BLIND to VBA-authoring defects.** It never
-> enables macros, so it only catches package-level (structural) repair - never a
+> enables macros, so it only catches package-level (structural) repair, never a
 > module that fails to compile, or one that loads clean but silently runs the
 > wrong (stale) p-code, once macros are on. For anything that authors/edits VBA,
 > use **Workflow C** below, not this one. (Verified 2026-07-24: a from-scratch VBA
@@ -112,7 +112,7 @@ text and widen the patterns - do not assume the wording.
 > instant Enable Content was clicked; another loaded clean but ran stale p-code
 > from an unrelated module.)
 
-## Workflow C - the VBA execute verdict (does the authored macro actually run?)
+## Workflow C: the VBA execute verdict (does the authored macro actually run?)
 
 The verdict that proves a VBA-authoring feature works: not "opens clean" but "runs
 the authored source." `execute-verdict.ps1` opens the file on a private, headless
@@ -125,15 +125,15 @@ pwsh -File .claude\skills\excel-gui-automation\scripts\execute-verdict.ps1 `
     -Path .\authored.xlsm -RunMacro AddThem -RunArgs 4,5 -ExpectResult 9 -ReadModule Module1
 ```
 
-- **`passed: true` with the expected `runResult`** - the authored source is live
+- **`passed: true` with the expected `runResult`**: the authored source is live
   and correct.
-- **`runError: "...macro may not be available..."`** - the module did not
+- **`runError: "...macro may not be available..."`**: the module did not
   load/compile (bad p-code), or Excel is running stale p-code lacking that macro.
-- **`openThrew: true`** - Excel rejected the file structurally on open.
+- **`openThrew: true`**: Excel rejected the file structurally on open.
 
 Rules that matter:
 - **Always pass `-RunMacro`.** `AutomationSecurity=Low` + `DisplayAlerts=$false`
-  suppresses the interactive "Invalid data format" modal, so brokenness surfaces
+  suppresses the interactive "Invalid data format" modal, so brokenness shows up
   as a Run failure, NOT a popup. "Opened without error" alone proves nothing.
 - **Pick a no-UI `Function`** (deterministic return, no `MsgBox`). A `MsgBox`
   blocks `Run` indefinitely and hangs the probe.
@@ -141,18 +141,18 @@ Rules that matter:
   GetActiveObject, no UI Automation), and leaves no Trusted-Documents residue, so
   it is safely repeatable. Seed a corpus case from the recorded `passed`/`runResult`.
 
-## Workflow B - author a fixture for a feature with no COM surface
+## Workflow B: author a fixture for a feature with no COM equivalent
 
 Only after confirming the feature genuinely has no COM/VBA equivalent.
 
 1. **Sanity check the window foregrounds** (a background/detached terminal
    otherwise stays in front; plain `SetForegroundWindow` is blocked by Windows'
-   foreground lock - the lib uses the `AttachThreadInput` trick):
+   foreground lock; the lib uses the `AttachThreadInput` trick):
    ```
    & foreground-and-shoot.ps1 -Shot .tmp\shot0.png
    ```
    Read the PNG; confirm you're looking at Excel.
-2. **Discover ribbon KeyTips.** Press Alt alone and screenshot - KeyTips are
+2. **Discover ribbon KeyTips.** Press Alt alone and screenshot. KeyTips are
    drawn as overlay badges on every tab/button, so read them off the image:
    ```
    & drive-ribbon.ps1 -KeyTips '{ESC};{ESC};%' -Shot .tmp\keytips.png
@@ -183,32 +183,32 @@ Only after confirming the feature genuinely has no COM/VBA equivalent.
   logged-in user's real name and may carry add-in residue. **Scrub before
   committing to the repo.**
 - The scripts only ever act on an EXCEL.EXE **this run spawned** (PID diff
-  against a pre-run snapshot) - cleanup never kills a session you didn't start.
+  against a pre-run snapshot), so cleanup never kills a session you didn't start.
   `open-verdict.ps1 -CloseAfter` closes only its own instance; without it, an
   EXCEL.EXE is left running for you to inspect.
 
 ## Why keyboard/mouse alone don't work on ribbon popups (do not re-try these)
 
 Verified on the PowerPoint sibling; Office ribbons behave identically. Chorded
-`SendKeys` (`%N`) fires the OLD Alt-accelerator, not the KeyTip overlay - KeyTips
+`SendKeys` (`%N`) fires the OLD Alt-accelerator, not the KeyTip overlay. KeyTips
 need Alt pressed-and-released, then each letter as its own sequential
 `SendKeys.SendWait`. Inside an open dropdown, arrow keys, `{ENTER}`, and
 synthetic `mouse_event` clicks all register-but-do-not-activate. **Office ribbon
 popups and their dialogs run on a separate input queue (UIPI integrity
 isolation);** UIA's `InvokePattern`/`TogglePattern` operate on the accessibility
-tree directly and bypass it - that is the only reliable path (`uia-lib.ps1`).
+tree directly and bypass it. That is the only reliable path (`uia-lib.ps1`).
 
 ## Other gotchas
 
 - **Full-screen captures and unscoped UIA enumeration both leak other windows'
   content.** `Save-WindowScreenshot` crops to the target window rect;
   `Find-UiaWindowsByPid` restricts the verdict scan to the spawned Excel PID;
-  `Find-UiaDialog` scopes by title. Always pass a PID/title scope - never fall
+  `Find-UiaDialog` scopes by title. Always pass a PID/title scope; never fall
   back to unscoped desktop search without saying so.
 - **Loading `UIAutomationClient` flips the process DPI-aware mid-session,** which
   can jump screenshot resolution (e.g. 1280x800 -> 1920x1200). Harmless for UIA
   (coordinate-free); take any "before" screenshot before dot-sourcing `uia-lib.ps1`.
-- **Timing** (starting points - re-tune if a step hasn't visibly settled in a
+- **Timing** (starting points; re-tune if a step hasn't visibly settled in a
   screenshot): ~700ms after foregrounding before input; ~700-900ms between
   sequential KeyTips (600ms sometimes too short for a submenu to arm);
   ~1200-1500ms settle after a menu-opening Invoke; ~600ms per verdict poll.
@@ -219,25 +219,25 @@ tree directly and bypass it - that is the only reliable path (`uia-lib.ps1`).
 
 ## Scripts
 
-- `scripts/xl-window-lib.ps1` - dot-source library: `Get-ExcelHwnd`,
+- `scripts/xl-window-lib.ps1`: dot-source library: `Get-ExcelHwnd`,
   `Set-ExcelForeground` (the `AttachThreadInput` foreground-lock workaround, with
   `-TargetPid` to pin one instance), `Save-WindowScreenshot` (window-rect-scoped),
   `Send-KeyTipSequence`.
-- `scripts/uia-lib.ps1` - dot-source library: `Find-UiaDialog`,
+- `scripts/uia-lib.ps1`: dot-source library: `Find-UiaDialog`,
   `Find-UiaWindowsByPid`, `Get-UiaVisibleText`, `Find-UiaElementByName`,
   `Get-UiaControlDump`, `Invoke-UiaElement`, `Set-UiaToggleOn`.
-- `scripts/open-verdict.ps1` - **the headline tool:** launch a file in
+- `scripts/open-verdict.ps1`, **the headline tool:** launch a file in
   interactive Excel, classify open verdict, screenshot, optionally accept the
   repair + capture the log, emit JSON. Read-only unless `-AcceptRepair`.
-  **Blind to VBA-authoring defects** (never enables macros) - use
+  **Blind to VBA-authoring defects** (never enables macros); use
   `execute-verdict.ps1` for those.
-- `scripts/execute-verdict.ps1` - **the VBA verdict (Workflow C):** open with
+- `scripts/execute-verdict.ps1`, **the VBA verdict (Workflow C):** open with
   macros enabled (headless COM, `AutomationSecurity=Low`), run a known authored
   macro, emit JSON `{openThrew, ran, runResult, runError, moduleLines, passed}`.
   The only oracle that proves an authored/edited module actually LOADS and RUNS
   its source. Runs under pwsh or Windows PowerShell.
-- `scripts/foreground-and-shoot.ps1` - sanity check / "just look at current state".
-- `scripts/drive-ribbon.ps1` - ribbon driver: KeyTips -> UIA menu invoke ->
+- `scripts/foreground-and-shoot.ps1`: sanity check / "just look at current state".
+- `scripts/drive-ribbon.ps1`: ribbon driver: KeyTips -> UIA menu invoke ->
   optional dump/toggle/button-invoke -> screenshot. See its comment-based help.
-- `scripts/save-and-extract.ps1` - save the driven workbook via its running COM
+- `scripts/save-and-extract.ps1`: save the driven workbook via its running COM
   instance and extract the package, to read the real OOXML the GUI produced.

@@ -17,7 +17,7 @@ builds its own input.** Everything below is in service of that.
 
 ## 1. Decide whether it is actually ours
 
-Catch the error and read `code` — the taxonomy is deliberately coarse and each answer
+Catch the error and read `code`. The taxonomy is deliberately coarse, and each answer
 means something different about whose bug it is.
 
 | `error.code`          | Whose bug        | Report it?                                                     |
@@ -34,7 +34,7 @@ Not every defect throws. These are ours too, and are worth reporting:
 - Types that make correct code fail to compile, or admit code that throws at runtime.
 - Documented behaviour that does not match observed behaviour.
 
-If the problem is that ts-xlsx does not *have* a feature, that is still worth filing —
+If the problem is that ts-xlsx does not *have* a feature, that is still worth filing,
 as a feature request rather than a bug.
 
 ## 2. Collect the facts
@@ -45,14 +45,14 @@ node -v                                                       # runtime
 ```
 
 Also capture, verbatim: the error `name`, its `code`, the full message, and the stack.
-Do not paraphrase the message — the throw site is often identifiable from its exact text.
+Do not paraphrase the message: the throw site is often identifiable from its exact text.
 
 ## 3. Build a minimal reproduction
 
 **Never attach or paste the user's workbook.** Spreadsheets in a real project carry
 salaries, customer lists, and unreleased numbers. Treat every file in this repo as
 confidential unless the user tells you otherwise, and never upload one to a public
-tracker — including "just a screenshot of the sheet".
+tracker, including "just a screenshot of the sheet".
 
 Instead, write a self-contained script that *constructs* its input and fails:
 
@@ -73,14 +73,14 @@ after each cut, until removing anything more makes the failure disappear. What i
 is the report.
 
 If the failure only reproduces with a *specific file* you cannot share, do not ask for
-permission to share it — file without the file. Say exactly that in the report and describe
+permission to share it. File without the file. Say exactly that in the report and describe
 the structural feature you believe is responsible (a shared formula, a pivot cache, an
 inline string, a particular namespace prefix). A maintainer can usually synthesize a file
 from that description; they can never unsee an attachment.
 
 If you need a file attached, build one: reproduce the *structure* you suspect in a workbook
 you generate, with invented values. A synthesized file is always safe to attach. A redacted
-one is not yours to judge — redaction fails quietly, and a public tracker is permanent.
+one is not yours to judge: redaction fails quietly, and a public tracker is permanent.
 
 ## 4. Check it is not already filed
 
@@ -102,10 +102,10 @@ that is never filed because the moment passed costs everyone, permanently.
 
 This rests entirely on step 3 holding: the reproduction constructs its own input, and no
 file from this project is attached. When you cannot manage a self-contained reproduction,
-the answer is a thinner report — the prose description from step 3 — not a question and not
+the answer is a thinner report (the prose description from step 3), not a question and not
 an attachment.
 
-`gh` defaults to the *current* repository — which here is the consumer's, not ts-xlsx's.
+`gh` defaults to the *current* repository, which here is the consumer's, not ts-xlsx's.
 Always pass `--repo shbernal/ts-xlsx` explicitly, or you will file the bug into the wrong
 tracker.
 
@@ -127,13 +127,13 @@ issue forms, so mirror its sections in the body file so both routes land the sam
 <vXX.Y.Z>
 
 ### Error code and class
-<code> / <ClassName>   (or: no error thrown — wrong output)
+<code> / <ClassName>   (or: no error thrown, wrong output)
 
 ### What happened
 <observed>
 
 ### What should have happened
-<expected, and why you believe that — a spec clause, Excel's own behaviour, or the docs>
+<expected, and why you believe that: a spec clause, Excel's own behaviour, or the docs>
 
 ### Minimal reproduction
 ```ts
@@ -146,10 +146,10 @@ issue forms, so mirror its sections in the body file so both routes land the sam
 ```
 
 ### Attached file
-<none / synthesized — describe how it was generated>
+<none / synthesized: describe how it was generated>
 ````
 
-Tell the user the issue number and URL once it exists — after the fact, as a result, not
+Tell the user the issue number and URL once it exists. Do it after the fact, as a result, not
 as a request. They should be able to read what you filed and close it if they disagree.
 
 ## 6. Then, and only then, write the workaround
@@ -159,7 +159,7 @@ this project and leave a comment pointing at the issue, so the stopgap is remova
 the fix ships:
 
 ```ts
-// Workaround for ts-xlsx#<N> — remove once fixed upstream.
+// Workaround for ts-xlsx#<N>: remove once fixed upstream.
 ```
 
 ## If `gh` is unavailable

@@ -1,13 +1,13 @@
 # Line endings and binary classification, pinned in the repo so they do not depend
 # on any developer's `core.autocrlf`. Without this file a Windows checkout produces
-# CRLF sources, which oxfmt (LF) rewrites across the entire tree — `pnpm run
+# CRLF sources, which oxfmt (LF) rewrites across the entire tree. `pnpm run
 # format:check` fails on every file and the pre-push hook becomes unpassable.
 * text=auto eol=lf
 
 # Spreadsheet fixtures are the regression corpus's ground truth: byte-exact packages
 # whose meaning lives in the bytes. Git's text/binary heuristic samples for NUL and is
-# usually right about a zip, but "usually" is not a contract to hand the spine of the
-# test suite — a fixture silently rewritten by EOL normalization is a corrupt archive
+# usually right about a zip, but "usually" is not a contract to hand the core of the
+# test suite. A fixture silently rewritten by EOL normalization is a corrupt archive
 # that fails far from its cause. Classify every package format we do, or plausibly may,
 # check in.
 *.xls   binary
@@ -33,7 +33,7 @@
 
 # The ECMA-376 schema graph vendored with the `ooxml-lookup` skill (ADR-0034). SQLite
 # pages carry long runs that look like text and no leading NUL, so this is exactly where
-# the heuristic is least reliable — and an EOL-normalized database is a corrupt one, in the
+# the heuristic is least reliable, and an EOL-normalized database is a corrupt one, in the
 # file the entire schema reference lives in. `-diff` because a 2.2 MB binary delta is noise
 # in a review; the version it came from is recorded in its `.clawhub/origin.json`.
 *.db binary -diff
