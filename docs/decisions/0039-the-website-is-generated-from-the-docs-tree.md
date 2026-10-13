@@ -8,7 +8,7 @@
 page, 44 API pages generated from the public types (ADR-0006), 39 records under `decisions/`,
 and 160 behaviour notes under `knowledge/specs/` (ADR-0007). It is written for someone
 standing in a checkout. It carries no frontmatter, it links to its neighbours by relative
-path, and it links out to files a website would not publish, such as `CLAUDE.md` and
+path, and it links out to files a website would not publish, such as `AGENTS.md` and
 `test/corpus/`.
 
 A published site needs a different shape from all three of those: a title and description

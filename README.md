@@ -17,7 +17,7 @@ A TypeScript-first library for reading and writing spreadsheet documents
 > **It carries no backwards-compatibility guarantee with ExcelJS**: the API below is
 > its own, not a drop-in. From 1.0.0 onward it follows
 > [SemVer](https://semver.org/) against *itself*; see the [changelog](CHANGELOG.md).
-> See [`CLAUDE.md`](CLAUDE.md) for the goals and [`docs/architecture.md`](docs/architecture.md)
+> See [`AGENTS.md`](AGENTS.md) for the goals and [`docs/architecture.md`](docs/architecture.md)
 > for the design, and [migrating from ExcelJS](docs/migrating-from-exceljs.md) if you are coming across.
 
 ## Why it exists
@@ -263,7 +263,7 @@ open, and errors the library knows are its own fault print that link themselves.
 
 This project is optimized to be built and maintained largely by autonomous agents, with
 a machine-checkable safety net as the primary guarantor of correctness. The rules that
-govern every change are in [`CLAUDE.md`](CLAUDE.md); the design and working agreements are
+govern every change are in [`AGENTS.md`](AGENTS.md); the design and working agreements are
 in [`docs/architecture.md`](docs/architecture.md); notable decisions are recorded under
 [`docs/decisions/`](docs/decisions/).
 

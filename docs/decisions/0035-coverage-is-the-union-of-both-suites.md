@@ -39,7 +39,7 @@ uncovered, while an untested function sits mid-table looking fine. That is exact
 what happened to `iconSetXml`, a documented conditional-formatting rule type
 that no test anywhere named, which the report showed as part of a 96.97 %-covered file.
 
-This matters more here than in a human-paced repo. CLAUDE.md §6 optimizes for agents
+This matters more here than in a human-paced repo. AGENTS.md §1.6 optimizes for agents
 working with low supervision, and §2 makes the machine-checkable net the primary
 guarantor of correctness. A signal that is *confidently wrong* costs more than no signal,
 because it is acted on.

@@ -34,7 +34,7 @@ Two deliberate config choices:
   matching `**/*.test.ts` and `test/**/*.mjs`). In a test a non-null assertion is
   the honest idiom, because the fixture is known, so `getCell('A1')!.value` beats
   defensively narrowing a value the test itself just created. Production code keeps
-  the rule (CLAUDE.md §2 prefers narrowing over "trust me" escapes); the one `src`
+  the rule (AGENTS.md §2 prefers narrowing over "trust me" escapes); the one `src`
   site was fixed by using `String.prototype.charAt` (typed `string`, no assertion).
 - **The unsafe autofixes were applied, then verified against the corpus.** Biome
   classes `useOptionalChain` and `useTemplate` as unsafe, because they *can* change
@@ -66,7 +66,7 @@ Vitest would buy us we already have without its dependency tree:
 - **Watch** is already free, since the inner loop is build-free and `node --test --watch` exists.
 
 Vitest is a large transitive dependency set (Vite, esbuild, rollup, chokidar, …), exactly
-the kind of weight the fork exists to shed (CLAUDE.md §2, §4). It earns
+the kind of weight the fork exists to shed (AGENTS.md §2, §4). It earns
 its place only if we need a capability Node's runner lacks; today we don't. Tests
 stay in `node:assert/strict` style, so if that day comes the migration is mechanical.
 

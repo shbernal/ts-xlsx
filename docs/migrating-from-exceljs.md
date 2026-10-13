@@ -2,7 +2,7 @@
 
 `ts-xlsx` is a hard fork of ExcelJS, but **it is not a drop-in replacement** and does
 not try to be. The API is deliberately different because the goal of the fork was the
-*right* shape, not the familiar one (see [`CLAUDE.md`](../CLAUDE.md) §1). This page maps
+*right* shape, not the familiar one (see [`AGENTS.md`](../AGENTS.md) §1). This page maps
 the common ExcelJS patterns to their `ts-xlsx` equivalents so a port is mechanical, and
 is honest about what has not been rebuilt yet.
 
@@ -96,7 +96,7 @@ reasoning and what it would take to pick one up.
 
 Because keeping the old API would make the library worse but easier, and replacing it
 makes the library better but harder, and the fork exists to do the harder, better thing
-([`CLAUDE.md`](../CLAUDE.md) §5). What you get for the port: `.d.ts` types precise enough
+([`AGENTS.md`](../AGENTS.md) §5). What you get for the port: `.d.ts` types precise enough
 that the API reference is generated from them, an I/O path with no Node built-ins in it
 so the same code runs in a browser, and behavior that the regression corpus pins rather than
 assumes.

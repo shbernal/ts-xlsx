@@ -28,7 +28,7 @@ Two complementary moves, split by the nature of the knowledge.
 The base standard is a *fixed, versioned document*. The most durable,
 agent-friendly form is a pinned local copy, not a live network lookup: offline,
 greppable, deterministic, version-locked, and immune to service outages, which is exactly
-the self-contained, "verify don't assume" posture of CLAUDE.md.
+the self-contained, "verify don't assume" posture of AGENTS.md.
 
 `schemas/ooxml-transitional/` holds the complete 26-file Transitional schema set
 (ECMA-376 Part 4, 5th ed., Dec 2016) **verbatim**. Transitional is what Excel

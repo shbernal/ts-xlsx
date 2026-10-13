@@ -16,7 +16,7 @@ opaque?" as a deferred question: round-trip fidelity was solved, but no consumer
 
 This mirrors exactly the position VBA was in before ADR 0016. Preservation proved the bytes were there;
 a typed read view was a bounded, self-contained slice that did not need a downstream caller to justify
-existing, the same way `Workbook.vbaProject` did not. CLAUDE.md §3 ("bias to action… make the
+existing, the same way `Workbook.vbaProject` did not. AGENTS.md §3 ("bias to action… make the
 reasonable call") authorises building it now.
 
 The schema was pinned against the Microsoft-published references (MS-CUSTOMUI / MS-CUSTOMUI2 via the
@@ -61,7 +61,7 @@ Microsoft Learn docs), **not** guessed. Doing so exposed a latent wrong fact in 
    covers the many `get*` dynamic callbacks and layout hints the typed fields don't. When a consumer
    needs a specific control's exotic attributes typed, that's an additive refinement.
 
-6. **The parser is treated as hostile-input-facing (CLAUDE.md §3).** It builds on the entity-safe
+6. **The parser is treated as hostile-input-facing (AGENTS.md §3).** It builds on the entity-safe
    `xmlEvents` scanner (no DTD or entity expansion), caps nesting depth so a deeply-nested part cannot
    overflow the recursive walk, and fails closed with `CustomUiParseError` on malformed XML, an
    unbalanced tree, a missing `<customUI>` root, or an unrecognised namespace, never a crash or a

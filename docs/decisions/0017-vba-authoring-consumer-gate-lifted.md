@@ -11,7 +11,7 @@ forcing consumer" clause of ADR 0016 (and the parallel gate in ADR 0014) for the
 
 ADRs 0013/0014/0016 share one governing move: an authoring API stays *deferred* until a concrete
 **forcing consumer** exists, meaning a caller whose real use pins down the API shape, the invariants, and
-the edge cases. The reasoning (CLAUDE.md §4, no premature abstraction) is sound: you cannot validate the
+the edge cases. The reasoning (AGENTS.md §4, no premature abstraction) is sound: you cannot validate the
 ergonomics of a write path in a vacuum, and a guessed-at API is a guaranteed future break. For VBA
 specifically, ADR 0016 shipped a **read-only** view and listed a value-to-cost forward map for
 authoring, from attach-blob to first-class source-to-bytes, each item gated on that consumer.

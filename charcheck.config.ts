@@ -14,7 +14,7 @@
 //
 // Scope is `raw`, not `markdown`, so fenced code blocks are read too. The `markdown` scope
 // would be the more precise instrument, but it needs `micromark` and its ~25 transitive
-// packages to skip regions that today hold not one banned character, and CLAUDE.md section 2
+// packages to skip regions that today hold not one banned character, and AGENTS.md section 2
 // keeps the dependency tree small.
 //
 // `raw` is also the only shape the source rule below could take, and that one is not a
@@ -60,9 +60,8 @@ export default defineConfig({
       // next year buys nothing, and a finding on a file git already ignores reads as noise.
       //
       // The root documents a reader does meet are named one by one below. The first sweep never
-      // reached them, and they held 161 findings until a later one recast the prose. `AGENTS.md`
-      // rides along because it is the same document as `CLAUDE.md`. Add a new root page by name;
-      // do not reach for a bare `*.md`, which would pull the plans back in.
+      // reached them, and they held 161 findings until a later one recast the prose. Add a new
+      // root page by name; do not reach for a bare `*.md`, which would pull the plans back in.
       //
       // `www/*.md` is the site's own pages, prose a reader meets on the way in. The glob is
       // one level deep on purpose: `www/docs/` is the generated mirror of `docs/`, whose
@@ -70,7 +69,6 @@ export default defineConfig({
       // twice and name the file nobody should edit.
       include: [
         'README.md',
-        'CLAUDE.md',
         'AGENTS.md',
         'CHANGELOG.md',
         'docs/**/*.md',

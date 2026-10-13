@@ -19,7 +19,7 @@ changed the cheapest correct path for the *first* modules:
 Standing up Vitest plus Biome plus a bundler now is real dependency and config weight for
 no correctness gain on a single pure module, and it is the highest-drift work in the
 plan (`PROGRESS.md` guardrail). Deferring it keeps the first slices lean and
-dependency-clean (`CLAUDE.md` §2).
+dependency-clean (`AGENTS.md` §2).
 
 ## Decision
 

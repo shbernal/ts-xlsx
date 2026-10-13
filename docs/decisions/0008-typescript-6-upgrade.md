@@ -14,7 +14,7 @@ The tree was on `typescript@^5.9.3` and `@types/node@^22`. Two newer TypeScript
 lines are now published: **6.0.x**, the transitional release and the last of the
 classic C#/JS-hosted compiler, which turns on deprecation warnings for what the
 native compiler removes; and **7.0.x**, npm's new `latest`, which is the native
-Go port ("tsgo"). CLAUDE.md §3 authorizes tooling modernization with bias to
+Go port ("tsgo"). AGENTS.md §3 authorizes tooling modernization with bias to
 action, so the question was simply which line the toolchain can actually move to
 while every gate stays green.
 

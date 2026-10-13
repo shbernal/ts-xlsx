@@ -42,7 +42,7 @@ extends that same reasoning from the model-copy API to the public authoring API.
    Building any of them is a substantial, multi-part feature (a typed model, an authoring
    API, a serializer, and per each spec's open questions real design work) with no
    forcing consumer today. Building it speculatively would be exactly the premature
-   abstraction CLAUDE.md §4 warns against: designing a shape/chart vocabulary nobody has
+   abstraction AGENTS.md §4 warns against: designing a shape/chart vocabulary nobody has
    asked to use yet.
 
 3. **The backlog specs stand as the scoping for when authoring is picked up.** They are

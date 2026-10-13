@@ -16,7 +16,7 @@ mis-typed a signature part). The library also **drops** the bytes whenever the p
 or edited (ADRs 0017/0018), because a signature over the old bytes cannot vouch for new ones.
 
 What was missing was a *read* of that captured state. ADR 0016 left an `isSigned` accessor "cleanly
-sourceable from the preserved closure once a consumer needs it." Per CLAUDE.md §3, a read of data the
+sourceable from the preserved closure once a consumer needs it." Per AGENTS.md §3, a read of data the
 library already captures is a small, low-risk slice, not speculative infrastructure, so we built it now
 without waiting for a named consumer.
 

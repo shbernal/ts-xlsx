@@ -117,9 +117,9 @@ vocabulary is partitioned by part and cannot phrase most cross-part relationship
 lists the open ones.
 
 **To run the whole net at once, use `node scripts/verify.ts`.** That is every gate above plus
-`docs:check` and `constitution:check`, run concurrently, reported as one table with
+`docs:check` and the invariants, run concurrently, reported as one table with
 per-gate timing (~14 s wall against ~27 s of serial work). Prefer it over assembling the
-chain by hand, which is how `docs:check` and `constitution:check` get silently dropped.
+chain by hand, which is how `docs:check` and the invariants get silently dropped.
 `--quick` is the inner loop: types, unit tests, and lint scoped to your changed files, no
 corpus (~5 s). Faster, but **not** a substitute for the full run. Invoke it with `node`,
 not `pnpm run`, to skip ~1 s of package-manager wrapper. `pnpm test`, lefthook's `pre-push`
@@ -137,7 +137,7 @@ turn that changed nothing verifiable costs ~0.3 s; one that changed anything pay
 external binary. Invoke it yourself; see below.
 
 **Write scratch to `.tmp/`.** Probes, dumps, generated workbooks, anything regenerable
-(`$SCRATCH` and `$TMPDIR` both point there; CLAUDE.md makes it the rule). It is git-ignored,
+(`$SCRATCH` and `$TMPDIR` both point there; AGENTS.md makes it the rule). It is git-ignored,
 so probing leaves `git status` clean *and* costs nothing at the turn boundary: an untracked
 file anywhere else is part of the cache key and buys you a full re-verify.
 

@@ -48,7 +48,7 @@ records) onto the public model so the "drops nothing" claim became true.
 4. **A faithful whole-sheet/package copy API is deferred pending a consumer.**
    Transferring attached parts (a chart, a pivot, an image) between sheets would be a
    *new* public API, not a change to `model`. Nothing in the codebase needs it yet, and
-   building it now would be speculative abstraction (CLAUDE.md §4). It waits for a real
+   building it now would be speculative abstraction (AGENTS.md §4). It waits for a real
    use-case to force its shape.
 
 ## Consequences

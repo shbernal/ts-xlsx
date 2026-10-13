@@ -16,7 +16,7 @@
 The project's machine-checkable safety net is deep: the corpus (well-formedness, package
 structure, regression), the Microsoft `OpenXmlValidator` oracle, vendored ECMA-376
 XSDs, the microsoft-learn MCP, and the `docs/knowledge/specs/` notes. But the knowledge
-of *which check to run when* was spread across CLAUDE.md, `docs/architecture.md`, four
+of *which check to run when* was spread across AGENTS.md, `docs/architecture.md`, four
 ADRs, two skill files, and two READMEs. An agent mid-task had to reconstruct that
 decision tree every time, and the highest-value tool, the schema oracle, had no skill
 wrapping it and the most operational friction (.NET requirement, emit-a-file-first,
@@ -33,7 +33,7 @@ existing net easy to find, not to add new validators.
 ### A dispatch table agents actually reach for
 
 `docs/agent-correctness-playbook.md` maps *what you are doing* → *the check that proves
-it correct* → *the exact command*, cheapest-to-most-authoritative. CLAUDE.md §3 points
+it correct* → *the exact command*, cheapest-to-most-authoritative. AGENTS.md §3 points
 to it from the "Verify, don't assume" rule, and the closing See-also lists it beside
 `architecture.md` and the ADRs.
 

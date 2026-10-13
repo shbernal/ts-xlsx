@@ -4,7 +4,7 @@
 // The gates are independent processes with no shared state, so running them in
 // sequence only buys the illusion of tidiness: it costs the sum of their times
 // instead of the maximum. Assembling the chain by hand also lets gates go missing:
-// `docs:check` and `constitution:check` are the two that get forgotten, because they
+// `docs:check` and the invariants gate are the two that get forgotten, because they
 // are the two that rarely fail.
 //
 // Usage:
@@ -41,7 +41,7 @@ const CHARCHECK = resolve(ROOT, 'node_modules/charcheck/dist/cli.js');
 
 /** What `lint` covers; must stay in step with the `lint` package script. */
 const LINT_TARGETS = ['src', 'scripts', 'test', 'tools', 'www', 'charcheck.config.ts'];
-// CLAUDE.md §2 admits no warnings, and oxlint exits 0 on them. Nothing in .oxlintrc.jsonc is set
+// AGENTS.md §2 admits no warnings, and oxlint exits 0 on them. Nothing in .oxlintrc.jsonc is set
 // to "warn" today, so this changes no current outcome. It is here so that the first rule adopted
 // at warning severity, to stage a migration, is still a gate rather than a message.
 const LINT_STRICT = '--deny-warnings';
@@ -246,7 +246,6 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
         // own: each finishes in well under a second.
         name: 'invariants',
         steps: [
-          {command: NODE, args: ['scripts/check-constitution.ts']},
           {command: NODE, args: ['scripts/check-layering.ts']},
           {command: NODE, args: ['scripts/check-entries.ts']},
           {command: NODE, args: ['scripts/check-browser-safe.ts']},

@@ -81,7 +81,7 @@ export default {
 2. Run `pnpm run corpus --case <your-slug>` and read the result.
 3. Green → it is a regression lock, and you are done. Red → you have a failing
    reproduction, which is the *good* outcome for a bug you are about to fix: land the fix in
-   the same change (CLAUDE.md §2, "bugs are fixed test-first"). Do not weaken the assertion
+   the same change (AGENTS.md §2, "bugs are fixed test-first"). Do not weaken the assertion
    to get green, and do not land a red case on its own.
 
 Also run `pnpm run typecheck:test`: a mistyped capability name or argument is a compile

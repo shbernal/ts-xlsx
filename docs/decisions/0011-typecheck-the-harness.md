@@ -25,7 +25,7 @@ cross-directory import seams were two patterns; the corpus runner had two loader
 strings; nine `package.json` paths). Against that saving, `checkJs` would
 institutionalize a permanent two-language halfway state (src = `.ts`,
 tests and scripts = JS plus JSDoc) exactly where typing value is highest (adapters against `src`)
-and JSDoc is weakest. CLAUDE.md ("TypeScript-first", "no half-migrations landed on
+and JSDoc is weakest. AGENTS.md ("TypeScript-first", "no half-migrations landed on
 main", "legacy is not a reason to keep") points unambiguously to `.ts`. There is
 no CI risk: Node runs `.ts` directly via type-stripping with no build step, the same
 way `src/` already runs ([ADR 0001](./0001-rewrite-runtime-and-toolchain.md)).

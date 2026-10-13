@@ -1,6 +1,6 @@
 # Architecture
 
-How `ts-xlsx` is built and why. `CLAUDE.md` is the constitution (the principles every
+How `ts-xlsx` is built and why. `AGENTS.md` is the constitution (the principles every
 change answers to); this document describes the library as it stands and the working
 agreements that keep it coherent. Point-in-time decisions live under
 [`docs/decisions/`](decisions/) as ADRs.
@@ -582,7 +582,7 @@ The subsystem is built as encode/decode pairs over two formats plus a project la
   `errors.ts` holds the two failure types. There is deliberately no from-source synthesizer;
   see below.
 
-**The reader is hostile-input-facing (CLAUDE.md §3).** Every CFB sector index, chain, and
+**The reader is hostile-input-facing (AGENTS.md §3).** Every CFB sector index, chain, and
 stream size is bounds-checked and cycle-guarded; every MS-OVBA back-reference is validated and
 total output is bomb-capped. A malformed project fails closed with `VbaParseError`, never a
 crash, hang, or unbounded allocation, and each guard is pinned by a crafted-malformed fixture.

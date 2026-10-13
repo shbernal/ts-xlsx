@@ -39,7 +39,7 @@ evidence: a dependency-free CFB plus MS-OVBA plus `dir`/`PROJECT` parser that de
    worksheet invariant at `src/core/worksheet.ts` (`#preservedReferences` "stays its sole
    emission authority; this collection is never emitted").
 
-3. **The VBA parser is treated as hostile-input-facing (CLAUDE.md §3).** Every CFB sector
+3. **The VBA parser is treated as hostile-input-facing (AGENTS.md §3).** Every CFB sector
    index, chain, and stream size is bounds-checked and cycle-guarded; MS-OVBA output is
    bomb-capped and every copy-token back-reference validated. A malformed project fails
    closed with a `VbaParseError`, never a crash, hang, or unbounded allocation. Each guard
@@ -54,7 +54,7 @@ evidence: a dependency-free CFB plus MS-OVBA plus `dir`/`PROJECT` parser that de
    Phase 1 is read-only. Writing source back into a valid `vbaProject.bin` (a CFB writer,
    the encode side of MS-OVBA, the full `dir`/`PROJECT` record set, and the
    recompile-from-source cookie) is a substantial multi-part feature with no forcing
-   consumer today. Building it speculatively is the premature abstraction CLAUDE.md §4 warns
+   consumer today. Building it speculatively is the premature abstraction AGENTS.md §4 warns
    against.
 
 ## Consequences

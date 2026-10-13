@@ -1,7 +1,7 @@
 # Security policy
 
 A spreadsheet is an attacker-controlled zip of attacker-controlled XML. Every parser path in
-this library is treated as hostile-input-facing (`CLAUDE.md` §3), so a file that makes it
+this library is treated as hostile-input-facing (`AGENTS.md` §3), so a file that makes it
 allocate without bound, spin without end, or write outside where it was told to is a
 vulnerability here, not a malformed-input curiosity.
 
@@ -32,7 +32,7 @@ otherwise.
 ## Supported versions
 
 Fixes ship on the latest published version. There are no backports and no long-term support
-branches. Major bumps are cheap here by design (`CLAUDE.md` §1.3), so the supported upgrade
+branches. Major bumps are cheap here by design (`AGENTS.md` §1.3), so the supported upgrade
 path is forward.
 
 ## In scope

@@ -1,10 +1,12 @@
 # Declaration of principles
 
 > This file is the constitution of the project. Every agent, human or AI, reads
-> it before touching the code. `AGENTS.md` is a byte-identical copy of this file so
-> that all runtimes converge on the same rules; `scripts/check-constitution.ts` fails
-> the build if the two drift. If a decision is not covered here, decide in the
-> *spirit* of this document, act, and record what you did.
+> it before touching the code. Every agent runtime now reads `AGENTS.md` natively,
+> Claude Code included, so this one file carries the rules for all of them; the
+> `CLAUDE.md` mirror and the check that pinned it to this file are gone, and
+> [ADR 0041](docs/decisions/0041-the-constitution-is-one-file.md) records how it got
+> here. If a decision is not covered here, decide in the *spirit* of this document,
+> act, and record what you did.
 
 ---
 

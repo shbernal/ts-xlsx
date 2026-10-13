@@ -11,7 +11,7 @@ now here: almost every remaining corpus capability (`roundtripWorkbook`,
 a package that is *read back*, so the model cannot light them up without a reader.
 
 The deferred decision was `fast-xml-parser` (a DOM-building dependency) against a lean
-hand-written SAX. Two forces from the constitution (`CLAUDE.md`) decide it:
+hand-written SAX. Two forces from the constitution (`AGENTS.md`) decide it:
 
 1. **A spreadsheet reader parses untrusted input.** "No unbounded allocation, no
    zip-bomb naïveté, no eval-shaped surprises." A DOM parser materialises the *entire*

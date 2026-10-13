@@ -1,4 +1,4 @@
-<!-- One change, one purpose, fully green (CLAUDE.md §3). A half-migration is not reviewable,
+<!-- One change, one purpose, fully green (AGENTS.md §3). A half-migration is not reviewable,
      and a PR that needs a follow-up to be correct is two PRs. -->
 
 ## What changes, and why
@@ -13,7 +13,7 @@
      printed. A behaviour change with no test that failed before it is asserted, not proved.
      A bug fix names the reproduction that failed first. -->
 
-## Definition of Done (CLAUDE.md §2)
+## Definition of Done (AGENTS.md §2)
 
 - [ ] `pnpm verify` is green: lint, typecheck, unit tests, corpus, generated docs, invariants
 - [ ] New behaviour ships with unit tests in this change; a fixed bug ships with the failing

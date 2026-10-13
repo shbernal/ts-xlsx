@@ -29,7 +29,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # The whole gate set, from its single definition in scripts/verify.ts: lint,
       # both typecheck configs, unit tests, the regression corpus, docs:check and
-      # constitution:check, run concurrently. This step deliberately does NOT list
+      # the invariant checks, run concurrently. This step deliberately does NOT list
       # them: an enumeration here would be a second definition of "everything" that
       # nothing keeps in step with verify --full (ADR 0022). A failing gate still
       # names itself in the Checks UI, because verify emits a GitHub annotation per gate.

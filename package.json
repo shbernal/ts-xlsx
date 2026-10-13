@@ -89,7 +89,6 @@
     "site:preview": "vitepress preview www",
     "docs": "node scripts/gen-docs.ts",
     "docs:check": "node scripts/gen-docs.ts && git add --intent-to-add -- docs/api && git diff --exit-code -- docs/api",
-    "constitution:check": "node scripts/check-constitution.ts",
     "layering:check": "node scripts/check-layering.ts",
     "entries:check": "node scripts/check-entries.ts",
     "browser:check": "node scripts/check-browser-safe.ts",

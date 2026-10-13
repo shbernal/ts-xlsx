@@ -2,7 +2,7 @@
 # the `prepare` script, except where `core.hooksPath` points outside this repo,
 # which `scripts/install-hooks.ts` reports and steps around rather than failing
 # the install. These mirror the CI gates so a failure shows up locally instead of
-# on the runner: the same "we trust green checks" contract from CLAUDE.md,
+# on the runner: the same "we trust green checks" contract from AGENTS.md,
 # enforced one step earlier.
 #
 # Bypass a hook when you genuinely must: `git commit --no-verify` /

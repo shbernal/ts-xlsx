@@ -76,7 +76,7 @@ const INCLUDE = ['src/**/*.ts'];
 const EXCLUDE = ['src/**/*.test.ts'];
 
 /**
- * Floors, not targets (CLAUDE.md §2). Set just under the measured union so a real regression trips
+ * Floors, not targets (AGENTS.md §2). Set just under the measured union so a real regression trips
  * them and ordinary churn does not; raise them when the true number rises, never lower them to fit
  * a change. Totals only, deliberately: a per-file floor would have to be either so low it proves
  * nothing or so exact it fails on every honest refactor, and the per-file table below is already

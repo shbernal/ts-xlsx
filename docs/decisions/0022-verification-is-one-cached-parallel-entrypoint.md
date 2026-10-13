@@ -71,7 +71,7 @@ Two traps this laid, both now pinned by comments at the site:
 
 Biome exits `0` when every diagnostic is a warning, and most of its `style` group, including
 `noNonNullAssertion`, is a warning by default. The gate was therefore green on a tree carrying
-18 of them, against CLAUDE.md §2's "No warnings". Every gate that runs Biome passes
+18 of them, against AGENTS.md §2's "No warnings". Every gate that runs Biome passes
 `--error-on-warnings`, so severity is a presentation choice and never an enforcement one.
 
 ### Lint is scoped by explicit file list, and needs no confirming pass
