@@ -250,6 +250,16 @@ test('writeCompoundFile refuses the names a directory entry cannot carry, fail-c
     VbaAuthorError,
     'a collision nested inside a storage is caught too: the check recurses',
   );
+  assert.throws(
+    () =>
+      writeCompoundFile([
+        {name: 'dir', data: new Uint8Array(1)},
+        {name: 'DIR', data: new Uint8Array(2)},
+      ]),
+    (error: unknown) =>
+      error instanceof VbaAuthorError && /duplicate entry name/.test(error.message),
+    '[MS-CFB] 2.6.4 compares names uppercased, so names differing only in case collide',
+  );
 });
 
 test('a name that collides only across storages is legal, since uniqueness is per parent', () => {

@@ -100,5 +100,14 @@ export const MAX_NAME_CHARS = 31;
  * name differently would read as missing a stream it has.
  */
 export function sameEntryName(a: string, b: string): boolean {
-  return a.length === b.length && a.toUpperCase() === b.toUpperCase();
+  return entryNameKey(a) === entryNameKey(b);
+}
+
+/**
+ * A key equal for exactly the names {@link sameEntryName} treats as one entry, so a set of them can
+ * catch a collision without comparing every pair. The length is part of the key because uppercasing
+ * can change it (`ß` becomes `SS`), and 2.6.4 compares the original lengths first.
+ */
+export function entryNameKey(name: string): string {
+  return `${name.length}:${name.toUpperCase()}`;
 }
