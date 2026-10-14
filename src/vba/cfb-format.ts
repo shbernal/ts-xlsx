@@ -59,7 +59,6 @@ export const MINI_SECTOR_SHIFT = 6;
 export const FREESECT = 0xffffffff;
 export const ENDOFCHAIN = 0xfffffffe;
 export const FATSECT = 0xfffffffd;
-export const DIFSECT = 0xfffffffc;
 
 /**
  * Sector values 0xFFFFFFFA..0xFFFFFFFF are the reserved markers above, not data-sector indices, so

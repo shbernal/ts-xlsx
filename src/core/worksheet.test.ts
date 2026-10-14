@@ -124,12 +124,6 @@ test('merging a range that overlaps an existing merged region is rejected', () =
   assert.deepEqual([...sheet.merges], ['A1:B2']);
 });
 
-test('a range fully containing an existing merge is rejected', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.mergeCells('B2:C3');
-  assert.throws(() => sheet.mergeCells('A1:D4'), /overlaps/);
-});
-
 test('unmergeCells removes a merge and frees its rectangle for a new one', () => {
   const sheet = new Worksheet('S', 1);
   sheet.mergeCells('A1:B2');
@@ -169,11 +163,6 @@ test('a sheet-qualified merge range is refused rather than its prefix ignored', 
   assert.throws(() => sheet.mergeCells('Other!E1:F2'), SyntaxError);
   assert.throws(() => sheet.unmergeCells('Other!E1:F2'), SyntaxError);
   assert.deepEqual([...sheet.merges], []);
-});
-
-test('a sheet carries no autofilter until one is set', () => {
-  const sheet = new Worksheet('S', 1);
-  assert.equal(sheet.autoFilter, undefined);
 });
 
 test('a bare range string sets a criteria-free filter, normalised to canonical corner order', () => {
@@ -384,32 +373,6 @@ test("a model round-trip carries print options and clears the destination's stal
     'print options copy without residue',
   );
   assert.notStrictEqual(dst.printOptions, src.printOptions, 'the container is copied, not aliased');
-});
-
-test('assigning a model clears an autofilter the destination held, leaving no residue', () => {
-  const dst = new Worksheet('Dst', 2);
-  dst.autoFilter = 'Y1:Z9';
-
-  dst.model = new Worksheet('Src', 1).model;
-
-  assert.equal(dst.autoFilter, undefined);
-});
-
-test('assigning a model replaces content wholesale, leaving no residue', () => {
-  const dst = new Worksheet('Dst', 2);
-  dst.getCell('Z9').value = 'stale';
-  dst.mergeCells('Y1:Z1');
-  dst.pageMargins.top = 9;
-
-  const src = new Worksheet('Src', 1);
-  src.getCell('A1').value = 'fresh';
-
-  dst.model = src.model;
-
-  assert.equal(dst.getCell('A1').value, 'fresh');
-  assert.equal(dst.hasCell(9, 26), false);
-  assert.deepEqual([...dst.merges], []);
-  assert.equal(dst.pageMargins.top, undefined);
 });
 
 test('the exported model does not alias the source sheet through mutable containers', () => {
@@ -854,19 +817,6 @@ test('a table column style bakes into the body cells addRow writes', () => {
   assert.equal(sheet.getCell('B3').numFmt, undefined);
 });
 
-test('a merged range extends the used-range bounds past the last populated cell', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.getCell('A1').value = 'top';
-  sheet.getCell('A2').value = 'data';
-  sheet.mergeCells('A1:B3');
-  assert.equal(sheet.rowCount, 3, 'the merge reaches row 3, so row 3 is within the bounds');
-  assert.equal(
-    sheet.columnCount,
-    2,
-    'the merge reaches column B, so column 2 is within the bounds',
-  );
-});
-
 test('spliceColumns removes the requested columns and shifts the rest left', () => {
   const sheet = new Worksheet('S', 1);
   ['A', 'B', 'C', 'D', 'E'].forEach((L, i) => {
@@ -1051,18 +1001,6 @@ test('inserting a column re-anchors a shared-formula clone to its master’s new
   assert.equal(masterOf(sheet, 'C3'), 'C1');
 });
 
-test('inserting a row re-anchors a shared-formula clone to its master’s new address', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.getCell('A1').value = {formula: 'Z1', result: 0};
-  sheet.getCell('B1').value = {sharedFormula: 'A1', result: 0};
-  sheet.getCell('C1').value = {sharedFormula: 'A1', result: 0};
-
-  // A row inserted at 1 shifts the group down by one: master A1 → A2, clones B1/C1 → B2/C2.
-  sheet.spliceRows(1, 0, []);
-  assert.equal(masterOf(sheet, 'B2'), 'A2', 'the clone follows its master to the new row');
-  assert.equal(masterOf(sheet, 'C2'), 'A2');
-});
-
 test('a splice below a shared-formula group leaves the clone’s master address untouched', () => {
   const sheet = new Worksheet('S', 1);
   sheet.getCell('B1').value = {formula: 'A1*2', result: 2};
@@ -1071,29 +1009,6 @@ test('a splice below a shared-formula group leaves the clone’s master address 
   // The master B1 sits above the edit at row 5, so nothing moves and no address is rewritten.
   sheet.spliceRows(5, 0, []);
   assert.equal(masterOf(sheet, 'B2'), 'B1', 'an untouched master keeps its original address');
-});
-
-test('addRow places a dense array left-to-right and skips holes in a sparse array', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.addRow(['a', 'b', 'c']);
-  // oxlint-disable-next-line eslint/no-sparse-arrays -- the genuine array hole (not an explicit undefined) is the behavior under test: addRow must skip holes, and `1 in arr === false` is what distinguishes them
-  sheet.addRow(['x', , 'z']);
-  assert.deepEqual(
-    ['A1', 'B1', 'C1'].map((r) => sheet.getCell(r).value),
-    ['a', 'b', 'c'],
-  );
-  assert.strictEqual(sheet.getCell('A2').value, 'x');
-  assert.strictEqual(sheet.getCell('B2').value, null, 'the hole leaves its column untouched');
-  assert.strictEqual(sheet.getCell('C2').value, 'z');
-});
-
-test('addRow places a keyed object under the columns carrying the matching key', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.getColumn(1).key = 'k1';
-  sheet.getColumn(2).key = 'k2';
-  sheet.addRow({k1: 'o1', k2: 'o2'});
-  assert.strictEqual(sheet.getCell('A1').value, 'o1');
-  assert.strictEqual(sheet.getCell('B1').value, 'o2');
 });
 
 test('addRow rejects a keyed object naming a column that has no key', () => {

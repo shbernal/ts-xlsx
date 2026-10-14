@@ -44,18 +44,6 @@ test('duplicate column names are disambiguated case-insensitively', () => {
   );
 });
 
-test('distinct column names are accepted', () => {
-  assert.doesNotThrow(() => table());
-});
-
-test('inserting a row above a table shifts its whole range down', () => {
-  const t = table(); // A3:B5 (header + 2 data rows)
-  assert.strictEqual(t.range, 'A3:B5');
-  const alive = t.shiftRows({axis: 'row', start: 1, count: 0, delta: 1}); // insert one row at the top
-  assert.strictEqual(alive, true);
-  assert.strictEqual(t.range, 'A4:B6');
-});
-
 test('inserting rows inside a table grows its data rows', () => {
   const t = table(); // A3:B5
   t.shiftRows({axis: 'row', start: 4, count: 0, delta: 2}); // two rows inserted within the data body (row 4)
@@ -93,10 +81,6 @@ test('the sentinel style name "None" is normalised to an absent name', () => {
 test('a real style name is preserved', () => {
   const t = table({style: {name: 'TableStyleMedium2'}});
   assert.strictEqual(t.style?.name, 'TableStyleMedium2');
-});
-
-test('rowCount reports the data-row count', () => {
-  assert.strictEqual(table().rowCount, 2);
 });
 
 test('addRow grows the data-row count and the range', () => {

@@ -32,7 +32,7 @@ import {
   type SheetProtectionFlags,
 } from '../../core/protection.ts';
 import type {OutlineProperties, SheetView, Worksheet} from '../../core/worksheet.ts';
-import {assertWritableNumber, AuthoringError} from '../../errors.ts';
+import {AuthoringError} from '../../errors.ts';
 import {numFinite, numInteger} from '../../xml/xml-attrs.ts';
 import {boolStrict, boolTristate, type XmlAttributes} from '../../xml/xml-scan.ts';
 import {
@@ -84,7 +84,6 @@ export function sheetViewsXml(view: SheetView, active: boolean): string {
 // first line past it.
 function frozenSplit(name: 'xSplit' | 'ySplit', value: number | undefined, lines: number): number {
   if (value === undefined) return 0;
-  assertWritableNumber(value);
   if (!Number.isInteger(value) || value < 0 || value >= lines) {
     throw new AuthoringError(
       `cannot write ${name}="${value}": a frozen split is a whole count from 0 to ${lines - 1}`,

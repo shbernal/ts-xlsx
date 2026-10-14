@@ -74,6 +74,8 @@ export class CompoundFile {
   readonly #fat: number[];
   readonly #miniFat: number[];
   readonly #dir: DirEntry[];
+  readonly #rootIndex: number;
+  readonly #root: DirEntry;
   readonly #miniStream: Uint8Array;
 
   constructor(buf: Uint8Array) {
@@ -117,8 +119,10 @@ export class CompoundFile {
     this.#miniFat = this.#readChainValues(firstMiniFatSector);
     this.#dir = this.#readDirectory(firstDirSector);
 
-    const root = this.#dir.find((e) => e.type === TYPE_ROOT);
+    this.#rootIndex = this.#dir.findIndex((e) => e.type === TYPE_ROOT);
+    const root = this.#dir[this.#rootIndex];
     if (!root) throw new VbaParseError('compound file has no root storage entry');
+    this.#root = root;
     // The mini-stream lives in the regular FAT, addressed from the root entry's start sector.
     this.#miniStream = this.#readViaFat(root.startSector, root.size);
   }
@@ -142,9 +146,8 @@ export class CompoundFile {
    *   streams. Copy before mutating.
    */
   readStream(path: readonly string[]): Uint8Array | undefined {
-    const rootIdx = this.#rootIndex();
-    const seen = new Set([rootIdx]);
-    let firstChild = (this.#dir[rootIdx] as DirEntry).child;
+    const seen = new Set([this.#rootIndex]);
+    let firstChild = this.#root.child;
     for (const [depth, segment] of path.entries()) {
       const stream = depth === path.length - 1;
       const entry = this.#childIndices(firstChild, seen, depth)
@@ -170,14 +173,7 @@ export class CompoundFile {
    * @returns nodes whose stream bytes carry {@link readStream}'s aliasing caveat.
    */
   tree(): CfbNode[] {
-    const rootIdx = this.#rootIndex();
-    return this.#buildSiblings((this.#dir[rootIdx] as DirEntry).child, new Set([rootIdx]));
-  }
-
-  #rootIndex(): number {
-    const rootIdx = this.#dir.findIndex((e) => e.type === TYPE_ROOT);
-    if (rootIdx < 0) throw new VbaParseError('compound file has no root storage entry');
-    return rootIdx;
+    return this.#buildSiblings(this.#root.child, new Set([this.#rootIndex]));
   }
 
   #buildSiblings(firstChild: number, seen: Set<number>, depth = 0): CfbNode[] {

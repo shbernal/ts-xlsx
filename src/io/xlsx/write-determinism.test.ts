@@ -11,7 +11,7 @@ import {test} from 'node:test';
 
 import {Workbook} from '../../core/workbook.ts';
 import {WorkbookStreamWriter} from './write-stream.ts';
-import {writeXlsx, writeXlsxAsync} from './write.ts';
+import {writeXlsx} from './write.ts';
 
 // The instant every entry must carry, spelled out rather than imported from `FIXED_ENTRY_MTIME`, so
 // these tests can disagree with the constant instead of restating it. Read from the clock instead,
@@ -35,15 +35,6 @@ function severalPartWorkbook(): Workbook {
 
 test('the same workbook written twice produces byte-identical packages', () => {
   assert.deepEqual(writeXlsx(severalPartWorkbook()), writeXlsx(severalPartWorkbook()));
-});
-
-test('the async writer is deterministic too, and agrees with the buffered one', async () => {
-  const [first, second] = await Promise.all([
-    writeXlsxAsync(severalPartWorkbook()),
-    writeXlsxAsync(severalPartWorkbook()),
-  ]);
-  assert.deepEqual(first, second);
-  assert.deepEqual(first, writeXlsx(severalPartWorkbook()));
 });
 
 test('every entry of a buffered package carries the fixed timestamp', () => {

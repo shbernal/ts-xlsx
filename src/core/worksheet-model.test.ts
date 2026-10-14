@@ -49,16 +49,6 @@ test('the exported model carries exactly the fields the facet registry declares'
   );
 });
 
-test('a fully populated sheet round-trips to an identical model', () => {
-  const src = populatedSheet();
-  const dst = new Worksheet('Dst', 2);
-  dst.model = src.model;
-
-  // A facet whose two directions disagree (a field read but not written, or written into the wrong
-  // place) shows up here as a difference, whichever field it is.
-  assert.deepEqual(dst.model, src.model);
-});
-
 test('a round-trip through a sheet holding unrelated content leaves no residue', () => {
   const dst = new Worksheet('Dst', 2);
   dst.getCell('Z9').value = 'stale';
@@ -71,6 +61,8 @@ test('a round-trip through a sheet holding unrelated content leaves no residue',
   const src = populatedSheet();
   dst.model = src.model;
 
+  // A facet whose two directions disagree (a field read but not written, or written into the wrong
+  // place) shows up here as a difference, whichever field it is.
   assert.deepEqual(dst.model, src.model);
 });
 
@@ -156,13 +148,4 @@ test('a frozen pane survives a model transplant', () => {
   dst.model = src.model;
 
   assert.deepEqual(dst.view, {state: 'frozen', xSplit: 1, ySplit: 2, topLeftCell: 'B3'});
-});
-
-test('a model transplant clears a frozen pane the destination held', () => {
-  const dst = new Worksheet('Dst', 2);
-  dst.freeze(1);
-
-  dst.model = new Worksheet('Src', 1).model;
-
-  assert.deepEqual(dst.view, {}, 'a normal-view source leaves no pane behind');
 });

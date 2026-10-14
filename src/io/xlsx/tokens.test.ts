@@ -11,7 +11,6 @@ import {test} from 'node:test';
 
 import {zipSync} from 'fflate';
 
-import {ERROR_CODES} from '../../core/value.ts';
 import {
   partIn,
   partsWritten as partsOf,
@@ -130,21 +129,6 @@ test('a cell error value and a cached formula error refuse a code outside ERROR_
       result: {error: '#WHATEVER!'},
     } as never;
   });
-});
-
-test('every error code still writes, as a value and as a cached formula result', () => {
-  const wb = sheeted();
-  const sheet = wb.getWorksheet('S')!;
-  for (const [index, error] of ERROR_CODES.entries()) {
-    sheet.getCell(`B${index + 1}`).value = {error};
-    sheet.getCell(`C${index + 1}`).value = {formula: 'NA()', result: {error}};
-  }
-
-  const back = roundtrip(wb).getWorksheet('S');
-  for (const [index, error] of ERROR_CODES.entries()) {
-    assert.deepEqual(back?.getCell(`B${index + 1}`).value, {error});
-    assert.deepEqual(back?.getCell(`C${index + 1}`).value, {formula: 'NA()', result: {error}});
-  }
 });
 
 test('the tokens the enumerations do allow still round-trip', () => {

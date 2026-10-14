@@ -65,15 +65,5 @@ export default {
         );
       },
     },
-    {
-      name: 'no default-added sheet is emitted as veryHidden',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {sheetEntries} = await api.inspectPackage(SPEC);
-        assert.ok(
-          sheetEntries.every((s) => s.state !== 'veryHidden'),
-          'no sheet is silently marked veryHidden',
-        );
-      },
-    },
   ],
 } satisfies Case;

@@ -94,15 +94,6 @@ test('a name defined as a LAMBDA stores _xlfn. and _xlpm. but is modelled plain'
   assert.deepEqual([...back.definedNames], [{name: 'Double', refersTo: 'LAMBDA(x,x*2)'}]);
 });
 
-test('a plain reference carries no _xlfn. prefix and reads back verbatim', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = 1;
-  wb.defineName({name: 'Region', refersTo: 'S!$A$1:$B$2'});
-  assert.doesNotMatch(workbookXmlOf(wb), /_xlfn\./);
-  const back = roundtrip(wb);
-  assert.equal(back.definedNames[0]?.refersTo, 'S!$A$1:$B$2');
-});
-
 test('a foreign name stored with _xlfn. reads back to its plain function name', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 1;

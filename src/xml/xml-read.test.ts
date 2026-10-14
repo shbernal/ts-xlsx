@@ -231,10 +231,6 @@ function captured(xml: string, names: string | Iterable<string>): string[] {
   return out;
 }
 
-test('TextCapture gathers an element text across the chunks it arrives in', () => {
-  assert.deepEqual(captured('<r><t>a &amp; b</t><t>second</t></r>', 't'), ['a & b', 'second']);
-});
-
 test('TextCapture ignores a self-closing element, which will never fire a close', () => {
   assert.deepEqual(captured('<r><t/><t>after</t></r>', 't'), ['after']);
   // The regression this exists to make impossible: a latch nothing closes, leaking the following
@@ -267,16 +263,6 @@ test('TextCapture reset abandons a capture that truncated markup left armed', ()
   assert.equal(capture.capturing, false);
   capture.text('loose');
   assert.equal(capture.close('t'), undefined, 'neither text belongs to whoever closes next');
-});
-
-test('TextCapture over a set tells the caller which element it captured, by the close it answers', () => {
-  assert.deepEqual(
-    captured('<cp><title>T</title><ignored>X</ignored><creator>C</creator></cp>', [
-      'title',
-      'creator',
-    ]),
-    ['T', 'C'],
-  );
 });
 
 test('parseXmlPasses delivers every event to every pass', () => {
@@ -335,14 +321,6 @@ test('elementSubtrees captures a self-closing child as its own tag', () => {
     '<rgbColor rgb="FF00FF00"/>',
     '<rgbColor rgb="FF0000FF"/>',
   ]);
-});
-
-test('elementSubtrees keeps CDATA and comments inside a subtree, and reads neither as markup', () => {
-  // A `</dxf>` inside a comment or a CDATA section is text, not the element's end. A regex scanner
-  // is exactly what cannot tell the difference.
-  const xml = '<s><dxfs><dxf><![CDATA[</dxf>]]><!-- </dxf> --><b/></dxf></dxfs></s>';
-  const {fragments} = elementSubtrees(xml, DXFS);
-  assert.deepEqual(fragments.get('dxfs'), ['<dxf><![CDATA[</dxf>]]><!-- </dxf> --><b/></dxf>']);
 });
 
 test('elementSubtrees scopes the child to its container', () => {

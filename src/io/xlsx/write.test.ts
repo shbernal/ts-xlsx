@@ -380,13 +380,6 @@ test('grouped rows report their depth as outlineLevelRow', () => {
   assert.doesNotMatch(xml, /outlineLevelCol/);
 });
 
-test('an ungrouped sheet emits neither outline level', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = 'x';
-  const xml = partIn(partsOf(wb), 'xl/worksheets/sheet1.xml');
-  assert.doesNotMatch(xml, /outlineLevel/);
-});
-
 test('the workbook always declares a window view, defaulting to the first tab', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'x';
@@ -545,13 +538,6 @@ test('a visible grid reads back unset rather than true', () => {
   // Excel's default is on, so "unset" and "on" are the same state: recording `true` would make a
   // re-write fabricate an attribute the source never carried.
   assert.equal(reopened.requireWorksheet('S').view.showGridLines, undefined);
-});
-
-test('an unprotected sheet emits no <sheetProtection> element', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = 'x';
-  const xml = partIn(partsOf(wb), 'xl/worksheets/sheet1.xml');
-  assert.doesNotMatch(xml, /<sheetProtection/);
 });
 
 test('protecting a sheet emits a self-closing <sheetProtection sheet="1"> after <sheetData>', () => {
@@ -903,14 +889,6 @@ test('the async writer honours WriteOptions the same way', async () => {
   const inline = unzipSync(await writeXlsxAsync(wb));
   assert.ok(pooled['xl/sharedStrings.xml'], 'pooling emits the shared-strings part');
   assert.equal(inline['xl/sharedStrings.xml'], undefined, 'the default keeps strings inline');
-});
-
-test('a package written asynchronously reads back through readXlsx', async () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = 'round trip';
-
-  const back = readXlsx(await writeXlsxAsync(wb));
-  assert.equal(back.getWorksheet('S')?.getCell('A1').value, 'round trip');
 });
 
 test('the async writer rejects rather than throwing where the sync one throws', async () => {

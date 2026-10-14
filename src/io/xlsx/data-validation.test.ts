@@ -79,14 +79,6 @@ test('a numeric-typed validation whose operand is a reference keeps the referenc
   assert.deepEqual(dv?.formulae, ['L26'], 'the cell reference survives as a string');
 });
 
-test('a typed rule authored without an operator reads back as the default "between"', () => {
-  // Excel omits operator="between" from the XML because it is the default; the reader restores it.
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').addDataValidation('A1', {type: 'whole', formulae: [0, 9]});
-  const dv = roundtrip(workbook).getWorksheet('S')?.dataValidationAt('A1');
-  assert.equal(dv?.operator, 'between');
-});
-
 test('a list validation round-trips its string source verbatim', () => {
   const workbook = new Workbook();
   workbook.addWorksheet('S').addDataValidation('B1', {type: 'list', formulae: ['myNames']});

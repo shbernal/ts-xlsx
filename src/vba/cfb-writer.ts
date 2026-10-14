@@ -15,15 +15,14 @@
 // shared mutable state, sectioned by the banner comments below (directory build, sector layout,
 // serialize), and the state it shares is precisely what a split would have to pass along. If it is
 // ever split, the seam is an explicit layout record (`{dirStart, miniFatStart, miniStreamStart,
-// fatStart, difatStart, totalSectors}`) computed by one function and consumed by the serializer, with
-// the fixpoint loop that sizes the FAT and DIFAT named and tested on its own. That loop is now tested
+// fatStart, totalSectors}`) computed by one function and consumed by the serializer, with the
+// fixpoint loop that sizes the FAT named and tested on its own. That loop is now tested
 // through the public entry point instead (`cfb-writer.test.ts` sweeps the sector-boundary crossings),
 // which is the coverage the split would have bought, without the seam.
 
 import {quoted} from '../errors.ts';
 import {
   CFB_SIGNATURE,
-  DIFSECT,
   DIR_ENTRY_FIELD,
   DIR_ENTRY_SIZE,
   ENDOFCHAIN,
@@ -191,20 +190,15 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
     miniStreamSectors +
     bigStreams.reduce((total, big) => total + big.sectors, 0);
 
+  // The FAT has to map its own sectors too, so its size is a fixpoint.
   let fatSectors = 0;
-  let difatSectors = 0;
   for (;;) {
-    const total = baseSectors + fatSectors + difatSectors;
-    const needFat = Math.ceil(total / FAT_ENTRIES_PER_SECTOR);
-    // Each DIFAT sector holds 127 FAT pointers + a next-DIFAT pointer; the first 109 live in the header.
-    const needDifat =
-      needFat > HEADER_DIFAT_SLOTS
-        ? Math.ceil((needFat - HEADER_DIFAT_SLOTS) / (FAT_ENTRIES_PER_SECTOR - 1))
-        : 0;
-    if (needFat === fatSectors && needDifat === difatSectors) break;
+    const needFat = Math.ceil((baseSectors + fatSectors) / FAT_ENTRIES_PER_SECTOR);
+    if (needFat === fatSectors) break;
     fatSectors = needFat;
-    difatSectors = needDifat;
   }
+  // Every FAT-sector pointer has to fit in the header's 109 DIFAT slots, so no DIFAT sector is ever
+  // written.
   if (fatSectors > HEADER_DIFAT_SLOTS) {
     throw new VbaAuthorError(
       `project needs ${fatSectors} FAT sectors, exceeding the ${HEADER_DIFAT_SLOTS}-sector single-header bound`,
@@ -224,8 +218,6 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
   }
   const fatStart = cursor;
   cursor += fatSectors;
-  const difatStart = difatSectors > 0 ? cursor : ENDOFCHAIN;
-  cursor += difatSectors;
   const totalSectors = cursor;
 
   rootEntry.startSector = miniStreamStart;
@@ -241,7 +233,6 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
   if (miniStreamSectors > 0) chainRegion(miniStreamStart, miniStreamSectors);
   for (const big of bigStreams) chainRegion(big.entry.startSector, big.sectors);
   for (let k = 0; k < fatSectors; k++) fat[fatStart + k] = FATSECT;
-  for (let k = 0; k < difatSectors; k++) fat[difatStart + k] = DIFSECT;
 
   // ── Serialize ──────────────────────────────────────────────────────────────────────────────────
   const buf = new Uint8Array((totalSectors + 1) * SECTOR); // +1 for the header sector
@@ -253,8 +244,6 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
     dirStart,
     miniFatStart,
     miniFatSectors,
-    difatStart,
-    difatSectors,
     fatStart,
   });
 
@@ -274,21 +263,6 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
   }
   for (const big of bigStreams) buf.set(big.data, at(big.entry.startSector));
   for (const [i, sector] of fat.entries()) dv.setUint32(at(fatStart) + i * 4, sector, true);
-
-  // DIFAT sectors carry FAT-sector pointers 110.. (unreachable under the enforced bound, but the layout
-  // is honoured: each DIFAT sector's tail points to the next, the last to ENDOFCHAIN).
-  for (let d = 0; d < difatSectors; d++) {
-    const base = at(difatStart + d);
-    for (let i = 0; i < FAT_ENTRIES_PER_SECTOR - 1; i++) {
-      const fatIdx = HEADER_DIFAT_SLOTS + d * (FAT_ENTRIES_PER_SECTOR - 1) + i;
-      dv.setUint32(base + i * 4, fatIdx < fatSectors ? fatStart + fatIdx : FREESECT, true);
-    }
-    dv.setUint32(
-      base + (FAT_ENTRIES_PER_SECTOR - 1) * 4,
-      d < difatSectors - 1 ? difatStart + d + 1 : ENDOFCHAIN,
-      true,
-    );
-  }
 
   return buf;
 }
@@ -345,8 +319,6 @@ function writeHeader(
     dirStart: number;
     miniFatStart: number;
     miniFatSectors: number;
-    difatStart: number;
-    difatSectors: number;
     fatStart: number;
   },
 ): void {
@@ -362,8 +334,8 @@ function writeHeader(
   dv.setUint32(HEADER_FIELD.miniStreamCutoff, MINI_STREAM_CUTOFF, true);
   dv.setUint32(HEADER_FIELD.firstMiniFatSector, p.miniFatStart, true);
   dv.setUint32(HEADER_FIELD.miniFatSectors, p.miniFatSectors, true);
-  dv.setUint32(HEADER_FIELD.firstDifatSector, p.difatSectors > 0 ? p.difatStart : ENDOFCHAIN, true);
-  dv.setUint32(HEADER_FIELD.difatSectors, p.difatSectors, true);
+  dv.setUint32(HEADER_FIELD.firstDifatSector, ENDOFCHAIN, true);
+  dv.setUint32(HEADER_FIELD.difatSectors, 0, true);
   // The header's FAT-sector pointers, contiguous from fatStart under the enforced bound.
   for (let i = 0; i < HEADER_DIFAT_SLOTS; i++) {
     dv.setUint32(HEADER_FIELD.difat + i * 4, i < p.fatSectors ? p.fatStart + i : FREESECT, true);

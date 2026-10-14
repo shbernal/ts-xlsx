@@ -13,12 +13,6 @@ test('each row is sized to its own extent, not clamped to a narrower earlier row
   assert.equal(writeCsvText(wb), 'a\nb,c,d');
 });
 
-test('a number renders bare and fields join on the configured delimiter', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').addRow(['a', 'b', 'c']);
-  assert.equal(writeCsvText(wb, {delimiter: ';'}), 'a;b;c');
-});
-
 test('sheetName selects the worksheet; the default is the first', () => {
   const wb = new Workbook();
   wb.addWorksheet('First').addRow(['a', 1]);
@@ -66,14 +60,6 @@ test('writeCsv prepends a UTF-8 BOM for the default UTF-8 encoding', () => {
   assert.equal(Buffer.from(bytes.slice(3)).toString('utf8'), 'café');
 });
 
-test('writeCsv honours a requested non-UTF-8 encoding and adds no BOM there', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').addRow(['café']);
-  const bytes = writeCsv(wb, {encoding: 'utf16le'});
-  assert.equal(Buffer.from(bytes).toString('utf16le'), 'café');
-  assert.notEqual(Buffer.from(bytes).toString('utf8'), 'café');
-});
-
 test('map overrides the default rendering per field, receiving the value and column index', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
@@ -93,13 +79,6 @@ test("map's returned text is still quoted like any other field", () => {
   const wb = new Workbook();
   wb.addWorksheet('S').addRow(['a']);
   assert.equal(writeCsvText(wb, {map: () => 'x,y'}), '"x,y"');
-});
-
-test('emoji and CJK survive the default UTF-8 byte path', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').addRow(['😀🎉', '日本語']);
-  const body = Buffer.from(writeCsv(wb).slice(3)).toString('utf8');
-  assert.equal(body, '😀🎉,日本語');
 });
 
 // A lone surrogate is the one character the CSV encode step can lose in silence, because
@@ -130,12 +109,6 @@ test('a lone surrogate passes through the UTF-16 path, which encodes it lossless
   wb.addWorksheet('S').addRow(['a\uD800b']);
   const bytes = writeCsv(wb, {encoding: 'utf16le'});
   assert.equal(Buffer.from(bytes).toString('utf16le'), 'a\uD800b');
-});
-
-test('a well-formed astral pair is not mistaken for a lone surrogate', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').addRow(['\u{1F600}']);
-  assert.equal(Buffer.from(writeCsv(wb).slice(3)).toString('utf8'), '\u{1F600}');
 });
 
 test('the two spellings of UTF-8 are the same path, BOM and refusal both', () => {

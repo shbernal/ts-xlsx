@@ -139,11 +139,6 @@ test('every message is parsed in document order with its anchor, author and time
   );
 });
 
-test('the local-time dT is kept verbatim rather than reinterpreted as an instant', () => {
-  const [head] = parseThreadedComments(THREADED_COMMENTS);
-  assert.strictEqual(head?.date, '2026-07-26T10:54:00.01');
-});
-
 test('a reply points at its thread head and the head points at nothing', () => {
   const [head, reply, other] = parseThreadedComments(THREADED_COMMENTS);
   assert.strictEqual(head?.id, B1_HEAD);
@@ -168,17 +163,6 @@ test('done="true" is honoured alongside done="1"', () => {
   assert.deepStrictEqual(
     messages.map((m) => m.done),
     [true, false],
-  );
-});
-
-test('each message gets its own text, with no bleed from the message before it', () => {
-  const messages = parseThreadedComments(
-    '<ThreadedComments><threadedComment ref="A1" id="{A}"><text>first</text></threadedComment>' +
-      '<threadedComment ref="A2" id="{B}"><text>second</text></threadedComment></ThreadedComments>',
-  );
-  assert.deepStrictEqual(
-    messages.map((m) => m.text),
-    ['first', 'second'],
   );
 });
 

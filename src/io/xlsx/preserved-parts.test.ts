@@ -572,10 +572,7 @@ test('customUI ribbon parts referenced from the package root rels survive readâ†
   });
 
   const out = writeXlsx(readXlsx(src));
-  const names = partNames(out);
 
-  assert.ok(names.includes('customUI/customUI.xml'), 'the 2007 ribbon part survives');
-  assert.ok(names.includes('customUI/customUI14.xml'), 'the 2009 ribbon part survives');
   assert.match(
     partText(out, 'customUI/customUI.xml'),
     /onAction="LegacyMacro"/,

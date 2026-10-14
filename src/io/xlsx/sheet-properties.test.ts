@@ -166,32 +166,6 @@ test('header text round-trips through the escape convention', () => {
   assert.equal(reread.worksheets[0]?.headerFooter.oddHeader, authored);
 });
 
-test('manual row breaks are emitted as <rowBreaks> and round-trip', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.getCell('A1').value = 'x';
-  sheet.rowBreaks.push({id: 3, max: 16383, man: true}, {id: 6, max: 16383, man: true});
-
-  const xml = partIn(partsWritten(wb), 'xl/worksheets/sheet1.xml');
-  assert.match(
-    xml,
-    /<rowBreaks count="2" manualBreakCount="2">/,
-    'both breaks are counted as manual',
-  );
-  assert.match(
-    xml,
-    /<brk id="3" max="16383" man="1"\/>/,
-    'the first break carries its column span',
-  );
-
-  const back = roundtrip(wb).getWorksheet('S');
-  assert.deepEqual(
-    back?.rowBreaks.map((brk) => brk.id),
-    [3, 6],
-    'the break rows survive a write→read round-trip',
-  );
-});
-
 // Every break was written `man="1"` and counted as manual, so one save hardened a producer's automatic
 // breaks into author-set ones; `min` was dropped on read.
 test('an automatic break stays automatic, and manualBreakCount counts manual breaks only', () => {

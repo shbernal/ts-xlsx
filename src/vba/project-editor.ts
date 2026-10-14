@@ -30,7 +30,7 @@ import {
   REC_REFERENCE_REGISTERED,
 } from './dir-records.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
-import {compressContainer, decompressContainer} from './ms-ovba.ts';
+import {compressContainer} from './ms-ovba.ts';
 import {DIR_PATH, parseVbaProjectIn, PROJECT_PATH, PROJECTWM_PATH, VBA_STORAGE} from './project.ts';
 import {validateReferenceName} from './vba-encoding.ts';
 
@@ -54,7 +54,7 @@ export function removeVbaModule(bin: Uint8Array, name: string): Uint8Array {
   // nothing is mutated on a bad input or an unsupported module kind. The container is opened once and
   // shared with the parse, rather than built again below over the same bytes.
   const cfb = new CompoundFile(bin);
-  const project = parseVbaProjectIn(cfb);
+  const {project, dir} = parseVbaProjectIn(cfb);
   const nameKey = name.toUpperCase(); // VBA names are case-insensitive
   const module = project.modules.find((m) => m.name.toUpperCase() === nameKey);
   if (!module) throw new VbaAuthorError(`module ${quoted(name)} is not in the VBA project`);
@@ -68,13 +68,7 @@ export function removeVbaModule(bin: Uint8Array, name: string): Uint8Array {
   // One decoder for the whole removal, as `removeProjectwmRecord` already took. Two calls built two
   // from the same code page, which is a `TextDecoder` allocated to read a handful of record names.
   const decoder = decoderForCodePage(project.codePage);
-  const dirCompressed = cfb.readStream(DIR_PATH);
-  if (!dirCompressed) throw new VbaParseError("VBA project has no 'dir' stream");
-  const patchedDir = removeModuleDirRecord(
-    decompressContainer(dirCompressed),
-    module.streamName,
-    decoder,
-  );
+  const patchedDir = removeModuleDirRecord(dir, module.streamName, decoder);
 
   // Leave _VBA_PROJECT untouched. Resetting it to an "unmatchable version" cookie does NOT force Excel
   // to recompile from source (Excel runs the p-code as-is); on a project that carries real p-code the
@@ -227,12 +221,11 @@ export function addVbaReference(bin: Uint8Array, ref: VbaLibraryReference): Uint
   // Parse fail-closed first: validates the container before any mutation, over the one container this
   // function opens rather than a second built over the same bytes.
   const cfb = new CompoundFile(bin);
-  const encode = encoderForCodePage(parseVbaProjectIn(cfb).codePage);
+  const {project, dir} = parseVbaProjectIn(cfb);
+  const encode = encoderForCodePage(project.codePage);
 
-  const dirCompressed = cfb.readStream(DIR_PATH);
-  if (!dirCompressed) throw new VbaParseError("VBA project has no 'dir' stream");
   const records = buildReferenceDirRecords(normalized, encode);
-  const patchedDir = insertReferenceDirRecords(decompressContainer(dirCompressed), records);
+  const patchedDir = insertReferenceDirRecords(dir, records);
 
   // Leave _VBA_PROJECT untouched; see the note in removeVbaModule. The new reference is unused by the
   // existing modules' p-code, so they load and run unchanged; only the `dir` reference array grows.
