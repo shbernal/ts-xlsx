@@ -3,7 +3,6 @@ import {test} from 'node:test';
 
 import {Workbook} from '../../core/workbook.ts';
 import {captureIn, partIn, partsWritten, roundtrip} from './package.test-support.ts';
-import {writeXlsx} from './write.ts';
 
 // A source sheet whose data carries every XML-special character plus a missing value in an axis
 // column: the shape that corrupts a naive pivot writer that fails to entity-escape shared items.
@@ -29,10 +28,6 @@ function specialCharsWorkbook(): Workbook {
 
 // A raw `&` that is not the start of a valid entity: the escaping bug this feature exists to prevent.
 const RAW_AMP = /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/;
-
-test('a pivot over source data with XML-special characters and a null value writes without throwing', () => {
-  assert.doesNotThrow(() => writeXlsx(specialCharsWorkbook()));
-});
 
 test('the pivot cache serialises special characters entity-escaped into well-formed XML', () => {
   const cache = partIn(

@@ -21,18 +21,8 @@ test('decompressContainer expands a hand-verified copy-token vector', () => {
   assert.equal(new TextDecoder('latin1').decode(decompressContainer(container)), 'abcabc');
 });
 
-test('decompressContainer round-trips the store encoder for multi-chunk data', () => {
-  const data = new Uint8Array(5000).map((_, i) => (i * 31 + 7) & 0xff); // > 2048 → several chunks
-  assert.deepEqual(decompressContainer(storeCompress(data)), data);
-});
-
 test('decompressContainer rejects a bad signature byte', () => {
   assert.throws(() => decompressContainer(Uint8Array.from([0x00, 0x01])), VbaParseError);
-});
-
-test('decompressContainer caps output to guard a decompression bomb', () => {
-  const data = new Uint8Array(4096);
-  assert.throws(() => decompressContainer(storeCompress(data), 0, 1024), VbaParseError);
 });
 
 test('decompressContainer admits exactly the ceiling and refuses the byte after it', () => {

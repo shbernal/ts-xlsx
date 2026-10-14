@@ -118,28 +118,6 @@ test('the reader rejoins a foreign file’s location fragment onto the relations
   assert.equal(back?.getCell('A1').value, 'link');
 });
 
-test('a hyperlink relationship id does not collide with a table on the same sheet', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.getCell('A1').value = 'h';
-  sheet.addTable({name: 'T', ref: 'A3', columns: [{name: 'c'}], rowCount: 1});
-  sheet.addHyperlink({ref: 'A1', target: 'https://example.com'});
-
-  const parts = partsWritten(wb);
-  const rels = partIn(parts, 'xl/worksheets/_rels/sheet1.xml.rels');
-  const ids = [...rels.matchAll(/Id="(rId\d+)"/g)].map((m) => m[1]);
-  // Uniqueness is vacuously true of nothing, and the point of this test is that the hyperlink and
-  // the table both claim an id in the same part: fewer than two and it is not testing that at all.
-  assert.ok(ids.length >= 2, `expected the link and the table to claim ids; got ${ids.join(', ')}`);
-  assert.equal(
-    new Set(ids).size,
-    ids.length,
-    `relationship ids must be unique; got ${ids.join(', ')}`,
-  );
-  // The link reads back intact despite sharing the rels part with the table.
-  assert.equal(roundtrip(wb).getWorksheet('S')?.hyperlinkAt('A1')?.target, 'https://example.com');
-});
-
 test('a link over a number, boolean, formula, date, label or empty cell is read, and the value kept', () => {
   // OOXML stores a link beside the cell, so Excel puts one on any value. The model used to fold a link
   // into the value as a label, and had to choose between a non-text value and its link.

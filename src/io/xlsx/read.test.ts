@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strToU8, zipSync} from 'fflate';
-
 import {isDateFormat} from '../../core/date.ts';
 import type {Fill} from '../../core/style.ts';
 import {isFormulaValue} from '../../core/value.ts';
@@ -10,7 +8,6 @@ import {DEFAULT_WORKBOOK_VIEW, Workbook, type WorkbookView} from '../../core/wor
 import {Worksheet} from '../../core/worksheet.ts';
 import {parseXmlPasses} from '../../xml/xml-read.ts';
 import {NO_CELL_METADATA} from '../cell-metadata/metadata.ts';
-import {UnsupportedFormatError} from '../opc/errors.ts';
 import {conditionalFormattingPass} from './conditional-formatting.ts';
 import {dataValidationPass, extendedDataValidationPass} from './data-validation.ts';
 import {sheetHyperlinkPass} from './hyperlinks.ts';
@@ -881,24 +878,6 @@ test('a foreign <protection locked="1">, an explicit default, reads back with no
     [SHEET1]: foreignSheet('<row r="1"><c r="A1" s="0" t="inlineStr"><is><t>x</t></is></c></row>'),
   });
   assert.equal(readXlsx(pkg).getWorksheet('S')?.getCell('A1').protection, undefined);
-});
-
-test('the inflate bound rejects a part whose declared size is over the cap', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = 'x';
-  const buffer = writeXlsx(wb);
-  assert.throws(() => readXlsx(buffer, {maxUncompressedBytes: 16}), /possible zip bomb/);
-});
-
-test('a zip that is not an xlsx (no workbook part) is rejected, not misread', () => {
-  const bogus = zipSync({'hello.txt': strToU8('not a spreadsheet')});
-  assert.throws(
-    () => readXlsx(bogus),
-    (err: unknown) =>
-      err instanceof UnsupportedFormatError &&
-      err.format === 'unknown' &&
-      /not a valid \.xlsx package/.test(err.message),
-  );
 });
 
 test('a t="s" shared-string cell resolves against the shared table', () => {

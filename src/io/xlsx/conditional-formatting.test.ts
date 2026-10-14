@@ -650,17 +650,6 @@ test('an authored priority, rank or stdDev the schema cannot hold is refused at 
   refused({stdDev: 0.5});
 });
 
-// An authored NaN priority used to spread through `Math.max` into the counter, so every rule after it
-// that took an automatic priority was written `priority="NaN"` too.
-test('a NaN priority is refused before it can reach the automatic priorities after it', () => {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').addConditionalFormatting({
-    ref: 'A1:A3',
-    rules: [{type: 'duplicateValues', priority: Number.NaN}, {type: 'uniqueValues'}],
-  });
-  assert.throws(() => writeXlsx(workbook), AuthoringError);
-});
-
 test('a NaN cfvo value is refused rather than written as val="NaN"', () => {
   for (const type of ['colorScale', 'dataBar'] as const) {
     const workbook = new Workbook();

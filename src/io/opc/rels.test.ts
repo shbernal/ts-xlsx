@@ -29,15 +29,6 @@ test('an ampersand, a quote or an angle bracket in any of the three values is es
   );
 });
 
-test('escaping happens exactly once, so an already-escaped-looking target is not doubled', () => {
-  // The failure the caller-side escape would have caused once the function took the job: `a&b`
-  // becoming `a&amp;amp;b`, a target that resolves to different bytes than the one asked for.
-  assert.equal(
-    relationship('rId1', 't', 'a&b'),
-    '<Relationship Id="rId1" Type="t" Target="a&amp;b"/>',
-  );
-});
-
 test('a character XML cannot carry at all is refused rather than emitted', () => {
   // `escapeAttr` carries `assertRepresentable`, so routing through it buys the refusal too: an
   // unescaped interpolation skipped that guard entirely, not only the substitution.

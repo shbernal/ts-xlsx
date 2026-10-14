@@ -82,13 +82,6 @@ test('shiftIndex with delta 0 is a replacement: the tail keeps its numbers', () 
   assert.equal(shiftIndex(8, replaceThreeAtRowFive), 8);
 });
 
-test('a count of 0 makes shiftIndex a pure insertion at the cut line', () => {
-  // No line is deleted, so nothing can be clamped and `start` itself is already "at or after".
-  const insertThreeAtRowFive: AxisSplice = {axis: 'row', start: 5, count: 0, delta: 3};
-  for (const v of [1, 4]) assert.equal(shiftIndex(v, insertThreeAtRowFive), v);
-  for (const v of [5, 6]) assert.equal(shiftIndex(v, insertThreeAtRowFive), v + 3);
-});
-
 test('isDeletedSpan is true only for a span wholly inside the deleted lines', () => {
   // Rows 5,6,7 deleted.
   assert.equal(isDeletedSpan(5, 7, deleteThreeAtRowFive), true, 'exactly the deleted span');

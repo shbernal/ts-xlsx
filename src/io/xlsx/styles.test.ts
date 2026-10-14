@@ -10,6 +10,11 @@ import {readXlsx} from './read.ts';
 import {StyleRegistry} from './styles.ts';
 import {writeXlsx} from './write.ts';
 
+/** A registry whose font 0 is a plain workbook's, as `writeXlsx` builds one. */
+function registry(): StyleRegistry {
+  return new StyleRegistry({defaultFont: new Workbook().defaultFont});
+}
+
 // An authored table style replaces the preserved definition it shares a name with, and the writer found
 // that definition by pulling `name="..."` back out of its bytes. A file quoting the attribute the other
 // legal way, `name='Harbour'`, slipped past, and the stylesheet carried two definitions of one name.
@@ -58,7 +63,7 @@ test('the style table keeps each indexed rgbColor verbatim, or nothing when the 
 });
 
 test('a seeded indexed-color palette re-emits as a <colors> block; an unseeded one emits none', () => {
-  const seeded = new StyleRegistry();
+  const seeded = registry();
   seeded.seedIndexedColors(['<rgbColor rgb="ff3f6797"/>', '<rgbColor rgb="ffaaaaaa"/>']);
   const xml = seeded.toXml();
   assert.match(
@@ -67,22 +72,18 @@ test('a seeded indexed-color palette re-emits as a <colors> block; an unseeded o
   );
   // The palette is a late child of <styleSheet>: after <dxfs>, before the close.
   assert.ok(xml.indexOf('<dxfs') < xml.indexOf('<colors>'), '<colors> follows <dxfs>');
-  assert.doesNotMatch(
-    new StyleRegistry().toXml(),
-    /<colors>/,
-    'the default palette writes no <colors>',
-  );
+  assert.doesNotMatch(registry().toXml(), /<colors>/, 'the default palette writes no <colors>');
 });
 
 test('an absent or "none" fill with no format resolves to the default xf 0: no style entry', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   assert.equal(styles.styleId({}), 0);
   assert.equal(styles.styleId({fill: {type: 'pattern', pattern: 'none'}}), 0);
   assert.equal(styles.styleId({numFmt: ''}), 0);
 });
 
 test('an identical fill interns to one shared xf index however many times it is seen', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const first = styles.styleId({fill: solid('FFFF0000')});
   for (let i = 0; i < 40; i++) {
     assert.equal(
@@ -95,7 +96,7 @@ test('an identical fill interns to one shared xf index however many times it is 
 });
 
 test('a gradient fill emits a <gradientFill> with its stops, and interns like any other fill', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const grad: Fill = {
     type: 'gradient',
     gradient: 'linear',
@@ -117,7 +118,7 @@ test('a gradient fill emits a <gradientFill> with its stops, and interns like an
 });
 
 test('a path gradient emits its type and insets and omits a zero degree', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({
     fill: {
       type: 'gradient',
@@ -142,7 +143,7 @@ test('a non-finite gradient degree or inset is refused rather than omitted as if
     for (const key of ['degree', 'left', 'right', 'top', 'bottom'] as const) {
       const gradient = key === 'degree' ? 'linear' : 'path';
       const fill = {type: 'gradient', gradient, stops, [key]: value} as Fill;
-      assert.throws(() => new StyleRegistry().styleId({fill}), AuthoringError, `${key}: ${value}`);
+      assert.throws(() => registry().styleId({fill}), AuthoringError, `${key}: ${value}`);
     }
   }
 });
@@ -150,7 +151,7 @@ test('a non-finite gradient degree or inset is refused rather than omitted as if
 // Fills were interned by a field list kept by hand beside the writer, so two fills the writer spells
 // identically could take two ids, and a field the list missed would merge fills that differ.
 test('two fills that produce the same XML share one fill id', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const stops = [{position: 0, color: {argb: 'FF000000'}}];
   const implicit = styles.styleId({fill: solid('FFFF0000')});
   const stated = styles.styleId({
@@ -164,7 +165,7 @@ test('two fills that produce the same XML share one fill id', () => {
 });
 
 test('two fills that differ only in a colour tint take two fill ids', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const tinted = (tint: number): Fill => ({
     type: 'pattern',
     pattern: 'solid',
@@ -175,7 +176,7 @@ test('two fills that differ only in a colour tint take two fill ids', () => {
 });
 
 test('an identical number format interns to one shared xf index', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const first = styles.styleId({numFmt: '0.00%'});
   for (let i = 0; i < 40; i++) {
     assert.equal(
@@ -188,14 +189,14 @@ test('an identical number format interns to one shared xf index', () => {
 });
 
 test('fill and number format are independent facets: the same fill under two formats is two xfs', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const plain = styles.styleId({fill: solid('FFFF0000')});
   const formatted = styles.styleId({fill: solid('FFFF0000'), numFmt: '0.00'});
   assert.notEqual(plain, formatted, 'adding a number format to a fill is a distinct style');
 });
 
 test('genuinely different styles get distinct xf indices: dedup does not over-collapse', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const red = styles.styleId({fill: solid('FFFF0000')});
   const blue = styles.styleId({fill: solid('FF0000FF')});
   const pct = styles.styleId({numFmt: '0.00%'});
@@ -204,7 +205,7 @@ test('genuinely different styles get distinct xf indices: dedup does not over-co
 });
 
 test('the emitted stylesheet reflects the interned fills and cell formats', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({fill: solid('FFFF0000')});
   styles.styleId({fill: solid('FFFF0000')}); // deduped
   styles.styleId({fill: solid('FF00FF00')});
@@ -227,7 +228,7 @@ test('the emitted stylesheet reflects the interned fills and cell formats', () =
 });
 
 test('a "#"-prefixed fill colour is normalized to a bare 8-hex ARGB, never emitted as a 9-char value', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({fill: solid('#FFBFBFBF')});
   const xml = styles.toXml();
 
@@ -240,14 +241,14 @@ test('a "#"-prefixed fill colour is normalized to a bare 8-hex ARGB, never emitt
 });
 
 test('a bare 8-hex fill colour is preserved verbatim, including its original casing', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({fill: solid('ff00ff00')});
   // Foreign files store rgb in lowercase; round-tripping must not silently re-case it.
   assert.match(styles.toXml(), /<fgColor rgb="ff00ff00"\/>/);
 });
 
 test('a 6-hex RGB fill colour is promoted to ARGB with a fully-opaque alpha', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({fill: solid('00FF00')});
   // A colour written without its alpha channel is the common case; it must not reach Excel as a
   // 6-char rgb (which renders black), but as a valid opaque 8-hex ARGB.
@@ -255,21 +256,13 @@ test('a 6-hex RGB fill colour is promoted to ARGB with a fully-opaque alpha', ()
 });
 
 test('a "#"-prefixed 6-hex RGB is both stripped and promoted to opaque ARGB', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({fill: solid('#00FF00')});
   assert.match(styles.toXml(), /<fgColor rgb="FF00FF00"\/>/);
 });
 
-test('a lowercase ARGB is written back exactly as it arrived', () => {
-  const styles = new StyleRegistry();
-  styles.styleId({fill: solid('ff00ff00')});
-  // The writer shares its ARGB grammar with the resolver, which uppercases; this one must not, or a
-  // foreign file's own casing stops surviving a read-write round trip.
-  assert.match(styles.toXml(), /<fgColor rgb="ff00ff00"\/>/);
-});
-
 test('an ARGB that is neither 6 nor 8 hex digits is rejected at the API surface', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   // A malformed colour silently renders as flat black in Excel; fail loud instead of writing it.
   // Native `SyntaxError`, not the library's taxonomy: one string that does not parse, the same kind
   // of failure a comment id that is not a GUID raises. Asserted as *not* an XlsxError too, so a
@@ -287,7 +280,7 @@ test('an ARGB that is neither 6 nor 8 hex digits is rejected at the API surface'
 });
 
 test('a custom number format is defined in <numFmts> from id 164 and referenced by its xf', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({numFmt: '0.00%'});
   styles.styleId({numFmt: '"$"#,##0.00'});
   const xml = styles.toXml();
@@ -304,7 +297,7 @@ test('a custom number format is defined in <numFmts> from id 164 and referenced 
 });
 
 test('an empty registry still emits a valid minimal stylesheet with no <numFmts>', () => {
-  const xml = new StyleRegistry().toXml();
+  const xml = registry().toXml();
   assert.doesNotMatch(xml, /<numFmts/); // omitted entirely when all-built-in
   assert.match(xml, /<fonts count="1">/); // just the default font
   assert.match(xml, /<fills count="2">/); // just the two reserved fills
@@ -313,7 +306,7 @@ test('an empty registry still emits a valid minimal stylesheet with no <numFmts>
 });
 
 test('an identical font interns to one shared xf index', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const first = styles.styleId({font: {bold: true}});
   for (let i = 0; i < 40; i++) {
     assert.equal(
@@ -326,7 +319,7 @@ test('an identical font interns to one shared xf index', () => {
 });
 
 test('a font that overrides nothing resolves to the default xf 0: no font entry', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   assert.equal(styles.styleId({font: {}}), 0);
   // A boolean flag that is explicitly false is the default and adds no <font>.
   assert.equal(styles.styleId({font: {bold: false, italic: false}}), 0);
@@ -335,7 +328,7 @@ test('a font that overrides nothing resolves to the default xf 0: no font entry'
 });
 
 test('font, fill, and number format are independent facets composed into one xf', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const bold = styles.styleId({font: {bold: true}});
   const boldRed = styles.styleId({font: {bold: true}, fill: solid('FFFF0000')});
   const boldRedPct = styles.styleId({font: {bold: true}, fill: solid('FFFF0000'), numFmt: '0.00%'});
@@ -347,7 +340,7 @@ test('font, fill, and number format are independent facets composed into one xf'
 });
 
 test('a custom font is defined in <fonts> after the default and referenced by its xf', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({
     font: {bold: true, italic: true, size: 14, color: {argb: 'FF3A80D5'}, name: 'Arial'},
   });
@@ -369,7 +362,7 @@ test('a custom font is defined in <fonts> after the default and referenced by it
 });
 
 test('an underline flag serialises single as a bare tag and a named variant with its val', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({font: {underline: true}});
   styles.styleId({font: {underline: 'double'}});
   const xml = styles.toXml();
@@ -378,7 +371,7 @@ test('an underline flag serialises single as a bare tag and a named variant with
 });
 
 test('an identical border interns to one shared xf index', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const first = styles.styleId({border: {top: {style: 'thin'}}});
   for (let i = 0; i < 40; i++) {
     assert.equal(
@@ -391,13 +384,13 @@ test('an identical border interns to one shared xf index', () => {
 });
 
 test('a border that styles no edge resolves to the default xf 0: no border entry', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   assert.equal(styles.styleId({border: {}}), 0);
   assert.match(styles.toXml(), /<borders count="1">/); // just the empty default border
 });
 
 test('font, fill, number format, and border are independent facets composed into one xf', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const b = styles.styleId({border: {top: {style: 'thin'}}});
   const bFill = styles.styleId({border: {top: {style: 'thin'}}, fill: solid('FFFF0000')});
   const bFillFont = styles.styleId({
@@ -413,7 +406,7 @@ test('font, fill, number format, and border are independent facets composed into
 });
 
 test('a custom border is defined in <borders> after the default and referenced by its xf', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({
     border: {top: {style: 'thin'}, bottom: {style: 'medium', color: {argb: 'FF3A80D5'}}},
   });
@@ -436,7 +429,7 @@ test('a custom border is defined in <borders> after the default and referenced b
 });
 
 test('an identical alignment interns to one shared xf index', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const first = styles.styleId({alignment: {horizontal: 'center'}});
   for (let i = 0; i < 40; i++) {
     assert.equal(
@@ -449,7 +442,7 @@ test('an identical alignment interns to one shared xf index', () => {
 });
 
 test('an all-default alignment resolves to the default xf 0: no <alignment>', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   // `general` horizontal is the default, and boolean flags left off contribute nothing.
   assert.equal(
     styles.styleId({alignment: {horizontal: 'general', wrapText: false, shrinkToFit: false}}),
@@ -459,7 +452,7 @@ test('an all-default alignment resolves to the default xf 0: no <alignment>', ()
 });
 
 test('alignment composes into the xf as a child element, not a shared sub-table', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({
     alignment: {horizontal: 'center', vertical: 'top', wrapText: true, indent: 2, textRotation: 45},
   });
@@ -475,7 +468,7 @@ test('alignment composes into the xf as a child element, not a shared sub-table'
 });
 
 test('alignment is an independent facet composed alongside fill, font, and border', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const a = styles.styleId({alignment: {wrapText: true}});
   const aFill = styles.styleId({alignment: {wrapText: true}, fill: solid('FFFF0000')});
   const aFillFont = styles.styleId({
@@ -491,7 +484,7 @@ test('alignment is an independent facet composed alongside fill, font, and borde
 });
 
 test('an identical protection interns to one shared xf index', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const first = styles.styleId({protection: {locked: false}});
   for (let i = 0; i < 40; i++) {
     assert.equal(
@@ -504,7 +497,7 @@ test('an identical protection interns to one shared xf index', () => {
 });
 
 test('an all-default protection resolves to the default xf 0: no <protection>', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   // locked defaults to TRUE and hidden to false in OOXML, so a locked, non-hidden cell restates
   // the default and carries no information: it must not spend an xf entry.
   assert.equal(styles.styleId({protection: {locked: true, hidden: false}}), 0);
@@ -512,7 +505,7 @@ test('an all-default protection resolves to the default xf 0: no <protection>', 
 });
 
 test('protection composes into the xf as a child element, flagging applyProtection', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({protection: {locked: false, hidden: true}});
   const xml = styles.toXml();
 
@@ -525,7 +518,7 @@ test('protection composes into the xf as a child element, flagging applyProtecti
 });
 
 test('alignment and protection compose as two xf children in schema order', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({alignment: {horizontal: 'center'}, protection: {locked: false}});
   const xml = styles.toXml();
 
@@ -537,7 +530,7 @@ test('alignment and protection compose as two xf children in schema order', () =
 });
 
 test('protection is an independent facet composed alongside fill, font, and border', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const p = styles.styleId({protection: {locked: false}});
   const pFill = styles.styleId({protection: {locked: false}, fill: solid('FFFF0000')});
   const pFillFont = styles.styleId({
@@ -553,7 +546,7 @@ test('protection is an independent facet composed alongside fill, font, and bord
 });
 
 test('a non-string number format is dropped rather than corrupting the styles part', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   // A caller wrongly assigns a structured `{id, formatCode}` object where a format-code string belongs.
   const id = styles.styleId({numFmt: {id: 164, formatCode: '0.00'} as unknown as string});
   assert.equal(id, 0, 'a non-string numFmt contributes no style: it resolves to the default xf 0');
@@ -567,7 +560,7 @@ test('a non-string number format is dropped rather than corrupting the styles pa
 });
 
 test('a valid format-code string still interns alongside other facets', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   const id = styles.styleId({
     numFmt: 'yyyy-mmm-dd',
     font: {bold: true},
@@ -578,7 +571,7 @@ test('a valid format-code string still interns alongside other facets', () => {
 });
 
 test('the quote-prefix flag emits quotePrefix="1" on the xf and forms a distinct style', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   assert.equal(
     styles.styleId({quotePrefix: false}),
     0,
@@ -598,7 +591,7 @@ test('the quote-prefix flag emits quotePrefix="1" on the xf and forms a distinct
 });
 
 test('seeded named cell styles emit a cellStyleXfs/cellStyles layer and cells link to it via xfId', () => {
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.seedNamedStyles([
     {name: 'Normal', builtinId: 0},
     {name: 'Accent', fill: solid('FFFFFF00')},
@@ -622,7 +615,7 @@ test('seeded named cell styles emit a cellStyleXfs/cellStyles layer and cells li
 });
 
 test('with no named styles the default cellStyleXfs and cellStyles layer is emitted unchanged', () => {
-  const xml = new StyleRegistry().toXml();
+  const xml = registry().toXml();
   assert.match(
     xml,
     /<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"\/><\/cellStyleXfs>/,
@@ -643,21 +636,10 @@ test('font 0 is the workbook default the registry was built with, not an assumed
   );
 });
 
-test('a registry built with no workbook still emits the Office default font 0', () => {
-  // ~40 call sites in this file construct a registry bare; the fallback is what keeps them meaning
-  // what they did, and what keeps a plain `new Workbook()` emitting the bytes it always has.
+test("a plain workbook's font 0 is the Office default", () => {
   assert.match(
-    new StyleRegistry().toXml(),
+    registry().toXml(),
     /<fonts count="1"><font><sz val="11"\/><color theme="1"\/><name val="Calibri"\/><family val="2"\/><scheme val="minor"\/><\/font><\/fonts>/,
-  );
-});
-
-test("the Office fallback is exactly what a plain workbook's resolved default font serialises to", () => {
-  // The constant and the model's resolution are two statements of one fact, and only this holds them
-  // together: drift would make a bare registry and a workbook-built one disagree on font 0.
-  assert.equal(
-    new StyleRegistry({defaultFont: new Workbook().defaultFont}).toXml(),
-    new StyleRegistry().toXml(),
   );
 });
 
@@ -729,7 +711,7 @@ test('every alignment facet set to a non-default value survives a round-trip', (
 test('alignment attributes are emitted in CT_CellAlignment order', () => {
   // ECMA-376 orders the attributes, and the facet table is the declaration that fixes that order for
   // both directions; a table reordered for readability would quietly reorder the output.
-  const styles = new StyleRegistry();
+  const styles = registry();
   styles.styleId({
     alignment: {
       horizontal: 'right',

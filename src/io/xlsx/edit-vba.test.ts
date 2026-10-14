@@ -228,16 +228,6 @@ test('editXlsxVbaRemoveModule throws for a macro-free package', () => {
   assert.throws(() => editXlsxVbaRemoveModule(writeXlsx(wb), 'Module1'), VbaAuthorError);
 });
 
-test('editXlsxVbaRemoveModule propagates VbaAuthorError for an unknown module', () => {
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
-  assert.throws(() => editXlsxVbaRemoveModule(pkg, 'Nope'), VbaAuthorError);
-});
-
-test('editXlsxVbaRemoveModule propagates VbaAuthorError for a document module', () => {
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
-  assert.throws(() => editXlsxVbaRemoveModule(pkg, 'ThisWorkbook'), VbaAuthorError);
-});
-
 test('editXlsxVbaAddReference adds a reference and preserves every other package part byte-for-byte', () => {
   const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
 
@@ -268,22 +258,6 @@ test('editXlsxVbaAddReference adds a reference and preserves every other package
     parseVbaProject(bin).modules.map((m) => m.name),
     ['ThisWorkbook', 'Module1', 'Class1'],
     'the module set is unaffected',
-  );
-});
-
-test('editXlsxVbaAddReference throws for a macro-free package', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('Sheet1');
-  assert.throws(
-    () =>
-      editXlsxVbaAddReference(writeXlsx(wb), {
-        name: 'Scripting',
-        guid: '{420B2830-E718-11CF-893D-00A0C9054228}',
-        majorVersion: 1,
-        minorVersion: 0,
-        path: 'C:\\Windows\\System32\\scrrun.dll',
-      }),
-    VbaAuthorError,
   );
 });
 

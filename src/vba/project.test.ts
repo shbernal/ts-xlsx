@@ -59,7 +59,6 @@ test('a PROJECT keyword naming an Object.prototype member does not become a modu
   ]);
 
   const kind = parseVbaProject(bin).modules[0]!.kind;
-  assert.equal(typeof kind, 'string');
   assert.equal(kind, 'procedural');
 });
 

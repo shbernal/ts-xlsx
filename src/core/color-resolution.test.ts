@@ -51,12 +51,6 @@ test('theme index 0 is lt1 and index 1 is dk1, not the clrScheme child order', (
   assert.equal(resolveColor({theme: 1}), 'FF000000');
 });
 
-test('the stylesheet default font colour resolves to black', () => {
-  // Every workbook the writer emits carries `<color theme="1"/>` on font 0. If the index mapping were
-  // the clrScheme child order, that default body text would resolve to white.
-  assert.equal(resolveColor({theme: 1}), 'FF000000');
-});
-
 test('accent and hyperlink slots resolve through the workbook theme', () => {
   const theme = {...DEFAULT_THEME_COLOR_SCHEME, accent1: 'BB2649', folHlink: '7C4A8B'};
   assert.equal(resolveColor({theme: 4}, {theme}), 'FFBB2649');

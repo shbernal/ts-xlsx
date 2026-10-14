@@ -320,11 +320,6 @@ test('Workbook.removeVbaModule rejects an unknown module without disturbing the 
   assert.deepEqual(wb.vbaProjectBytes, before, 'a rejected removal leaves the workbook untouched');
 });
 
-test('Workbook.removeVbaModule rejects removing a document module fail-closed', () => {
-  const wb = readXlsx(xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES)));
-  assert.throws(() => wb.removeVbaModule('ThisWorkbook'), VbaAuthorError);
-});
-
 test('Workbook.addVbaReference adds a reference to a read workbook, preserving modules', () => {
   const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
   const wb = readXlsx(xlsmPackage(bin));

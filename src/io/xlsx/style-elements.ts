@@ -34,12 +34,6 @@ import {fontXml} from './font-xml.ts';
 // knows implicitly; custom format codes are numbered from 164 up. Id 0 is General (no code).
 export const CUSTOM_NUMFMT_BASE = 164;
 
-// The Office default font's inner fragment, in the exact child order `fontXml` emits: the font 0 a
-// registry built without a workbook falls back to. A registry built *with* one derives font 0 from
-// its `defaultFont` instead, and for a plain `new Workbook()` that derivation lands on exactly this
-// string; `styles.test.ts` guards the two against drifting.
-export const DEFAULT_FONT_BODY =
-  '<sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/>';
 // The empty border: all five edges present but styleless. A border that overrides no edge
 // serialises to exactly this, so it interns to the default border id 0 rather than a new one.
 export const DEFAULT_BORDER = '<border><left/><right/><top/><bottom/><diagonal/></border>';

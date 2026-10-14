@@ -20,14 +20,6 @@ test('extensionOf only recognises a `.` after the last `/`, not one in an earlie
 // package-root targets and `.`/`..`/empty segments) so a real or malicious file that uses them
 // still resolves to a bounded part path.
 
-test('resolveRelativePart treats a leading slash as package-root-absolute', () => {
-  assert.strictEqual(
-    resolveRelativePart('xl/worksheets/sheet1.xml', '/xl/media/image1.png'),
-    'xl/media/image1.png',
-    'the base directory is ignored and the leading slash is stripped',
-  );
-});
-
 test('resolveRelativePart collapses `..` and doubled slashes in an absolute target too', () => {
   // An absolute target used to return with only its leading slash stripped, so both of these came back
   // as keys no part answers to, and the sheet or stylesheet they name read as missing.

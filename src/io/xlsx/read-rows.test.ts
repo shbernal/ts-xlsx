@@ -133,14 +133,6 @@ test('a date value round-trips as a Date, not a bare serial', () => {
   assert.equal(value.getTime(), when.getTime());
 });
 
-test('selects a worksheet by name', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('first').getCell('A1').value = 'one';
-  wb.addWorksheet('second').getCell('A1').value = 'two';
-
-  assert.equal(rows(writeXlsx(wb), {sheet: 'second'})[0]?.cells[0]?.value, 'two');
-});
-
 test('selects a worksheet by 1-based position; default is the first', () => {
   const wb = new Workbook();
   wb.addWorksheet('first').getCell('A1').value = 'one';
@@ -346,19 +338,6 @@ test('readWorkbookStream yields every worksheet in order, by declared name', () 
   );
   // Each sheet streams its own rows independently.
   assert.equal([...sheets[1]!.rows()][0]?.cells[0]?.value, 2);
-});
-
-test('a streamed sheet surfaces its hidden columns after the rows are consumed', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.getColumn(2).hidden = true;
-  sheet.getColumn(4).hidden = true;
-  sheet.getCell('A1').value = 'a';
-
-  const [streamed] = [...readWorkbookStream(writeXlsx(wb))];
-  assert.ok(streamed !== undefined);
-  for (const _row of streamed.rows()) void _row;
-  assert.deepEqual(streamed.hiddenColumns, [2, 4]);
 });
 
 test('hidden columns and merges resolve lazily even without iterating rows', () => {

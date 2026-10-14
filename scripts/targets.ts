@@ -1,11 +1,10 @@
 // Which files a tool runs over, said once.
 //
 // Four of these lists lived in two or three places each, and two of them carried a comment asking
-// the next editor to keep the copies in step. `check-constitution.ts` makes the argument against
-// exactly that: duplication is only safe when drift is impossible, and the way drift is made
-// impossible here is a machine check, not a promise to remember. A promise had already been broken
-// once: `format.ts`'s targets claimed to track the tsconfig include lists and had gained `www/`,
-// which no root-family project covers.
+// the next editor to keep the copies in step. Duplication is only safe when drift is impossible,
+// and the way drift is made impossible here is one definition, not a promise to remember. A promise
+// had already been broken once: `format.ts`'s targets claimed to track the tsconfig include lists
+// and had gained `www/`, which no root-family project covers.
 //
 // The consumers are `scripts/verify.ts`, the thin package scripts beside this file, and
 // `scripts/check-tsconfig-coverage.ts`, which asserts that every tree named here is claimed by a

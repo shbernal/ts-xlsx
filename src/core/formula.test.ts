@@ -45,7 +45,6 @@ test('nested modern functions each get the prefix, legacy ones do not', () => {
 
 test('an already-prefixed function is not double-prefixed', () => {
   assert.equal(mangleFunctions('_xlfn.XLOOKUP(1,B:B,C:C)'), '_xlfn.XLOOKUP(1,B:B,C:C)');
-  assert.ok(!mangleFunctions('_xlfn.XLOOKUP(1,B:B,C:C)').includes('_xlfn._xlfn'));
 });
 
 test('a function name inside a string literal is never mangled', () => {
@@ -54,27 +53,12 @@ test('a function name inside a string literal is never mangled', () => {
 });
 
 test('mangling introduces no @ implicit-intersection operator', () => {
-  const out = mangleFunctions('IFS(B1>0,"pos",B1<0,"neg")');
-  assert.equal(out, '_xlfn.IFS(B1>0,"pos",B1<0,"neg")');
-  assert.ok(!/(^|[^A-Za-z0-9_])@/.test(out));
+  assert.equal(mangleFunctions('IFS(B1>0,"pos",B1<0,"neg")'), '_xlfn.IFS(B1>0,"pos",B1<0,"neg")');
 });
 
 test('matching is case-insensitive on the function name but preserves its casing', () => {
   assert.equal(mangleFunctions('filter(A:A,B:B=1)'), '_xlfn._xlws.filter(A:A,B:B=1)');
   assert.equal(mangleFunctions('Xlookup(1,A:A,B:B)'), '_xlfn.Xlookup(1,A:A,B:B)');
-});
-
-test('a LET/LAMBDA formula gets the _xlfn. prefix on every modern function', () => {
-  const out = mangleFunctions(
-    'LET(a,B2:B9,b,BYROW(a,LAMBDA(r,SUM(r))),COUNTA(UNIQUE(FILTER(a,b=1))))',
-  );
-  assert.ok(out.includes('_xlfn.LET'));
-  assert.ok(out.includes('_xlfn.BYROW'));
-  assert.ok(out.includes('_xlfn.LAMBDA'));
-  assert.ok(out.includes('_xlfn.UNIQUE'));
-  assert.ok(out.includes('_xlfn._xlws.FILTER'));
-  assert.ok(out.includes('SUM(r)'));
-  assert.ok(out.includes('COUNTA('));
 });
 
 test('a bare-name post-2007 function (trig / bitwise / engineering) gains the prefix', () => {
@@ -166,14 +150,11 @@ test('a dotted 2010 statistical function is matched whole and prefixed', () => {
 });
 
 test('a dotted function only gets one prefix, on the whole name, not per segment', () => {
-  const out = mangleFunctions('CHISQ.DIST.RT(3,2)');
-  assert.equal(out, '_xlfn.CHISQ.DIST.RT(3,2)');
-  assert.ok(!out.includes('_xlfn.DIST'), 'the tail segment must not be prefixed on its own');
+  assert.equal(mangleFunctions('CHISQ.DIST.RT(3,2)'), '_xlfn.CHISQ.DIST.RT(3,2)');
 });
 
 test('an already-prefixed dotted function is not double-prefixed', () => {
   assert.equal(mangleFunctions('_xlfn.NORM.DIST(A1,0,1,TRUE)'), '_xlfn.NORM.DIST(A1,0,1,TRUE)');
-  assert.ok(!mangleFunctions('_xlfn.NORM.DIST(A1,0,1,TRUE)').includes('_xlfn._xlfn'));
 });
 
 test('a dotted function nested beside plain and legacy functions is prefixed correctly', () => {

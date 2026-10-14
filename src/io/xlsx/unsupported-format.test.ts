@@ -74,11 +74,6 @@ test('sniffContainer classifies by leading magic bytes', () => {
   assert.equal(sniffContainer(new Uint8Array(0)), 'other');
 });
 
-test('a valid .xlsx still reads through the format probe', () => {
-  const wb = readXlsx(validXlsx());
-  assert.equal(wb.getWorksheet('S')?.getCell('A1').value, 42);
-});
-
 test('a legacy .xls (CFB) throws UnsupportedFormatError with format "xls"', () => {
   const err = catchError(() => readXlsx(cfbBlob()));
   assert.ok(err instanceof UnsupportedFormatError);

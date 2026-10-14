@@ -53,8 +53,6 @@ test("a cell's col and row are 1-based numbers matching its position", () => {
   const sheet = wb.addWorksheet('S');
   const cell = sheet.getCell('B3');
   cell.value = 'x';
-  assert.equal(typeof cell.col, 'number');
-  assert.equal(typeof cell.row, 'number');
   assert.equal(cell.col, 2);
   assert.equal(cell.row, 3);
   assert.equal(cell.address, 'B3');

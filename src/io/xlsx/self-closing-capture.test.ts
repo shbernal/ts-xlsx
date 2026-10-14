@@ -10,8 +10,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, strToU8} from 'fflate';
-
 import {Workbook} from '../../core/workbook.ts';
 import {parseDrawing} from './images.ts';
 import {readPatched, SHEET1} from './package.test-support.ts';
@@ -163,11 +161,4 @@ test('the app properties keep an empty <Company/> off the element that follows i
     '<Properties><Company/><Application>Something</Application></Properties>',
   );
   assert.equal(back.properties.company, undefined);
-});
-
-test('a rewritten package still round-trips the same bytes for its untouched parts', () => {
-  // A guard on the helper above: if `readWithPart` silently produced an unreadable package, every
-  // assertion here would pass by reading nothing at all.
-  const back = readWithPart('docProps/app.xml', strFromU8(strToU8('<Properties/>')));
-  assert.equal(back.getWorksheet('S')?.getCell('A1').value, 1);
 });

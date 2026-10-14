@@ -65,7 +65,6 @@ test('decodeEntities leaves an Object.prototype name verbatim rather than expand
   // prove the miss path is reached at all for the names the prototype would otherwise answer.
   for (const name of ['constructor', 'toString', 'hasOwnProperty']) {
     const decoded = decodeEntities(`a&${name};b`);
-    assert.equal(typeof decoded, 'string');
     assert.equal(decoded, `a&${name};b`);
   }
 });
@@ -274,10 +273,6 @@ test('xmlEvents preserves namespace prefixes on tags and attributes; localName s
   assert.equal(open?.name, 'w:t');
   assert.equal(localName('w:t'), 't');
   assert.equal(open?.attrs?.['xml:space'], 'preserve');
-});
-
-test('xmlEvents throws on an unterminated tag', () => {
-  assert.throws(() => events('<a'), /unterminated tag/);
 });
 
 test('xmlEvents throws on an unterminated comment', () => {

@@ -35,7 +35,6 @@ import {
   type CellFormat,
   CUSTOM_NUMFMT_BASE,
   DEFAULT_BORDER,
-  DEFAULT_FONT_BODY,
   DEFAULT_FORMAT,
   dxfXml,
   formatSignature,
@@ -62,9 +61,9 @@ export interface StyleRegistryOptions {
   /**
    * The font every cell naming none of its own renders in, emitted as id 0. Take it from
    * {@link Workbook.defaultFont}, which resolves the authored/declared/theme chain and guarantees a
-   * complete entry. Omitted, the registry falls back to the Office default.
+   * complete entry.
    */
-  readonly defaultFont?: Font;
+  readonly defaultFont: Font;
 
   /**
    * The default font the *source package* declared, when a workbook was read
@@ -148,9 +147,8 @@ export class StyleRegistry {
   // declared. See {@link StyleRegistryOptions.declaredDefaultFont} for why the second belongs here.
   readonly #font0Bodies: ReadonlySet<string>;
 
-  constructor(options: StyleRegistryOptions = {}) {
-    this.#defaultFontBody =
-      options.defaultFont === undefined ? DEFAULT_FONT_BODY : fontXml(options.defaultFont);
+  constructor(options: StyleRegistryOptions) {
+    this.#defaultFontBody = fontXml(options.defaultFont);
     this.#font0Bodies = new Set(
       options.declaredDefaultFont === undefined
         ? [this.#defaultFontBody]

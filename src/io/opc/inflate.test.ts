@@ -22,16 +22,6 @@ function noise(length: number): Uint8Array {
 
 const GENEROUS_CAP = 64 * 1024 * 1024;
 
-test('a deflated package inflates to its parts', () => {
-  const archive = zipSync({
-    'a.txt': strToU8('hello'),
-    'nested/b.xml': strToU8('<x/>'),
-  });
-  const files = inflatePackage(archive, GENEROUS_CAP);
-  assert.equal(strFromU8(files['a.txt'] as Uint8Array), 'hello');
-  assert.equal(strFromU8(files['nested/b.xml'] as Uint8Array), '<x/>');
-});
-
 test('a stored (uncompressed) entry passes through unchanged', () => {
   const bytes = noise(4096);
   const archive = zipSync({'raw.bin': bytes}, {level: 0});

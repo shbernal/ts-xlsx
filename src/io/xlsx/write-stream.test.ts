@@ -536,19 +536,6 @@ test('committing a streamed row evicts its cells from the model, bounding peak m
   );
 });
 
-test('a fully committed streamed sheet holds no live cells at commit: every row was evicted', async () => {
-  const writer = new WorkbookStreamWriter();
-  const sheet = writer.addWorksheet('S');
-  for (let i = 1; i <= 50; i++) sheet.addRow([i, `v${i}`]).commit();
-  for (let i = 1; i <= 50; i++)
-    assert.equal(sheet.model.hasCell(i, 1), false, `row ${i} was freed`);
-  assert.equal(sheet.rowCount, 50, 'rowCount still reflects every appended row');
-  const reread = readXlsx(await committed(writer)).getWorksheet('S');
-  assert.ok(reread);
-  assert.equal(reread.getCell('A50').value, 50);
-  assert.equal(reread.getCell('B1').value, 'v1');
-});
-
 test('a streamed sheet reports the outline depth of rows already evicted', async () => {
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');

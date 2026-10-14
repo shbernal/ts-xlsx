@@ -99,23 +99,13 @@ const FAIL_CLOSED =
  * every script invocation, so a re-synced hook gets re-hardened almost immediately.
  */
 function failClosed(hooksDir: string): void {
-  let names: readonly string[];
-  try {
-    names = readdirSync(hooksDir);
-  } catch {
-    return;
-  }
-
   const hardened: string[] = [];
-  for (const name of names) {
+  for (const name of readdirSync(hooksDir)) {
     if (name.endsWith('.sample')) continue;
     const file = join(hooksDir, name);
-    let text: string;
-    try {
-      text = readFileSync(file, 'utf8');
-    } catch {
-      continue;
-    }
+    // No catch: a hook this cannot read is the quarantined-in-place case above, and skipping it
+    // would leave exactly that hook fail-open without a word.
+    const text = readFileSync(file, 'utf8');
     if (!text.includes(FAIL_OPEN)) continue;
     writeFileSync(file, text.replace(FAIL_OPEN, FAIL_CLOSED));
     hardened.push(name);
