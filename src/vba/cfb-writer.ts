@@ -26,6 +26,7 @@ import {
   DIR_ENTRY_FIELD,
   DIR_ENTRY_SIZE,
   ENDOFCHAIN,
+  entryNameKey,
   FATSECT,
   FREESECT,
   HEADER_DIFAT_SLOTS,
@@ -276,12 +277,13 @@ function validateSiblingNames(storageName: string, siblings: readonly CfbNode[])
         `entry name ${quoted(node.name)} exceeds the ${MAX_NAME_CHARS}-character CFB limit`,
       );
     }
-    if (seen.has(node.name)) {
+    const key = entryNameKey(node.name);
+    if (seen.has(key)) {
       throw new VbaAuthorError(
         `duplicate entry name ${quoted(node.name)} under storage ${quoted(storageName)}`,
       );
     }
-    seen.add(node.name);
+    seen.add(key);
     if (!isStream(node)) validateSiblingNames(node.name, node.children);
   }
 }
