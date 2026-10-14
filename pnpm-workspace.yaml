@@ -1,11 +1,11 @@
 # Lefthook's postinstall is denied, not merely unlisted. All it does is
-# `lefthook install -f`, and that `-f` is the one thing scripts/install-hooks.ts
-# is written to refuse: with core.hooksPath pointing at a machine-wide hooks
-# directory, forcing writes lefthook's wrappers in there and renames whatever
-# stood in their place to `.old`, disarming every other repo on the machine. The
-# prepare script decides that question properly, per checkout. The binary itself
-# needs no build step, it arrives prebuilt in lefthook-<os>-<arch>, so denying
-# this costs only the hook install we did not want.
+# `lefthook install -f`, and `-f` is the one flag `prepare` leaves out: with
+# core.hooksPath pointing at a machine-wide hooks directory, forcing writes
+# lefthook's wrappers in there and renames whatever stood in their place to
+# `.old`, disarming every other repo on the machine. Without `-f`, lefthook
+# refuses instead. The binary itself needs no build step, it arrives prebuilt in
+# lefthook-<os>-<arch>, so denying this costs only a hook install `prepare`
+# already does.
 allowBuilds:
   # Vite's transform pipeline, pulled in under vitepress. Its postinstall does one thing:
   # resolve the prebuilt platform binary from the optional @esbuild/<os>-<arch> package and
