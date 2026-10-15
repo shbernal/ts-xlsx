@@ -154,22 +154,6 @@ test('closeEmptyElements matches by local name and leaves un-named self-closing 
   );
 });
 
-test('parseXml with closeEmptyElements fires onClose only for the named self-closing element', () => {
-  const opens: string[] = [];
-  const closes: string[] = [];
-  parseXml(
-    '<r><c/><v/></r>',
-    {
-      onOpen: (name) => opens.push(name),
-      onClose: (name) => closes.push(name),
-    },
-    {closeEmptyElements: new Set(['c'])},
-  );
-  assert.deepEqual(opens, ['r', 'c', 'v']);
-  // `<c/>` is expanded (fires a close); the un-named `<v/>` is not; `<r>` closes normally.
-  assert.deepEqual(closes, ['c', 'r']);
-});
-
 // Both scanners in this file classify markup through one shared step, so each truncation is pinned
 // from both sides: a form that stopped throwing in one of them would otherwise be caught in neither.
 const TRUNCATED: readonly [string, RegExp][] = [

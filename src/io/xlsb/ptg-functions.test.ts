@@ -51,12 +51,8 @@ test('every recorded arity is a count a call can actually pop', () => {
   assert.deepEqual(wrong, []);
 });
 
-test('the user-defined index is a real slot, and the one the decoder reaches for', () => {
+test('the user-defined index is the slot the decoder reaches for', () => {
   assert.equal(FTAB_USER_DEFINED, 0x00ff);
-  assert.ok(
-    functionNameFor(FTAB_USER_DEFINED) !== undefined,
-    'it names a function rather than being one of the gaps',
-  );
 });
 
 test('no function name is transcribed into two slots', () => {

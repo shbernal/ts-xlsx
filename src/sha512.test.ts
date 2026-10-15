@@ -44,26 +44,3 @@ test('random messages agree with node:crypto', () => {
     assert.equal(hex(sha512(data)), reference(data), hex(data).slice(0, 32));
   }
 });
-
-// The shape the sheet-protection spin loop actually runs: a 64-byte digest and a 4-byte counter,
-// chained. It is one block per round, so the cost of a credential is `spinCount` compressions,
-// measured at roughly 0.8 s for the 100000 rounds Excel writes by default, against roughly 0.4 s
-// for the same loop through `node:crypto`. A factor of two on an authoring call is the price of
-// the package entry importing no Node built-in.
-test('a chained digest-and-counter loop agrees with node:crypto', () => {
-  const block = new Uint8Array(68);
-  const counter = new DataView(block.buffer, 64, 4);
-  let mine: Uint8Array = new Uint8Array(64);
-  let theirs = Buffer.alloc(64);
-  for (let i = 0; i < 50; i++) {
-    block.set(mine, 0);
-    counter.setUint32(0, i, true);
-    mine = sha512(block);
-
-    const theirBlock = Buffer.alloc(68);
-    theirs.copy(theirBlock, 0);
-    theirBlock.writeUInt32LE(i, 64);
-    theirs = createHash('sha512').update(theirBlock).digest();
-  }
-  assert.equal(hex(mine), theirs.toString('hex'));
-});

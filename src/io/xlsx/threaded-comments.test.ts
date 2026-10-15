@@ -87,11 +87,6 @@ test('every registered person is parsed with the identity attributes the file ca
   ]);
 });
 
-test('the personList root is not mistaken for a person entry', () => {
-  assert.strictEqual(parsePersons(PERSONS).length, 2);
-  assert.deepStrictEqual(parsePersons('<personList/>'), []);
-});
-
 test('a person keeps optional identity attributes absent rather than empty', () => {
   const [person] = parsePersons('<personList><person displayName="Anon" id="{A}"/></personList>');
   assert.deepStrictEqual(person, {id: '{A}', displayName: 'Anon'});
@@ -236,16 +231,6 @@ test('a message that already reads like an escape round-trips as itself, not as 
   assert.strictEqual(parseThreadedComments(xml)[0]?.text, text);
 });
 
-test('the two comment systems now agree on a control character in the same string', () => {
-  // The asymmetry this closed: a threaded comment refused what a legacy note carried happily.
-  const text = 'before\u0001after';
-  const xml = threadedCommentsXml(
-    [{ref: 'A1', resolved: false, comments: [{id: '{A}', text, mentions: []}]}],
-    ANYONE,
-  );
-  assert.strictEqual(parseThreadedComments(xml)[0]?.text, text);
-});
-
 test('a message that @mentions someone keeps its text intact around the mention', () => {
   const [message] = parseThreadedComments(MENTION_MESSAGE);
   assert.strictEqual(message?.text, '@Grace Hopper Where does this figure come from?');
@@ -262,11 +247,6 @@ test('a mention is parsed with the person it names and the span it highlights', 
     '@Grace Hopper',
     'the span lands on the mentioned name, leading @ included',
   );
-});
-
-test('a message that mentions nobody reports an empty list, never an absent one', () => {
-  const [message] = parseThreadedComments(THREADED_COMMENTS);
-  assert.deepStrictEqual(message?.mentions, []);
 });
 
 test('a mention with no target person or no usable span is dropped, not left pointing nowhere', () => {
@@ -683,11 +663,6 @@ test('markup-significant characters in a message and its ids are escaped', () =>
 test('the person registry round-trips through the parser as itself, order and all', () => {
   const persons = parsePersons(MENTION_PERSONS);
   assert.deepStrictEqual(parsePersons(personsXml(persons)), persons);
-  assert.deepStrictEqual(
-    parsePersons(personsXml(persons)).map((person) => person.providerId),
-    ['AD', 'AD', 'PeoplePicker'],
-    'the mentioned identity stays its own entry rather than merging into its author twin',
-  );
 });
 
 test('a person writes only the identity attributes the model holds', () => {

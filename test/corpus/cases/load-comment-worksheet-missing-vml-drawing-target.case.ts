@@ -28,24 +28,13 @@ export default {
 
   behavior: [
     {
-      name: 'loading a comment worksheet whose VML drawing target is missing does not throw',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.strictEqual(
-          ok,
-          true,
-          `a dangling VML-drawing target must not abort the load; got ${JSON.stringify(error)}`,
-        );
-      },
-    },
-    {
       name: 'the worksheets are recovered despite the missing VML drawing part',
       async expect(api: CorpusApi, assert: Assert) {
-        const {sheetNames} = await api.readFixtureReport(FIXTURE);
+        const {sheetNames, error} = await api.readFixtureReport(FIXTURE);
         assert.deepStrictEqual(
           sheetNames,
           ['Sheet1', 'Data'],
-          'both worksheets survive the tolerant read',
+          `both worksheets survive the tolerant read; read error: ${JSON.stringify(error)}`,
         );
       },
     },

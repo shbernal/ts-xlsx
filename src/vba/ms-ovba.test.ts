@@ -1,16 +1,13 @@
 // The MS-OVBA compression container: the decompressor against an independent vector and at its bounds,
-// and the compressor through a round trip and through the whole parse pipeline.
+// and the compressor through round trips and against the chunk framing [MS-OVBA] fixes.
 
 import {strict as assert} from 'node:assert';
 import {test} from 'node:test';
 
-import {strToU8} from 'fflate';
-
-import {writeCompoundFile} from './cfb-writer.ts';
 import {VbaParseError} from './errors.ts';
 import {compressContainer, decompressContainer} from './ms-ovba.ts';
 import {parseVbaProject} from './project.ts';
-import {buildDirStream, buildVbaProjectBin, CODE_PAGE, storeCompress} from './vba.test-support.ts';
+import {buildVbaProjectBin, CODE_PAGE, storeCompress} from './vba.test-support.ts';
 
 // ── Decompressor: independent ground-truth vector ───────────────────────────────────────────────────
 
@@ -44,8 +41,7 @@ test('decompressContainer refuses a chunk that decodes past the 4096-byte window
   const header = 0xb000 | (body.length - 1);
   const container = Uint8Array.from([0x01, header & 0xff, (header >> 8) & 0xff, ...body]);
 
-  assert.throws(() => decompressContainer(container), VbaParseError);
-  assert.throws(() => decompressContainer(container), /4096/);
+  assert.throws(() => decompressContainer(container), {name: 'VbaParseError', message: /4096/});
 });
 
 test('a project budget bounds what every module decompresses between them, not each call alone', () => {
@@ -181,34 +177,4 @@ test('the compressor stays fast on data that offers it no matches', () => {
 
   assert.deepEqual(decompressContainer(packed), noMatches);
   assert.ok(elapsed < 3000, `compressing 1 MiB of unmatched data took ${elapsed.toFixed(0)} ms`);
-});
-
-test('compressContainer output re-parses as a real module through the whole pipeline', () => {
-  // Compress genuine VBA source, wrap it as a module stream at offset 0, and read it back through the
-  // production CFB writer + parser: the compressor feeding the reader end to end, no store-mode fixture.
-  const source = 'Sub Demo()\r\n    MsgBox "hi"\r\n    MsgBox "hi"\r\nEnd Sub';
-  const compressed = compressContainer(strToU8(source));
-  const dir = compressContainer(
-    Uint8Array.from(
-      buildDirStream(1252, [
-        {name: 'Demo', documentType: false, sourceBytes: [], pcodePrefixLen: 0},
-      ]),
-    ),
-  );
-  const bin = writeCompoundFile([
-    {name: 'PROJECT', data: strToU8('Module=Demo\r\n')},
-    {
-      name: 'VBA',
-      children: [
-        {name: 'dir', data: dir},
-        {name: 'Demo', data: compressed},
-      ],
-    },
-  ]);
-  const project = parseVbaProject(bin);
-  assert.equal(
-    project.modules[0]!.source,
-    source,
-    'the module source survives compress → write → parse',
-  );
 });

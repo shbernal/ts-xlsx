@@ -27,23 +27,12 @@ export default {
 
   behavior: [
     {
-      name: 'loading a workbook whose column style has no styles part does not throw',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.strictEqual(
-          ok,
-          true,
-          `the load must not throw on a dangling column-style reference; got ${error}`,
-        );
-      },
-    },
-    {
       name: 'the worksheet is still present after tolerating the unresolved column style',
       async expect(api: CorpusApi, assert: Assert) {
-        const {sheetNames} = await api.readFixtureReport(FIXTURE);
+        const {sheetNames, error} = await api.readFixtureReport(FIXTURE);
         assert.ok(
           sheetNames?.includes('Sheet1'),
-          `the worksheet must load despite the missing styles part; got ${JSON.stringify(sheetNames)}`,
+          `the worksheet must load despite the missing styles part; got ${JSON.stringify(sheetNames)}; read error: ${JSON.stringify(error)}`,
         );
       },
     },

@@ -238,23 +238,7 @@ test('a kept part that is not a drawing refuses a picture rather than hiding it 
 });
 
 test('a drawing holding both a picture and a chart preserves the chart across read→write', () => {
-  const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
-  const src = typedForeignPackage({
-    '[Content_Types].xml': contentTypes(
-      '<Default Extension="png" ContentType="image/png"/>' +
-        '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>' +
-        '<Override PartName="/xl/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>',
-    ),
-    [SHEET1]: worksheet('<drawing r:id="rId1"/>'),
-    [SHEET1_RELS]: rels(relationship('rId1', 'drawing', '../drawings/drawing1.xml')),
-    'xl/drawings/drawing1.xml': MIXED_DRAWING,
-    'xl/drawings/_rels/drawing1.xml.rels': rels(
-      relationship('rId1', 'image', '../media/image1.png') +
-        relationship('rId2', 'chart', '../charts/chart1.xml'),
-    ),
-    'xl/media/image1.png': png,
-    'xl/charts/chart1.xml': CHART,
-  });
+  const src = mixedDrawingPackage();
 
   const out = writeXlsx(readXlsx(src));
   const names = partNames(out);

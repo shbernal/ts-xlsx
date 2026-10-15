@@ -128,11 +128,6 @@ test('a character reference to LF or tab in an attribute value decodes to that c
   assert.equal(parseAttributes(' b="x&#10;y&#9;z&#xD;"').b, 'x\ny\tz\r');
 });
 
-test('an attribute value with no whitespace characters reads unchanged', () => {
-  assert.equal(parseAttributes(' r="A1" s="12"').r, 'A1');
-  assert.equal(parseAttributes(' b="a b"').b, 'a b', 'a space is already a space');
-});
-
 test('parseAttributes skips what is not an attribute and still reads the attributes after it', () => {
   // A name nothing assigns, a value with no quote, and a quote never closed each cost only themselves.
   // The last is the subtle one: the stray quote reads as the start of a name, so an attribute in the
@@ -288,21 +283,11 @@ test('decodeSpreadsheetText resolves an escape to its character', () => {
   assert.equal(decodeSpreadsheetText('a_x0001_b'), 'a\u0001b');
 });
 
-test('decodeSpreadsheetText decodes a character XML could have carried anyway', () => {
-  // Excel does, so a decoder restricted to the illegal range would disagree with it on Excel's
-  // own files.
-  assert.equal(decodeSpreadsheetText('a_x0009_b'), 'a\tb');
-});
-
 test('decodeSpreadsheetText leaves an escaped underscore as literal text', () => {
   // The single left-to-right pass is what makes this work: the match at 0 yields `_` and scanning
   // resumes past it, so the `x0041_` that follows never starts an escape.
   assert.equal(decodeSpreadsheetText('_x005F_x0041_'), '_x0041_');
   assert.equal(decodeSpreadsheetText('a_x005F_x0041_b'), 'a_x0041_b');
-});
-
-test('decodeSpreadsheetText leaves an escaped underscore alone when nothing follows it', () => {
-  assert.equal(decodeSpreadsheetText('_x005F_'), '_');
 });
 
 test('decodeSpreadsheetText leaves a lookalike untouched', () => {

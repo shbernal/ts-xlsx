@@ -152,7 +152,7 @@ const BUILTIN_NUMFMTS: ReadonlyMap<number, string> = new Map([
  * and resolves to nothing so an ordinary cell carries no `numFmt`.
  */
 export function numFmtCodeFor(id: number, custom: ReadonlyMap<number, string>): string | undefined {
-  if (!Number.isInteger(id) || id === 0) return undefined;
+  if (id === 0) return undefined;
   return custom.get(id) ?? BUILTIN_NUMFMTS.get(id);
 }
 

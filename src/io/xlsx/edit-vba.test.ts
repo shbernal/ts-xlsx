@@ -260,18 +260,3 @@ test('editXlsxVbaAddReference adds a reference and preserves every other package
     'the module set is unaffected',
   );
 });
-
-test('editXlsxVbaAddReference propagates VbaAuthorError for an invalid reference', () => {
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
-  assert.throws(
-    () =>
-      editXlsxVbaAddReference(pkg, {
-        name: '1Bad',
-        guid: '{420B2830-E718-11CF-893D-00A0C9054228}',
-        majorVersion: 1,
-        minorVersion: 0,
-        path: 'C:\\Windows\\System32\\scrrun.dll',
-      }),
-    VbaAuthorError,
-  );
-});

@@ -325,13 +325,11 @@ export function* xmlEvents(source: string): Generator<XmlEvent> {
   while (i < length) {
     const lt = source.indexOf('<', i);
     if (lt === -1) {
-      const chunk = source.slice(i);
-      if (chunk.length > 0) yield {kind: 'text', text: admitText(normalizeLineEndings(chunk))};
+      yield {kind: 'text', text: admitText(normalizeLineEndings(source.slice(i)))};
       return;
     }
     if (lt > i) {
-      const chunk = source.slice(i, lt);
-      if (chunk.length > 0) yield {kind: 'text', text: admitText(normalizeLineEndings(chunk))};
+      yield {kind: 'text', text: admitText(normalizeLineEndings(source.slice(i, lt)))};
     }
 
     const markup = markupAt(source, lt);

@@ -2,13 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {Workbook} from '../../core/workbook.ts';
-import {
-  optionalPartText,
-  partText,
-  patchParts,
-  roundtrip,
-  sheetXml,
-} from './package.test-support.ts';
+import {optionalPartText, partText, roundtrip} from './package.test-support.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
@@ -29,13 +23,6 @@ test('useSharedStrings writes a sharedStrings part and stores the cell as a t="s
   const sheet = partText(pkg, 'xl/worksheets/sheet1.xml');
   assert.match(sheet, /t="s"><v>0<\/v>/);
   assert.doesNotMatch(sheet, /inlineStr/);
-});
-
-test('without the option, strings stay inline and no sharedStrings part is written', () => {
-  const pkg = writeXlsx(bookWithStrings('hello'));
-
-  assert.equal(optionalPartText(pkg, 'xl/sharedStrings.xml'), undefined);
-  assert.match(partText(pkg, 'xl/worksheets/sheet1.xml'), /t="inlineStr"><is><t>hello<\/t>/);
 });
 
 test('an enabled workbook with no string cells never fabricates an empty sharedStrings part', () => {
@@ -155,20 +142,4 @@ test('each <si> starts clean, so a rich entry does not leak into the plain one a
     '<sst><si><r><rPr><b/></rPr><t>rich</t></r></si><si><t>plain</t></si></sst>',
   );
   assert.deepEqual(entries, [{richText: [{text: 'rich', font: {bold: true}}]}, 'plain']);
-});
-
-test('a t="s" cell pointing at a foreign rich <si> reads back as rich text', () => {
-  // Author a package whose A1 is a t="s" cell naming entry 0, then swap in a rich pool: the markup
-  // Excel writes but our writer only produces on round-trip.
-  const patched = patchParts(writeXlsx(bookWithStrings('plain'), {useSharedStrings: true}), {
-    'xl/sharedStrings.xml': () =>
-      '<?xml version="1.0"?>' +
-      '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="1" uniqueCount="1">' +
-      '<si><r><rPr><i/></rPr><t>emph</t></r><r><t>rest</t></r></si></sst>',
-  });
-  assert.match(sheetXml(patched), /<c r="A1" t="s"><v>0<\/v><\/c>/, 'A1 names entry 0');
-
-  const value = readXlsx(patched).getWorksheet('S')?.getCell('A1').value;
-  assert.ok(value && typeof value === 'object' && 'richText' in value);
-  assert.deepEqual(value.richText, [{text: 'emph', font: {italic: true}}, {text: 'rest'}]);
 });

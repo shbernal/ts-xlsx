@@ -1,12 +1,10 @@
-// Pure OOXML package-fact extraction, shared by every adapter.
+// Pure OOXML package-fact extraction.
 //
 // Given a workbook spec and the written package's parts as a plain { path: xmlString }
-// map, it derives the same JSON-serializable facts a case asserts on (content-type
+// map, it derives the JSON-serializable facts a case asserts on (content-type
 // declarations, sheet entries, relationships, per-worksheet cell/formula/margin facts,
 // style/theme presence, comment VML, cross-part consistency). It knows only OOXML and never
-// how any library is shaped, and keeping it that way lets the `current` (legacy) and
-// `rewrite` adapters unzip their own way yet return byte-identical
-// facts, so a case compares like with like across implementations.
+// how the library is shaped, which keeps the cases implementation-blind.
 
 import type {Untyped} from '../untyped.ts';
 

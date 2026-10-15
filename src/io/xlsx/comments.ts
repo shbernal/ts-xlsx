@@ -66,15 +66,13 @@ export function collectComments(
   const anchored = new Set(fallbacks.map((fallback) => fallback.ref));
   const comments = [...fallbacks, ...alreadyCollected];
   for (const cell of cells) {
-    // Excel refuses to put a note and a thread on one cell, so a file carrying both (only a foreign
-    // generator or a hand-edit makes one) is written back as the thread alone: two comments on one ref
-    // is a shape Excel repairs by dropping both, which would lose the conversation as well as the note.
-    if (cell.note === undefined || anchored.has(cell.address)) continue;
-    comments.push(noteOn(cell, cell.note));
+    if (cell.note !== undefined) comments.push(noteOn(cell, cell.note));
   }
-  // A note gathered from a flushed row cannot know whether a thread was later anchored on the same
-  // cell, so the thread's precedence is applied here over the whole merged list rather than only over
-  // the live half.
+  // Excel refuses to put a note and a thread on one cell, so a file carrying both (only a foreign
+  // generator or a hand-edit makes one) is written back as the thread alone: two comments on one ref
+  // is a shape Excel repairs by dropping both, which would lose the conversation as well as the note.
+  // The rule runs over the whole merged list because a note gathered from a flushed row cannot know
+  // whether a thread was later anchored on the same cell.
   return comments
     .filter((comment) => comment.threadId !== undefined || !anchored.has(comment.ref))
     .sort((a, b) => a.row - b.row || a.col - b.col);

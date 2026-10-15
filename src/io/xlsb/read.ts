@@ -70,13 +70,9 @@ export function readXlsb(data: Uint8Array, options: ReadPackageOptions = {}): Wo
  * `.xlsx` reader can hand over a package it has already inflated and classified, rather than
  * inflating the same bytes twice.
  *
- * `documentPath` is where the package's own `_rels/.rels` says its workbook lives; it defaults to the
- * conventional path for a caller holding nothing but the parts.
+ * `documentPath` is where the package's own `_rels/.rels` says its workbook lives.
  */
-export function readXlsbPackage(
-  files: Record<string, Uint8Array>,
-  documentPath: string = XLSB_WORKBOOK_PART,
-): Workbook {
+export function readXlsbPackage(files: Record<string, Uint8Array>, documentPath: string): Workbook {
   const {partText, partBytes} = packageAccessors(files);
   const workbookPart = partBytes(documentPath);
   if (workbookPart === undefined) {

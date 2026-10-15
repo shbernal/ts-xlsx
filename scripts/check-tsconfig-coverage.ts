@@ -15,17 +15,12 @@
 // The `incremental: false` / `tsBuildInfoFile: null` pair is checked too: nothing runs `tsc` against
 // these files, so a build-info cache written from here could only race the gate's.
 //
-// It also holds the second promise this directory makes about itself: `verdict.ts` says a gate's
-// name "matches the `*:check` package script … so a failure names the command to re-run", and the
-// invariants gate had grown three scripts with no alias. That is a promise a reader acts on, so it
-// is checked here rather than left to be discovered as a missing command.
-//
 //   node scripts/check-tsconfig-coverage.ts
 
 import {existsSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
 
-import {readPackageJson, ROOT} from './repo.ts';
+import {ROOT} from './repo.ts';
 import {HARNESS_TREES} from './targets.ts';
 import {reportCrash, verdict} from './verdict.ts';
 
@@ -96,26 +91,10 @@ function main(): void {
     }
   }
 
-  // The invariants gate's scripts, each of which `verdict.ts` promises is runnable by name.
-  const verify = readFileSync(join(ROOT, 'scripts/verify.ts'), 'utf8');
-  const invariants = verify.slice(verify.indexOf("name: 'invariants'"));
-  const scripts = readPackageJson() as unknown as {scripts: Record<string, string>};
-  const spawned = [...invariants.matchAll(/'(scripts\/check-[\w-]+\.ts)'/g)].map((m) => m[1] ?? '');
-  for (const script of new Set(spawned)) {
-    if (Object.values(scripts.scripts).some((command) => command.includes(script))) continue;
-    const name = `${script.slice('scripts/check-'.length, -'.ts'.length)}:check`;
-    problems.push(
-      `  ${script}\n    runs in the invariants gate and no package script invokes it:\n` +
-        `    add "${name}": "node ${script}", so the gate's own name is a command a reader can run`,
-    );
-  }
-
   verdict({
     gate: 'tsconfig coverage',
     problems,
-    ok:
-      `${HARNESS_TREES.length} harness trees each claimed by their own tsconfig.json, ` +
-      `${new Set(spawned).size} invariant checks each runnable by name`,
+    ok: `${HARNESS_TREES.length} harness trees each claimed by their own tsconfig.json`,
     failure: "problem(s) in the harness's promises about itself",
   });
 }

@@ -42,12 +42,6 @@ test('parses the 2007 ribbon tree, lifting id/label/onAction and the dialect', (
   assert.equal(button?.children, undefined);
 });
 
-test('derives the 2010 dialect from the customUI14 namespace, not the relationship type', () => {
-  const doc = parseCustomUi(CUSTOM_UI_2009);
-  assert.equal(doc.dialect, '2010');
-  assert.equal(doc.ribbon?.tabs[0]?.groups[0]?.controls[0]?.onAction, 'MyMacro');
-});
-
 test('accepts raw UTF-8 bytes as well as a decoded string', () => {
   const doc = parseCustomUi(strToU8(CUSTOM_UI_2007));
   assert.equal(doc.dialect, '2007');

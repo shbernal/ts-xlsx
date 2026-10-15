@@ -10,8 +10,8 @@ name: Publish
 # exchange produces the provenance attestation, so the registry can state which commit and
 # which run built what it serves.
 #
-# The gate set is *not* re-listed here. `npm publish` runs `prepublishOnly` (build, the full
-# verify, smoke:dist and the size budgets), which is the same enumeration problem corpus.yml
+# The gate set is *not* re-listed here. `npm publish` runs `prepublishOnly` (the full verify,
+# whose `size` gate builds dist/ and checks the budgets, then smoke:dist), which is the same enumeration problem corpus.yml
 # already solved by refusing to have two definitions of "everything". A publish that skipped
 # the gates would be one `--ignore-scripts` away, and it is not written here.
 #

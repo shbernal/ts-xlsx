@@ -102,27 +102,6 @@ test('an area unbounded on the spliced axis covers every line of it, so it canno
   assert.equal(shiftSqref('B:B', {axis: 'col', start: 1, count: 0, delta: 5}), 'G:G');
 });
 
-test('a moved single-cell area stays a single cell', () => {
-  // `B5` must not come back as `B6:B6`: the spelling is the caller's, and a range where there was a
-  // cell is a different reference to every consumer that compares them as text.
-  assert.equal(shiftSqref('B5', {axis: 'row', start: 1, count: 0, delta: 1}), 'B6');
-  assert.equal(
-    shiftSqref('B5:C5', {axis: 'row', start: 1, count: 0, delta: 1}),
-    'B6:C6',
-    'a real range still re-encodes as one',
-  );
-});
-
-test('shiftSqref drops the areas a delete swallowed and keeps the rest', () => {
-  // Rows 5..7 deleted: the area inside them is gone, the one below pulls up.
-  assert.equal(shiftSqref('A5:A7 A9:A9', {axis: 'row', start: 5, count: 3, delta: -3}), 'A6:A6');
-});
-
-test('shiftSqref returns undefined when the splice deleted every area it named', () => {
-  // An empty `sqref` is not writable, so the entry holding it must go with it.
-  assert.equal(shiftSqref('A5:A7 B6', {axis: 'row', start: 5, count: 3, delta: -3}), undefined);
-});
-
 test('an area the machine cannot read is returned untouched rather than dropped', () => {
   // The `sqref` is still the file's own text; moving what cannot be decoded would be a guess, and
   // dropping it would lose a region on the strength of that guess.

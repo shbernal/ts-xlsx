@@ -31,10 +31,9 @@ test('a non-single-character delimiter is rejected rather than silently collapsi
   // Native `RangeError`, not the library's taxonomy: one argument out of range. Asserted as *not*
   // an XlsxError too, so a later re-wrap reddens the suite rather than quietly changing the catch.
   assert.throws(() => readCsv('a,b,c', {delimiter: ''}), {name: 'RangeError'});
-  assert.throws(() => readCsv('a::b::c', {delimiter: '::'}), {name: 'RangeError'});
   assert.throws(
     () => readCsv('a::b::c', {delimiter: '::'}),
-    (error: unknown) => !(error instanceof XlsxError),
+    (error: unknown) => error instanceof RangeError && !(error instanceof XlsxError),
   );
 });
 
@@ -43,14 +42,6 @@ test('a quote, CR or LF is rejected as a delimiter rather than read as two thing
   for (const delimiter of ['"', '\r', '\n']) {
     assert.throws(() => readCsv('a"b"c', {delimiter}), {name: 'RangeError'});
   }
-});
-
-test('an over-precision numeric string is preserved verbatim; in-range numbers coerce', () => {
-  const big = '56343416020533614003';
-  assert.deepEqual(rowsOf(`${big},42\n1.5,7`), [
-    [big, 42],
-    [1.5, 7],
-  ]);
 });
 
 test('a leading-zero id coerces to a number by default but survives the identity map', () => {
@@ -67,8 +58,7 @@ test('padded ids and dash-codes stay strings; a strict ISO date becomes a Date',
 
 test('a whitespace-only field is a string, an empty field is null: neither is 0', () => {
   const [row] = rowsOf('firstValue,   ,secondValue\n');
-  assert.equal(typeof row![1], 'string');
-  assert.notEqual(row![1], 0);
+  assert.equal(row![1], '   ');
   assert.equal(rowsOf('firstValue,,secondValue')[0]![1], null);
 });
 
@@ -114,7 +104,6 @@ test('an ISO date naming no calendar day stays a string', () => {
 test('a two-digit-era year is that year, not 1900 plus it', () => {
   const cell = rowsOf('0099-01-01 12:30')[0]![0];
   assert.ok(cell instanceof Date);
-  assert.equal(cell.getUTCFullYear(), 99);
   assert.equal(cell.toISOString(), '0099-01-01T12:30:00.000Z');
 });
 

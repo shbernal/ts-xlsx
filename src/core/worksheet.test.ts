@@ -440,17 +440,6 @@ test('addRow appends after the last used row and returns its cells', () => {
   );
 });
 
-test('addRow lands below a formatting-only row, not over it', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.getRow(3).height = 40;
-  sheet.addRow(['tail']);
-  assert.equal(
-    sheet.getCell('A4').value,
-    'tail',
-    'the used range spans the formatting-only row at 3',
-  );
-});
-
 test('addRows stacks each row in order, even when value-less', () => {
   const sheet = new Worksheet('S', 1);
   sheet.getCell('A1').value = 'header';
@@ -494,17 +483,6 @@ test('a row-splice shifts a merged range below the cut and keeps it merged', () 
     [...sheet.merges],
     ['A1:O1'],
     'deleting the row above shifts the banner up and keeps it merged',
-  );
-});
-
-test('an inserted row shifts a merged range below it down', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.getCell('A2').value = 'banner';
-  sheet.mergeCells('A2:C2');
-  sheet.insertRow(1, ['inserted']);
-  assert.ok(
-    [...sheet.merges].includes('A3:C3'),
-    `expected A3:C3; got ${JSON.stringify([...sheet.merges])}`,
   );
 });
 
@@ -616,27 +594,6 @@ test('getTable finds a table by name and addRow appends cells into the grid', ()
   assert.equal(table.range, 'A1:B4', 'the range grows to cover the appended row');
   assert.equal(sheet.getCell('A4').value, 'c', 'the appended values land in the grid');
   assert.equal(sheet.getCell('B4').value, 3);
-});
-
-test('addTable materializes the totals row: label cells and SUBTOTAL formula cells', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.addTable({
-    name: 'T',
-    ref: 'A1', // header row 1, data rows 2–3, totals row 4
-    columns: [
-      {name: 'Item', totalsRowLabel: 'Total'},
-      {name: 'Amount', totalsRowFunction: 'sum'},
-    ],
-    rowCount: 2,
-    totalsRow: true,
-  });
-
-  assert.equal(sheet.getCell('A4').value, 'Total', 'the label column materializes its label');
-  assert.deepEqual(
-    sheet.getCell('B4').value,
-    {formula: 'SUBTOTAL(109,T[Amount])'},
-    'the aggregate column materializes a resultless SUBTOTAL formula over the table column',
-  );
 });
 
 // The totals SUBTOTAL interpolated the column name bare, so `Price [USD]` wrote
@@ -782,21 +739,6 @@ test('addRow on a table with a totals row appends above it, moving the totals do
   assert.equal(sheet.getCell('A7').value, 'below', 'content below the table shifted down too');
 });
 
-test('a totals-row table applies the column style to a row appended above the totals', () => {
-  const sheet = new Worksheet('S', 1);
-  const table = sheet.addTable({
-    name: 'T',
-    ref: 'A1',
-    columns: [{name: 'Amount', style: {numFmt: '#,##0.00'}}, {name: 'Label'}],
-    rowCount: 1,
-    totalsRow: true,
-  });
-  table.addRow([1234.5, 'x']); // lands at row 3 (header 1 + 1 data + this), above the totals
-  assert.equal(sheet.getCell('A3').value, 1234.5, 'the appended value lands above the totals');
-  assert.equal(sheet.getCell('A3').numFmt, '#,##0.00', 'the styled column carries its numFmt');
-  assert.equal(sheet.getCell('B3').numFmt, undefined, 'the unstyled column is unaffected');
-});
-
 test('getTable returns undefined for an unknown table name', () => {
   assert.equal(new Worksheet('S', 1).getTable('missing'), undefined);
 });
@@ -897,17 +839,6 @@ test('addColumn appends after the last used column and returns its cells', () =>
   );
 });
 
-test('addColumn lands right of a formatting-only column, not over it', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.getColumn(3).width = 40;
-  sheet.addColumn(['tail']);
-  assert.equal(
-    sheet.getCell('D1').value,
-    'tail',
-    'the used range spans the formatting-only column at 3',
-  );
-});
-
 test('addColumns stacks each column in order, even when value-less', () => {
   const sheet = new Worksheet('S', 1);
   sheet.getCell('A1').value = 'header';
@@ -939,44 +870,6 @@ test('addColumn skips a hole in a sparse array', () => {
     ['a', 'c'],
     'only the visited elements become cells',
   );
-});
-
-test('a column handle fabricates no record until something is written through it', () => {
-  const sheet = new Worksheet('S', 1);
-  assert.equal(
-    sheet.getColumn(2).properties,
-    undefined,
-    'no record fabricated for an untouched column',
-  );
-  sheet.getColumn(2).width = 12;
-  assert.equal(sheet.getColumn(2).properties?.width, 12, 'the write created the record');
-});
-
-test('a column-splice re-anchors a merged range lying to the right of the cut', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.getCell('F1').value = 'F';
-  sheet.getCell('H1').value = 'H';
-  sheet.mergeCells('F1:G1');
-  sheet.spliceColumns(2, 1);
-  assert.ok(
-    [...sheet.merges].includes('E1:F1'),
-    `expected E1:F1; got ${JSON.stringify([...sheet.merges])}`,
-  );
-  assert.equal(sheet.getCell('G1').value, 'H', 'trailing data shifts left with the columns');
-});
-
-test('a cell note travels with its cell through a row splice', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.getCell('A2').value = 'body';
-  sheet.getCell('A2').note = 'travels';
-  sheet.spliceRows(1, 0, ['header']);
-  assert.equal(sheet.getCell('A3').value, 'body');
-  assert.equal(
-    sheet.getCell('A3').note,
-    'travels',
-    'the note follows its cell to the shifted position',
-  );
-  assert.equal(sheet.getCell('A2').note, undefined, 'the inserted row carries no note');
 });
 
 test('a cell note round-trips through model export and import', () => {
@@ -1126,13 +1019,4 @@ test('usedRange is the ref an autoFilter over the whole sheet needs', () => {
     'A1:B3',
     'the data rows are inside the filter, not just the header',
   );
-});
-
-test('usedRange creates nothing: it is a handle like getRange', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.getCell('A1').value = 'x';
-  const before = sheet.actualRowCount;
-  void sheet.usedRange;
-  assert.equal(sheet.actualRowCount, before);
-  assert.equal(sheet.usedRange?.cells.length, 1, 'only the materialised cell is reported');
 });

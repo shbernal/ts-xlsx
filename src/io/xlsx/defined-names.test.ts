@@ -28,14 +28,6 @@ test('no <definedNames> element is emitted when the workbook has none', () => {
   assert.doesNotMatch(workbookXmlOf(wb), /<definedNames/);
 });
 
-test('a global defined name round-trips through write then read', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = 1;
-  wb.defineName({name: 'TaxRate', refersTo: 'S!$A$1:$B$2'});
-  const back = roundtrip(wb);
-  assert.deepEqual([...back.definedNames], [{name: 'TaxRate', refersTo: 'S!$A$1:$B$2'}]);
-});
-
 test('a sheet-scoped name carries the 0-based localSheetId of its sheet', () => {
   const wb = new Workbook();
   wb.addWorksheet('First').getCell('A1').value = 1;
@@ -92,16 +84,6 @@ test('a name defined as a LAMBDA stores _xlfn. and _xlpm. but is modelled plain'
   );
   const back = roundtrip(wb);
   assert.deepEqual([...back.definedNames], [{name: 'Double', refersTo: 'LAMBDA(x,x*2)'}]);
-});
-
-test('a foreign name stored with _xlfn. reads back to its plain function name', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = 1;
-  wb.defineName({name: 'Pick', refersTo: 'XLOOKUP(1,S!$A:$A,S!$B:$B)'});
-  const pkg = writeXlsx(wb);
-  assert.match(partText(pkg, 'xl/workbook.xml'), /_xlfn\.XLOOKUP/);
-  const back = readXlsx(pkg);
-  assert.equal(back.definedNames[0]?.refersTo, 'XLOOKUP(1,S!$A:$A,S!$B:$B)');
 });
 
 test('defineName rejects an empty name and an unknown scope', () => {

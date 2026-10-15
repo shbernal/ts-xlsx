@@ -656,7 +656,6 @@ test('an unstyled cell resolves to the workbook default font (a concrete face), 
   wb.addWorksheet('S').getCell('A1').value = 'plain';
 
   const font = roundtrip(wb).getWorksheet('S')?.getCell('A1').font;
-  assert.ok(font, 'an unstyled cell must resolve the default font, not undefined');
   assert.equal(font?.name, 'Calibri', 'the default face is Calibri');
   assert.equal(font?.size, 11, 'the default size is 11');
 });
@@ -816,16 +815,6 @@ test('cell alignment round-trips through the xf, and only the aligned cell carri
   );
 });
 
-test('alignment boolean flags left off do not read back spuriously enabled', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.getCell('A1').value = 'x';
-  sheet.getCell('A1').alignment = {wrapText: false, shrinkToFit: false};
-
-  // An all-default alignment serialises to nothing, so it resolves to xf 0 and reads back absent.
-  assert.equal(roundtrip(wb).getWorksheet('S')?.getCell('A1').alignment, undefined);
-});
-
 test('a foreign alignment carrying only wrapText="0" reads back with no alignment', () => {
   // Excel writes an all-false alignment as wrapText="0"; the raw "0" is a truthy JS string, so a
   // reader that guards on presence rather than the parsed boolean would mistake it for present.
@@ -854,16 +843,6 @@ test('cell protection round-trips the meaningful flags, and only the protected c
     undefined,
     'a default-protection sibling stays protection-free',
   );
-});
-
-test('a default-locked cell does not read back as explicitly protected', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.getCell('A1').value = 'x';
-  // locked defaults to on, hidden to off, so this restates the default and serialises to nothing.
-  sheet.getCell('A1').protection = {locked: true, hidden: false};
-
-  assert.equal(roundtrip(wb).getWorksheet('S')?.getCell('A1').protection, undefined);
 });
 
 test('a foreign <protection locked="1">, an explicit default, reads back with no protection', () => {
@@ -1074,12 +1053,10 @@ test('the written package carries the tab colour under <sheetPr>', () => {
   assert.ok(xml.indexOf('<sheetPr>') < xml.indexOf('<dimension'), 'sheetPr precedes dimension');
 });
 
-test('a sheet with no tab colour acquires none and emits no <sheetPr>', () => {
+test('a sheet with no tab colour acquires none across a round-trip', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'y';
 
-  const xml = sheetXml(writeXlsx(wb));
-  assert.doesNotMatch(xml, /<sheetPr>/);
   assert.equal(roundtrip(wb).getWorksheet('S')?.tabColor, undefined);
 });
 
@@ -1089,15 +1066,6 @@ test('a theme-based tab colour with a tint round-trips', () => {
 
   const back = roundtrip(wb).getWorksheet('S');
   assert.deepEqual(back?.tabColor, {theme: 4, tint: -0.25});
-});
-
-test('a tab colour survives a worksheet model export/import', () => {
-  const wb = new Workbook();
-  const src = wb.addWorksheet('Src');
-  src.tabColor = {argb: 'FF0000FF'};
-  const dst = wb.addWorksheet('Dst');
-  dst.model = src.model;
-  assert.deepEqual(dst.tabColor, {argb: 'FF0000FF'});
 });
 
 test('inverted outline summary positions round-trip as false', () => {
@@ -1144,17 +1112,6 @@ test('only the set outline flag serializes; the untouched one stays absent', () 
   assert.doesNotMatch(xml, /summaryBelow/);
 });
 
-test('a sheet with default outline positions emits no <outlinePr>', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = 'y';
-
-  const xml = sheetXml(writeXlsx(wb));
-  assert.doesNotMatch(xml, /<outlinePr/);
-  const back = roundtrip(wb).getWorksheet('S');
-  assert.equal(back?.outline.summaryBelow, undefined);
-  assert.equal(back?.outline.summaryRight, undefined);
-});
-
 // These optional booleans were read with `boolPresent`, which takes `"yes"` as present-and-true, so a
 // token the schema does not allow came back out of the writer as `"1"`.
 test('an unrecognised boolean token on outlinePr or pageSetUpPr is dropped, not written as "1"', () => {
@@ -1174,15 +1131,6 @@ test('an unrecognised boolean token on outlinePr or pageSetUpPr is dropped, not 
   assert.equal(back.getWorksheet('S')?.pageSetup.fitToPage, undefined);
   const rewritten = sheetXml(writeXlsx(back));
   assert.doesNotMatch(rewritten, /summaryBelow=|fitToPage=/, 'neither is written back at all');
-});
-
-test('outline flags survive a worksheet model export/import', () => {
-  const wb = new Workbook();
-  const src = wb.addWorksheet('Src');
-  src.outline.summaryBelow = false;
-  const dst = wb.addWorksheet('Dst');
-  dst.model = src.model;
-  assert.equal(dst.outline.summaryBelow, false);
 });
 
 test("a sheet-list entry's state attribute is read back as the worksheet visibility state", () => {

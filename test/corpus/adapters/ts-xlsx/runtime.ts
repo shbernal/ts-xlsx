@@ -78,10 +78,8 @@ export type RowInput = Parameters<WorksheetInstance['addRow']>[0];
 const require = createRequire(import.meta.url);
 export const JSZip = require('jszip');
 
-// Durable sample inputs live under test/corpus/fixtures/<case-slug>/: the SAME tree the
-// oracle adapter reads, so a fixture-backed case measures both implementations against one
-// real-world file. The rewrite reads them straight through readXlsx (a fixture is just a
-// foreign `.xlsx` buffer).
+// Durable sample inputs live under test/corpus/fixtures/<case-slug>/, read straight through
+// readXlsx: a fixture is just a foreign `.xlsx` buffer.
 export const FIXTURES_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',

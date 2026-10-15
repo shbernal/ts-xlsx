@@ -20,20 +20,13 @@ export default {
 
   behavior: [
     {
-      name: 'a workbook missing an optional Company property reads without throwing',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.ok(
-          ok,
-          `a missing optional property must not be fatal; got ${JSON.stringify(error)}`,
-        );
-      },
-    },
-    {
       name: 'the worksheets are accessible after loading',
       async expect(api: CorpusApi, assert: Assert) {
-        const {sheetNames} = await api.readFixtureReport(FIXTURE);
-        assert.ok(sheetNames && sheetNames.length >= 1, 'at least one worksheet is exposed');
+        const {sheetNames, error} = await api.readFixtureReport(FIXTURE);
+        assert.ok(
+          sheetNames && sheetNames.length >= 1,
+          `at least one worksheet is exposed; read error: ${JSON.stringify(error)}`,
+        );
       },
     },
   ],

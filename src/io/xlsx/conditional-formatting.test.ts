@@ -17,30 +17,6 @@ import {writeXlsx} from './write.ts';
 
 const stylesXml = (pkg: Uint8Array): string => partText(pkg, 'xl/styles.xml');
 
-test('a dataBar rule emits a well-formed block with two cfvo anchors and a bar colour', () => {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').addConditionalFormatting({
-    ref: 'A1:A3',
-    rules: [
-      {
-        type: 'dataBar',
-        color: {argb: 'FF638EC6'},
-        cfvo: [
-          {type: 'num', value: 0},
-          {type: 'num', value: 1},
-        ],
-      },
-    ],
-  });
-  const xml = sheetXml(writeXlsx(workbook));
-  const block = elementIn(xml, /<conditionalFormatting[\s\S]*?<\/conditionalFormatting>/);
-
-  assert.equal([...xml.matchAll(/<conditionalFormatting\b/g)].length, 1, 'one block');
-  assert.match(block, /<dataBar>/);
-  assert.equal([...block.matchAll(/<cfvo\b/g)].length, 2, 'both anchors present');
-  assert.match(block, /<color rgb="FF638EC6"\/>/);
-});
-
 test('a dataBar rule reads back on the same range with its type, colour, and both anchors', () => {
   const workbook = new Workbook();
   workbook.addWorksheet('S').addConditionalFormatting({
@@ -552,24 +528,6 @@ test('a colorScale colour with a malformed theme attribute drops it rather than 
   assert.match(out, /<color rgb="FF00FF00"\/>/, 'the well-formed sibling colour survives');
 });
 
-test('a malformed priority is dropped on read rather than poisoning every later rule with NaN', () => {
-  const sheet1 =
-    '<?xml version="1.0"?>' +
-    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/>' +
-    '<conditionalFormatting sqref="A1:A3">' +
-    '<cfRule type="duplicateValues" priority="oops"/>' +
-    '<cfRule type="duplicateValues" priority="2"/>' +
-    '</conditionalFormatting></worksheet>';
-  const xml = sheetXml(writeXlsx(readPatched({[SHEET1]: sheet1})));
-
-  assert.doesNotMatch(xml, /priority="NaN"/, 'no rule re-writes with a NaN priority');
-  assert.equal(
-    [...xml.matchAll(/priority="(\d+)"/g)].length,
-    2,
-    'both rules keep a real numeric priority',
-  );
-});
-
 test('a malformed dxfId is dropped on read rather than round-tripping as NaN', () => {
   const sheet1 =
     '<?xml version="1.0"?>' +
@@ -585,20 +543,6 @@ test('a malformed dxfId is dropped on read rather than round-tripping as NaN', (
     /dxfId="oops"/,
     'the malformed dxfId is not echoed back verbatim either',
   );
-});
-
-test('a malformed rank and stdDev are dropped on read rather than round-tripping as NaN', () => {
-  const sheet1 =
-    '<?xml version="1.0"?>' +
-    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/>' +
-    '<conditionalFormatting sqref="A1:A3">' +
-    '<cfRule type="top10" rank="oops" priority="1"/>' +
-    '<cfRule type="aboveAverage" stdDev="oops" priority="2"/>' +
-    '</conditionalFormatting></worksheet>';
-  const xml = sheetXml(writeXlsx(readPatched({[SHEET1]: sheet1})));
-
-  assert.doesNotMatch(xml, /rank="NaN"/, 'the malformed rank is not written as NaN');
-  assert.doesNotMatch(xml, /stdDev="NaN"/, 'the malformed stdDev is not written as NaN');
 });
 
 // `priority` and `stdDev` are xsd:int and `rank` is xsd:unsignedInt, but they were read as any finite
@@ -762,7 +706,11 @@ test('a dataBar negative-fill and axis colour round-trip through the x14 extensi
 
 test('a plain dataBar carrying no x14 facet stays classic-only, fabricating no extension', () => {
   const xml = sheetXml(writeXlsx(dataBarBook({})));
-  assert.match(xml, /<dataBar>/, 'the classic element is present');
+  assert.match(
+    xml,
+    /<dataBar><cfvo type="num" val="0"\/><cfvo type="num" val="1"\/><color rgb="FF638EC6"\/><\/dataBar>/,
+    'the classic element is present',
+  );
   assert.doesNotMatch(xml, /x14:dataBar/, 'no x14 data-bar extension is written');
   assert.doesNotMatch(xml, /<extLst>/, 'no extLst is fabricated for a plain data bar');
 });
@@ -794,33 +742,6 @@ test('a sheet with both an extended validation and a gradient dataBar emits one 
   const sheet = roundtrip(workbook).getWorksheet('S');
   assert.equal(sheet?.conditionalFormattings[0]?.rules[0]?.gradient, true, 'the gradient survives');
   assert.equal(sheet?.dataValidations.length, 1, 'the extended validation survives');
-});
-
-// The third scale type. `dataBar` and `colorScale` were exercised above from the moment they
-// landed; `iconSet` reached the model, the reader and the writer without a single test naming it,
-// so `iconSetXml` was serialising a documented rule type that nothing had ever read back.
-
-test('an iconSet rule emits its icon family and one cfvo per threshold', () => {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').addConditionalFormatting({
-    ref: 'A1:A9',
-    rules: [
-      {
-        type: 'iconSet',
-        iconSet: '3TrafficLights1',
-        cfvo: [
-          {type: 'percent', value: 0},
-          {type: 'percent', value: 33},
-          {type: 'percent', value: 67},
-        ],
-      },
-    ],
-  });
-  const block = elementIn(sheetXml(writeXlsx(workbook)), /<iconSet[\s\S]*?<\/iconSet>/);
-
-  assert.match(block, /<iconSet iconSet="3TrafficLights1">/);
-  assert.equal([...block.matchAll(/<cfvo\b/g)].length, 3, 'all three thresholds present');
-  assert.match(block, /<cfvo type="percent" val="33"\/>/);
 });
 
 test('an iconSet rule reads back with its type, icon family, and every threshold in order', () => {

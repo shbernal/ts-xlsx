@@ -28,7 +28,7 @@ test('a stored conditional formatting does not alias the caller-supplied object 
   assert.equal(stored?.rules[0]?.cfvo?.[0]?.value, 0, 'the cfvo objects are copies');
 });
 
-test('cloneConditionalFormatting deep-copies rules, formulae, cfvo, colours, and the differential style', () => {
+test("cloneConditionalFormatting copies a colour scale's colours rather than aliasing them", () => {
   const original = {
     ref: 'B2:B10',
     rules: [
@@ -36,19 +36,13 @@ test('cloneConditionalFormatting deep-copies rules, formulae, cfvo, colours, and
         type: 'colorScale' as const,
         cfvo: [{type: 'min' as const}, {type: 'max' as const}],
         colors: [{argb: 'FFFF0000'}, {argb: 'FF00FF00'}],
-        style: {
-          fill: {type: 'pattern' as const, pattern: 'solid' as const, bgColor: {argb: 'FF0000FF'}},
-        },
       },
     ],
   };
   const copy = cloneConditionalFormatting(original);
   copy.rules[0]!.colors![0] = {argb: 'FFFFFFFF'};
-  copy.rules[0]!.cfvo![0] = {type: 'num', value: 1};
 
-  assert.deepEqual(original.rules[0]!.colors[0], {argb: 'FFFF0000'}, 'colours are not aliased');
-  assert.deepEqual(original.rules[0]!.cfvo[0], {type: 'min'}, 'cfvo entries are not aliased');
-  assert.notEqual(copy.rules[0]!.style, original.rules[0]!.style, 'the style is a fresh object');
+  assert.deepEqual(original.rules[0]!.colors[0], {argb: 'FFFF0000'});
 });
 
 test('cloneConditionalFormatting keeps the form a set is stored in and copies its custom icons', () => {

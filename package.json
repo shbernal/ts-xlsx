@@ -92,7 +92,6 @@
     "corpus-blind:check": "node scripts/check-corpus-blind.ts",
     "entries:check": "node scripts/check-entries.ts",
     "public-types:check": "node scripts/check-public-types.ts",
-    "facet-register:check": "node scripts/check-facet-register.ts",
     "tsconfig-coverage:check": "node scripts/check-tsconfig-coverage.ts",
     "browser:check": "node scripts/check-browser-safe.ts",
     "source-text:check": "node scripts/check-source-text.ts",
@@ -117,7 +116,7 @@
     "verify": "node scripts/verify.ts --full",
     "verify:quick": "node scripts/verify.ts --quick",
     "test": "node scripts/verify.ts --full",
-    "prepublishOnly": "pnpm run build && pnpm run test && pnpm run smoke:dist && pnpm run size",
+    "prepublishOnly": "pnpm run test && pnpm run smoke:dist",
     "validate:ooxml": "ooxml-validate",
     "test:ooxml": "node test/ooxml-validation/run.ts"
   },

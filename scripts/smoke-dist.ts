@@ -16,11 +16,10 @@
 // packaging regression these entry points exist to prevent.
 //
 // Findings accumulate and are reported through `verdict` at the end, like every gate in this
-// directory. Written as bare `assert` calls, this stopped at the first: a build that had put three
-// Node built-ins on the browser path reported one, and the next run reported the next. The boundary
-// checks are exactly the ones where the whole list is the diagnostic.
+// directory: the boundary checks are the ones where the whole list is the diagnostic. The browser
+// boundary is not re-checked here. `scripts/check-browser-safe.ts` proves it over src/, and the
+// emit (`verbatimModuleSyntax`, no helpers) can only rewrite or drop an import, never add one.
 
-import {readFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {isDeepStrictEqual} from 'node:util';
@@ -41,9 +40,6 @@ ws.getCell('A1').value = 'hello';
 ws.getCell('B2').value = 42;
 
 const bytes = writeXlsx(wb);
-check(bytes.byteLength > 0, 'writer produced no bytes');
-check(bytes[0] === 0x50 && bytes[1] === 0x4b, 'output is not a zip (bad PK magic)');
-
 const roundTrip = readXlsx(bytes);
 const sheet = roundTrip.getWorksheet('Smoke');
 check(sheet !== undefined, 'round-tripped workbook lost the worksheet');
@@ -101,36 +97,12 @@ for (const file of errorsReach) {
   );
 }
 
-// The browser boundary, checked on the EMITTED artifact rather than on source.
-// `scripts/check-browser-safe.ts` proves it over src/ before anything is built; this proves the
-// emit kept it, which is the only form a consumer's bundler ever sees. `/node` is the exception
-// that gives the rule its shape: it is where those imports are allowed to be.
-const NODE_SPECIFIER = /\b(?:from|import)\s+["']node:/;
-const browserEntries = Object.keys(SUBPATH_BINDINGS).filter((subpath) => subpath !== 'node');
-for (const subpath of [...browserEntries, 'index']) {
-  const entry = subpath === 'index' ? join(HERE, '..', 'dist', 'index.js') : entryFile(subpath);
-  for (const file of closure(entry, importedPaths)) {
-    check(
-      !NODE_SPECIFIER.test(readFileSync(file, 'utf8')),
-      `/${subpath} reaches ${file}, which imports a Node built-in: a browser cannot bundle it`,
-    );
-  }
-}
-// And from the other side: `/node` must still reach one, or the boundary has moved rather than
-// held and the browser assertions above are passing for the wrong reason.
-const nodeClosure = [...closure(entryFile('node'), importedPaths)];
-check(
-  nodeClosure.some((file) => NODE_SPECIFIER.test(readFileSync(file, 'utf8'))),
-  '/node reaches no Node built-in: the streaming writer it exists to carry is not behind it',
-);
-
 verdict({
   gate: 'dist smoke',
   problems,
   ok:
     `${bytes.byteLength} byte xlsx, round-trip verified; ` +
     `${Object.keys(SUBPATH_BINDINGS).length} subpaths resolve through exports; ` +
-    `/core is codec-free (${coreReach.size} modules), /errors is self-contained (${errorsReach.size}); ` +
-    `${browserEntries.length + 1} browser entries import no Node built-in`,
+    `/core is codec-free (${coreReach.size} modules), /errors is self-contained (${errorsReach.size})`,
   failure: 'problem(s) in the published build',
 });

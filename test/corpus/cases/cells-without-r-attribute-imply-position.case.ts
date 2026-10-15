@@ -20,19 +20,12 @@ export default {
 
   behavior: [
     {
-      name: 'a worksheet with cells lacking the r attribute reads without error',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.ok(ok, `implied positions must not be a fatal error; got ${JSON.stringify(error)}`);
-      },
-    },
-    {
       name: 'the worksheet is accessible after inferring positions',
       async expect(api: CorpusApi, assert: Assert) {
-        const {sheetNames} = await api.readFixtureReport(FIXTURE);
+        const {sheetNames, error} = await api.readFixtureReport(FIXTURE);
         assert.ok(
           sheetNames && sheetNames.length >= 1,
-          'the sheet is exposed once positions are implied',
+          `the sheet is exposed once positions are implied; read error: ${JSON.stringify(error)}`,
         );
       },
     },

@@ -25,23 +25,12 @@ export default {
 
   behavior: [
     {
-      name: 'loading a workbook with an unresolved drawing reference does not throw',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.strictEqual(
-          ok,
-          true,
-          `the load must not throw on a dangling drawing reference; got ${error}`,
-        );
-      },
-    },
-    {
       name: 'the worksheet is still present after tolerating the dangling drawing',
       async expect(api: CorpusApi, assert: Assert) {
-        const {sheetNames} = await api.readFixtureReport(FIXTURE);
+        const {sheetNames, error} = await api.readFixtureReport(FIXTURE);
         assert.ok(
           sheetNames?.includes('Sheet1'),
-          `the worksheet must load; got ${JSON.stringify(sheetNames)}`,
+          `the worksheet must load; got ${JSON.stringify(sheetNames)}; read error: ${JSON.stringify(error)}`,
         );
       },
     },

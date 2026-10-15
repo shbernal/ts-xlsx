@@ -28,24 +28,13 @@ export default {
 
   behavior: [
     {
-      name: 'a workbook with non-address defined names reads without throwing',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.strictEqual(
-          ok,
-          true,
-          `the load must not abort on a degenerate defined name; got ${JSON.stringify(error)}`,
-        );
-      },
-    },
-    {
       name: 'every worksheet is recovered intact',
       async expect(api: CorpusApi, assert: Assert) {
-        const {sheetNames} = await api.readFixtureReport(FIXTURE);
+        const {sheetNames, error} = await api.readFixtureReport(FIXTURE);
         assert.deepStrictEqual(
           sheetNames,
           ['Sheet1', 'Data'],
-          'both worksheets survive the tolerant read',
+          `both worksheets survive the tolerant read; read error: ${JSON.stringify(error)}`,
         );
       },
     },

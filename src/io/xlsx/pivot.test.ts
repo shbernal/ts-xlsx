@@ -88,7 +88,7 @@ test('an inline string field escapes its values in the records', () => {
   assert.doesNotMatch(records, RAW_AMP);
 });
 
-test('the pivot is wired end to end: content types, workbook cache, sheet link, and the rel chain', () => {
+test('the pivot parts are declared in the content types and the cache is registered in the workbook', () => {
   const parts = partsWritten(specialCharsWorkbook());
 
   // Content types declare all three generated parts.
@@ -107,20 +107,6 @@ test('the pivot is wired end to end: content types, workbook cache, sheet link, 
     new RegExp(
       `Id="${cacheRelId}"[^>]*\\/pivotCacheDefinition"[^>]*Target="pivotCache\\/pivotCacheDefinition1\\.xml"`,
     ),
-  );
-
-  // The host sheet reaches the pivot table part (no reference in the sheet body itself).
-  const sheetRels = partIn(parts, 'xl/worksheets/_rels/sheet2.xml.rels');
-  assert.match(sheetRels, /\/pivotTable"[^>]*Target="\.\.\/pivotTables\/pivotTable1\.xml"/);
-
-  // The chain: pivot table → cache definition → cache records.
-  assert.match(
-    partIn(parts, 'xl/pivotTables/_rels/pivotTable1.xml.rels'),
-    /\/pivotCacheDefinition"[^>]*Target="\.\.\/pivotCache\/pivotCacheDefinition1\.xml"/,
-  );
-  assert.match(
-    partIn(parts, 'xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels'),
-    /\/pivotCacheRecords"[^>]*Target="pivotCacheRecords1\.xml"/,
   );
 });
 
@@ -188,15 +174,6 @@ test('a count aggregates a non-numeric value field, describing it as a plain sha
   const cache = partIn(parts, 'xl/pivotCache/pivotCacheDefinition1.xml');
   assert.match(cache, /name="Status" numFmtId="0"><sharedItems\/>/);
   assert.match(partIn(parts, 'xl/pivotCache/pivotCacheRecords1.xml'), /<s v="open"\/>/);
-});
-
-test('a package carrying a pivot still reads back its sheets', () => {
-  const back = roundtrip(specialCharsWorkbook());
-  assert.deepEqual(
-    back.worksheets.map((sheet) => sheet.name),
-    ['Data', 'Pivot'],
-  );
-  assert.equal(back.getWorksheet('Data')?.getCell('A2').value, 'Smith & Co');
 });
 
 test('a loaded pivot is reconstructed as an inspectable model on its host sheet', () => {

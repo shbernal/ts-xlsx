@@ -33,16 +33,6 @@ export default {
       },
     },
     {
-      name: 'the foreign-exported original loads without throwing on the mixed shared-string shape',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {ok, error} = await api.readFixtureReport(LARK);
-        assert.ok(
-          ok,
-          `a schema-valid foreign export must load, not throw on its mixed <si>/boolean shapes; got ${JSON.stringify(error)}`,
-        );
-      },
-    },
-    {
       name: 'the foreign export exposes the same worksheet as the normalized copy',
       async expect(api: CorpusApi, assert: Assert) {
         const foreign = await api.readFixtureReport(LARK);
@@ -50,7 +40,7 @@ export default {
         assert.deepStrictEqual(
           foreign.sheetNames,
           normalized.sheetNames,
-          'the two interchangeable inputs must expose the same sheets',
+          `the two interchangeable inputs must expose the same sheets; foreign read error: ${JSON.stringify(foreign.error)}`,
         );
       },
     },

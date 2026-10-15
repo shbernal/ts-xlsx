@@ -149,7 +149,6 @@ function defaultCsvCoerce(field: string): CellValue {
   if (numeric) {
     const value = Number(field);
     const exact =
-      Number.isFinite(value) &&
       Math.abs(value) <= Number.MAX_SAFE_INTEGER &&
       significantDigits(numeric[1] ?? '') <= MAX_EXACT_SIGNIFICANT_DIGITS;
     return exact ? value : field;

@@ -39,9 +39,8 @@ test('an RkNumber in integer form sign-extends its 30-bit payload', () => {
   assert.equal(new RecordReader(word(asInt(536870911))).rk(), 536870911);
 });
 
-test('an RkNumber marked fX100 divides by 100 in both the integer and float forms', () => {
+test('an RkNumber in integer form marked fX100 divides by 100 as the float form does', () => {
   assert.equal(new RecordReader(word(((123 << 2) | 0b11) >>> 0)).rk(), 1.23);
-  assert.equal(new RecordReader(word(0x405ec001)).rk(), 1.23);
 });
 
 test('an XLWideString decodes its UTF-16LE units, including non-Latin and surrogate pairs', () => {

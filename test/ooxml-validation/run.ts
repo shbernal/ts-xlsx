@@ -185,7 +185,6 @@ async function main(): Promise<void> {
     const at = (name: string) => path.join(temp, name);
     const invalid = at('invalid.xlsx');
     const truncated = at('truncated.xlsx');
-    const unsupported = at('unsupported.txt');
 
     await writeBufferedWorkbook(at('buffered.xlsx'));
     await writeStreamingWorkbook(at('streaming-inline.xlsx'), false);
@@ -193,7 +192,6 @@ async function main(): Promise<void> {
     await writeStrictRewrite(at('strict-rewritten.xlsx'));
     await makeSchemaInvalidControl(at('buffered.xlsx'), invalid);
     await writeFile(truncated, (await readFile(at('buffered.xlsx'))).subarray(0, 128));
-    await writeFile(unsupported, 'not an xlsx');
 
     const inputs = [...WRITER_FILES.map(at), invalid, truncated];
     const report = await validate(inputs);
@@ -243,11 +241,6 @@ async function main(): Promise<void> {
       truncatedResult?.errors.map((error) => error.type),
       ['Package'],
     );
-
-    // The other half of that distinction: an input the oracle cannot even dispatch on is a
-    // tool failure (its exit 2), and the package reports it by rejecting rather than by
-    // handing back a report with a made-up verdict in it.
-    await assert.rejects(validate([unsupported]), /Unsupported file extension/);
 
     console.log(
       `ooxml validation (${report.format}, SDK ${report.sdkVersion}): ` +

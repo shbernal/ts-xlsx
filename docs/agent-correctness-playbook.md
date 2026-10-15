@@ -275,9 +275,9 @@ thing on purpose, watch the assertion fire, restore. This has caught real theatr
 An archive-length check meant to pin two writers to the same compression level passed happily at
 level 9, because below roughly 200 rows every level compresses a fixture identically; a
 compile-time exhaustiveness proof is only a proof once you have added a field and seen it named in
-the error. Applies to every mechanism in this repo that exists to catch a future mistake: the facet
-registries, the entry/layering gates, the size budgets. Cheap, and it is the difference between a
-check and a comment.
+the error. Applies to every mechanism in this repo that exists to catch a future mistake: the
+exhaustiveness proofs, the entry/layering gates, the size budgets. Cheap, and it is the difference
+between a check and a comment.
 
 **You are about to claim something is faster, or that it stops blocking the event loop.**
 Measure, and distrust the first number. A bad measurement will talk you out of a correct change.
@@ -415,13 +415,6 @@ reason in its doc comment, which the run counts so the declines stay visible. No
 the emitted `.d.ts` typechecks either way, and `docs:check` regenerates from the barrel, so it sees
 only what the barrel already lists. If the type is a closed token union, publish its `tokenSet` guard
 too; that is the standing rule and `src/entries/core.ts`'s header states it.
-
-**You added an `AssertNever` exhaustiveness proof beside a table.**
-Assert it in `src/type-tests/facet-tables.type-test.ts` as well.
-`node scripts/check-facet-register.ts` requires it. The alias already fails at its own declaration,
-so the gate is not about proving the table: it is about the register's claim to be the one place you
-read to learn which tables carry a guarantee. It had drifted to six of eleven, and reading it told you
-`RowProperties` and `PageSetup` had no proof, which was false.
 
 **You are adding a reader for something a package part already carries.**
 Look for a pass before you write a scan. `parseXmlPasses` (`src/xml/xml-read.ts`) delivers one parse

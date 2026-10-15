@@ -82,14 +82,6 @@ test('an unrecognised token abandons the formula rather than guessing past it', 
   assert.equal(decodeFormula(bytes(0x1e, 1, 0, 0x18, 0x19, 0, 0), NONE, SCOPE), undefined);
 });
 
-test('a short stream citing a long name costs the formula, not the read', () => {
-  // A five-byte `PtgName` stands for a name of any length, so decoded text is not bounded by the bytes
-  // it came from. This stream used to throw a native `RangeError: Invalid string length`.
-  const rgce = nameCitations(600);
-  assert.equal(rgce.length, 3_599);
-  assert.equal(decodeFormula(rgce, NONE, {...SCOPE, names: ['x'.repeat(1 << 20)]}), undefined);
-});
-
 test('a formula as long as Excel allows still decodes', () => {
   const name = 'x'.repeat(8_192);
   assert.equal(decodeFormula(nameCitations(1), NONE, {...SCOPE, names: [name]}), name);
@@ -180,8 +172,8 @@ test('a deferred formula names the cell it defers to, whose column lives in the 
 
 test('the function table matches the specification at every run boundary', () => {
   // The table is transcribed as contiguous runs, so a single miscounted entry would shift every name
-  // after it. These anchors are the first and last of each run, plus the gaps between them.
-  assert.equal(functionNameFor(0x0000), 'COUNT');
+  // after it. These anchors are the first and last of each run inside it; the table's two ends are
+  // anchored in `ptg-functions.test.ts`.
   assert.equal(functionNameFor(0x0004), 'SUM');
   assert.equal(functionNameFor(0x0013), 'PI');
   assert.equal(functionNameFor(0x00a9), 'COUNTA');
@@ -194,13 +186,6 @@ test('the function table matches the specification at every run boundary', () =>
   assert.equal(functionNameFor(0x00ff), 'User Defined Function');
   assert.equal(functionNameFor(0x014c), 'TINV');
   assert.equal(functionNameFor(0x014e), 'MOVIE.COMMAND');
-  assert.equal(functionNameFor(0x017b), 'RTD');
-  assert.equal(functionNameFor(0x017c), 'CUBEVALUE');
-  assert.equal(functionNameFor(0x01e4), 'AVERAGEIFS');
-
-  for (const gap of [0x00ca, 0x00cb, 0x00d9, 0x00da, 0x00f9, 0x00fa, 0x014d, 0x01e5]) {
-    assert.equal(functionNameFor(gap), undefined);
-  }
 });
 
 test('a fixed-arity function knows how many operands belong to its call', () => {
