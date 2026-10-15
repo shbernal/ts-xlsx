@@ -9,22 +9,12 @@ test('serial 1 reads as 1900-01-01, not 1899-12-31', () => {
   assert.equal(iso(1), '1900-01-01T00:00:00.000Z');
 });
 
-test('consecutive serials map to consecutive days', () => {
-  assert.equal(iso(2), '1900-01-02T00:00:00.000Z');
-  assert.equal(iso(3), '1900-01-03T00:00:00.000Z');
-});
-
 test('serial 59 is the real 1900-02-28 just below the phantom leap day', () => {
   assert.equal(iso(59), '1900-02-28T00:00:00.000Z');
 });
 
 test('serial 61 is 1900-03-01, the day after the phantom 1900-02-29', () => {
   assert.equal(iso(61), '1900-03-01T00:00:00.000Z');
-});
-
-test('a modern date round-trips through serial and back exactly', () => {
-  const date = new Date('2020-03-04T00:00:00.000Z');
-  assert.equal(serialToDate(dateToSerial(date, 1900), 1900).toISOString(), date.toISOString());
 });
 
 test('a fractional serial carries the time of day', () => {

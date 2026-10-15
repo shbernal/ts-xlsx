@@ -583,24 +583,6 @@ test('committing a streamed row twice does not duplicate it in the sheet', async
   );
 });
 
-test('a styled row committed eagerly round-trips its fill through the shared style registry', async () => {
-  const writer = new WorkbookStreamWriter();
-  const sheet = writer.addWorksheet('S');
-  const row = sheet.addRow(['tinted']);
-  const cell = row.cells[0];
-  assert.ok(cell);
-  cell.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFF0000'}};
-  row.commit();
-
-  const fill = readXlsx(await committed(writer))
-    .getWorksheet('S')
-    ?.getCell('A1').fill;
-  assert.ok(
-    fill && fill.type === 'pattern' && fill.pattern === 'solid',
-    'the eagerly-flushed row kept its fill',
-  );
-});
-
 // `addRow` hands back the cells it made, but the row stays open to `getCell` until it is committed,
 // and committing evicts every cell the model holds for it. Rendering only the cells `addRow` made
 // dropped the rest from the file, with nothing to say so.

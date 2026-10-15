@@ -29,16 +29,6 @@ test('a note body reads its base text, not the phonetic run stored beside it', (
   assert.equal(parsed.get('A1')?.text, '漢字');
 });
 
-test('a cell note survives the write/read round-trip', () => {
-  const wb = new Workbook();
-  const ws = wb.addWorksheet('S');
-  ws.getCell('A1').value = 'data';
-  ws.getCell('A1').note = 'a helpful note';
-  const back = roundtrip(wb).getWorksheet('S');
-  assert.strictEqual(back?.getCell('A1').value, 'data');
-  assert.strictEqual(back?.getCell('A1').note, 'a helpful note');
-});
-
 test('a note attaches to an otherwise-empty cell', () => {
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');

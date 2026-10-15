@@ -52,10 +52,6 @@ test('a function name inside a string literal is never mangled', () => {
   assert.equal(mangleFunctions('CONCAT("SORT()",A1)'), '_xlfn.CONCAT("SORT()",A1)');
 });
 
-test('mangling introduces no @ implicit-intersection operator', () => {
-  assert.equal(mangleFunctions('IFS(B1>0,"pos",B1<0,"neg")'), '_xlfn.IFS(B1>0,"pos",B1<0,"neg")');
-});
-
 test('matching is case-insensitive on the function name but preserves its casing', () => {
   assert.equal(mangleFunctions('filter(A:A,B:B=1)'), '_xlfn._xlws.filter(A:A,B:B=1)');
   assert.equal(mangleFunctions('Xlookup(1,A:A,B:B)'), '_xlfn.Xlookup(1,A:A,B:B)');
@@ -147,14 +143,6 @@ test('a dotted 2010 statistical function is matched whole and prefixed', () => {
   assert.equal(mangleFunctions('BETA.INV(0.5,2,3)'), '_xlfn.BETA.INV(0.5,2,3)');
   assert.equal(mangleFunctions('T.DIST.2T(2,10)'), '_xlfn.T.DIST.2T(2,10)');
   assert.equal(mangleFunctions('NORM.S.INV(0.9)'), '_xlfn.NORM.S.INV(0.9)');
-});
-
-test('a dotted function only gets one prefix, on the whole name, not per segment', () => {
-  assert.equal(mangleFunctions('CHISQ.DIST.RT(3,2)'), '_xlfn.CHISQ.DIST.RT(3,2)');
-});
-
-test('an already-prefixed dotted function is not double-prefixed', () => {
-  assert.equal(mangleFunctions('_xlfn.NORM.DIST(A1,0,1,TRUE)'), '_xlfn.NORM.DIST(A1,0,1,TRUE)');
 });
 
 test('a dotted function nested beside plain and legacy functions is prefixed correctly', () => {

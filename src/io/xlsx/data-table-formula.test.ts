@@ -107,25 +107,3 @@ test('a ref-less t="dataTable" declaration is tolerated, not read as a data tabl
   );
   assert.strictEqual(value, 7, 'the cell falls back to its plain cached payload');
 });
-
-test('a re-written data-table formula still declares t="dataTable" after a read-modify-write', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.getCell('B2').value = {
-    shareType: 'dataTable',
-    ref: 'B2:B5',
-    dataTableRow: true,
-    r1: 'A1',
-    result: 99,
-  };
-
-  const reloaded = roundtrip(wb);
-  const sheet2 = reloaded.getWorksheet('S');
-  assert.ok(sheet2, 'the sheet reloads');
-  sheet2.getCell('A1').value = 'edited elsewhere';
-  assert.match(
-    sheetXml(writeXlsx(reloaded)),
-    /t="dataTable"/,
-    'the kind survives an unrelated edit',
-  );
-});

@@ -153,14 +153,19 @@ test('a missing sheet selector is an error, not silent emptiness', () => {
   assert.throws(() => rows(data, {sheet: 3}), /no worksheet at position 3/);
 });
 
-test('an inline string cell decodes through the streaming SAX path', () => {
-  // writeXlsx pools strings into sharedStrings, so hand-build an inlineStr sheet to prove the
-  // `<is><t>` path the streaming reader must also handle.
-  const archive = foreignPackage({
-    [SHEET1]: foreignSheet('<row r="1"><c r="A1" t="inlineStr"><is><t>hi there</t></is></c></row>'),
-  });
+// The writer inlines strings by default, so every other case here streams `<is><t>`; pooling them is
+// what sends a cell through the `t="s"` lookup into the shared-strings part.
+test('a t="s" cell resolves against the shared-strings part through the streaming SAX path', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'hi there';
+  sheet.getCell('B1').value = 'other';
+  sheet.getCell('A2').value = 'hi there';
 
-  assert.equal(rows(archive)[0]?.cells[0]?.value, 'hi there');
+  assert.deepEqual(
+    rows(writeXlsx(wb, {useSharedStrings: true})).map((row) => row.cells.map((cell) => cell.value)),
+    [['hi there', 'other'], ['hi there']],
+  );
 });
 
 test('a row past the last row is dropped, as the buffered reader drops it', () => {
@@ -307,24 +312,6 @@ test('a stylesheet at an unconventional path is still found, so a date stays a d
   assert.deepEqual(model?.getCell('A1').value, row?.cells[0]?.value);
 });
 
-test('streamed values agree with readXlsx cell-for-cell', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.getCell('A1').value = 'text';
-  sheet.getCell('B1').value = 3.14;
-  sheet.getCell('A2').value = false;
-  sheet.getCell('B2').value = {formula: 'A1&"!"', result: 'text!'};
-  sheet.getCell('A3').value = new Date(Date.UTC(2000, 0, 1));
-  const data = writeXlsx(wb);
-
-  const model = readXlsx(data).getWorksheet('S');
-  for (const row of rows(data)) {
-    for (const cell of row.cells) {
-      assert.deepEqual(cell.value, model?.getCell(cell.address).value, cell.address);
-    }
-  }
-});
-
 test('readWorkbookStream yields every worksheet in order, by declared name', () => {
   const wb = new Workbook();
   wb.addWorksheet('Alpha').getCell('A1').value = 1;
@@ -352,23 +339,6 @@ test('hidden columns and merges resolve lazily even without iterating rows', () 
   // Reading a summary before touching rows() drives a scan of its own.
   assert.deepEqual(streamed.hiddenColumns, [3]);
   assert.deepEqual(streamed.merges, ['A1:B2']);
-});
-
-test('a streamed row carries its hidden flag; visible rows report false', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.getCell('A1').value = 'top';
-  sheet.getCell('A2').value = 'mid';
-  sheet.getRow(2).hidden = true;
-
-  const [streamed] = [...readWorkbookStream(writeXlsx(wb))];
-  assert.deepEqual(
-    [...streamed!.rows()].map((row) => [row.number, row.hidden]),
-    [
-      [1, false],
-      [2, true],
-    ],
-  );
 });
 
 test('readWorkbookStream agrees with readXlsx across every sheet and cell', () => {

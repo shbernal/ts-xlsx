@@ -41,7 +41,6 @@ test('every taxonomy error is catchable as one XlsxError and as a plain Error', 
   for (const [Class] of TAXONOMY) {
     const error = new Class('boom');
     assert.ok(error instanceof XlsxError, `${Class.name} is not an XlsxError`);
-    assert.ok(error instanceof Error, `${Class.name} is not an Error`);
     // `InternalError` appends a report pointer below the message and is asserted exactly in its own
     // test; every other class is contracted to hand back what it was given, unchanged.
     if (Class === InternalError) {

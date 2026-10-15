@@ -27,24 +27,13 @@ export default {
 
   behavior: [
     {
-      name: 'a workbook whose drawing is a chart graphicFrame loads without throwing',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.strictEqual(
-          ok,
-          true,
-          `a chart-bearing drawing must be tolerated; got ${JSON.stringify(error)}`,
-        );
-      },
-    },
-    {
       name: 'the worksheets are recovered after loading the chart-bearing workbook',
       async expect(api: CorpusApi, assert: Assert) {
-        const {sheetNames} = await api.readFixtureReport(FIXTURE);
+        const {sheetNames, error} = await api.readFixtureReport(FIXTURE);
         assert.deepStrictEqual(
           sheetNames,
           ['Sheet1', 'Second'],
-          'both worksheets survive the tolerant load',
+          `both worksheets survive the tolerant load; read error: ${JSON.stringify(error)}`,
         );
       },
     },

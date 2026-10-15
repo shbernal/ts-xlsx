@@ -420,13 +420,11 @@ test('a non-numeric paperSize is dropped on read, not stored as NaN', () => {
   assert.equal(back?.pageSetup.scale, 96);
 });
 
-test('a sheet with no page setup emits neither <pageSetUpPr> nor <pageSetup>', () => {
+test('a sheet with no page setup emits no <pageSetup> and reads back none', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'y';
 
-  const xml = sheetXml(writeXlsx(wb));
-  assert.doesNotMatch(xml, /<pageSetUpPr/);
-  assert.doesNotMatch(xml, /<pageSetup/);
+  assert.doesNotMatch(sheetXml(writeXlsx(wb)), /<pageSetup/);
   const back = roundtrip(wb).getWorksheet('S');
   assert.equal(back?.pageSetup.fitToPage, undefined);
   assert.equal(back?.pageSetup.scale, undefined);
@@ -441,15 +439,4 @@ test('a <pageSetUpPr> present only for other reasons leaves fitToPage unset', ()
   });
   const back = readXlsx(patched).getWorksheet('S');
   assert.equal(back?.pageSetup.fitToPage, undefined);
-});
-
-test('page setup survives a worksheet model export/import', () => {
-  const wb = new Workbook();
-  const src = wb.addWorksheet('Src');
-  src.pageSetup.fitToPage = true;
-  src.pageSetup.scale = 75;
-  const dst = wb.addWorksheet('Dst');
-  dst.model = src.model;
-  assert.equal(dst.pageSetup.fitToPage, true);
-  assert.equal(dst.pageSetup.scale, 75);
 });

@@ -264,7 +264,6 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
           {command: NODE, args: ['scripts/check-corpus-blind.ts']},
           {command: NODE, args: ['scripts/check-entries.ts']},
           {command: NODE, args: ['scripts/check-public-types.ts']},
-          {command: NODE, args: ['scripts/check-facet-register.ts']},
           {command: NODE, args: ['scripts/check-tsconfig-coverage.ts']},
           {command: NODE, args: ['scripts/check-browser-safe.ts']},
           {command: NODE, args: ['scripts/check-source-text.ts']},

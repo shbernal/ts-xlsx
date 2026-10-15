@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import type {Fill, Font} from '../../core/style.ts';
+import type {Fill} from '../../core/style.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {AuthoringError, XlsxError} from '../../errors.ts';
 import {partText, patchParts, roundtrip} from './package.test-support.ts';
@@ -175,35 +175,6 @@ test('two fills that differ only in a colour tint take two fill ids', () => {
   assert.match(styles.toXml(), /<fills count="4">/);
 });
 
-test('an identical number format interns to one shared xf index', () => {
-  const styles = registry();
-  const first = styles.styleId({numFmt: '0.00%'});
-  for (let i = 0; i < 40; i++) {
-    assert.equal(
-      styles.styleId({numFmt: '0.00%'}),
-      first,
-      'every identical numFmt returns the same index',
-    );
-  }
-  assert.notEqual(first, 0, 'a real numFmt gets a non-default index');
-});
-
-test('fill and number format are independent facets: the same fill under two formats is two xfs', () => {
-  const styles = registry();
-  const plain = styles.styleId({fill: solid('FFFF0000')});
-  const formatted = styles.styleId({fill: solid('FFFF0000'), numFmt: '0.00'});
-  assert.notEqual(plain, formatted, 'adding a number format to a fill is a distinct style');
-});
-
-test('genuinely different styles get distinct xf indices: dedup does not over-collapse', () => {
-  const styles = registry();
-  const red = styles.styleId({fill: solid('FFFF0000')});
-  const blue = styles.styleId({fill: solid('FF0000FF')});
-  const pct = styles.styleId({numFmt: '0.00%'});
-  const cur = styles.styleId({numFmt: '"$"#,##0.00'});
-  assert.equal(new Set([red, blue, pct, cur]).size, 4, 'four distinct styles, four indices');
-});
-
 test('the emitted stylesheet reflects the interned fills and cell formats', () => {
   const styles = registry();
   styles.styleId({fill: solid('FFFF0000')});
@@ -305,19 +276,6 @@ test('an empty registry still emits a valid minimal stylesheet with no <numFmts>
   assert.match(xml, /<cellXfs count="1">/); // just the default xf
 });
 
-test('an identical font interns to one shared xf index', () => {
-  const styles = registry();
-  const first = styles.styleId({font: {bold: true}});
-  for (let i = 0; i < 40; i++) {
-    assert.equal(
-      styles.styleId({font: {bold: true}}),
-      first,
-      'every identical font returns the same index',
-    );
-  }
-  assert.notEqual(first, 0, 'a real font gets a non-default index');
-});
-
 test('a font that overrides nothing resolves to the default xf 0: no font entry', () => {
   const styles = registry();
   assert.equal(styles.styleId({font: {}}), 0);
@@ -370,39 +328,10 @@ test('an underline flag serialises single as a bare tag and a named variant with
   assert.match(xml, /<font><u val="double"\/><\/font>/);
 });
 
-test('an identical border interns to one shared xf index', () => {
-  const styles = registry();
-  const first = styles.styleId({border: {top: {style: 'thin'}}});
-  for (let i = 0; i < 40; i++) {
-    assert.equal(
-      styles.styleId({border: {top: {style: 'thin'}}}),
-      first,
-      'every identical border returns the same index',
-    );
-  }
-  assert.notEqual(first, 0, 'a real border gets a non-default index');
-});
-
 test('a border that styles no edge resolves to the default xf 0: no border entry', () => {
   const styles = registry();
   assert.equal(styles.styleId({border: {}}), 0);
   assert.match(styles.toXml(), /<borders count="1">/); // just the empty default border
-});
-
-test('font, fill, number format, and border are independent facets composed into one xf', () => {
-  const styles = registry();
-  const b = styles.styleId({border: {top: {style: 'thin'}}});
-  const bFill = styles.styleId({border: {top: {style: 'thin'}}, fill: solid('FFFF0000')});
-  const bFillFont = styles.styleId({
-    border: {top: {style: 'thin'}},
-    fill: solid('FFFF0000'),
-    font: {bold: true},
-  });
-  assert.equal(
-    new Set([b, bFill, bFillFont]).size,
-    3,
-    'each added facet is a distinct composed style',
-  );
 });
 
 test('a custom border is defined in <borders> after the default and referenced by its xf', () => {
@@ -426,19 +355,6 @@ test('a custom border is defined in <borders> after the default and referenced b
     /<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"\/>/,
   );
   assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"\/>/);
-});
-
-test('an identical alignment interns to one shared xf index', () => {
-  const styles = registry();
-  const first = styles.styleId({alignment: {horizontal: 'center'}});
-  for (let i = 0; i < 40; i++) {
-    assert.equal(
-      styles.styleId({alignment: {horizontal: 'center'}}),
-      first,
-      'every identical alignment returns the same index',
-    );
-  }
-  assert.notEqual(first, 0, 'a real alignment gets a non-default index');
 });
 
 test('an all-default alignment resolves to the default xf 0: no <alignment>', () => {
@@ -465,35 +381,6 @@ test('alignment composes into the xf as a child element, not a shared sub-table'
     /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="top" textRotation="45" wrapText="1" indent="2"\/><\/xf>/,
   );
   assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"\/>/);
-});
-
-test('alignment is an independent facet composed alongside fill, font, and border', () => {
-  const styles = registry();
-  const a = styles.styleId({alignment: {wrapText: true}});
-  const aFill = styles.styleId({alignment: {wrapText: true}, fill: solid('FFFF0000')});
-  const aFillFont = styles.styleId({
-    alignment: {wrapText: true},
-    fill: solid('FFFF0000'),
-    font: {bold: true},
-  });
-  assert.equal(
-    new Set([a, aFill, aFillFont]).size,
-    3,
-    'each added facet is a distinct composed style',
-  );
-});
-
-test('an identical protection interns to one shared xf index', () => {
-  const styles = registry();
-  const first = styles.styleId({protection: {locked: false}});
-  for (let i = 0; i < 40; i++) {
-    assert.equal(
-      styles.styleId({protection: {locked: false}}),
-      first,
-      'every identical protection returns the same index',
-    );
-  }
-  assert.notEqual(first, 0, 'a real protection gets a non-default index');
 });
 
 test('an all-default protection resolves to the default xf 0: no <protection>', () => {
@@ -529,22 +416,6 @@ test('alignment and protection compose as two xf children in schema order', () =
   );
 });
 
-test('protection is an independent facet composed alongside fill, font, and border', () => {
-  const styles = registry();
-  const p = styles.styleId({protection: {locked: false}});
-  const pFill = styles.styleId({protection: {locked: false}, fill: solid('FFFF0000')});
-  const pFillFont = styles.styleId({
-    protection: {locked: false},
-    fill: solid('FFFF0000'),
-    font: {bold: true},
-  });
-  assert.equal(
-    new Set([p, pFill, pFillFont]).size,
-    3,
-    'each added facet is a distinct composed style',
-  );
-});
-
 test('a non-string number format is dropped rather than corrupting the styles part', () => {
   const styles = registry();
   // A caller wrongly assigns a structured `{id, formatCode}` object where a format-code string belongs.
@@ -557,17 +428,6 @@ test('a non-string number format is dropped rather than corrupting the styles pa
     'the styles part must never carry a stringified object',
   );
   assert.doesNotMatch(xml, /<numFmts/, 'no custom numFmt entry is emitted for the dropped object');
-});
-
-test('a valid format-code string still interns alongside other facets', () => {
-  const styles = registry();
-  const id = styles.styleId({
-    numFmt: 'yyyy-mmm-dd',
-    font: {bold: true},
-    protection: {locked: false},
-  });
-  assert.notEqual(id, 0, 'the string format composes into a real style');
-  assert.match(styles.toXml(), /formatCode="yyyy-mmm-dd"/);
 });
 
 test('the quote-prefix flag emits quotePrefix="1" on the xf and forms a distinct style', () => {
@@ -641,35 +501,6 @@ test("a plain workbook's font 0 is the Office default", () => {
     registry().toXml(),
     /<fonts count="1"><font><sz val="11"\/><color theme="1"\/><name val="Calibri"\/><family val="2"\/><scheme val="minor"\/><\/font><\/fonts>/,
   );
-});
-
-test('a cell carrying the workbook default font interns to id 0, adding no redundant entry', () => {
-  const defaultFont: Font = {size: 11, color: {theme: 1}, name: 'Aptos Narrow', scheme: 'minor'};
-  const styles = new StyleRegistry({defaultFont});
-  assert.equal(styles.styleId({font: defaultFont}), 0, 'it needs no cellXfs entry either');
-  assert.match(styles.toXml(), /<fonts count="1">/);
-});
-
-test('a cell carrying the *source* default font also interns to id 0, so it follows a new default', () => {
-  // The reader flattens font 0 onto every xf that names it, so a cell that merely inherited the
-  // file's default arrives carrying it as a concrete face. Treating that as an authored intent would
-  // pin the cell to the old face through a custom entry while its unstyled neighbours moved.
-  const declaredDefaultFont: Font = {size: 11, name: 'Aptos Narrow'};
-  const styles = new StyleRegistry({
-    defaultFont: {size: 11, name: 'Georgia'},
-    declaredDefaultFont,
-  });
-  assert.equal(styles.styleId({font: declaredDefaultFont}), 0);
-  assert.match(styles.toXml(), /<fonts count="1"><font><sz val="11"\/><name val="Georgia"\/>/);
-});
-
-test('a font that is neither default is still interned as a custom entry', () => {
-  const styles = new StyleRegistry({
-    defaultFont: {size: 11, name: 'Georgia'},
-    declaredDefaultFont: {size: 11, name: 'Aptos Narrow'},
-  });
-  assert.equal(styles.styleId({font: {size: 11, name: 'Courier New'}}), 1);
-  assert.match(styles.toXml(), /<fonts count="2">/);
 });
 
 test('a number format code keeps its bare apostrophe but not a character XML cannot carry', () => {

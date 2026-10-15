@@ -85,7 +85,7 @@ export function buildDirStream(codePage: number, modules: ModuleSpec[]): number[
 }
 
 /** Bytes stored in a module's CFB stream: a fake p-code prefix, then the compressed source. */
-export function buildModuleStream(m: ModuleSpec): Uint8Array {
+function buildModuleStream(m: ModuleSpec): Uint8Array {
   const compressed = storeCompress(Uint8Array.from(m.sourceBytes));
   const out = new Uint8Array(m.pcodePrefixLen + compressed.length);
   out.set(compressed, m.pcodePrefixLen); // prefix left as zeros: stand-in for the PerformanceCache
@@ -247,7 +247,7 @@ function buildCfb(
   return buf;
 }
 
-export const PROJECT_STREAM = [
+const PROJECT_STREAM = [
   'ID="{00000000-0000-0000-0000-000000000000}"',
   'Document=ThisWorkbook/&H00000000',
   'Module=Module1',

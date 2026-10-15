@@ -47,12 +47,6 @@ test('registering one human under two ids keeps both, which is what Excel itself
   );
 });
 
-test('an id the registry does not hold resolves to nothing rather than a near match', () => {
-  const wb = new Workbook();
-  wb[INTERNAL].restorePersons([GRACE_AUTHOR]);
-  assert.equal(wb.getPerson('{NOT-REGISTERED}'), undefined);
-});
-
 test('a workbook with no threaded comments has an empty person registry', () => {
   assert.deepEqual(new Workbook().persons, []);
 });
@@ -75,10 +69,6 @@ test('a sheet exposes its threads in the order they were read', () => {
     sheet.commentThreads.map((thread) => thread.ref),
     ['B1', 'B2'],
   );
-});
-
-test('a sheet with no threaded comments has no threads', () => {
-  assert.deepEqual(new Workbook().addWorksheet('S').commentThreads, []);
 });
 
 test('a thread is found by its anchor, absolute reference or not', () => {

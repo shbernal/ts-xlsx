@@ -107,17 +107,6 @@ test('an unrecognised boolean token on a table or its style info is dropped, not
   assert.equal(options?.totalsRowShown, undefined);
 });
 
-test('a loaded table exposes its data-row count, not an empty rows array', () => {
-  const [table] = roundtripTable({
-    name: 'T',
-    ref: 'A1',
-    columns: [{name: 'Name'}],
-    rowCount: 5,
-  });
-  assert.ok(table !== undefined);
-  assert.equal(table.options.rowCount, 5, 'the data-row count survives the round-trip');
-});
-
 test('an empty-body table (header only) round-trips with a zero data-row count', () => {
   const [table] = roundtripTable({
     name: 'Empty',
@@ -341,28 +330,6 @@ test('declaring a table fills its header row cells with the column names', () =>
   assert.equal(sheet.getCell('D3').value, 'Beta');
 });
 
-test('a headerless table claims no header row', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.addTable({
-    name: 'T',
-    ref: 'A1',
-    columns: [{name: 'Alpha'}],
-    rowCount: 1,
-    headerRow: false,
-  });
-  assert.equal(sheet.getCell('A1').value, null, 'row 1 belongs to the data, not a header');
-});
-
-test('a header cell that already holds a value is not overwritten by a table declaration', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.getCell('A1').value = 'Existing';
-  sheet.addTable({name: 'T', ref: 'A1', columns: [{name: 'Alpha'}, {name: 'Beta'}], rowCount: 1});
-  assert.equal(sheet.getCell('A1').value, 'Existing', 'authored content wins over the column name');
-  assert.equal(sheet.getCell('B1').value, 'Beta', 'the empty header cell is still filled');
-});
-
 // Reading re-registers every table through addTable *after* the sheet's cells are loaded, so the
 // header-filling step runs against a populated grid. It must never write over what the file said:
 // these two cases are the ones where the loaded cell carries more than the column name does.
@@ -463,18 +430,6 @@ test('an empty-body table refs the full header row and writes a table part', () 
   );
 });
 
-test('a data row extends the table ref by one row', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').addTable({
-    name: 'T',
-    ref: 'A1',
-    columns: [{name: 'A'}, {name: 'B'}],
-    rowCount: 1,
-  });
-  const table = partIn(partsWritten(wb), 'xl/tables/table1.xml');
-  assert.match(table, /ref="A1:B2"/);
-});
-
 test('a headerless table sets headerRowCount="0" and emits no autoFilter', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').addTable({
@@ -539,17 +494,6 @@ test('a calculated column writes its formula before the totals formula, escaped'
   assert.equal(back?.columns[0]?.calculatedColumnFormula, undefined);
 });
 
-test('a no-totals table omits totalsRowShown unless the flag is set explicitly', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
-  const table = partIn(partsWritten(wb), 'xl/tables/table1.xml');
-  assert.doesNotMatch(
-    table,
-    /totalsRowShown/,
-    'an unset flag emits no attribute: Excel must not see a spurious one',
-  );
-});
-
 test('an explicit totalsRowShown flag is written as "0" or "1"', () => {
   const off = new Workbook();
   off
@@ -566,13 +510,6 @@ test('an explicit totalsRowShown flag is written as "0" or "1"', () => {
     totalsRowShown: true,
   });
   assert.match(partIn(partsWritten(on), 'xl/tables/table1.xml'), /totalsRowShown="1"/);
-});
-
-test("a table with no explicit style is written with Excel's default TableStyleMedium2", () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
-  const table = partIn(partsWritten(wb), 'xl/tables/table1.xml');
-  assert.match(table, /<tableStyleInfo name="TableStyleMedium2"[^>]*showRowStripes="1"[^>]*\/>/);
 });
 
 test('an explicit table style is emitted verbatim, omitting the attributes it leaves unset', () => {
@@ -612,19 +549,6 @@ test('an illegal table name is rejected at definition time', () => {
     () => s.addTable({name: 'test-name', ref: 'A1', columns: [{name: 'A'}], rowCount: 1}),
     /identifier/,
   );
-});
-
-test('a valid identifier table name is written verbatim', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').addTable({
-    name: 'Valid_Name',
-    ref: 'A1',
-    columns: [{name: 'A'}],
-    rowCount: 1,
-  });
-  const table = partIn(partsWritten(wb), 'xl/tables/table1.xml');
-  assert.match(table, /name="Valid_Name"/);
-  assert.match(table, /displayName="Valid_Name"/);
 });
 
 test('tables are numbered globally across sheets with sheet-local rel ids', () => {

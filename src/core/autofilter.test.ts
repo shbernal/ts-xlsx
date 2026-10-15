@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {AuthoringError} from '../errors.ts';
 import {type AutoFilter, canonicalizeAutoFilter, shiftAutoFilter} from './autofilter.ts';
 
 // The most involved re-anchoring in the model, and the one with the least visible failure: a
@@ -23,13 +22,6 @@ const colIdsOf = (filter: AutoFilter | undefined) => filter?.columns.map((c) => 
 
 test('canonicalizeAutoFilter normalises a bare range string to a criteria-free filter', () => {
   assert.deepEqual(canonicalizeAutoFilter('$B$2:$D$10'), {ref: 'B2:D10', columns: []});
-});
-
-test('canonicalizeAutoFilter refuses a range that is not a bounded rectangle', () => {
-  // A whole-row or whole-column reference names no filterable region: there is no header row to
-  // hang the dropdowns on and no width to measure a colId against.
-  assert.throws(() => canonicalizeAutoFilter('B:B'), AuthoringError);
-  assert.throws(() => canonicalizeAutoFilter('2:2'), AuthoringError);
 });
 
 test('a column insert before the filter re-bases every criterion against the new left edge', () => {

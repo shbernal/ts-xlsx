@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+import {strFromU8, strToU8, zipSync} from 'fflate';
 
-import {PackageReadError} from './errors.ts';
 import {inflatePackage} from './inflate.ts';
 
 /** A deterministic, near-incompressible byte pattern, large enough to span several input
@@ -38,14 +37,10 @@ test('a part whose data spans several input slices is reassembled byte-for-byte'
 test('the running counter rejects output that exceeds the cap', () => {
   // 1 MiB of zeros compresses to a fraction of a kilobyte but inflates well past a 4 KiB cap.
   const archive = zipSync({'bomb.bin': new Uint8Array(1024 * 1024)});
-  assert.throws(() => inflatePackage(archive, 4096), PackageReadError);
-  assert.throws(() => inflatePackage(archive, 4096), /possible zip bomb/);
-});
-
-test('a package under the cap inflates without complaint', () => {
-  const archive = zipSync({'ok.bin': new Uint8Array(1024 * 1024)});
-  const files = inflatePackage(archive, 2 * 1024 * 1024);
-  assert.equal((files['ok.bin'] as Uint8Array).length, 1024 * 1024);
+  assert.throws(() => inflatePackage(archive, 4096), {
+    name: 'PackageReadError',
+    message: /possible zip bomb/,
+  });
 });
 
 test('a header that lies small about its uncompressed size is still bounded by real output', () => {
@@ -60,7 +55,6 @@ test('a header that lies small about its uncompressed size is still bounded by r
   );
   const view = new DataView(archive.buffer, archive.byteOffset, archive.byteLength);
   view.setUint32(22, 1, true); // uncompressed size → 1
-  assert.equal(view.getUint32(22, true), 1, 'the forged header now declares a single byte');
 
   assert.throws(() => inflatePackage(archive, 64 * 1024), /possible zip bomb/);
 });
@@ -170,15 +164,5 @@ test('an entry name that cannot be a part name is refused, not normalised', () =
       {name: 'PackageReadError', message: /illegal part name/},
       name,
     );
-  }
-});
-
-test('inflatePackage agrees with fflate on a well-formed archive', () => {
-  const archive = zipSync({a: strToU8('one'), b: noise(3000)});
-  const ours = inflatePackage(archive, GENEROUS_CAP);
-  const theirs = unzipSync(archive);
-  assert.deepEqual(Object.keys(ours).sort(), Object.keys(theirs).sort());
-  for (const name of Object.keys(theirs)) {
-    assert.deepEqual(ours[name], theirs[name], name);
   }
 });

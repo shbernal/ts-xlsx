@@ -28,21 +28,14 @@ export default {
 
   behavior: [
     {
-      name: 'an out-of-range filterColumn colId does not abort the load',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.strictEqual(
-          ok,
-          true,
-          `a dangling filter-column reference must be tolerated, not crash the load; got ${JSON.stringify(error)}`,
-        );
-      },
-    },
-    {
       name: 'the worksheet is recovered intact despite the dangling reference',
       async expect(api: CorpusApi, assert: Assert) {
-        const {sheetNames} = await api.readFixtureReport(FIXTURE);
-        assert.deepStrictEqual(sheetNames, ['Sheet1'], 'the sheet survives the tolerant read');
+        const {sheetNames, error} = await api.readFixtureReport(FIXTURE);
+        assert.deepStrictEqual(
+          sheetNames,
+          ['Sheet1'],
+          `the sheet survives the tolerant read; read error: ${JSON.stringify(error)}`,
+        );
       },
     },
   ],

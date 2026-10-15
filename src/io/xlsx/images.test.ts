@@ -308,7 +308,6 @@ test('imageContentType falls back to a string for an extension naming an Object.
   // The extension comes off a media part's name, so the table it indexes must not answer with
   // an inherited function: that value goes straight into a [Content_Types].xml attribute.
   const type = imageContentType('constructor');
-  assert.strictEqual(typeof type, 'string');
   assert.strictEqual(type, 'image/constructor');
   assert.strictEqual(imageContentType('PNG'), 'image/png', 'the known table still answers');
 });

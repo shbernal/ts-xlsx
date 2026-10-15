@@ -16,8 +16,7 @@
 /** Report a check's result and set the exit code. */
 export function verdict(options: {
   /**
-   * The check's name, which prefixes both lines. Matches the `*:check` package script and the gate
-   * name `scripts/verify.ts` reports, so a failure names the command to re-run.
+   * The check's name, which prefixes both lines so a failure says which check it came from.
    */
   readonly gate: string;
   /**

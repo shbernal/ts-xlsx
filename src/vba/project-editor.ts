@@ -299,7 +299,7 @@ function removeModuleDirRecord(dir: Uint8Array, streamName: string, decoder: Dec
     }
   }
   if (countAt < 0) throw new VbaParseError('dir stream is missing MODULES_COUNT');
-  if (removeStart < 0 || removeEnd < 0) {
+  if (removeStart < 0) {
     throw new VbaParseError(`module stream ${quoted(streamName)} not found in the dir stream`);
   }
 
@@ -404,7 +404,7 @@ function removeProjectwmRecord(
       removeEnd = pos;
     }
   }
-  if (removeStart < 0 || removeEnd < 0) {
+  if (removeStart < 0) {
     throw new VbaParseError(`module ${quoted(name)} not found in the PROJECTwm stream`);
   }
 

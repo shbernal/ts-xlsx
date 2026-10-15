@@ -28,23 +28,12 @@ export default {
 
   behavior: [
     {
-      name: 'a workbook with a reserved-named sheet loads without throwing',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.strictEqual(
-          ok,
-          true,
-          `a pre-existing reserved sheet name must not abort the load; got ${JSON.stringify(error)}`,
-        );
-      },
-    },
-    {
       name: 'the reserved-named sheet is exposed with its original name preserved',
       async expect(api: CorpusApi, assert: Assert) {
-        const {sheetNames} = await api.readFixtureReport(FIXTURE);
+        const {sheetNames, error} = await api.readFixtureReport(FIXTURE);
         assert.ok(
           sheetNames?.includes('History'),
-          `the History sheet must survive; got ${JSON.stringify(sheetNames)}`,
+          `the History sheet must survive; got ${JSON.stringify(sheetNames)}; read error: ${JSON.stringify(error)}`,
         );
       },
     },

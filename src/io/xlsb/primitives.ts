@@ -12,7 +12,7 @@
 
 import {decodeUtf16le} from '../../bytes.ts';
 import type {Color} from '../../core/style.ts';
-import {type ErrorCode, isErrorCode} from '../../core/value.ts';
+import type {ErrorCode} from '../../core/value.ts';
 import {hex} from '../../hex.ts';
 import {XlsbParseError} from './errors.ts';
 
@@ -234,11 +234,10 @@ export class RecordReader {
 
 /** A `BErr` ([MS-XLSB] 2.5.98.2) error code, as the model's error string. */
 export function errorCodeFor(code: number): ErrorCode | undefined {
-  const text = BERR_CODES.get(code);
-  return text !== undefined && isErrorCode(text) ? text : undefined;
+  return BERR_CODES.get(code);
 }
 
-const BERR_CODES: ReadonlyMap<number, string> = new Map([
+const BERR_CODES: ReadonlyMap<number, ErrorCode> = new Map<number, ErrorCode>([
   [0x00, '#NULL!'],
   [0x07, '#DIV/0!'],
   [0x0f, '#VALUE!'],

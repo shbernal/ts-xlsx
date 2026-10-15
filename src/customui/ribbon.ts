@@ -20,6 +20,7 @@ import {strFromU8} from 'fflate';
 
 import {isRelType} from '../rel-type.ts';
 import {tokenSet} from '../token-set.ts';
+import {XmlParseError} from '../xml/errors.ts';
 import {boolStrict, localName, type XmlAttributes, xmlEvents} from '../xml/xml-scan.ts';
 import {CustomUiParseError} from './errors.ts';
 
@@ -193,9 +194,8 @@ export function parseCustomUi(input: string | Uint8Array): CustomUiDocument {
   try {
     root = buildTree(xml);
   } catch (error) {
-    if (error instanceof CustomUiParseError) throw error;
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new CustomUiParseError(`malformed customUI XML: ${detail}`, {cause: error});
+    if (!(error instanceof XmlParseError)) throw error;
+    throw new CustomUiParseError(`malformed customUI XML: ${error.message}`, {cause: error});
   }
 
   const customUi = findChild(root, 'customUI');
@@ -280,8 +280,8 @@ function buildTree(xml: string): RawElement {
 
   for (const event of xmlEvents(xml)) {
     if (event.kind === 'open') {
-      const parent = stack[stack.length - 1];
-      if (parent === undefined) throw new CustomUiParseError('unbalanced customUI markup');
+      // The close branch below never pops the synthetic root, so the stack is never empty here.
+      const parent = stack[stack.length - 1] as RawElement;
       const el: RawElement = {
         name: event.name,
         local: localName(event.name),

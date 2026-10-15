@@ -1,4 +1,4 @@
-import {AuthoringError, quoted} from '../errors.ts';
+import {AuthoringError, InternalError, quoted} from '../errors.ts';
 import {tokenSet} from '../token-set.ts';
 import {boundedRect, decodeRange, encodeRect} from './address.ts';
 import {type AxisSplice, isDeletedSpan, shiftIndex, shiftRect} from './grid-shift.ts';
@@ -127,9 +127,13 @@ function canonicalizeColumn(column: FilterColumn, width: number): FilterColumn {
  * neighbouring column.
  */
 export function shiftAutoFilter(filter: AutoFilter, splice: AxisSplice): AutoFilter | undefined {
-  // Unreachable for a stored filter: canonicalizeAutoFilter refuses anything but a bounded rectangle.
   const rect = boundedRect(decodeRange(filter.ref));
-  if (rect === undefined) return filter;
+  // Every stored filter came through canonicalizeAutoFilter, which refuses anything else.
+  if (rect === undefined) {
+    throw new InternalError(
+      `stored autofilter range ${quoted(filter.ref)} is not a bounded rectangle`,
+    );
+  }
   const moved = shiftRect(rect, splice);
   if (moved === undefined) return undefined;
   const ref = encodeRect(moved);

@@ -43,7 +43,7 @@ const SALES: readonly (readonly (string | number)[])[] = [
   ['Cara', 'West', 30],
 ];
 
-test('a written pivot round-trips its field roles, source, and value field back into a model', () => {
+test('a written pivot round-trips its field roles, source, value field, and sum metric back into a model', () => {
   const {table, cache} = renderedPivot(
     {rows: ['Name'], columns: ['Region'], values: ['Amount']},
     SALES,
@@ -60,18 +60,15 @@ test('a written pivot round-trips its field roles, source, and value field back 
   assert.deepEqual(parsed.columnFields, [1]);
   assert.equal(parsed.valueField, 2);
   assert.equal(parsed.valueFieldName, 'Amount');
-});
-
-test('the worksheet source reference and sheet name survive the round-trip', () => {
-  const {table, cache} = renderedPivot(
-    {rows: ['Name'], columns: ['Region'], values: ['Amount']},
-    SALES,
-  );
-  const parsed = parsePivotTable(table, cache);
-  assert.equal(parsed.source.kind, 'worksheet');
-  assert.equal(parsed.source.sheet, 'Data');
-  assert.equal(parsed.source.ref, 'A1:C4');
-  assert.equal(parsed.source.inAnotherWorkbook, false);
+  assert.deepEqual(parsed.source, {
+    kind: 'worksheet',
+    sheet: 'Data',
+    ref: 'A1:C4',
+    inAnotherWorkbook: false,
+  });
+  // Sum is the metric whose subtotal attribute is omitted, so it is read back from an absence.
+  assert.equal(parsed.metric, 'sum');
+  assert.equal(parsed.valueCaption, 'Sum of Amount');
 });
 
 test('a worksheet source reached through a relationship is a range in another workbook', () => {
@@ -86,16 +83,6 @@ test('a worksheet source reached through a relationship is a range in another wo
     ref: 'A1:B2',
     inAnotherWorkbook: true,
   });
-});
-
-test('sum, the metric whose subtotal attribute is omitted, reads back as sum', () => {
-  const {table, cache} = renderedPivot(
-    {rows: ['Name'], columns: ['Region'], values: ['Amount']},
-    SALES,
-  );
-  const parsed = parsePivotTable(table, cache);
-  assert.equal(parsed.metric, 'sum');
-  assert.equal(parsed.valueCaption, 'Sum of Amount');
 });
 
 test('a non-sum metric reads back from its subtotal attribute with its caption', () => {

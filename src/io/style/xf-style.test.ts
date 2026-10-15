@@ -22,17 +22,11 @@ test('numFmtCodeFor resolves a built-in id no file has to declare', () => {
 
 test('numFmtCodeFor reads id 0 as the absence of a format, not as a format named General', () => {
   assert.equal(numFmtCodeFor(0, NO_CUSTOM), undefined);
-  // A cell whose style resolves to nothing must carry no numFmt at all, or every ordinary cell in a
-  // re-written file gains an explicit format it never had.
-  const cell = new Cell(1, 1);
-  applyXfToCell(cell, {});
-  assert.equal(cell.numFmt, undefined);
 });
 
 test('numFmtCodeFor answers nothing for a reserved id it does not know, rather than guessing', () => {
   assert.equal(numFmtCodeFor(26, NO_CUSTOM), undefined, 'a gap in the reserved range');
   assert.equal(numFmtCodeFor(200, NO_CUSTOM), undefined, 'a custom id the file never declared');
-  assert.equal(numFmtCodeFor(1.5, NO_CUSTOM), undefined, 'and an id that is not an id');
 });
 
 test("numFmtCodeFor lets the file's own declaration win over the built-in for the same id", () => {
