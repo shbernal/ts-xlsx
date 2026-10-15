@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {AuthoringError} from '../errors.ts';
+import {decodeSpreadsheetText} from './xml-attrs.ts';
 import {
   escapeAttr,
   escapeSpreadsheetText,
@@ -48,10 +49,21 @@ test('a cell value that already reads as an escape has its underscore escaped', 
   assert.equal(escapeSpreadsheetText('a_x0041_b'), 'a_x005F_x0041_b');
 });
 
-test('escaping the underscore is idempotent under a second write', () => {
-  const once = escapeSpreadsheetText('_x0041_');
-  assert.equal(once, '_x005F_x0041_');
-  assert.equal(escapeSpreadsheetText(once), '_x005F_x005F_x0041_');
+// Two lookalikes that share an underscore: the one closing the first opens the second.
+test('lookalikes sharing an underscore are each escaped', () => {
+  assert.equal(escapeSpreadsheetText('_x005F_x0041_'), '_x005F_x005F_x005F_x0041_');
+});
+
+test('a value that reads as escapes survives escape then decode', () => {
+  for (const value of [
+    '_x0041_',
+    '_x005F_x0041_',
+    '_x0041__x0042_',
+    '_x0041_x0042_',
+    'a_x0041_x0042_x0043_b',
+  ]) {
+    assert.equal(decodeSpreadsheetText(escapeSpreadsheetText(value)), value);
+  }
 });
 
 test('text that only resembles an escape is left alone', () => {
