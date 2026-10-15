@@ -76,7 +76,7 @@
     "access": "public"
   },
   "scripts": {
-    "prepare": "node scripts/install-hooks.ts",
+    "prepare": "lefthook install",
     "build": "node scripts/build.ts",
     "size": "node scripts/size-budget.ts",
     "smoke:dist": "node scripts/smoke-dist.ts",

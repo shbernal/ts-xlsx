@@ -1,9 +1,12 @@
-# Git hooks, managed by lefthook. Installed automatically on `pnpm install` by
-# the `prepare` script, except where `core.hooksPath` points outside this repo,
-# which `scripts/install-hooks.ts` reports and steps around rather than failing
-# the install. These mirror the CI gates so a failure shows up locally instead of
-# on the runner: the same "we trust green checks" contract from AGENTS.md,
-# enforced one step earlier.
+# Git hooks, managed by lefthook. `prepare` runs `lefthook install`, so every
+# `pnpm install` installs them. These mirror the CI gates so a failure shows up
+# locally instead of on the runner: the same "we trust green checks" contract
+# from AGENTS.md, enforced one step earlier.
+#
+# `lefthook install` exits 1 when `core.hooksPath` is set, and `prepare` failing
+# takes every `pnpm run` down with it. ADR 0045 records why that is accepted:
+# unset `core.hooksPath` in a checkout of this repo, or install with
+# `--ignore-scripts`.
 #
 # Bypass a hook when you genuinely must: `git commit --no-verify` /
 # `git push --no-verify`, or `LEFTHOOK=0 git …` to disable all hooks.
@@ -49,8 +52,7 @@ remotes:
 #
 # Each job invokes its tool at the `bin` entry from the tool's own package.json. That
 # is the file the `.bin` shim is generated from and would have run, so this is the
-# published contract rather than a reach into the package. `scripts/install-hooks.ts`
-# resolves lefthook the same way, for the same reason.
+# published contract rather than a reach into the package.
 #
 # `parallel: true` and both tools writing means two jobs could touch one staged
 # file at once. They cannot conflict in practice (oxfmt only moves whitespace and
