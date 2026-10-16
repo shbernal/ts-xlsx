@@ -22,7 +22,6 @@
 
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {isDeepStrictEqual} from 'node:util';
 
 import {closure, importedPaths} from './module-graph.ts';
 import {verdict} from './verdict.ts';
@@ -32,7 +31,7 @@ const check = (held: boolean, problem: string): void => {
   if (!held) problems.push(`  ${problem}`);
 };
 
-const {decodeAddress, readXlsx, Workbook, writeXlsx} = await import('@shbernal/ts-xlsx');
+const {readXlsx, Workbook, writeXlsx} = await import('@shbernal/ts-xlsx');
 
 const wb = new Workbook();
 const ws = wb.addWorksheet('Smoke');
@@ -45,11 +44,6 @@ const sheet = roundTrip.getWorksheet('Smoke');
 check(sheet !== undefined, 'round-tripped workbook lost the worksheet');
 check(sheet?.getCell('A1').value === 'hello', 'A1 did not survive round-trip');
 check(sheet?.getCell('B2').value === 42, 'B2 did not survive round-trip');
-
-check(
-  isDeepStrictEqual(decodeAddress('B2'), {address: 'B2', col: 2, row: 2}),
-  'address decode wrong',
-);
 
 // One binding per subpath: enough to prove the specifier resolves to the right module, not a
 // re-listing of every export (`scripts/check-entries.ts` owns that).

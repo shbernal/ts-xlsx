@@ -37,22 +37,20 @@ import {
 import {ROOT} from './repo.ts';
 import {reportCrash, verdict} from './verdict.ts';
 
-// The root barrel is the entry most consumers name, and each browser-facing subpath is checked in
-// its own right: a subpath's closure is a subset of the root's today, and nothing guarantees that
-// stays true as entries move.
-const BROWSER_ENTRIES = [
-  'src/index.ts',
-  'src/entries/core.ts',
-  'src/entries/csv.ts',
-  'src/entries/customui.ts',
-  'src/entries/errors.ts',
-  'src/entries/vba.ts',
-  'src/entries/xlsb.ts',
-  'src/entries/xlsx.ts',
-];
-
 /** The Node-only entry, whose whole reason for existing is that this check would fail on it. */
 const NODE_ENTRY = 'src/entries/node.ts';
+
+// The root barrel is the entry most consumers name, and each browser-facing subpath is checked in
+// its own right: a subpath's closure is a subset of the root's today, and nothing guarantees that
+// stays true as entries move. Every entry on disk is browser-facing except `/node` and the stub a
+// browser resolves it to, so a new entry is checked from the moment it exists.
+const BROWSER_ENTRIES = [
+  'src/index.ts',
+  ...sourceFiles(join(ROOT, 'src/entries'), '.ts')
+    .map((path) => `src/entries/${path.slice(path.lastIndexOf('/') + 1)}`)
+    .filter((file) => file !== NODE_ENTRY && !file.endsWith('-unavailable.ts'))
+    .sort(),
+];
 
 // `node:fs` is the modern spelling; `fs` is the same module and resolves identically in Node, so a
 // rule that matched only the prefixed form would be blind to half the ways in.
@@ -164,20 +162,6 @@ function main(): void {
     problems.push(
       `  ${NODE_ENTRY}\n    reaches no Node built-in that the browser entries do not\n` +
         `    it exists only to hold that boundary; fold it back into /xlsx if there is nothing left to hold`,
-    );
-  }
-
-  // A directory read, purely so the entry list above cannot silently fall behind the files on disk.
-  const unclassified = sourceFiles(`${ROOT}/src/entries`, '.ts')
-    .map((path) => `src/entries/${path.slice(path.lastIndexOf('/') + 1)}`)
-    .filter(
-      (file) =>
-        !BROWSER_ENTRIES.includes(file) && file !== NODE_ENTRY && !file.endsWith('-unavailable.ts'),
-    );
-  for (const file of unclassified) {
-    problems.push(
-      `  ${file}\n    is an entry this check has no verdict on\n` +
-        `    add it to BROWSER_ENTRIES, or publish it from ${NODE_ENTRY} if it is Node-only`,
     );
   }
 
