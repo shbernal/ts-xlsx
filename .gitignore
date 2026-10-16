@@ -40,3 +40,5 @@ package-lock.json
 # file whose parent directory is itself excluded.)
 .tmp/*
 !.tmp/.gitkeep
+
+.claude/worktrees/
