@@ -3,7 +3,7 @@
 //
 // `src/entries/*.ts` are the package's public faces. `package.json`'s `exports` map publishes
 // them, and `src/index.ts` unions them with `export *` so the root specifier keeps carrying
-// everything. Five things can go wrong silently, and each is checked here:
+// everything. Four things can go wrong silently, and each is checked here:
 //
 //   1. An entry file exists but nothing publishes it: dead code that reads like API.
 //   2. `exports` names a subpath whose entry file is gone, so a consumer's import resolves to
@@ -13,14 +13,13 @@
 //      specifier with no diagnostic anywhere. Disjointness is what makes `src/index.ts` a
 //      faithful union, and it is why the whole failure taxonomy is exported from `/errors`
 //      alone: `UnsupportedFormatError` belongs to no single codec.
-//   4. `/node` gets unioned into the root barrel after all. That entry is the one the root
-//      specifier must NOT carry: it reaches `node:fs` and `node:stream`, and re-exporting it here
-//      would put them back on every browser consumer's graph (ADR 0040). Absence is the contract,
-//      so absence is asserted rather than merely tolerated.
-//   5. The browser stub drifts. `package.json` resolves `/node` to `entries/node-unavailable.ts`
+//   4. The browser stub drifts. `package.json` resolves `/node` to `entries/node-unavailable.ts`
 //      under a bundler's `browser` condition, and a name exported by the entry but missing from
 //      the stub is a browser build that fails on an import it cannot find. The two value-export
 //      lists are held equal.
+//
+// `/node` is the one entry the root barrel leaves out. That absence is not re-asserted here:
+// `check-browser-safe.ts` walks `src/index.ts`, and unioning `/node` would put `node:fs` on that walk.
 //
 // Reading the syntax, not the types: an entry is a pure re-export list, so every question here is
 // answered by the parse tree alone. TypeScript 7 publishes no standalone parser, though. A
@@ -138,17 +137,7 @@ function main(project: Project): void {
 
   const unioned = starExportedEntries(parse(BARREL));
   for (const file of onDisk) {
-    if (file === NODE_ENTRY) {
-      if (unioned.includes(file)) {
-        problems.push(
-          `  ${BARREL} unions ${file}
-` +
-            `    that entry reaches node:fs and node:stream, so the root specifier must not carry it (ADR 0040)`,
-        );
-      }
-      continue;
-    }
-    if (!unioned.includes(file)) {
+    if (file !== NODE_ENTRY && !unioned.includes(file)) {
       problems.push(`  ${BARREL} does not \`export *\` from ${file}; the root specifier loses it`);
     }
   }
@@ -184,7 +173,7 @@ function main(project: Project): void {
     problems,
     ok:
       `${onDisk.length} public faces, ${total} disjoint exports, all published; ` +
-      `${onDisk.length - 1} unioned into the root barrel and /node held out of it`,
+      `${onDisk.length - 1} unioned into the root barrel`,
     failure: 'problem(s) with the public entry points',
   });
 }

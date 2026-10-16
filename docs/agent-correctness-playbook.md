@@ -168,7 +168,7 @@ unflushed pipe, which is how a gate loses the diagnostic it just printed on exac
 someone needs it, and `verify.ts` captures every gate through a pipe. Accumulate findings into a
 `problems` array rather than throwing on the first, because for a boundary check the whole list is
 the diagnostic. Give the gate the same name as its `*:check` package script; that correspondence is
-what lets a failure name its own re-run command, and `check-tsconfig-coverage.ts` now enforces it.
+what lets a failure name its own re-run command.
 
 **You want to know whether something is actually tested.**
 Run `pnpm run coverage`, never `node --test --experimental-test-coverage` on its own.
