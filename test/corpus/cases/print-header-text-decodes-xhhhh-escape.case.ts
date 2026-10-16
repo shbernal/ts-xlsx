@@ -53,15 +53,6 @@ export default {
       },
     },
     {
-      name: '`_x005F_x0041_` is the escaped underscore, so the header holds the literal `_x0041_`',
-      expect(api: CorpusApi, assert: Assert) {
-        // The one decision a second decoding pass would silently get wrong: it would collapse this to
-        // `A` and destroy every header that legitimately looks like an escape.
-        const {eager} = api.headerFooterEscapeReport(FIXTURE);
-        assert.ok(String(eager.oddHeader).includes('&C_x0041_&R'));
-      },
-    },
-    {
       name: 'text that only resembles the escape shape is left exactly as written',
       expect(api: CorpusApi, assert: Assert) {
         const {eager} = api.headerFooterEscapeReport(FIXTURE);

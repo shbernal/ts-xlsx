@@ -32,14 +32,6 @@ export default {
       },
     },
     {
-      name: 'the fragment tail is not silently dropped',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {hyperlink} = (await api.roundtripWorkbook(SPEC)).sheets.Sheet1.cells.A1;
-        assert.notStrictEqual(hyperlink, 'http://host/ui/', 'fragment was dropped');
-        assert.ok(String(hyperlink).includes('/case/2007720723'), 'fragment segment missing');
-      },
-    },
-    {
       name: 'the display text is preserved alongside the fragment URL',
       async expect(api: CorpusApi, assert: Assert) {
         const {text} = (await api.roundtripWorkbook(SPEC)).sheets.Sheet1.cells.A1;

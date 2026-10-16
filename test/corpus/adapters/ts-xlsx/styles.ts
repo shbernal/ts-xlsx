@@ -4,7 +4,7 @@
 import {canonicalJson} from '../../canonical-json.ts';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
-import {partMapOf, roundtrip} from './package-facts.ts';
+import {partMapOf, roundtrip, partOf} from './package-facts.ts';
 import {
   type CellInstance,
   fixtureBytes,
@@ -48,7 +48,7 @@ export const styles = {
 
     const buffer = writeXlsx(workbook);
     const parts = partMapOf(buffer);
-    const stylesXml = parts['xl/styles.xml'] ?? '';
+    const stylesXml = partOf(parts, 'xl/styles.xml');
     const fontsBlock = /<fonts\b[^>]*>[\s\S]*?<\/fonts>/.exec(stylesXml)?.[0] ?? '';
     const font0 = /<font>[\s\S]*?<\/font>/.exec(fontsBlock)?.[0] ?? '';
     const themePath = Object.keys(parts).find((p) => /^xl\/theme\/theme\d+\.xml$/.test(p));
@@ -103,8 +103,8 @@ export const styles = {
 
     const buffer = writeXlsx(workbook);
     const parts = partMapOf(buffer);
-    const stylesXml = parts['xl/styles.xml'] ?? '';
-    const sheetXml = parts['xl/worksheets/sheet1.xml'] ?? '';
+    const stylesXml = partOf(parts, 'xl/styles.xml');
+    const sheetXml = partOf(parts, 'xl/worksheets/sheet1.xml');
     const styled = [...sheetXml.matchAll(/<c r="([A-Z]+\d+)"[^>]*\ss="(\d+)"/g)];
     const reread = readXlsx(buffer).worksheets[0];
     return {
@@ -151,7 +151,7 @@ export const styles = {
     sheet.getCell('A1').value = 1;
     sheet.getCell('A1').numFmt = code;
     const bytes = writeXlsx(workbook);
-    const styles = partMapOf(bytes)['xl/styles.xml'] ?? '';
+    const styles = partOf(bytes, 'xl/styles.xml');
     return {
       attribute: /<numFmt numFmtId="\d+" formatCode="([^"]*)"\/>/.exec(styles)?.[1] ?? null,
       readBack: readXlsx(bytes).getWorksheet('S')?.getCell('A1').numFmt ?? null,
@@ -172,7 +172,7 @@ export const styles = {
     bad.value = 42;
     // A caller wrongly assigns the structured numFmt object Excel parses a cell's format into.
     bad.numFmt = {id: 164, formatCode: '0.00'} as Untyped;
-    const stylesXml = partMapOf(writeXlsx(wb))['xl/styles.xml'] || '';
+    const stylesXml = partOf(writeXlsx(wb), 'xl/styles.xml');
     const back = roundtrip(wb).getWorksheet('S')!;
     return {
       controlNumFmtReload: back.getCell('A1').numFmt ?? null,
@@ -190,9 +190,7 @@ export const styles = {
     cell.value = '=1+1';
     cell.quotePrefix = true;
     const buffer = writeXlsx(wb);
-    const writtenQuotePrefix = /<xf\b[^>]*quotePrefix="1"/.test(
-      partMapOf(buffer)['xl/styles.xml'] || '',
-    );
+    const writtenQuotePrefix = /<xf\b[^>]*quotePrefix="1"/.test(partOf(buffer, 'xl/styles.xml'));
     const reloaded = readXlsx(buffer).getWorksheet('S')!.getCell('A1').quotePrefix === true;
     return {writtenQuotePrefix, reloaded};
   },
@@ -244,7 +242,7 @@ export const styles = {
     const only = single.addWorksheet('S');
     seed(only, 'A1');
     only.spliceRows(1, 0, ['inserted']);
-    const styles = partMapOf(writeXlsx(single))['xl/styles.xml'] ?? '';
+    const styles = partOf(writeXlsx(single), 'xl/styles.xml');
     const cellXfs = (styles.match(/<cellXfs[\s\S]*?<\/cellXfs>/) ?? [])[0] ?? '';
 
     return {
@@ -266,9 +264,7 @@ export const styles = {
   namedStyleFillReport(rel: string) {
     const countCellStyleXfs = (xml: string) =>
       Number((xml.match(/<cellStyleXfs count="(\d+)"/) || [])[1] || 0);
-    const srcCellStyleXfsCount = countCellStyleXfs(
-      partMapOf(fixtureBytes(rel))['xl/styles.xml'] || '',
-    );
+    const srcCellStyleXfsCount = countCellStyleXfs(partOf(fixtureBytes(rel), 'xl/styles.xml'));
 
     const workbook = readXlsx(fixtureBytes(rel));
     const readFill = workbook.worksheets[0]?.getCell('A1').fill ?? null;
@@ -291,7 +287,7 @@ export const styles = {
     return {srcCellStyleXfsCount, readFill, roundtripCellStyleXfsCount, roundtripCellHasXfIdLink};
   },
 
-  // Write a value under a date number format and report the sheet XML's health → { ok, hasNaN,
+  // Write a value under a date number format and report the sheet XML's health → { hasNaN,
   // hasInvalidDate, cellXml }. A string, a null (empty cell), or an Invalid Date under a date format
   // must never leak a bare "NaN" or "Invalid Date" into the cell value.
   dateNumFmtValueReport(kind: 'string' | 'null' | 'invalidDate') {
@@ -302,16 +298,9 @@ export const styles = {
     else if (kind === 'null') cell.value = null;
     else if (kind === 'invalidDate') cell.value = new Date(Number.NaN);
     cell.numFmt = 'yyyy-mm-dd';
-    let ok = true;
-    let sheetXml = '';
-    try {
-      sheetXml = partMapOf(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] || '';
-    } catch {
-      ok = false;
-    }
+    const sheetXml = partOf(writeXlsx(workbook), 'xl/worksheets/sheet1.xml');
     const cellXml = (sheetXml.match(/<c r="A1"[\s\S]*?(?:\/>|<\/c>)/) || [])[0] ?? '';
     return {
-      ok,
       hasNaN: /NaN/.test(sheetXml),
       hasInvalidDate: /Invalid Date/.test(sheetXml),
       cellXml,
@@ -337,10 +326,10 @@ export const styles = {
   // styles. A cell left at the default style carries no `s` and reports null.
   styleDedupReport(spec: Untyped, cells: string[] = []) {
     const parts = partMapOf(writeXlsx(buildFrom(spec)));
-    const styles = parts['xl/styles.xml'] || '';
+    const styles = partOf(parts, 'xl/styles.xml');
     const xfBlock = (styles.match(/<cellXfs\b[\s\S]*?<\/cellXfs>/) || [''])[0];
     const cellXfCount = (xfBlock.match(/<xf\b/g) || []).length;
-    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
+    const sheetXml = partOf(parts, 'xl/worksheets/sheet1.xml');
     const indices: Record<string, Untyped> = {};
     for (const ref of cells) {
       const m = sheetXml.match(new RegExp(`<c\\b[^>]*\\br="${ref}"[^>]*\\bs="(\\d+)"`));
@@ -375,7 +364,7 @@ export const styles = {
     const plain = wb.addWorksheet('Plain');
     plain.getCell('A1').value = 'y';
     const buffer = writeXlsx(wb);
-    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const sheetXml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     const written = (sheetXml.match(/<tabColor\b[^>]*rgb="([^"]*)"/) || [null, null])[1];
     const reload = readXlsx(buffer);
     const coloredTab = reload.getWorksheet('Colored')!.tabColor;
@@ -396,7 +385,7 @@ export const styles = {
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
       ws.getCell('A1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb}};
-      const stylesXml = partMapOf(writeXlsx(wb))['xl/styles.xml'] || '';
+      const stylesXml = partOf(writeXlsx(wb), 'xl/styles.xml');
       return (stylesXml.match(/<fgColor rgb="([^"]*)"/) || [null, null])[1];
     };
     return {validRgb: emittedFgColor('FFBFBFBF'), hashRgb: emittedFgColor('#FFBFBFBF')};
@@ -413,7 +402,7 @@ export const styles = {
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
       ws.getCell('A1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb}};
-      const stylesXml = partMapOf(writeXlsx(wb))['xl/styles.xml'] || '';
+      const stylesXml = partOf(writeXlsx(wb), 'xl/styles.xml');
       return (stylesXml.match(/<fgColor rgb="([^"]*)"/) || [null, null])[1];
     };
     let rejectsMalformed = false;
@@ -432,7 +421,7 @@ export const styles = {
     ws.outline.summaryRight = false;
     ws.getCell('A1').value = 'x';
     const buffer = writeXlsx(wb);
-    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const sheetXml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     const outlinePr = (sheetXml.match(/<outlinePr\b[^>]*\/?>/) || [''])[0];
     const reload = readXlsx(buffer);
     const outline = reload.getWorksheet('S')!.outline;
@@ -708,10 +697,10 @@ export const styles = {
       };
     };
     const before = readFixture(rel);
-    const source = facts(before, partMapOf(fixtureBytes(rel))['xl/styles.xml'] || '');
+    const source = facts(before, partOf(fixtureBytes(rel), 'xl/styles.xml'));
     const buffer = writeXlsx(before);
     const after = readXlsx(buffer);
-    return {source, rewritten: facts(after, partMapOf(buffer)['xl/styles.xml'] || '')};
+    return {source, rewritten: facts(after, partOf(buffer, 'xl/styles.xml'))};
   },
 
   // Read a fixture, write it straight back, and report the theme part on each side →
@@ -729,7 +718,7 @@ export const styles = {
     // The theme is reached the way OPC reaches it, through the workbook's `.../theme` relationship,
     // whose target is relative to `xl/`, not by assuming the conventional `theme1.xml` name.
     const themePathOf = (parts: Record<string, string>) => {
-      const rels = parts['xl/_rels/workbook.xml.rels'] ?? '';
+      const rels = partOf(parts, 'xl/_rels/workbook.xml.rels');
       for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) {
         const tag = m[0];
         if (!/Type="[^"]*\/theme"/.test(tag)) continue;
@@ -792,7 +781,7 @@ export const styles = {
   // prefixes with it, and one the re-emitted root never declares makes the whole part unparseable.
   roundtripFixtureStylesTailFacts(rel: string) {
     const facts = (parts: Record<string, string>) => {
-      const xml = parts['xl/styles.xml'] ?? '';
+      const xml = partOf(parts, 'xl/styles.xml');
       const block = (name: string) =>
         new RegExp(`<${name}\\b[^>]*/>|<${name}\\b[^>]*>[\\s\\S]*?</${name}>`).exec(xml)?.[0] ?? '';
       const tableStyles = block('tableStyles');
@@ -905,7 +894,7 @@ export const styles = {
     workbook.setTheme({colors, fonts});
     const buffer = writeXlsx(workbook);
     const parts = partMapOf(buffer);
-    const theme = parts['xl/theme/theme1.xml'] ?? '';
+    const theme = partOf(parts, 'xl/theme/theme1.xml');
     const clrScheme = /<a:clrScheme\b[\s\S]*?<\/a:clrScheme>/.exec(theme)?.[0] ?? '';
     const slotValue = (slot: string) =>
       new RegExp(`<a:${slot}>\\s*<a:(?:srgbClr|sysClr)[^>]*?(?:val|lastClr)="([^"]*)"`).exec(
@@ -977,7 +966,7 @@ export const styles = {
     }
     for (const style of authored) workbook.addTableStyle(style);
     const parts = partMapOf(writeXlsx(workbook));
-    const stylesXml = parts['xl/styles.xml'] ?? '';
+    const stylesXml = partOf(parts, 'xl/styles.xml');
     const block = (name: string) =>
       new RegExp(`<${name}\\b[^>]*/>|<${name}\\b[^>]*>[\\s\\S]*?</${name}>`).exec(stylesXml)?.[0] ??
       '';
@@ -1030,7 +1019,7 @@ export const styles = {
       'xl/styles.xml': (xml) => xml.replace('</styleSheet>', `${preserved}</styleSheet>`),
     });
     read.addTableStyle({name: 'Harbour', elements: {wholeTable: {border: {top: {style: 'thin'}}}}});
-    const stylesXml = partMapOf(writeXlsx(read))['xl/styles.xml'] ?? '';
+    const stylesXml = partOf(writeXlsx(read), 'xl/styles.xml');
     const block = /<tableStyles\b[^>]*>[\s\S]*?<\/tableStyles>/.exec(stylesXml)?.[0] ?? '';
     return {
       definitions: [...block.matchAll(/<tableStyle\s[^>]*?\bname=(["'])(.*?)\1/g)].map(

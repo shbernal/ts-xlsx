@@ -12,17 +12,10 @@ export default {
   provenance: {source: 'upstream-issue'},
   behavior: [
     {
-      name: 'a workbook whose comments part lives at a non-canonical path loads without throwing',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {ok, error} = await api.nonCanonicalCommentsPartReport();
-        assert.strictEqual(error, null, `load must not throw (got: ${error})`);
-        assert.strictEqual(ok, true);
-      },
-    },
-    {
       name: 'the comment carried by the non-canonically-located part is still read',
       async expect(api: CorpusApi, assert: Assert) {
-        const {note} = await api.nonCanonicalCommentsPartReport();
+        const {error, note} = await api.nonCanonicalCommentsPartReport();
+        assert.strictEqual(error, null, `load must not throw (got: ${error})`);
         assert.strictEqual(note, 'hi');
       },
     },

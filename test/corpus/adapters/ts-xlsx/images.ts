@@ -90,7 +90,7 @@ export const images = {
     anchorSpecImage(ws, wb.addImage({buffer: ONE_PX_PNG, extension: 'png'}), 'C2:C2');
     ws.getCell('A2').value = 'r3';
     anchorSpecImage(ws, wb.addImage({buffer: ONE_PX_PNG, extension: 'png'}), 'C3:C3');
-    const drawingXml = partMapOf(writeXlsx(wb))['xl/drawings/drawing1.xml'] || '';
+    const drawingXml = partOf(writeXlsx(wb), 'xl/drawings/drawing1.xml');
     const froms = [
       ...drawingXml.matchAll(
         /<xdr:from>\s*<xdr:col>(\d+)<\/xdr:col>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/g,

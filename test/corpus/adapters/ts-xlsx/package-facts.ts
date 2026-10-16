@@ -28,12 +28,15 @@ export function roundtrip(workbook: WorkbookInstance): WorkbookInstance {
 /**
  * One named part's text, failing the case (naming the part) when it is absent.
  *
- * {@link partMapOf} hands back a bare record, so every caller reaching one part off it writes
- * `?? ''` or a non-null assertion. The empty-string spelling is the dangerous one: a negative
+ * Takes the package or a {@link partMapOf} record of it. The record is bare, so a caller reaching
+ * one part off it directly writes `?? ''` or a non-null assertion. The empty-string spelling is the dangerous one: a negative
  * assertion built on it goes on passing if the writer ever renames the part it reads.
  */
-export function partOf(buffer: Uint8Array, name: string): string {
-  return strFromU8(partBytesOf(buffer, name));
+export function partOf(source: Uint8Array | PartMap, name: string): string {
+  if (source instanceof Uint8Array) return strFromU8(partBytesOf(source, name));
+  const text = source[name];
+  assert.ok(text !== undefined, `expected part ${name}`);
+  return text;
 }
 
 /** One named part's bytes, for a binary part, failing the case (naming the part) when it is absent. */

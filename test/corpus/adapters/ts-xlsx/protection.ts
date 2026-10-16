@@ -4,7 +4,7 @@ import {strToU8, zipSync} from 'fflate';
 
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
-import {partMapOf} from './package-facts.ts';
+import {partMapOf, partOf} from './package-facts.ts';
 import {decodeAddress, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {attrsOf, decodeXmlEntities, reloadPatched, xmlWellFormed} from './xml-probes.ts';
 
@@ -31,7 +31,7 @@ export const protection = {
     const injected = zipSync(zipFiles);
 
     const rewrittenBuffer = writeXlsx(readXlsx(injected));
-    const rewrittenXml = partMapOf(rewrittenBuffer)['xl/workbook.xml'] ?? '';
+    const rewrittenXml = partOf(rewrittenBuffer, 'xl/workbook.xml');
     return {
       sourceHadProtection: /workbookProtection/.test(injectedXml),
       rewrittenHasProtection: /workbookProtection/.test(rewrittenXml),
@@ -72,8 +72,8 @@ export const protection = {
     if (protect) sheet.protect(protect.password ?? undefined, protect.options ?? {});
     const buffer = writeXlsx(workbook);
     const parts = partMapOf(buffer);
-    const styles = parts['xl/styles.xml'] || '';
-    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
+    const styles = partOf(parts, 'xl/styles.xml');
+    const sheetXml = partOf(parts, 'xl/worksheets/sheet1.xml');
     const sheetProtection = (sheetXml.match(/<sheetProtection\b[^>]*\/?>/) || [])[0] || null;
 
     const reread = readXlsx(buffer);
@@ -102,7 +102,7 @@ export const protection = {
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
       ws.protect(password, {selectLockedCells: false, selectUnlockedCells: false});
-      const xml = partMapOf(writeXlsx(wb))['xl/worksheets/sheet1.xml'] || '';
+      const xml = partOf(writeXlsx(wb), 'xl/worksheets/sheet1.xml');
       return (xml.match(/<sheetProtection\b[^>]*\/>/) || [''])[0];
     };
     let first: string;
@@ -153,7 +153,7 @@ export const protection = {
     const buf1 = writeXlsx(wb);
     const buf2 = writeXlsx(readXlsx(buf1));
     const protAttrs = (buf: Untyped) => {
-      const xml = partMapOf(buf)['xl/worksheets/sheet1.xml'] || '';
+      const xml = partOf(buf, 'xl/worksheets/sheet1.xml');
       const el = (xml.match(/<sheetProtection\b[^>]*\/?>/) || [])[0];
       return el ? attrsOf(el) : null;
     };
@@ -207,13 +207,13 @@ export const protection = {
     for (const [name, text] of Object.entries(parts)) zipFiles[name] = strToU8(text);
 
     const rewritten = partMapOf(writeXlsx(readXlsx(zipSync(zipFiles))));
-    const contentTypes = rewritten['[Content_Types].xml'] ?? '';
+    const contentTypes = partOf(rewritten, '[Content_Types].xml');
     const override = (contentTypes.match(/<Override PartName="[^"]*slicerCache[^"]*"[^>]*>/) ??
       [])[0];
     const overrideAttrs = override === undefined ? null : attrsOf(override);
-    const sheetXml = rewritten['xl/worksheets/sheet1.xml'] ?? '';
+    const sheetXml = partOf(rewritten, 'xl/worksheets/sheet1.xml');
     const protectionEl = (sheetXml.match(/<sheetProtection\b[^>]*\/?>/) ?? [])[0];
-    const workbookRels = rewritten['xl/_rels/workbook.xml.rels'] ?? '';
+    const workbookRels = partOf(rewritten, 'xl/_rels/workbook.xml.rels');
     const relEl = (workbookRels.match(/<Relationship[^>]*slicerCache[^>]*>/) ?? [])[0];
 
     return {
@@ -243,7 +243,7 @@ export const protection = {
         xml.replace('</sheetData>', `</sheetData><sheetProtection ${attributes}/>`),
     });
     const sheetProtection = read.getWorksheet('S')?.protection;
-    const rewrittenXml = partMapOf(writeXlsx(read))['xl/worksheets/sheet1.xml'] ?? '';
+    const rewrittenXml = partOf(writeXlsx(read), 'xl/worksheets/sheet1.xml');
     const element = rewrittenXml.match(/<sheetProtection\b[^>]*\/>/)?.[0];
     return {
       protected: sheetProtection !== undefined,

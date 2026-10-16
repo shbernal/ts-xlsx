@@ -2,7 +2,7 @@
 
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
-import {partMapOf} from './package-facts.ts';
+import {partMapOf, partOf} from './package-facts.ts';
 import {readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {attrsOf, reloadPatched} from './xml-probes.ts';
 
@@ -46,8 +46,8 @@ export const hyperlinks = {
       return {writeOk: false, writeError: messageOf(e)};
     }
     const parts = partMapOf(buffer);
-    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
-    const relsXml = parts['xl/worksheets/_rels/sheet1.xml.rels'] || '';
+    const sheetXml = partOf(parts, 'xl/worksheets/sheet1.xml');
+    const relsXml = parts['xl/worksheets/_rels/sheet1.xml.rels'] ?? '';
     const a = attrsOf((sheetXml.match(/<hyperlink\b[^>]*\/?>/) || [''])[0]);
     let reloadOk = true;
     try {
@@ -77,8 +77,8 @@ export const hyperlinks = {
     ws.addHyperlink({ref: 'A1', target: '#Sheet2!A1', tooltip: 'tt'});
     const buffer = writeXlsx(wb);
     const parts = partMapOf(buffer);
-    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
-    const relsXml = parts['xl/worksheets/_rels/sheet1.xml.rels'] || '';
+    const sheetXml = partOf(parts, 'xl/worksheets/sheet1.xml');
+    const relsXml = parts['xl/worksheets/_rels/sheet1.xml.rels'] ?? '';
     const hyperlinkEl = (sheetXml.match(/<hyperlink\b[^>]*\/?>/) || [''])[0];
     const relEl = (relsXml.match(/<Relationship\b[^>]*hyperlink[^>]*\/?>/) || [''])[0];
     const reReadHyperlink =
@@ -200,9 +200,7 @@ export const hyperlinks = {
     sheet.mergeCells('D1:H1');
     sheet.insertRow(1, ['header']);
     const bytes = writeXlsx(wb);
-    const element = (partMapOf(bytes)['xl/worksheets/sheet1.xml'] ?? '').match(
-      /<hyperlink\b[^>]*\/?>/,
-    )?.[0];
+    const element = partOf(bytes, 'xl/worksheets/sheet1.xml').match(/<hyperlink\b[^>]*\/?>/)?.[0];
     const read = readXlsx(bytes).getWorksheet('S');
     const link = read?.hyperlinkAt('D2');
     return {

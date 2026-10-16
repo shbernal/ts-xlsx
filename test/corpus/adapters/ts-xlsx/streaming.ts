@@ -61,7 +61,7 @@ export const streaming = {
         detail.commit();
       }
       sheet.commit();
-      const xml = partMapOf(await committedPackage(writer))['xl/worksheets/sheet1.xml'] ?? '';
+      const xml = partOf(await committedPackage(writer), 'xl/worksheets/sheet1.xml');
       return /<row r="1"[^>]*>/.exec(xml)?.[0] ?? '';
     };
     return {
@@ -155,7 +155,7 @@ export const streaming = {
     return {ok: true, error: null, cells, rowCount: s!.rowCount};
   },
 
-  // Commit a streaming worksheet, then add a row → { rejected, error, legibleRejection, internalCrash,
+  // Commit a streaming worksheet, then add a row → { error, legibleRejection, internalCrash,
   // reloadOk }. A post-commit add must be rejected with a legible "already committed" error, not an
   // internal null-property crash, and a cleanly-committed workbook still reads back.
   async streamAddRowAfterCommit() {
@@ -178,7 +178,7 @@ export const streaming = {
     } catch {
       reloadOk = false;
     }
-    return {rejected: error != null, error, legibleRejection, internalCrash, reloadOk};
+    return {error, legibleRejection, internalCrash, reloadOk};
   },
 
   // Stream-write a sheet carrying both an autofilter and sheet protection, then inspect the emitted
@@ -198,7 +198,7 @@ export const streaming = {
     }
     sheet.commit();
     const buffer = Buffer.from(await committedPackage(writer));
-    const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const xml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     const posProt = xml.indexOf('<sheetProtection');
     const posAf = xml.indexOf('<autoFilter');
     let reloadOk = true;
@@ -434,8 +434,6 @@ export const streaming = {
       reloadOk = false;
     }
     return {
-      posConditionalFormatting: posCf,
-      posHyperlinks: posHl,
       conditionalFormattingBeforeHyperlinks: posCf >= 0 && posHl >= 0 ? posCf < posHl : null,
       reloadOk,
     };
@@ -465,8 +463,6 @@ export const streaming = {
       reloadOk = false;
     }
     return {
-      posDataValidations: posDv,
-      posHyperlinks: posHl,
       dataValidationsBeforeHyperlinks: posDv >= 0 && posHl >= 0 ? posDv < posHl : null,
       reloadOk,
     };
@@ -677,7 +673,7 @@ export const streaming = {
 
     const facts = (bytes: Uint8Array) => {
       const parts = partMapOf(bytes);
-      const sheetXml = parts['xl/worksheets/sheet1.xml'] ?? '';
+      const sheetXml = partOf(parts, 'xl/worksheets/sheet1.xml');
       const reread = readXlsx(bytes).getWorksheet('S');
       return {
         // Only the part families this asks about, so an unrelated part never moves the comparison.

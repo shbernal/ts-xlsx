@@ -5,7 +5,7 @@ import {canonicalJson} from '../../canonical-json.ts';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {packageFacts} from '../ooxml-facts.ts';
-import {packagePartFacts, partMapOf, roundtrip} from './package-facts.ts';
+import {packagePartFacts, partMapOf, roundtrip, partOf} from './package-facts.ts';
 import {
   type CellInstance,
   decodeAddress,
@@ -76,7 +76,7 @@ function storedErrors(pkg: Uint8Array) {
       rich === undefined ? -1 : (structureKeys[rich.structure] ?? []).indexOf('errorType');
     return rich === undefined || key < 0 ? null : Number(rich.values[key]);
   };
-  const sheet = parts['xl/worksheets/sheet1.xml'] ?? '';
+  const sheet = partOf(parts, 'xl/worksheets/sheet1.xml');
   return Object.fromEntries(
     [...sheet.matchAll(/<c r="([A-Z]+\d+)"([^>]*?)(?<!\/)>([\s\S]*?)<\/c>/g)]
       .filter((m) => /\st="e"/.test(m[2] ?? ''))
@@ -249,8 +249,8 @@ export const core = {
     sheet.getCell('B2').value = 2;
     sheet.autoFilter = ref;
     const parts = partMapOf(writeXlsx(workbook));
-    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
-    const wbXml = parts['xl/workbook.xml'] || '';
+    const sheetXml = partOf(parts, 'xl/worksheets/sheet1.xml');
+    const wbXml = partOf(parts, 'xl/workbook.xml');
     const autoFilterRef = (sheetXml.match(/<autoFilter\b[^>]*ref="([^"]*)"/) || [])[1] ?? null;
     const filterDb = wbXml.match(
       /<definedName\b([^>]*)name="_xlnm._FilterDatabase"([^>]*)>([\s\S]*?)<\/definedName>/,
@@ -271,7 +271,7 @@ export const core = {
     const wb = new Workbook();
     wb.addWorksheet('S').getCell('A1').value = 'shared-me';
     const parts = partMapOf(writeXlsx(wb, {useSharedStrings}));
-    const sheet = parts['xl/worksheets/sheet1.xml'] || '';
+    const sheet = partOf(parts, 'xl/worksheets/sheet1.xml');
     return {
       hasSharedStringsPart: 'xl/sharedStrings.xml' in parts,
       isSharedRef: /t="s"><v>\d+<\/v>/.test(sheet),
@@ -351,7 +351,7 @@ export const core = {
           : Number.POSITIVE_INFINITY;
     const workbook = new Workbook();
     workbook.addWorksheet('S').getCell('A1').value = value;
-    const sheetXml = partMapOf(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] || '';
+    const sheetXml = partOf(writeXlsx(workbook), 'xl/worksheets/sheet1.xml');
     const token = (sheetXml.match(/<c r="A1"[^>]*>\s*<v>([\s\S]*?)<\/v>/) || [])[1] ?? null;
     return {hasNonFiniteToken: /<v>[^<]*(NaN|Infinity)[^<]*<\/v>/.test(sheetXml), token};
   },
@@ -386,7 +386,7 @@ export const core = {
       partsWithRawChar = Object.keys(parts)
         .filter((name) => raw.test(parts[name] ?? ''))
         .sort();
-      const cellXml = (parts['xl/worksheets/sheet1.xml'] ?? '').match(/<c r="A1"[\s\S]*?<\/c>/);
+      const cellXml = partOf(parts, 'xl/worksheets/sheet1.xml').match(/<c r="A1"[\s\S]*?<\/c>/);
       const body =
         cellXml === null ? null : /<t[^>]*>([\s\S]*?)<\/t>|<v>([\s\S]*?)<\/v>/.exec(cellXml[0]);
       emittedText = body === null ? null : (body[1] ?? body[2] ?? null);
@@ -563,7 +563,7 @@ export const core = {
   // that a string-typed formula result under a date format is not coerced to a numeric/NaN cell.
   roundtripFixtureCellXml(rel: string, refs: string[] = []) {
     const parts = partMapOf(writeXlsx(readXlsx(fixtureBytes(rel))));
-    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
+    const sheetXml = partOf(parts, 'xl/worksheets/sheet1.xml');
     const cells: Record<string, Untyped> = {};
     for (const ref of refs) {
       const match = sheetXml.match(new RegExp(`<c r="${ref}"([^>]*)>([\\s\\S]*?)</c>`));
@@ -656,7 +656,7 @@ export const core = {
     const buffer = writeXlsx(wb);
     const readStates: Record<string, Untyped> = {};
     for (const sheet of readXlsx(buffer).worksheets) readStates[sheet.name] = sheet.state;
-    const workbookXml = partMapOf(buffer)['xl/workbook.xml'] ?? '';
+    const workbookXml = partOf(buffer, 'xl/workbook.xml');
     const xmlStates: Record<string, Untyped> = {};
     for (const m of workbookXml.matchAll(/<sheet\b([^>]*)\/?>/g)) {
       const attrs = m[1]!;
@@ -1342,7 +1342,7 @@ export const core = {
         wb.addWorksheet('S');
         wb.properties[property] = date;
         try {
-          const core = partMapOf(writeXlsx(wb))['docProps/core.xml'] ?? '';
+          const core = partOf(writeXlsx(wb), 'docProps/core.xml');
           return {
             property,
             kind,

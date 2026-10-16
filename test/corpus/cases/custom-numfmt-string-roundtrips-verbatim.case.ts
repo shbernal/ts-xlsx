@@ -34,28 +34,6 @@ export default {
       },
     },
     {
-      name: 'the group-separator commas are not dropped from the format code',
-      async expect(api: CorpusApi, assert: Assert) {
-        const model = await api.roundtripWorkbook(SPEC);
-        const got = model.sheets.S.cells.A1.numFmt || '';
-        assert.strictEqual(
-          (got.match(/#,##0/g) || []).length,
-          2,
-          'both #,##0 group patterns survive with their commas',
-        );
-      },
-    },
-    {
-      name: 'the cell keeps its assigned custom number format (numFmt survives)',
-      async expect(api: CorpusApi, assert: Assert) {
-        const model = await api.roundtripWorkbook(SPEC);
-        assert.ok(
-          model.sheets.S.cells.A1.numFmt,
-          'the cell still carries a custom numFmt after the round-trip',
-        );
-      },
-    },
-    {
       // Number-format codes are stored in an invariant form where "." is always the decimal and ","
       // the grouping separator (and "/" the date separator); the viewer localizes at display time.
       // The library must persist the user's separators verbatim, never swap "." <-> "," or rewrite

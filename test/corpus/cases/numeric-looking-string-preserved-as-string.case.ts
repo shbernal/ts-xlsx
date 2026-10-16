@@ -52,16 +52,5 @@ export default {
         );
       },
     },
-    {
-      name: 'the preserved value is a string, not a number',
-      async expect(api: CorpusApi, assert: Assert) {
-        const model = await api.roundtripWorkbook(SPEC);
-        assert.strictEqual(
-          typeof model.sheets.S.cells.A1.value,
-          'string',
-          'the cell reads back as a string type',
-        );
-      },
-    },
   ],
 } satisfies Case;

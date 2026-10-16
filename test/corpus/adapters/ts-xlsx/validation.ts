@@ -2,7 +2,7 @@
 
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
-import {partMapOf} from './package-facts.ts';
+import {partMapOf, partOf} from './package-facts.ts';
 import {readFixture, readXlsx, Workbook, writeXlsx, XlsxError} from './runtime.ts';
 import {attrsOf, expandSqref} from './xml-probes.ts';
 
@@ -23,7 +23,7 @@ export const validation = {
     sheet.addDataValidation('A1', rule);
     sheet.addDataValidation('B1', rule, {extended: true});
     const attributes = (bytes: Uint8Array) => {
-      const xml = partMapOf(bytes)['xl/worksheets/sheet1.xml'] ?? '';
+      const xml = partOf(bytes, 'xl/worksheets/sheet1.xml');
       const pick = (pattern: RegExp) => {
         const attrs = attrsOf(xml.match(pattern)?.[0] ?? '<none/>');
         return {showDropDown: attrs.showDropDown ?? null, imeMode: attrs.imeMode ?? null};
@@ -65,7 +65,7 @@ export const validation = {
       if (!(error instanceof XlsxError)) throw error;
       return {formula1: null, hasNaN: false, refused: true};
     }
-    const sheetXml = partMapOf(bytes)['xl/worksheets/sheet1.xml'] || '';
+    const sheetXml = partOf(bytes, 'xl/worksheets/sheet1.xml');
     const formula1 = (sheetXml.match(/<formula1>([\s\S]*?)<\/formula1>/) || [])[1] ?? null;
     return {formula1, hasNaN: /NaN/.test(sheetXml), refused: false};
   },
@@ -84,7 +84,7 @@ export const validation = {
     for (let r = 1; r <= rows; r++)
       formulae.push(reloaded!.dataValidationAt(`A${r}`)?.formulae?.[0] ?? null);
     const allIdentical = formulae.every((f) => f === source);
-    const dvXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const dvXml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     const sqrefBlocks = (dvXml.match(/<(?:x14:)?dataValidation[\s>]/g) || []).length;
     return {source, formulae, allIdentical, sqrefBlocks};
   },
@@ -178,7 +178,7 @@ export const validation = {
       totalStandard += standardCount;
       totalExt += extCount;
     }
-    return {sheets, totalStandard, totalExt, totalValidations: totalStandard + totalExt};
+    return {sheets, totalStandard, totalExt};
   },
 
   // Attach a list validation whose source formula is supplied (possibly with a leading '='), write,
@@ -191,7 +191,7 @@ export const validation = {
       allowBlank: true,
       formulae: [formula],
     });
-    const sheetXml = partMapOf(writeXlsx(wb))['xl/worksheets/sheet1.xml'] || '';
+    const sheetXml = partOf(writeXlsx(wb), 'xl/worksheets/sheet1.xml');
     const formula1 = (sheetXml.match(/<formula1>([\s\S]*?)<\/formula1>/) || [])[1] ?? null;
     return {formula1, hasLeadingEquals: formula1?.startsWith('=')};
   },
@@ -215,7 +215,7 @@ export const validation = {
         reloadOk: null,
       };
     }
-    const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const xml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     const sqrefs = [...xml.matchAll(/<dataValidation\b[^>]*sqref="([^"]*)"/g)].map((m) => m[1]);
     const count = [...xml.matchAll(/<dataValidation[ >]/g)].length;
     let reloadOk = true;
@@ -259,7 +259,7 @@ export const validation = {
       readBack[v.ref] = dv ? {type: dv.type, formulae: dv.formulae ?? null} : null;
     }
 
-    const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const xml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     const block = (xml.match(/<dataValidations[\s\S]*?<\/dataValidations>/) || [])[0] || '';
     return {
       readBack,

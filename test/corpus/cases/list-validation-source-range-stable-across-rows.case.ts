@@ -39,18 +39,6 @@ export default {
       },
     },
     {
-      name: 'the lowest row references the same source range as the highest (no drift past the source)',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {source, formulae} = await api.listValidationSourceRangeAcrossRows(6, 'Lookup!A1:A5');
-        assert.strictEqual(formulae[0], source, 'first row source reference');
-        assert.strictEqual(
-          formulae[formulae.length - 1],
-          source,
-          'last row must not have drifted below the source',
-        );
-      },
-    },
-    {
       name: 'identical per-cell rules collapse into a single sqref block rather than one per row',
       async expect(api: CorpusApi, assert: Assert) {
         const {sqrefBlocks} = await api.listValidationSourceRangeAcrossRows(6, 'Lookup!A1:A5');

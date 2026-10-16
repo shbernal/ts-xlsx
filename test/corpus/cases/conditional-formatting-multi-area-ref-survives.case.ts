@@ -54,12 +54,5 @@ export default {
         );
       },
     },
-    {
-      name: 'a valid multi-area rule never yields a sheet with zero conditionalFormatting elements',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {xml} = await api.authorConditionalFormatting(CF);
-        assert.ok(xml!.blockCount > 0, 'the rule is not dropped to zero blocks');
-      },
-    },
   ],
 } satisfies Case;

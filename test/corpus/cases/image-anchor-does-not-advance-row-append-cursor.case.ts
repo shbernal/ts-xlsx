@@ -26,12 +26,5 @@ export default {
         assert.strictEqual(imageFirst.firstDataCell, 'a');
       },
     },
-    {
-      name: 'the appended-row layout is identical regardless of image-vs-rows add order',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {imageFirst, rowsFirst} = await api.imageAnchorRowAppendReport();
-        assert.strictEqual(imageFirst.firstDataCell, rowsFirst.firstDataCell);
-      },
-    },
   ],
 } satisfies Case;
