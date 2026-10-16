@@ -18,6 +18,7 @@ import type {
   PivotRecordCell,
   PivotTable,
 } from '../../core/pivot-table.ts';
+import {InternalError} from '../../errors.ts';
 import {escapeAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {RELATIONSHIPS_NS} from '../opc/namespaces.ts';
 import {SPREADSHEETML_NS} from './namespaces.ts';
@@ -84,11 +85,12 @@ export function pivotCacheRecordsXml(table: PivotTable): string {
 /** The `pivotTableDefinition` part placed on the destination sheet: the field layout that binds the
  * cache (by `cacheId`) to the row/column axes and the summed value field. */
 export function pivotTableXml(table: PivotTable, name: string, cacheId: string): string {
-  // `PivotTable`'s constructor refuses a pivot with no row or column field, so both are present. Read
-  // through a default rather than asserted: an assertion that is right for a reason stated in another
-  // module is one the compiler cannot check, and field 0 is the honest fallback if it ever were wrong.
-  const rowField = table.rowFields[0] ?? 0;
-  const columnField = table.columnFields[0] ?? 0;
+  // `PivotTable`'s constructor refuses a pivot with no row or column field, so a miss here is a bug.
+  const [rowField] = table.rowFields;
+  const [columnField] = table.columnFields;
+  if (rowField === undefined || columnField === undefined) {
+    throw new InternalError('a pivot table reached the writer with no row or column field');
+  }
   const rowGroups = table.cacheFields[rowField]?.sharedItems?.length ?? 1;
   const columnGroups = table.cacheFields[columnField]?.sharedItems?.length ?? 1;
   // A generous bounding box on the destination sheet: a row-label column plus one column per column
