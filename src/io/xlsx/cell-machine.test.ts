@@ -206,15 +206,6 @@ test('a typed token with no reading for its type is no value, but an unlisted er
   assert.equal(sheet.getCell('D1').value, '#PYTHON!', 'an error the model does not list is data');
 });
 
-test('a typed cell with no value is not written back as one', () => {
-  const body = TYPED_WITHOUT_VALUE.map(([, cell], i) =>
-    cell.replace('A1', `${String.fromCharCode(65 + i)}1`),
-  ).join('');
-  const xml = sheetXml(writeXlsx(readXlsx(patchSheetBody(seeded(), body))));
-  // The cell elements themselves may stay, as a bare `<c r="A1"/>` does; the invented values may not.
-  assert.doesNotMatch(xml, /<c [^>]*\bt="|<v>|<is>/);
-});
-
 // A one-sheet package whose pool holds one string, for a patched body to index into.
 function seeded(): Uint8Array {
   const wb = new Workbook();

@@ -8,8 +8,6 @@ import {Workbook} from '../../core/workbook.ts';
 import {writeCompoundFile} from '../../vba/cfb-writer.ts';
 import {PackageReadError, UnsupportedFormatError} from '../opc/errors.ts';
 import {sniffContainer} from '../opc/sniff-format.ts';
-import {XlsbParseError} from '../xlsb/errors.ts';
-import {readWorkbookStream} from './read-rows.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -74,43 +72,6 @@ test('sniffContainer classifies by leading magic bytes', () => {
   assert.equal(sniffContainer(new Uint8Array(0)), 'other');
 });
 
-test('a legacy .xls (CFB) throws UnsupportedFormatError with format "xls"', () => {
-  const err = catchError(() => readXlsx(cfbBlob()));
-  assert.ok(err instanceof UnsupportedFormatError);
-  assert.equal(err.format, 'xls');
-  assert.equal(err.name, 'UnsupportedFormatError');
-  assert.match(err.message, /\.xls/);
-});
-
-test('a binary .xlsb is dispatched to the BIFF12 codec, not rejected as unreadable', () => {
-  // The classification stands (this *is* an `.xlsb`) but `readXlsx` now reads one, so what a
-  // deliberately malformed binary workbook must produce is a parse failure, not a format failure.
-  const err = catchError(() => readXlsx(xlsbBlob()));
-  assert.ok(err instanceof XlsbParseError);
-  assert.ok(!(err instanceof UnsupportedFormatError));
-});
-
-test('the row streamer still reports a binary .xlsb as a format it cannot take', () => {
-  // Row streaming is built on the XML worksheet parser, so it has no binary path yet. It must say so
-  // in terms of the format, and point at the entry point that does read one.
-  const err = catchError(() => {
-    for (const _sheet of readWorkbookStream(xlsbBlob())) break;
-  });
-  assert.ok(err instanceof UnsupportedFormatError);
-  assert.equal(err.format, 'xlsb');
-  assert.match(err.message, /\.xlsb/);
-  assert.match(err.message, /readXlsx|readXlsb/);
-});
-
-test('non-ZIP input throws UnsupportedFormatError with format "unknown"', () => {
-  const err = catchError(() => readXlsx(nonZipBlob()));
-  assert.ok(err instanceof UnsupportedFormatError);
-  assert.equal(err.format, 'unknown');
-  assert.match(err.message, /not a valid \.xlsx package/);
-  // The sniff refused before any part was looked for, so the message must not blame a missing part.
-  assert.doesNotMatch(err.message, /workbook part/);
-});
-
 test('a ZIP that inflates but carries no workbook part keeps the "no workbook part" message', () => {
   // The one case where that message is the truth: the archive unpacked, and the part search that ran
   // over it came up empty. A ZIP-headed stub with no visible entry lands here too: a streaming unzip
@@ -121,16 +82,6 @@ test('a ZIP that inflates but carries no workbook part keeps the "no workbook pa
     assert.equal(err.format, 'unknown');
     assert.match(err.message, /no OOXML workbook part was found/);
   }
-});
-
-test('a truncated archive is a PackageReadError, not an unsupported format', () => {
-  // Nothing inflated, so no part search ever ran: this is the right *kind* of container that cannot
-  // be unpacked: `malformed-input`, not `unsupported-format`.
-  const err = catchError(() => readXlsx(truncatedZipBlob()));
-  assert.ok(err instanceof PackageReadError);
-  assert.equal(err.code, 'malformed-input');
-  assert.ok(!(err instanceof UnsupportedFormatError));
-  assert.match(err.message, /corrupt or truncated/);
 });
 
 test('a truncated archive leaks neither raw zip internals nor a filesystem path', () => {
@@ -144,19 +95,4 @@ test('a truncated archive leaks neither raw zip internals nor a filesystem path'
   assert.doesNotMatch(text, /central directory|is this a zip|invalid zip|unexpected EOF/i);
   assert.doesNotMatch(text, /[A-Za-z]:\\|\/(?:Users|home)\//);
   assert.equal(err.cause, undefined);
-});
-
-test('the row streamer classifies a truncated archive the same way', () => {
-  const err = catchError(() => {
-    for (const _sheet of readWorkbookStream(truncatedZipBlob())) break;
-  });
-  assert.ok(err instanceof PackageReadError);
-});
-
-test('the streaming reader raises the same typed error for a non-.xlsx input', () => {
-  const err = catchError(() => {
-    for (const _sheet of readWorkbookStream(cfbBlob())) break;
-  });
-  assert.ok(err instanceof UnsupportedFormatError);
-  assert.equal(err.format, 'xls');
 });

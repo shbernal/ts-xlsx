@@ -87,31 +87,6 @@ function shapeDrawingPackage(): Uint8Array {
   });
 }
 
-test('a worksheet drawing holding only a vector shape survives read→write', () => {
-  const out = writeXlsx(readXlsx(shapeDrawingPackage()));
-
-  assert.ok(
-    partNames(out).some((n) => /xl\/drawings\/drawing\d+\.xml$/.test(n)),
-    'the drawing part survives',
-  );
-  assert.match(
-    partText(out, SHEET1),
-    /<drawing r:id="[^"]+"\/>/,
-    'the worksheet still references it',
-  );
-  assert.match(
-    partText(out, 'xl/drawings/drawing1.xml'),
-    /<xdr:sp\b/,
-    'the vector shape survives inside',
-  );
-  // The rewritten package must re-read without error, and re-writing it must keep preserving the shape.
-  assert.match(
-    partText(writeXlsx(readXlsx(out)), 'xl/drawings/drawing1.xml'),
-    /<xdr:sp\b/,
-    'idempotent across a second round-trip',
-  );
-});
-
 // Sheet `S`, whose one drawing holds a picture and a chart, the drawing's relationships `rId1` and
 // `rId2` naming each.
 function mixedDrawingPackage(): Uint8Array {

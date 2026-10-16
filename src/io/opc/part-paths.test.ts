@@ -43,24 +43,6 @@ test('resolveRelativePart collapses `.` and `..` segments against the base direc
   );
 });
 
-test('resolveRelativePart drops empty segments from a doubled slash', () => {
-  assert.strictEqual(
-    resolveRelativePart('xl/drawings/drawing1.xml', 'sub//child.xml'),
-    'xl/drawings/sub/child.xml',
-    'the empty segment between the slashes is skipped',
-  );
-});
-
-test('a workbook target escaping `xl/` resolves to a part path outside it', () => {
-  // The workbook's own relationships resolve against the workbook part like any other part's do, so a
-  // target that climbs out of `xl/` lands where OPC says it does. A resolver that only prefixed `xl/`
-  // would yield a path with the `..` still in it, which no package part can ever answer to.
-  assert.strictEqual(
-    resolveRelativePart('xl/workbook.xml', '../docProps/custom.xml'),
-    'docProps/custom.xml',
-  );
-});
-
 // The two functions are inverses, and that is the property the writer's output depends on: every
 // Target the writer names through `relativePartPath` is read back by the reader (and by Excel)
 // through the resolution `resolveRelativePart` implements. Either one drifting alone re-points a

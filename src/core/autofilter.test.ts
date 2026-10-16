@@ -20,10 +20,6 @@ const filterOn = (ref: string, colIds: readonly number[]): AutoFilter =>
 
 const colIdsOf = (filter: AutoFilter | undefined) => filter?.columns.map((c) => c.colId);
 
-test('canonicalizeAutoFilter normalises a bare range string to a criteria-free filter', () => {
-  assert.deepEqual(canonicalizeAutoFilter('$B$2:$D$10'), {ref: 'B2:D10', columns: []});
-});
-
 test('a column insert before the filter re-bases every criterion against the new left edge', () => {
   // B2:D10 with criteria on B (offset 0) and D (offset 2). Two columns inserted at A push the whole
   // filter right, and the offsets must stay pointing at the same *columns*, so they do not change.

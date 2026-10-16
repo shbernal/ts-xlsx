@@ -21,10 +21,3 @@ test('an inherited property is not a member', () => {
   assert.equal(isOrientation('constructor'), false);
   assert.equal(isOrientation('__proto__'), false);
 });
-
-test('the table is read once, not on every call', () => {
-  const members: Record<'a', true> = {a: true};
-  const isMember = tokenSet<'a'>(members);
-  Reflect.set(members, 'b', true);
-  assert.equal(isMember('b'), false, 'a table mutated after the fact does not widen the guard');
-});

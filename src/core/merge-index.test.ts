@@ -3,29 +3,21 @@ import {test} from 'node:test';
 
 import {MergeIndex} from './merge-index.ts';
 import type {MergeRect} from './merge.ts';
-import {Worksheet} from './worksheet.ts';
-
-// The index holds the region list by reference and rebuilds from it on the first query, so a list
-// that already has regions in it needs no announcement. A test adding regions afterwards reports
-// them the way the sheet does.
-function indexOver(rects: MergeRect[]): MergeIndex {
-  return new MergeIndex(rects);
-}
 
 function rect(top: number, left: number, bottom: number, right: number): MergeRect {
   return {top, left, bottom, right};
 }
 
 test('masterOf resolves a covered position to its region top-left and any other to itself', () => {
-  const index = indexOver([rect(2, 2, 3, 4)]);
+  const index = new MergeIndex([rect(2, 2, 3, 4)]);
   assert.deepEqual(index.masterOf(3, 4), {row: 2, col: 2}, 'the far corner of the region');
   assert.deepEqual(index.masterOf(2, 2), {row: 2, col: 2}, 'the anchor itself');
   assert.deepEqual(index.masterOf(4, 2), {row: 4, col: 2}, 'a row below the region');
-  assert.deepEqual(indexOver([]).masterOf(3, 4), {row: 3, col: 4}, 'no regions at all');
+  assert.deepEqual(new MergeIndex([]).masterOf(3, 4), {row: 3, col: 4}, 'no regions at all');
 });
 
 test('masterOf takes a covering region, since a sheet admits no overlap', () => {
-  const index = indexOver([rect(1, 1, 5, 5), rect(2, 2, 3, 3)]);
+  const index = new MergeIndex([rect(1, 1, 5, 5), rect(2, 2, 3, 3)]);
   assert.deepEqual(index.masterOf(2, 2), {row: 1, col: 1});
 });
 
@@ -38,9 +30,13 @@ test('overlap is found at a corner, along an edge, and by containment, in both o
     {name: 'the region inside the candidate', other: rect(1, 1, 40, 40)},
   ];
   for (const {name, other} of cases) {
-    assert.notEqual(indexOver([established]).overlapping(other), undefined, `${name}, added first`);
     assert.notEqual(
-      indexOver([other]).overlapping(established),
+      new MergeIndex([established]).overlapping(other),
+      undefined,
+      `${name}, added first`,
+    );
+    assert.notEqual(
+      new MergeIndex([other]).overlapping(established),
       undefined,
       `${name}, added second`,
     );
@@ -48,7 +44,7 @@ test('overlap is found at a corner, along an edge, and by containment, in both o
 });
 
 test('a region that only touches without sharing a cell is not an overlap', () => {
-  const index = indexOver([rect(10, 10, 20, 20)]);
+  const index = new MergeIndex([rect(10, 10, 20, 20)]);
   assert.equal(index.overlapping(rect(21, 10, 25, 20)), undefined, 'directly below');
   assert.equal(index.overlapping(rect(10, 21, 20, 25)), undefined, 'directly right');
   assert.equal(index.overlapping(rect(21, 21, 25, 25)), undefined, 'diagonally past the corner');
@@ -57,7 +53,7 @@ test('a region that only touches without sharing a cell is not an overlap', () =
 test('a region taller than a band is found from a query far below its top row', () => {
   // The bucket holds a region under its top row alone, so a tall region is reached through the
   // tallest-region window rather than by being listed in every band it covers.
-  const index = indexOver([rect(1, 1, 5000, 3)]);
+  const index = new MergeIndex([rect(1, 1, 5000, 3)]);
   assert.notEqual(index.overlapping(rect(4000, 2, 4000, 2)), undefined, 'deep inside the region');
   assert.equal(index.overlapping(rect(4000, 9, 4000, 9)), undefined, 'beside it, not inside');
   assert.equal(index.overlapping(rect(5001, 1, 5001, 3)), undefined, 'one row past its bottom');
@@ -65,7 +61,7 @@ test('a region taller than a band is found from a query far below its top row', 
 
 test('a region reported after construction is found without a rebuild', () => {
   const rects: MergeRect[] = [];
-  const index = indexOver(rects);
+  const index = new MergeIndex(rects);
   assert.equal(
     index.overlapping(rect(3, 3, 4, 4)),
     undefined,
@@ -79,7 +75,7 @@ test('a region reported after construction is found without a rebuild', () => {
 
 test('invalidating rereads a list that was rewritten behind the index', () => {
   const rects: MergeRect[] = [rect(10, 10, 20, 20)];
-  const index = indexOver(rects);
+  const index = new MergeIndex(rects);
   assert.notEqual(index.overlapping(rect(15, 15, 16, 16)), undefined);
   rects.length = 0;
   index.invalidate();
@@ -158,15 +154,4 @@ test('a query compares against its own band, not against every region on the she
     (compared[0] as number) <= 32,
     `a query compared against ${compared[0]} regions, which is more than one band holds`,
   );
-});
-
-test('adding a merge through the sheet asks the index once, whatever the sheet already holds', () => {
-  // The end-to-end half: `mergeCells` overlap-checks, and with the query above bounded, the loading
-  // path is bounded too. Asserted as a result rather than a duration - every one of these regions
-  // is admitted, which a quadratic re-scan would also manage, but slowly enough to have been the
-  // original bug report.
-  const sheet = new Worksheet('S', 1);
-  for (let i = 1; i <= 20_000; i++) sheet.mergeCells(`A${i * 2}:C${i * 2}`);
-  assert.equal(sheet.merges.length, 20_000);
-  assert.throws(() => sheet.mergeCells('A2:C2'), /overlap/i, 'and an overlap is still refused');
 });

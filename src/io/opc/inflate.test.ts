@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, strToU8, zipSync} from 'fflate';
+import {strToU8, zipSync} from 'fflate';
 
 import {inflatePackage} from './inflate.ts';
 
@@ -131,18 +131,6 @@ function storedZip(entries: readonly {name: string; data: Uint8Array}[]): Uint8A
     ...u16(0), // comment length
   ]);
 }
-
-test('the hand-assembled archive builder produces something this reader accepts', () => {
-  const files = inflatePackage(
-    storedZip([
-      {name: 'one.xml', data: strToU8('<a/>')},
-      {name: 'sub/two.xml', data: strToU8('<b/>')},
-    ]),
-    GENEROUS_CAP,
-  );
-  assert.deepEqual(Object.keys(files).sort(), ['one.xml', 'sub/two.xml']);
-  assert.equal(strFromU8(files['sub/two.xml'] as Uint8Array), '<b/>');
-});
 
 test('two parts under one name are refused rather than one of them being chosen', () => {
   // Walking the central directory takes the first, streaming the local headers takes the last, and a

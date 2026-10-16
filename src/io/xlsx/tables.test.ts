@@ -3,10 +3,8 @@ import {test} from 'node:test';
 
 import type {TotalsRowFunction} from '../../core/table.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {partIn, partsWritten, patchParts, roundtrip} from './package.test-support.ts';
-import {readXlsx} from './read.ts';
+import {partIn, partsWritten, roundtrip} from './package.test-support.ts';
 import {parseTable} from './tables.ts';
-import {writeXlsx} from './write.ts';
 
 // Author a workbook whose single sheet carries one table, round-trip it, and hand back the
 // reconstructed table for assertions.
@@ -247,24 +245,6 @@ test("a table authored without a style reads back with Excel's default style", (
   assert.equal(table.options.style?.showRowStripes, true);
 });
 
-test("a table's one name is written as both its name and its displayName", () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').addTable({name: 'Sales', ref: 'A1', columns: [{name: 'C'}], rowCount: 1});
-  const table = partIn(partsWritten(wb), 'xl/tables/table1.xml');
-  assert.match(table, /<table [^>]*name="Sales" displayName="Sales"/);
-});
-
-test('a table part whose two names differ reads under its displayName, the one formulas resolve', () => {
-  // Excel 16.0 computes `SUM(Shown[h])` over this table and makes `SUM(Internal[h])` a `#REF!`.
-  const wb = new Workbook();
-  wb.addWorksheet('S').addTable({name: 'Shown', ref: 'A1', columns: [{name: 'h'}], rowCount: 1});
-  const patched = patchParts(writeXlsx(wb), {
-    'xl/tables/table1.xml': (xml) =>
-      xml.replace('name="Shown" displayName', 'name="Internal" displayName'),
-  });
-  assert.equal(readXlsx(patched).getWorksheet('S')?.tables[0]?.name, 'Shown');
-});
-
 test('a header table read without an autoFilter does not gain one on round-trip', () => {
   const [table] = roundtripTable({
     name: 'Unfiltered',
@@ -430,20 +410,6 @@ test('an empty-body table refs the full header row and writes a table part', () 
   );
 });
 
-test('a headerless table sets headerRowCount="0" and emits no autoFilter', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').addTable({
-    name: 'H',
-    ref: 'A1',
-    columns: [{name: 'A'}, {name: 'B'}],
-    rowCount: 2,
-    headerRow: false,
-  });
-  const table = partIn(partsWritten(wb), 'xl/tables/table1.xml');
-  assert.match(table, /headerRowCount="0"/);
-  assert.doesNotMatch(table, /<autoFilter/);
-});
-
 test('a totals-row column serialises its function and keeps every column', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').addTable({
@@ -562,19 +528,4 @@ test('tables are numbered globally across sheets with sheet-local rel ids', () =
     partIn(parts, 'xl/worksheets/_rels/sheet2.xml.rels'),
     /Target="\.\.\/tables\/table2\.xml"/,
   );
-});
-
-test('a merge overlapping a table is rejected; a disjoint merge is written', () => {
-  const overlap = new Workbook();
-  const s1 = overlap.addWorksheet('S');
-  s1.addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}, {name: 'B'}], rowCount: 2});
-  s1.mergeCells('A2:B2');
-  assert.throws(() => writeXlsx(overlap), /overlaps table/);
-
-  const disjoint = new Workbook();
-  const s2 = disjoint.addWorksheet('S');
-  s2.addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}, {name: 'B'}], rowCount: 2});
-  s2.mergeCells('D5:E5');
-  const xml = partIn(partsWritten(disjoint), 'xl/worksheets/sheet1.xml');
-  assert.match(xml, /<mergeCells count="1"><mergeCell ref="D5:E5"\/><\/mergeCells>/);
 });

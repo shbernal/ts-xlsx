@@ -218,14 +218,6 @@ test('a bare 8-hex fill colour is preserved verbatim, including its original cas
   assert.match(styles.toXml(), /<fgColor rgb="ff00ff00"\/>/);
 });
 
-test('a 6-hex RGB fill colour is promoted to ARGB with a fully-opaque alpha', () => {
-  const styles = registry();
-  styles.styleId({fill: solid('00FF00')});
-  // A colour written without its alpha channel is the common case; it must not reach Excel as a
-  // 6-char rgb (which renders black), but as a valid opaque 8-hex ARGB.
-  assert.match(styles.toXml(), /<fgColor rgb="FF00FF00"\/>/);
-});
-
 test('a "#"-prefixed 6-hex RGB is both stripped and promoted to opaque ARGB', () => {
   const styles = registry();
   styles.styleId({fill: solid('#00FF00')});

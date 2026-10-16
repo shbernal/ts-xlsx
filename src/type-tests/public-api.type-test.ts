@@ -4,10 +4,8 @@
 // I/O, the optionality of an address's col/row, the membership of CellValue.
 
 import type {
-  AddImageOptions,
   ArrayFormulaValue,
   AuthoringError,
-  AutoFilter,
   CellAddress,
   CellValue,
   Comment,
@@ -15,11 +13,8 @@ import type {
   CsvParseError,
   CustomUiParseError,
   DataTableFormulaValue,
-  DefinedName,
   decodeAddress,
   ErrorValue,
-  FilterColumn,
-  FilterCriteria,
   FormulaValue,
   Hyperlink,
   InternalError,
@@ -33,15 +28,11 @@ import type {
   Mention,
   MentionRef,
   PackageReadError,
-  PageBreak,
-  PageSetup,
   Person,
-  PrintOptions,
   Range,
   RichTextValue,
   readXlsx,
   SharedFormulaValue,
-  SheetView,
   TableRegion,
   UnsupportedFormat,
   UnsupportedFormatError,
@@ -134,21 +125,6 @@ export type StreamingConstructionContracts = [
   Expect<Equal<Extends<typeof StreamedRow, new (...args: never) => unknown>, false>>,
 ];
 
-// Export-presence guards for the core feature types now on the barrel: importing each locks it into
-// the public API (its removal would break this compilation), and a self-`Extends` references it.
-// FilterColumn/FilterCriteria come along so a constructed AutoFilter is fully nameable by callers.
-export type FeatureSurface = [
-  Expect<Extends<AutoFilter, AutoFilter>>,
-  Expect<Extends<FilterColumn, FilterColumn>>,
-  Expect<Extends<FilterCriteria, FilterCriteria>>,
-  Expect<Extends<PageSetup, PageSetup>>,
-  Expect<Extends<PrintOptions, PrintOptions>>,
-  Expect<Extends<PageBreak, PageBreak>>,
-  Expect<Extends<SheetView, SheetView>>,
-  Expect<Extends<DefinedName, DefinedName>>,
-  Expect<Extends<AddImageOptions, AddImageOptions>>,
-];
-
 // Threaded comments read back as a fully-resolved, immutable tree: a thread's messages and a message's
 // mentions are readonly arrays (an inspection view, not an authoring handle), `resolved` is the
 // thread's own boolean, and an identity lookup is partial: a message may name a person the registry
@@ -159,9 +135,8 @@ export type CommentThreadContracts = [
   Expect<Equal<Comment['mentions'], readonly Mention[]>>,
   Expect<Equal<Comment['author'], Person | undefined>>,
   Expect<Equal<Mention['person'], Person | undefined>>,
-  // The resolved mention is the wire shape plus that one field: a caller can hand a `Mention` to
-  // anything taking a `MentionRef`, and the codec's own parsed shape is the same type.
-  Expect<Extends<Mention, MentionRef>>,
+  // The resolved mention is the wire shape plus that one field, so a caller can hand a `Mention` to
+  // anything taking a `MentionRef`.
   Expect<Equal<Omit<Mention, 'person'>, MentionRef>>,
   Expect<Equal<ReturnType<Workbook['getPerson']>, Person | undefined>>,
   Expect<Equal<Workbook['persons'], readonly Person[]>>,

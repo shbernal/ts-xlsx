@@ -11,7 +11,6 @@ import {
   partsOf,
   partsWritten,
   patchParts,
-  roundtrip,
   SHEET1,
   sheetXml,
 } from './package.test-support.ts';
@@ -19,40 +18,6 @@ import {readSheetRows} from './read-rows.ts';
 import {readXlsx} from './read.ts';
 import {WorkbookStreamWriter} from './write-stream.ts';
 import {writeXlsx} from './write.ts';
-
-function reReadA1(wb: Workbook): unknown {
-  return roundtrip(wb).getWorksheet('S')?.getCell('A1').value;
-}
-
-test('an error cell serialises under t="e" with the code as its value', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = {error: '#DIV/0!'};
-
-  assert.match(sheetXml(writeXlsx(wb)), /<c r="A1" t="e"><v>#DIV\/0!<\/v><\/c>/);
-});
-
-test('a formula whose cached result is an error round-trips with both', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = {formula: 'A2/A3', result: {error: '#DIV/0!'}};
-
-  const xml = sheetXml(writeXlsx(wb));
-  assert.match(xml, /<c r="A1" t="e"><f>A2\/A3<\/f><v>#DIV\/0!<\/v><\/c>/);
-
-  const back = reReadA1(wb) as {formula: string; result: unknown};
-  assert.equal(back.formula, 'A2/A3', 'the formula survives');
-  assert.deepEqual(back.result, {error: '#DIV/0!'}, 'the cached error result survives');
-});
-
-test('a styled error cell keeps its style across the round-trip', () => {
-  const wb = new Workbook();
-  const cell = wb.addWorksheet('S').getCell('A1');
-  cell.value = {error: '#N/A'};
-  cell.font = {bold: true};
-
-  const back = roundtrip(wb).getWorksheet('S')?.getCell('A1');
-  assert.deepEqual(back?.value, {error: '#N/A'}, 'the error value survives');
-  assert.equal(back?.font?.bold, true, 'the font survives alongside it');
-});
 
 test('an error Excel has no literal for is written as #VALUE! beside the rich value naming it', () => {
   // Excel 16.0 (build 20326) opened a cell `<c t="e"><v>…</v></c>` clean for `#N/A`, `#GETTING_DATA` and

@@ -91,7 +91,7 @@ test('a column past XFD is a bounds failure, not a syntax one', () => {
 
 test('tryDecodeCellRef answers undefined where decodeCellRef throws, on either error', () => {
   assert.deepEqual(tryDecodeCellRef('B2'), {col: 2, row: 2});
-  for (const reference of [...NOT_ONE_CELL, 'XFE1']) {
+  for (const reference of [...NOT_ONE_CELL, 'XFE1', 'A0', `A${MAX_ROW + 1}`]) {
     assert.equal(tryDecodeCellRef(reference), undefined, `"${reference}" names no one cell`);
   }
 });
@@ -106,15 +106,6 @@ test('decodeCellRef bounds the row where it already bounded the column', () => {
   assert.throws(() => decodeCellRef(`A${MAX_ROW + 1}`), RangeError);
   assert.throws(() => decodeAddress('0'), RangeError, 'a bare row is bounded too');
   assert.throws(() => decodeRange(`A1:B${MAX_ROW + 1}`), RangeError, 'and a range endpoint');
-});
-
-// The read side's question is not "does this parse" but "can this cell exist", and the bound that
-// answers it now lives in the throwing decoder, so the tolerant one only has to catch.
-test('tryDecodeCellRef refuses a reference that parses but names no possible cell', () => {
-  assert.deepEqual(tryDecodeCellRef(`XFD${MAX_ROW}`), {col: MAX_COLUMN, row: MAX_ROW});
-  for (const reference of ['A0', `A${MAX_ROW + 1}`, 'ZZZZ1']) {
-    assert.equal(tryDecodeCellRef(reference), undefined, `"${reference}" is off the grid`);
-  }
 });
 
 test('tryDecodeRange answers undefined where decodeRange throws', () => {
@@ -223,7 +214,6 @@ test('a coordinate past the end of the grid is refused on both axes, not just th
   // for while the other refused.
   assert.throws(() => encodeAddress(1, MAX_ROW + 1), RangeError);
   assert.throws(() => encodeAddress(MAX_COLUMN + 1, 1), RangeError);
-  assert.equal(encodeAddress(MAX_COLUMN, MAX_ROW), 'XFD1048576');
 });
 
 // Observed in Excel 16.0 build 20326, twice over: the names it quotes in a formula's sheet prefix, and

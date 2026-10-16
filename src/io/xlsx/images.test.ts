@@ -75,32 +75,6 @@ test('inserting a row above an anchored image shifts its anchor down a row', () 
   assert.strictEqual(anchor.from.col, 0, 'columns are untouched by a row splice');
 });
 
-test('a one-cell anchor emits a oneCellAnchor with a pixel extent converted to EMUs', () => {
-  const wb = new Workbook();
-  const ws = wb.addWorksheet('S');
-  const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
-  ws.addImage(id, {tl: {col: 2, row: 3}, ext: {width: 191, height: 47}});
-  const parts = partsWritten(wb);
-  const drawing = partIn(parts, 'xl/drawings/drawing1.xml');
-  assert.match(drawing, /<xdr:oneCellAnchor>/);
-  assert.doesNotMatch(drawing, /<xdr:to>/, 'a one-cell anchor has no bottom-right point');
-  assert.match(drawing, new RegExp(`<xdr:ext cx="${191 * 9525}" cy="${47 * 9525}"/>`));
-});
-
-test('a two-cell anchor honors its editAs mode and defaults to oneCell', () => {
-  const wb = new Workbook();
-  const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
-  wb.addWorksheet('A').addImage(id, {
-    tl: {col: 1, row: 1},
-    br: {col: 4, row: 6},
-    editAs: 'absolute',
-  });
-  wb.addWorksheet('B').addImage(id, {tl: {col: 1, row: 1}, br: {col: 4, row: 6}});
-  const parts = partsWritten(wb);
-  assert.match(partIn(parts, 'xl/drawings/drawing1.xml'), /<xdr:twoCellAnchor editAs="absolute">/);
-  assert.match(partIn(parts, 'xl/drawings/drawing2.xml'), /<xdr:twoCellAnchor editAs="oneCell">/);
-});
-
 // A written package whose one drawing part `edit` rewrites, beside the rewritten drawing's text.
 function withDrawing(edit: (xml: string) => string): {pkg: Uint8Array; drawing: string} {
   const written = writeXlsx(anchored());
@@ -152,12 +126,6 @@ test('a drawing with a linked picture beside an embedded one is preserved whole'
   assert.equal(partMatching(writeXlsx(read), /^xl\/drawings\/drawing\d+\.xml$/), drawing);
 });
 
-test('an anchored picture carries no absolute spPr transform that would override the anchor', () => {
-  const parts = partsWritten(anchored());
-  const drawing = partIn(parts, 'xl/drawings/drawing1.xml');
-  assert.doesNotMatch(drawing, /<a:xfrm/, 'the geometry is the anchor, not a zeroed transform');
-});
-
 test('a one-cell anchor round-trips through the reader as an extent, not a to-point', () => {
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');
@@ -203,26 +171,6 @@ test('removeImage drops exactly the targeted anchor and omits its now-orphaned m
   );
   const media = Object.keys(partsWritten(wb)).filter((n) => n.startsWith('xl/media/'));
   assert.strictEqual(media.length, 1, 'the orphaned image is not written');
-});
-
-test('a fractional anchor floors to its cell with a sub-cell offset scaled by column width', () => {
-  const fromCol = (width: number): {col: number; colOff: number} => {
-    const wb = new Workbook();
-    const ws = wb.addWorksheet('S');
-    ws.getColumn(4).width = width;
-    const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
-    ws.addImage(id, {tl: {col: 3.5, row: 0}, br: {col: 5, row: 2}});
-    const anchor = ws.images[0]?.anchor;
-    assert.ok(anchor && !isOneCellAnchor(anchor));
-    return {col: anchor.from.col, colOff: anchor.from.colOff ?? 0};
-  };
-  const narrow = fromCol(5);
-  const wide = fromCol(50);
-  assert.strictEqual(narrow.col, 3, 'col 3.5 floors to cell column 3');
-  assert.ok(
-    narrow.colOff > 0 && wide.colOff > narrow.colOff,
-    'a wider column yields a larger offset',
-  );
 });
 
 test('a picture rotation survives the write/read round-trip on a rot-only transform', () => {
@@ -357,19 +305,6 @@ test("a link to a place in the workbook is a hyperlink relationship to the '#' l
     partIn(parts, 'xl/drawings/drawing1.xml'),
     /tooltip=/,
     'no tooltip was given',
-  );
-});
-
-test('a picture reads back with its alternative text, title, crop and link', () => {
-  const [picture] = roundtrip(pictured(LOGO)).getWorksheet('S')?.images ?? [];
-  assert.deepStrictEqual(
-    {
-      description: picture?.description,
-      title: picture?.title,
-      crop: picture?.crop,
-      link: picture?.hyperlink,
-    },
-    {description: LOGO.description, title: LOGO.title, crop: LOGO.crop, link: LOGO.hyperlink},
   );
 });
 

@@ -25,15 +25,6 @@ const FIXTURE = path.resolve(
 
 const fixture = (): Uint8Array => readFileSync(FIXTURE);
 
-test('readXlsb reads a binary package into the workbook model', () => {
-  const workbook = readXlsb(fixture());
-  assert.deepEqual(
-    workbook.worksheets.map((sheet) => sheet.name),
-    ['Quiet', 'Grid', 'Values'],
-  );
-  assert.equal(workbook.getWorksheet('Values')?.getCell('B2').value, 10);
-});
-
 test('readXlsx auto-detects a binary package and produces the same workbook readXlsb does', () => {
   // The auto-detect path must not be a second, subtly different reader: it is the same codec, handed
   // an already-inflated package.

@@ -15,8 +15,8 @@
 //
 // The 64-bit words are carried as hi/lo `Uint32` pairs because JavaScript has no fast 64-bit
 // integer: BigInt is the honest spelling and is several times slower over this loop, which is the
-// entire cost of the operation. `sha512.test.ts` checks every digest here against Node's, so the
-// two cannot drift, and states what the default 100000-spin derivation measures at.
+// entire cost of the operation. `sha512.test.ts` checks digests here against Node's, so the two
+// cannot drift.
 
 const BLOCK_BYTES = 128;
 const DIGEST_BYTES = 64;

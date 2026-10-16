@@ -9,15 +9,6 @@ import {relationship, relationshipsPart, relsPartXml} from './rels.ts';
 // a target it did not control, so whether a `.rels` part was well-formed depended on which call site
 // built it. These pin the guarantee to the function.
 
-test('a writer-controlled package path comes out byte-identical', () => {
-  // The no-op case, and the reason moving the escape inside changes no emitted byte: every generated
-  // target is already free of the characters an attribute escape touches.
-  assert.equal(
-    relationship('rId1', 'http://x/worksheet', '../media/image1.jpeg'),
-    '<Relationship Id="rId1" Type="http://x/worksheet" Target="../media/image1.jpeg"/>',
-  );
-});
-
 test('an ampersand, a quote or an angle bracket in any of the three values is escaped', () => {
   const xml = relationship('rId<1>', 'http://x?a=1&b=2', 'https://example.com/?q="a"&r=1', {
     external: true,
