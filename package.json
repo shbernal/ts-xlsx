@@ -137,7 +137,7 @@
     "shiki": "^4.5.0",
     "typescript": "^7.0.2",
     "vitepress": "^1.6.4",
-    "vue": "^3.5.43"
+    "vue": "^3.5.44"
   },
   "engines": {
     "node": ">=24"
