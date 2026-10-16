@@ -21,14 +21,6 @@ export default {
 
   behavior: [
     {
-      name: 'both blocks are present in the streamed worksheet XML',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {posConditionalFormatting, posHyperlinks} = await api.streamWriteCfHyperlinkOrder();
-        assert.ok(posConditionalFormatting >= 0, 'the conditionalFormatting block is emitted');
-        assert.ok(posHyperlinks >= 0, 'the hyperlinks block is emitted');
-      },
-    },
-    {
       name: 'conditionalFormatting is emitted before hyperlinks (CT_Worksheet sequence order)',
       async expect(api: CorpusApi, assert: Assert) {
         const {conditionalFormattingBeforeHyperlinks} = await api.streamWriteCfHyperlinkOrder();

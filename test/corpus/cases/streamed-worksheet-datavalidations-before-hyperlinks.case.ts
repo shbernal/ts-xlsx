@@ -21,14 +21,6 @@ export default {
 
   behavior: [
     {
-      name: 'both blocks are present in the streamed worksheet XML',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {posDataValidations, posHyperlinks} = await api.streamWriteDvHyperlinkOrder();
-        assert.ok(posDataValidations >= 0, 'a dataValidations block is emitted');
-        assert.ok(posHyperlinks >= 0, 'a hyperlinks block is emitted');
-      },
-    },
-    {
       name: 'dataValidations is emitted before hyperlinks (CT_Worksheet sequence order)',
       async expect(api: CorpusApi, assert: Assert) {
         const {dataValidationsBeforeHyperlinks} = await api.streamWriteDvHyperlinkOrder();

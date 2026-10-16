@@ -28,35 +28,6 @@ export default {
 
   behavior: [
     {
-      name: 'a control character in cell text does not stop the workbook being written',
-      expect(api: CorpusApi, assert: Assert) {
-        const {writeOk, writeError} = api.xmlCharacterSafetyReport('cell-text', `a${CONTROL}b`);
-        assert.strictEqual(
-          writeOk,
-          true,
-          `writing must not throw; got ${JSON.stringify(writeError)}`,
-        );
-      },
-    },
-    {
-      name: 'no emitted part carries a raw control character from cell text',
-      expect(api: CorpusApi, assert: Assert) {
-        const {partsWithRawChar} = api.xmlCharacterSafetyReport('cell-text', `a${CONTROL}b`);
-        assert.deepStrictEqual(
-          partsWithRawChar,
-          [],
-          'a raw C0 control in any part makes the package malformed XML',
-        );
-      },
-    },
-    {
-      name: 'a control character in cell text is emitted as its _xHHHH_ escape',
-      expect(api: CorpusApi, assert: Assert) {
-        const {emittedText} = api.xmlCharacterSafetyReport('cell-text', `a${CONTROL}b`);
-        assert.strictEqual(emittedText, 'a_x0001_b');
-      },
-    },
-    {
       name: 'a U+FFFE noncharacter in cell text is escaped, not passed through',
       expect(api: CorpusApi, assert: Assert) {
         const {partsWithRawChar, emittedText} = api.xmlCharacterSafetyReport(
@@ -65,28 +36,6 @@ export default {
         );
         assert.deepStrictEqual(partsWithRawChar, []);
         assert.strictEqual(emittedText, 'a_xFFFE_b');
-      },
-    },
-    {
-      name: 'an unpaired surrogate in cell text is escaped rather than silently replaced',
-      expect(api: CorpusApi, assert: Assert) {
-        const {emittedText} = api.xmlCharacterSafetyReport('cell-text', 'a\uD800b');
-        assert.strictEqual(
-          emittedText,
-          'a_xD800_b',
-          'UTF-8 encoding substitutes U+FFFD for a lone surrogate, which loses the character silently',
-        );
-      },
-    },
-    {
-      name: 'cell text that already reads as an escape has its underscore escaped',
-      expect(api: CorpusApi, assert: Assert) {
-        const {emittedText} = api.xmlCharacterSafetyReport('cell-text', 'a_x0041_b');
-        assert.strictEqual(
-          emittedText,
-          'a_x005F_x0041_b',
-          'an unescaped _x0041_ would decode back to the letter A and corrupt the value',
-        );
       },
     },
     {

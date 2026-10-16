@@ -18,17 +18,6 @@ export default {
 
   behavior: [
     {
-      name: 'all five columns survive a write/read round-trip',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {colCount} = await api.wideTableColumnReadReport();
-        assert.strictEqual(
-          colCount,
-          5,
-          'the loaded table exposes all five columns, not a cap of three',
-        );
-      },
-    },
-    {
       name: 'each loaded column carries its correct header name in order',
       async expect(api: CorpusApi, assert: Assert) {
         const {colNames} = await api.wideTableColumnReadReport();

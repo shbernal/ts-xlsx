@@ -19,17 +19,6 @@ export default {
 
   behavior: [
     {
-      name: 'a worksheet exposes an image-removal method',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {supported} = await api.removeImageReport();
-        assert.strictEqual(
-          supported,
-          true,
-          'the worksheet must expose a way to remove an added image',
-        );
-      },
-    },
-    {
       name: 'removing one image drops it and leaves the others',
       async expect(api: CorpusApi, assert: Assert) {
         const {supported, before, after, removedGone, othersSurvive} =

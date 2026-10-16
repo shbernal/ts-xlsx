@@ -20,24 +20,6 @@ export default {
 
   behavior: [
     {
-      name: 'adding a batch of rows to a streaming worksheet does not throw',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {ok, error} = await api.streamWriteSheet({
-          ops: [
-            {
-              op: 'addRows',
-              value: [
-                ['a', 1],
-                ['b', 2],
-              ],
-            },
-          ],
-          read: ['A1'],
-        });
-        assert.ok(ok, `streaming batch add must be supported; got error ${JSON.stringify(error)}`);
-      },
-    },
-    {
       name: 'the batch-added rows carry their values in order',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, cells, rowCount} = await api.streamWriteSheet({

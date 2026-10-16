@@ -149,7 +149,7 @@ export const comments = {
   },
 
   // Write a noted cell, relocate its comments part to a non-canonical path (xl/sheet1_comments.xml)
-  // reachable only through the worksheet rels, and reload → { ok, error, note }. The reader locates the
+  // reachable only through the worksheet rels, and reload → { error, note }. The reader locates the
   // comments part by relationship *type*, not by filename glob, so the moved part still loads and its
   // note reads back.
   nonCanonicalCommentsPartReport() {
@@ -168,16 +168,14 @@ export const comments = {
       drop: [commentPart],
       put: {'xl/sheet1_comments.xml': partBytesOf(written, commentPart)},
     });
-    let ok = false;
     let error = null;
     let note = null;
     try {
       note = readXlsx(buffer).worksheets[0]!.getCell('A1').note ?? null;
-      ok = true;
     } catch (e) {
       error = messageOf(e);
     }
-    return {ok, error, note};
+    return {error, note};
   },
 
   // Attach then clear a cell note and report whether the written package still carries a comment/VML

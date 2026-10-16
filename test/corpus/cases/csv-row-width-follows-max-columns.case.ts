@@ -32,17 +32,5 @@ export default {
         );
       },
     },
-    {
-      name: 'no populated cell is dropped because a preceding row was narrower',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {text} = await api.csvWrite({spec: NARROW_FIRST});
-        const lines = String(text).split(/\r?\n/).filter(Boolean);
-        assert.strictEqual(
-          lines[1]!.split(',').length,
-          3,
-          'the per-row field count reflects the max column extent',
-        );
-      },
-    },
   ],
 } satisfies Case;

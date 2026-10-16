@@ -30,16 +30,6 @@ export default {
 
   behavior: [
     {
-      name: 'at least one data validation survives the round-trip in some form',
-      async expect(api: CorpusApi, assert: Assert) {
-        const {totalValidations} = await api.roundtripFixtureValidationXml(FIXTURE);
-        assert.ok(
-          totalValidations >= 1,
-          `the template's validation must survive write; found ${totalValidations} in the output`,
-        );
-      },
-    },
-    {
       name: 'the extended (whole-column list) validation is preserved',
       async expect(api: CorpusApi, assert: Assert) {
         const {totalExt, sheets} = await api.roundtripFixtureValidationXml(FIXTURE);

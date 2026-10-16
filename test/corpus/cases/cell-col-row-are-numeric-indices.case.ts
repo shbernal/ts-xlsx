@@ -20,14 +20,6 @@ export default {
 
   behavior: [
     {
-      name: "a cell's col and row are of runtime type number",
-      async expect(api: CorpusApi, assert: Assert) {
-        const {colType, rowType} = await api.cellColRowTypes('B3');
-        assert.strictEqual(colType, 'number', 'col is a number at runtime');
-        assert.strictEqual(rowType, 'number', 'row is a number at runtime');
-      },
-    },
-    {
       name: 'col and row are the 1-based indices of the cell position (B3 → col 2, row 3)',
       async expect(api: CorpusApi, assert: Assert) {
         const {col, row} = await api.cellColRowTypes('B3');

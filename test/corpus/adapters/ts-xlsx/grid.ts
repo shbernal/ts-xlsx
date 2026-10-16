@@ -27,7 +27,7 @@ export const grid = {
     const sheet = new Workbook().addWorksheet('S');
     const cell = sheet.getCell(ref);
     cell.value = 'x';
-    return {col: cell.col, row: cell.row, colType: typeof cell.col, rowType: typeof cell.row};
+    return {col: cell.col, row: cell.row};
   },
 
   // Author a sheet, round-trip, load, append more rows after the last populated row, round-trip again →
@@ -122,7 +122,7 @@ export const grid = {
     sheet.getCell('A1').value = 'header';
     sheet.freeze(1);
     const buffer = writeXlsx(workbook);
-    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const sheetXml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     const paneEmitted = /<pane\b[^>]*ySplit="1"[^>]*state="frozen"/.test(sheetXml);
     const view = readXlsx(buffer).getWorksheet('S')!.view;
     return {
@@ -178,15 +178,15 @@ export const grid = {
     wb.addWorksheet('Notes').getCell('A1').value = 'notes';
 
     const parts = partMapOf(writeXlsx(wb));
-    const workbookXml = parts['xl/workbook.xml'] || '';
-    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
+    const workbookXml = partOf(parts, 'xl/workbook.xml');
+    const sheetXml = partOf(parts, 'xl/worksheets/sheet1.xml');
     const bookView = (workbookXml.match(/<workbookView\b[^>]*\/>/) || [''])[0] || '';
     const attrNumber = (tag: string, name: string): number | null => {
       const found = tag.match(new RegExp(`\\b${name}="(-?\\d+(?:\\.\\d+)?)"`));
       return found ? Number(found[1]) : null;
     };
     const selectedSheets = ['Report', 'Notes'].filter((_, i) =>
-      /<sheetView\b[^>]*\btabSelected="1"/.test(parts[`xl/worksheets/sheet${i + 1}.xml`] || ''),
+      /<sheetView\b[^>]*\btabSelected="1"/.test(partOf(parts, `xl/worksheets/sheet${i + 1}.xml`)),
     );
     const sheetFormat = (sheetXml.match(/<sheetFormatPr\b[^>]*\/>/) || [''])[0] || '';
     return {
@@ -220,11 +220,11 @@ export const grid = {
       /<pane\b[^>]*xSplit="1"[^>]*ySplit="2"[^>]*state="frozen"/.test(xml);
     const view = roundtrip(workbook).getWorksheet('Dst')!.view;
     return {
-      dstPaneEmitted: paneOf(parts['xl/worksheets/sheet2.xml'] || ''),
+      dstPaneEmitted: paneOf(partOf(parts, 'xl/worksheets/sheet2.xml')),
       dstState: view.state ?? 'normal',
       dstXSplit: view.xSplit ?? 0,
       dstYSplit: view.ySplit ?? 0,
-      srcPaneEmitted: paneOf(parts['xl/worksheets/sheet1.xml'] || ''),
+      srcPaneEmitted: paneOf(partOf(parts, 'xl/worksheets/sheet1.xml')),
     };
   },
 
@@ -236,13 +236,11 @@ export const grid = {
     const sheet = workbook.addWorksheet('S');
     sheet.getCell('A1').value = 'header';
     sheet.freeze(1);
-    const frozenHasPane = /<pane\b/.test(
-      partMapOf(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] || '',
-    );
+    const frozenHasPane = /<pane\b/.test(partOf(writeXlsx(workbook), 'xl/worksheets/sheet1.xml'));
 
     sheet.unfreeze();
     const normalBuffer = writeXlsx(workbook);
-    const normalHasPane = /<pane\b/.test(partMapOf(normalBuffer)['xl/worksheets/sheet1.xml'] || '');
+    const normalHasPane = /<pane\b/.test(partOf(normalBuffer, 'xl/worksheets/sheet1.xml'));
     const view = readXlsx(normalBuffer).getWorksheet('S')!.view;
     return {
       frozenHasPane,
@@ -415,7 +413,7 @@ export const grid = {
       sheet.getColumn(i + 1).width = w;
     });
     const buffer = writeXlsx(wb);
-    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const sheetXml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     // A column emits an explicit width when its `<col>` carries a customWidth flag over its index.
     const emittedAt = (index: number) =>
       new RegExp(`<col\\b[^>]*\\bmin="${index}"[^>]*\\bmax="${index}"[^>]*\\bcustomWidth="1"`).test(
@@ -581,7 +579,7 @@ export const grid = {
         .map((m) => Number(m[1]))
         .sort((a, b) => a - b);
     };
-    const sheet1 = (parts: PartMap) => parts['xl/worksheets/sheet1.xml'] ?? '';
+    const sheet1 = (parts: PartMap) => partOf(parts, 'xl/worksheets/sheet1.xml');
     const modelBreaks = (wb: WorkbookInstance) =>
       wb.worksheets[0]!.rowBreaks.map((brk) => brk.id).sort((a: number, b: number) => a - b);
 
@@ -606,7 +604,7 @@ export const grid = {
       'xl/worksheets/sheet1.xml': (xml) => xml.replace('</worksheet>', `${breaks}</worksheet>`),
     });
     const section =
-      (partMapOf(writeXlsx(read))['xl/worksheets/sheet1.xml'] ?? '').match(
+      partOf(writeXlsx(read), 'xl/worksheets/sheet1.xml').match(
         /<rowBreaks\b[^>]*>[\s\S]*?<\/rowBreaks>/,
       )?.[0] ?? '<rowBreaks>';
     const container = attrsOf(section.match(/<rowBreaks\b[^>]*>/)?.[0] ?? '<rowBreaks>');
@@ -727,7 +725,7 @@ export const grid = {
     cell.alignment = {horizontal: 'center'};
     sheet.mergeCells(range);
     const buffer = writeXlsx(workbook);
-    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const sheetXml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     const merges = [...sheetXml.matchAll(/<mergeCell\b[^>]*ref="([^"]*)"/g)].map((m) => m[1]);
     const {left, right, top, bottom} = decodeRange(range);
     const populatedCoveredCells: Untyped[] = [];
@@ -765,7 +763,7 @@ export const grid = {
     }
     sheet.mergeCells(range);
     const buffer = writeXlsx(workbook);
-    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const sheetXml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     const populatedCoveredCells: Untyped[] = [];
     for (let r = top!; r <= bottom!; r++) {
       for (let c = left!; c <= right!; c++) {
@@ -818,7 +816,7 @@ export const grid = {
     sheet.mergeCells(range);
     sheet.getCell(slave).value = value;
     const buffer = writeXlsx(workbook);
-    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const sheetXml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     // A cell "carries a value" if its element has value content: a number/bool/formula (<v>),
     // an inline string (<is>), or a formula (<f>). The writer serialises strings as inlineStr,
     // so keying on <v> alone would miss them; an empty covered cell is never emitted at all.
@@ -1034,9 +1032,9 @@ export const grid = {
     s.spliceRows(1, 0, ['inserted']); // insert a row at the top → table and image shift down 1
 
     const parts = partMapOf(writeXlsx(wb));
-    const tableXml = parts['xl/tables/table1.xml'] || '';
+    const tableXml = partOf(parts, 'xl/tables/table1.xml');
     const tableRef = (tableXml.match(/<table\b[^>]*\bref="([^"]*)"/) || [])[1] ?? null;
-    const drawingXml = parts['xl/drawings/drawing1.xml'] || '';
+    const drawingXml = partOf(parts, 'xl/drawings/drawing1.xml');
     const imageFromRow = (drawingXml.match(/<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/) || [])[1];
 
     // Duplicate table column names authored separately: construction disambiguates them into a

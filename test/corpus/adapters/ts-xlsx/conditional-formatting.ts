@@ -2,7 +2,7 @@
 
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
-import {partMapOf} from './package-facts.ts';
+import {partMapOf, partOf} from './package-facts.ts';
 import {fixtureBytes, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {attrsOf} from './xml-probes.ts';
 
@@ -28,7 +28,7 @@ export const conditionalFormatting = {
         reload: null,
       };
     }
-    const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const xml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     const cfBlock = (xml.match(/<conditionalFormatting[\s\S]*?<\/conditionalFormatting>/) || [
       '',
     ])[0];
@@ -78,7 +78,7 @@ export const conditionalFormatting = {
       ],
     });
     const buffer = writeXlsx(workbook);
-    const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const xml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     const rule = readXlsx(buffer).getWorksheet('S')?.conditionalFormattings?.[0]?.rules?.[0];
     return {
       xmlHasStopIfTrue: /stopIfTrue="1"/.test(xml),
@@ -99,7 +99,7 @@ export const conditionalFormatting = {
     const srcParts = partMapOf(fixtureBytes(rel));
     const srcName = Object.keys(srcParts).find((n) => n.endsWith('sheet1.xml'));
     const source = cfFacts(srcName === undefined ? '' : (srcParts[srcName] ?? ''));
-    const outXml = partMapOf(writeXlsx(readFixture(rel)))['xl/worksheets/sheet1.xml'] || '';
+    const outXml = partOf(writeXlsx(readFixture(rel)), 'xl/worksheets/sheet1.xml');
     return {source, rewritten: cfFacts(outXml)};
   },
 

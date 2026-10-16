@@ -3,7 +3,7 @@
 
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
-import {type PartMap, partMapOf, patchedPackage, roundtrip} from './package-facts.ts';
+import {type PartMap, partMapOf, patchedPackage, roundtrip, partOf} from './package-facts.ts';
 import {
   fixtureBytes,
   readFixture,
@@ -97,7 +97,7 @@ export const tables = {
       rowCount: 2,
     });
     const table = roundtrip(wb).getWorksheet('S')!.tables[0]!;
-    return {colCount: table.columns.length, colNames: table.columns.map((c) => c.name)};
+    return {colNames: table.columns.map((c) => c.name)};
   },
 
   // Add a table and a list validation to each of five sheets, then report that the package writes
@@ -573,9 +573,8 @@ export const tables = {
     edge.addTable({name: 'T', ref: 'XFC1', columns: [{name: 'a'}, {name: 'b'}], rowCount: 1});
     const onTheEdge = readRange(edge);
     const writtenRef =
-      /<table\b[^>]*\bref="([^"]*)"/.exec(
-        partMapOf(writeXlsx(edgeWb))['xl/tables/table1.xml'] ?? '',
-      )?.[1] ?? null;
+      /<table\b[^>]*\bref="([^"]*)"/.exec(partOf(writeXlsx(edgeWb), 'xl/tables/table1.xml'))?.[1] ??
+      null;
 
     edge.spliceColumns(1, 0, ['inserted']);
     const splicedPastRightEdge = {tableCount: edge.tables.length, range: readRange(edge)};
@@ -655,7 +654,7 @@ export const tables = {
       columns: spec.columns,
       values: ['Amount'],
     });
-    const cache = partMapOf(writeXlsx(wb))['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
+    const cache = partOf(writeXlsx(wb), 'xl/pivotCache/pivotCacheDefinition1.xml');
     return Object.fromEntries(
       [...cache.matchAll(/<cacheField name="([^"]*)"[^>]*><sharedItems ?([^>]*?)\/?>/g)].map(
         (match) => [match[1] ?? '', match[2] ?? ''],
@@ -704,7 +703,7 @@ export const tables = {
         dataFields: null,
       };
     }
-    const xml = partMapOf(writeXlsx(wb))['xl/pivotTables/pivotTable1.xml'] ?? '';
+    const xml = partOf(writeXlsx(wb), 'xl/pivotTables/pivotTable1.xml');
     const indicesIn = (element: string, child: string, attribute: string) =>
       [
         ...(new RegExp(`<${element}\\b[^>]*>(.*?)</${element}>`).exec(xml)?.[1] ?? '').matchAll(
@@ -760,7 +759,7 @@ export const tables = {
       .requireWorksheet('S4')
       .addPivotTable({source, rows: ['x'], columns: ['y'], values: ['y']});
     applySplice(source, edit);
-    const cache = partMapOf(writeXlsx(workbook))['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
+    const cache = partOf(writeXlsx(workbook), 'xl/pivotCache/pivotCacheDefinition1.xml');
     const tag = /<worksheetSource\b[^>]*>/.exec(cache)?.[0] ?? '';
     return {
       ref: /\bref="([^"]*)"/.exec(tag)?.[1] ?? null,
