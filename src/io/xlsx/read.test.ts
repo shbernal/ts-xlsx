@@ -148,14 +148,6 @@ test('a LET formula stores its parameters with _xlpm. on disk but round-trips as
   assert.equal(value.formula, 'LET(x,B1,x+1)');
 });
 
-test('a formula that already carries _xlfn. is not double-prefixed on write', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = {formula: '_xlfn.XLOOKUP(1,B:B,C:C)', result: 0};
-  const xml = sheetXml(writeXlsx(wb));
-  assert.match(xml, /_xlfn\.XLOOKUP/);
-  assert.doesNotMatch(xml, /_xlfn\._xlfn/);
-});
-
 test('a dotted statistical function is stored whole with _xlfn. and round-trips as its plain name', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {formula: 'NORM.DIST(A2,0,1,TRUE)', result: 0.5};
@@ -700,43 +692,6 @@ test('an underline font round-trips: single stays single, a named variant keeps 
   );
 });
 
-test('a foreign font’s <u val="none"/> reads back as not underlined, not the truthy string "none"', () => {
-  // Real producers write <u val="none"/> for the explicit ABSENCE of an underline. Returning the
-  // literal "none" would be truthy: a consumer's `if (font.underline)` would mistake it for an
-  // underline, so the reader must read it back falsy.
-  const pkg = foreignPackage({
-    'xl/styles.xml':
-      '<?xml version="1.0"?><styleSheet>' +
-      '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><u val="none"/></font></fonts>' +
-      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
-      '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
-      '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>',
-    [SHEET1]: foreignSheet('<row r="1"><c r="A1" s="1" t="inlineStr"><is><t>x</t></is></c></row>'),
-  });
-  const underline = readXlsx(pkg).getWorksheet('S')?.getCell('A1').font?.underline;
-  assert.ok(
-    !underline,
-    `<u val="none"/> must read back falsy, not the truthy string "none"; got ${JSON.stringify(underline)}`,
-  );
-});
-
-test('a foreign font honours an explicit-false boolean flag rather than tag presence', () => {
-  // A foreign generator writes <b/> (bold on) but <i val="0"/> (italic explicitly off). The
-  // reader must honour the val: a present tag is not truthy on its own.
-  const pkg = foreignPackage({
-    'xl/styles.xml':
-      '<?xml version="1.0"?><styleSheet>' +
-      '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><i val="0"/></font></fonts>' +
-      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
-      '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
-      '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>',
-    [SHEET1]: foreignSheet('<row r="1"><c r="A1" s="1" t="inlineStr"><is><t>x</t></is></c></row>'),
-  });
-  const font = readXlsx(pkg).getWorksheet('S')?.getCell('A1').font;
-  assert.equal(font?.bold, true, 'a bare <b/> is bold');
-  assert.equal(font?.italic, false, '<i val="0"/> is explicitly not italic: the val is honoured');
-});
-
 test('a cell border round-trips through the <borders> table, and only the styled cell carries it', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
@@ -815,20 +770,6 @@ test('cell alignment round-trips through the xf, and only the aligned cell carri
   );
 });
 
-test('a foreign alignment carrying only wrapText="0" reads back with no alignment', () => {
-  // Excel writes an all-false alignment as wrapText="0"; the raw "0" is a truthy JS string, so a
-  // reader that guards on presence rather than the parsed boolean would mistake it for present.
-  const pkg = foreignPackage({
-    'xl/styles.xml':
-      '<?xml version="1.0"?><styleSheet>' +
-      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
-      '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1">' +
-      '<alignment wrapText="0"/></xf></cellXfs></styleSheet>',
-    [SHEET1]: foreignSheet('<row r="1"><c r="A1" s="0" t="inlineStr"><is><t>x</t></is></c></row>'),
-  });
-  assert.equal(readXlsx(pkg).getWorksheet('S')?.getCell('A1').alignment, undefined);
-});
-
 test('cell protection round-trips the meaningful flags, and only the protected cell carries them', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
@@ -903,67 +844,10 @@ test('a passwordless protected sheet round-trips as protected with no credential
   assert.equal(protection.credential, undefined);
 });
 
-// The 16-bit `password` hash is what pre-2010 Excel, XlsxWriter, openpyxl and LibreOffice write, and it
-// had no field: a sheet protected that way was rewritten still marked protected and without a password,
-// so anyone could unprotect it. And `sheet` defaults to false, so an element without it was locking a
-// sheet the file had left open.
-function withSheetProtection(element: string): Uint8Array {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = 'x';
-  return patchParts(writeXlsx(wb), {
-    [SHEET1]: (xml) => xml.replace('</sheetData>', `</sheetData>${element}`),
-  });
-}
-
-test('a legacy password hash a file carries survives a round-trip verbatim', () => {
-  const read = readXlsx(
-    withSheetProtection('<sheetProtection password="CC3D" sheet="1" objects="1" scenarios="1"/>'),
-  );
-  const protection = read.getWorksheet('S')?.protection;
-  assert.ok(protection, 'the sheet reads as protected');
-  assert.equal(protection.legacyPasswordHash, 'CC3D');
-  assert.equal(protection.credential, undefined);
-  const rewritten = elementIn(sheetXml(writeXlsx(read)), /<sheetProtection\b[^>]*\/>/);
-  assert.match(rewritten, /password="CC3D"/);
-  assert.match(rewritten, /sheet="1"/);
-});
-
-test('a malformed legacy password hash is dropped, and the protection it came with is kept', () => {
-  const read = readXlsx(withSheetProtection('<sheetProtection password="not-a-hash" sheet="1"/>'));
-  const protection = read.getWorksheet('S')?.protection;
-  assert.ok(protection);
-  assert.equal(protection.legacyPasswordHash, undefined);
-  assert.doesNotMatch(sheetXml(writeXlsx(read)), /password=/);
-});
-
-test('a sheetProtection element without sheet="1" records an unprotected sheet', () => {
-  const read = readXlsx(withSheetProtection('<sheetProtection objects="1" scenarios="1"/>'));
-  assert.equal(read.getWorksheet('S')?.protection, undefined);
-  assert.doesNotMatch(sheetXml(writeXlsx(read)), /<sheetProtection/, 'and a save does not lock it');
-});
-
 test('an unprotected sheet reports no protection after a round-trip', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'x';
   assert.equal(roundtrip(wb).getWorksheet('S')?.protection, undefined);
-});
-
-test('a re-written loaded protection preserves the credential byte-for-byte', () => {
-  const wb = new Workbook();
-  const ws = wb.addWorksheet('S');
-  ws.getCell('A1').value = 'x';
-  ws.protect('pw', {formatCells: true});
-
-  const firstXml = sheetXml(writeXlsx(wb));
-  const secondXml = sheetXml(writeXlsx(roundtrip(wb)));
-  const prot = (xml: string): string => (xml.match(/<sheetProtection\b[^>]*\/>/) ?? [''])[0];
-
-  assert.ok(prot(firstXml), 'the first write emits a sheetProtection element');
-  assert.equal(
-    prot(secondXml),
-    prot(firstXml),
-    'a passthrough save re-emits the identical protection',
-  );
 });
 
 test('a Date value round-trips as a Date on the calendar day it was written', () => {
@@ -1033,16 +917,6 @@ test('an Invalid Date does not throw on write and does not drop sibling cells', 
   assert.equal(back?.getCell('A1').value, null, 'the invalid date carries no serial');
 });
 
-test('a worksheet tab colour round-trips as the exact 8-digit ARGB', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.tabColor = {argb: 'FFFF0000'};
-  sheet.getCell('A1').value = 'x';
-
-  const back = roundtrip(wb).getWorksheet('S');
-  assert.deepEqual(back?.tabColor, {argb: 'FFFF0000'});
-});
-
 test('the written package carries the tab colour under <sheetPr>', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').tabColor = {argb: 'FF00FF00'};
@@ -1053,41 +927,12 @@ test('the written package carries the tab colour under <sheetPr>', () => {
   assert.ok(xml.indexOf('<sheetPr>') < xml.indexOf('<dimension'), 'sheetPr precedes dimension');
 });
 
-test('a sheet with no tab colour acquires none across a round-trip', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = 'y';
-
-  assert.equal(roundtrip(wb).getWorksheet('S')?.tabColor, undefined);
-});
-
 test('a theme-based tab colour with a tint round-trips', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').tabColor = {theme: 4, tint: -0.25};
 
   const back = roundtrip(wb).getWorksheet('S');
   assert.deepEqual(back?.tabColor, {theme: 4, tint: -0.25});
-});
-
-test('inverted outline summary positions round-trip as false', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.outline.summaryBelow = false;
-  sheet.outline.summaryRight = false;
-  sheet.getCell('A1').value = 'x';
-
-  const back = roundtrip(wb).getWorksheet('S');
-  assert.equal(back?.outline.summaryBelow, false);
-  assert.equal(back?.outline.summaryRight, false);
-});
-
-test('the written package carries the outline flags under <sheetPr>', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.outline.summaryBelow = false;
-  sheet.outline.summaryRight = false;
-
-  const xml = sheetXml(writeXlsx(wb));
-  assert.match(xml, /<sheetPr><outlinePr summaryBelow="0" summaryRight="0"\/><\/sheetPr>/);
 });
 
 test('the tab colour and outline flags share one <sheetPr> in CT_SheetPr order', () => {

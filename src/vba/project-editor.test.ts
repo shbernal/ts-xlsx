@@ -19,7 +19,6 @@ import {
   CODE_PAGE,
   indexOfBytes,
   MODULES,
-  rec,
 } from './vba.test-support.ts';
 
 // Flatten what `CompoundFile.tree()` reaches into `/storage/stream` paths. `tree()` walks the sibling
@@ -56,64 +55,20 @@ function readModulesCount(dir: Uint8Array): number {
 
 // ── Structural edit: removeVbaModule ────────────────────────────────────────────────────────────────
 
-test('removeVbaModule removes a procedural module, preserving references and untouched modules', () => {
-  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload));
+// What the stream contents look like after a removal (module list, untouched streams, the reference,
+// PROJECT/PROJECTwm, _VBA_PROJECT) is the corpus case xlsm-vba-remove-module-preserves-references.
+// This keeps the two results that case does not read: the count Excel relies on, and the sibling tree.
+test('removeVbaModule decrements MODULES_COUNT and unlinks the module from the directory tree', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
 
   const removed = removeVbaModule(bin, 'Module1');
 
-  const project = parseVbaProject(removed);
-  assert.deepEqual(
-    project.modules.map((m) => [m.name, m.kind]),
-    [
-      ['ThisWorkbook', 'document'],
-      ['Class1', 'class'],
-    ],
-    'Module1 is gone; the other modules and their order survive',
-  );
-
-  const before = new CompoundFile(bin);
-  const after = new CompoundFile(removed);
-  for (const name of ['ThisWorkbook', 'Class1']) {
-    assert.deepEqual(
-      after.readStream(['VBA', name]),
-      before.readStream(['VBA', name]),
-      `${name} rides through unchanged`,
-    );
-  }
-  assert.equal(after.readStream(['VBA', 'Module1']), undefined, "Module1's stream is gone");
-
-  // _VBA_PROJECT is preserved untouched: Excel runs the modules' existing p-code, and resetting the
-  // cookie would crash the load.
-  assert.deepEqual(
-    after.readStream(['VBA', '_VBA_PROJECT']),
-    before.readStream(['VBA', '_VBA_PROJECT']),
-  );
-
-  const dirBefore = decompressContainer(before.readStream(['VBA', 'dir'])!);
-  const dirAfter = decompressContainer(after.readStream(['VBA', 'dir'])!);
-  assert.ok(
-    indexOfBytes(dirAfter, Uint8Array.from(refPayload)) >= 0,
-    'the PROJECTREFERENCES record is preserved',
-  );
-  assert.equal(readModulesCount(dirBefore), 3);
+  const dirAfter = decompressContainer(new CompoundFile(removed).readStream(['VBA', 'dir'])!);
   assert.equal(
     readModulesCount(dirAfter),
     2,
     'MODULES_COUNT is decremented for the removed module',
   );
-
-  const projectText = strFromU8(after.readStream(['PROJECT'])!);
-  assert.doesNotMatch(projectText, /^Module=Module1$/m, "Module1's declaration line is gone");
-  assert.match(projectText, /^Document=ThisWorkbook\/&H00000000$/m, 'ThisWorkbook line survives');
-  assert.match(projectText, /^Class=Class1$/m, 'Class1 line survives');
-
-  assert.equal(
-    indexOfBytes(after.readStream(['PROJECTwm'])!, Uint8Array.from(ascii('Module1'))),
-    -1,
-    'PROJECTwm no longer carries the removed module name',
-  );
-
   assert.deepEqual(
     streamPaths(new CompoundFile(removed).tree()).sort(),
     ['/PROJECT', '/PROJECTwm', '/VBA/Class1', '/VBA/ThisWorkbook', '/VBA/_VBA_PROJECT', '/VBA/dir'],
@@ -340,42 +295,6 @@ test('addVbaReference adds a registered reference to a project with no existing 
   assert.deepEqual(
     after.readStream(['VBA', '_VBA_PROJECT']),
     before.readStream(['VBA', '_VBA_PROJECT']),
-  );
-});
-
-test('addVbaReference adds a reference to an existing project, preserving an existing reference and every module byte-for-byte', () => {
-  const existingRefPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, existingRefPayload));
-
-  const added = addVbaReference(bin, SCRIPTING_REF);
-
-  const before = new CompoundFile(bin);
-  const after = new CompoundFile(added);
-  for (const name of ['ThisWorkbook', 'Module1', 'Class1']) {
-    assert.deepEqual(
-      after.readStream(['VBA', name]),
-      before.readStream(['VBA', name]),
-      `${name} rides through unchanged`,
-    );
-  }
-
-  const dirBefore = decompressContainer(before.readStream(['VBA', 'dir'])!);
-  const dirAfter = decompressContainer(after.readStream(['VBA', 'dir'])!);
-  assert.ok(
-    indexOfBytes(dirAfter, Uint8Array.from(existingRefPayload)) >= 0,
-    'the pre-existing reference is preserved',
-  );
-  assert.ok(
-    indexOfBytes(dirAfter, Uint8Array.from(ascii(SCRIPTING_LIBID))) >= 0,
-    'the new reference is present',
-  );
-  assert.equal(readModulesCount(dirBefore), 3);
-  assert.equal(readModulesCount(dirAfter), 3, 'MODULES_COUNT is unaffected by adding a reference');
-
-  assert.deepEqual(
-    parseVbaProject(added).modules.map((m) => m.name),
-    ['ThisWorkbook', 'Module1', 'Class1'],
-    'the module set and order are unaffected',
   );
 });
 

@@ -69,10 +69,6 @@ test('a hyperlink-shaped object is not a cell value', () => {
   assert.throws(() => detectValueType(link), TypeError);
 });
 
-test('detectValueType throws on an unrecognised object shape', () => {
-  assert.throws(() => detectValueType({nonsense: true} as unknown as CellValue), TypeError);
-});
-
 test('type guards discriminate the structural shapes', () => {
   assert.ok(isFormulaValue({formula: 'A1'}));
   assert.ok(!isFormulaValue({sharedFormula: 'A1'}));

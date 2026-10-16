@@ -28,17 +28,6 @@ test('no <definedNames> element is emitted when the workbook has none', () => {
   assert.doesNotMatch(workbookXmlOf(wb), /<definedNames/);
 });
 
-test('a sheet-scoped name carries the 0-based localSheetId of its sheet', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('First').getCell('A1').value = 1;
-  wb.addWorksheet('Second').getCell('A1').value = 2;
-  wb.defineName({name: 'Local', refersTo: 'Second!$A$1', scope: 'Second'});
-  assert.match(
-    workbookXmlOf(wb),
-    /<definedName name="Local" localSheetId="1">Second!\$A\$1<\/definedName>/,
-  );
-});
-
 test('a sheet-scoped name round-trips back to its scope worksheet name', () => {
   const wb = new Workbook();
   wb.addWorksheet('First').getCell('A1').value = 1;

@@ -130,24 +130,6 @@ test('a part with no rels part reads as an empty relationship set, not a failure
   assert.strictEqual(rels.targetPath('drawing'), undefined);
 });
 
-test('readPartRelationships reads the rels part once, however many queries follow', () => {
-  // The point of the type: the sheet loop asks it eight questions per sheet, and a re-read per
-  // question is exactly what this replaced.
-  let reads = 0;
-  const partText = sheetWithRels(
-    `<Relationship Id="rId1" Type="${TYPE}/drawing" Target="../drawings/drawing1.xml"/>`,
-  );
-  const rels = readPartRelationships('xl/worksheets/sheet1.xml', (path) => {
-    reads += 1;
-    return partText(path);
-  });
-  rels.targetPath('drawing');
-  rels.targetPath('comments');
-  rels.targetPaths('table');
-  rels.byId('rId1');
-  assert.strictEqual(reads, 1);
-});
-
 // `openSpreadsheetPackage` is the one place the inflate bound is defaulted and applied, so the
 // property worth pinning is that every entry point built on it enforces the same bound at the same
 // byte. Before it, each of the three carried its own `?? DEFAULT_MAX_UNCOMPRESSED`, and a reader

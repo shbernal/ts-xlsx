@@ -33,13 +33,8 @@ test('deriveCredential emits SHA-512, a 16-byte salt, a 64-byte hash, and the de
 
 test('the hash is genuinely derived from the reported salt via the OOXML-agile algorithm', () => {
   const credential = deriveCredential('correct horse', 25);
+  assert.equal(credential.spinCount, 25);
   assert.equal(credential.hashValue, referenceHash('correct horse', credential.saltValue, 25));
-});
-
-test('a custom spin count is honored', () => {
-  const credential = deriveCredential('pw', 7);
-  assert.equal(credential.spinCount, 7);
-  assert.equal(credential.hashValue, referenceHash('pw', credential.saltValue, 7));
 });
 
 test('the salt is real randomness: two derivations of one password differ', () => {

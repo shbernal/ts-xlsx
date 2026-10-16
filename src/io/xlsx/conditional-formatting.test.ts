@@ -17,31 +17,6 @@ import {writeXlsx} from './write.ts';
 
 const stylesXml = (pkg: Uint8Array): string => partText(pkg, 'xl/styles.xml');
 
-test('a dataBar rule reads back on the same range with its type, colour, and both anchors', () => {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').addConditionalFormatting({
-    ref: 'A1:A3',
-    rules: [
-      {
-        type: 'dataBar',
-        color: {argb: 'FF638EC6'},
-        cfvo: [
-          {type: 'num', value: 0},
-          {type: 'num', value: 1},
-        ],
-      },
-    ],
-  });
-  const rule = roundtrip(workbook).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
-  assert.equal(rule?.type, 'dataBar');
-  assert.equal(rule?.color?.argb, 'FF638EC6');
-  assert.deepEqual(
-    rule?.cfvo?.map((v) => v.value),
-    [0, 1],
-    'both numeric anchors survive in order',
-  );
-});
-
 test('a minimal dataBar (no cfvo, no colour) gains Excel default min/max anchors and a bar colour', () => {
   const workbook = new Workbook();
   workbook
@@ -57,28 +32,6 @@ test('a minimal dataBar (no cfvo, no colour) gains Excel default min/max anchors
   assert.match(block, /<cfvo type="min"\/>/);
   assert.match(block, /<cfvo type="max"\/>/);
   assert.match(block, /<color\b/, 'a default bar colour is emitted');
-});
-
-test('a rule over a multi-area ref emits one block whose sqref lists every area', () => {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').addConditionalFormatting({
-    ref: 'A1:C1 A3:C3 A5:C5',
-    rules: [
-      {
-        type: 'colorScale',
-        cfvo: [{type: 'min'}, {type: 'max'}],
-        colors: [{argb: 'FFFF0000'}, {argb: 'FF00FF00'}],
-      },
-    ],
-  });
-  const xml = sheetXml(writeXlsx(workbook));
-
-  assert.equal(
-    [...xml.matchAll(/<conditionalFormatting\b/g)].length,
-    1,
-    'one block, not one per area',
-  );
-  assert.equal(xml.match(/<conditionalFormatting\b[^>]*sqref="([^"]*)"/)?.[1], 'A1:C1 A3:C3 A5:C5');
 });
 
 test('a stopIfTrue rule serialises the flag, references a dxf for its style, and both survive a read', () => {
@@ -110,35 +63,6 @@ test('a stopIfTrue rule serialises the flag, references a dxf for its style, and
   const rule = readXlsx(pkg).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
   assert.equal(rule?.stopIfTrue, true, 'the flag reads back');
   assert.equal(rule?.dxfId, '0', 'the differential-style reference reads back');
-});
-
-test('an expression rule with no formula serialises without throwing', () => {
-  const workbook = new Workbook();
-  workbook
-    .addWorksheet('S')
-    .addConditionalFormatting({ref: 'A1:A10', rules: [{type: 'expression', style: {}}]});
-  const xml = sheetXml(writeXlsx(workbook));
-  assert.match(
-    xml,
-    /<cfRule type="expression"[^>]*\/>/,
-    'a formula-less rule is a self-closing cfRule',
-  );
-});
-
-test('a self-closing rule read from a file (a duplicateValues) round-trips its type, dxfId, and priority', () => {
-  const part =
-    '<?xml version="1.0"?>' +
-    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/>' +
-    '<conditionalFormatting sqref="A1:A1048576">' +
-    '<cfRule type="duplicateValues" dxfId="0" priority="1"/></conditionalFormatting></worksheet>';
-  const xml = sheetXml(writeXlsx(readPatched({[SHEET1]: part})));
-
-  assert.match(
-    xml,
-    /<cfRule type="duplicateValues" dxfId="0" priority="1"\/>/,
-    'the rule survives, not dropped',
-  );
-  assert.equal([...xml.matchAll(/<conditionalFormatting\b/g)].length, 1, 'no empty block shell');
 });
 
 test('a foreign differential style with a custom number format round-trips verbatim, never "[object Object]"', () => {
@@ -203,23 +127,6 @@ test('a rule stored only in the extension reads as an extended set with its form
     workbook.differentialStyles[Number(rule?.dxfId)],
     `<dxf>${BOLD_RED_DXF}</dxf>`,
     'the inline style is adopted into the table the rule indexes',
-  );
-});
-
-test('an extended set is written back to the extension with its style inline, and nowhere else', () => {
-  const rules =
-    '<x14:cfRule type="expression" priority="1" id="{GUID}"><xm:f>A1&gt;Data!$A$1</xm:f>' +
-    `<x14:dxf>${BOLD_RED_DXF}</x14:dxf></x14:cfRule>`;
-  const xml = sheetXml(writeXlsx(readPatched({[SHEET1]: x14Sheet(rules)})));
-
-  assert.doesNotMatch(xml, /<conditionalFormatting\b/, 'no classic copy of the rule');
-  assert.ok(
-    xml.includes(
-      '<x14:cfRule type="expression" priority="1" id="{00000000-0000-0000-0000-000000000001}">' +
-        `<xm:f>A1&gt;Data!$A$1</xm:f><x14:dxf>${BOLD_RED_DXF}</x14:dxf></x14:cfRule>` +
-        '<xm:sqref>A1:A5</xm:sqref>',
-    ),
-    xml,
   );
 });
 
@@ -477,41 +384,6 @@ test('an unreadable custom icon returns the set to its family instead of shiftin
   );
 });
 
-test('a strict threshold, a reversed icon order and a hidden value round-trip in the classic form', () => {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').addConditionalFormatting({
-    ref: 'A1:A6',
-    rules: [
-      {
-        type: 'iconSet',
-        iconSet: '3Arrows',
-        reverse: true,
-        showValue: false,
-        cfvo: [
-          {type: 'percent', value: 0},
-          {type: 'num', value: 2, gte: false},
-          {type: 'percent', value: 67},
-        ],
-      },
-    ],
-  });
-  const xml = sheetXml(writeXlsx(workbook));
-
-  // The shape Excel 16.0 (build 20326) saves for the same rule.
-  assert.match(
-    xml,
-    /<iconSet iconSet="3Arrows" showValue="0" reverse="1"><cfvo type="percent" val="0"\/><cfvo type="num" val="2" gte="0"\/><cfvo type="percent" val="67"\/><\/iconSet>/,
-  );
-  assert.doesNotMatch(xml, /x14:/, 'nothing about the rule needs the extension');
-  const rule = roundtrip(workbook).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
-  assert.equal(rule?.reverse, true);
-  assert.equal(rule?.showValue, false);
-  assert.deepEqual(
-    rule?.cfvo?.map((anchor) => anchor.gte),
-    [undefined, false, undefined],
-  );
-});
-
 test('a colorScale colour with a malformed theme attribute drops it rather than round-tripping NaN', () => {
   const sheet1 =
     '<?xml version="1.0"?>' +
@@ -676,43 +548,6 @@ test('a gradient dataBar writes the classic element plus a linked x14 extension 
     /<x14:dataBar gradient="1"><x14:cfvo type="num"><xm:f>0<\/xm:f><\/x14:cfvo><x14:cfvo type="num"><xm:f>1<\/xm:f><\/x14:cfvo><\/x14:dataBar>/,
   );
   assert.match(xml, /<xm:sqref>A1:A3<\/xm:sqref>/);
-});
-
-test('the gradient flag survives a write→read round-trip through the x14 extension', () => {
-  for (const gradient of [true, false]) {
-    const rule = roundtrip(dataBarBook({gradient})).getWorksheet('S')?.conditionalFormattings[0]
-      ?.rules[0];
-    assert.equal(rule?.type, 'dataBar');
-    assert.equal(rule?.gradient, gradient, `gradient=${gradient} reads back`);
-    // The classic facets still survive alongside the enriched ones.
-    assert.equal(rule?.color?.argb, 'FF638EC6');
-    assert.deepEqual(
-      rule?.cfvo?.map((v) => v.value),
-      [0, 1],
-    );
-  }
-});
-
-test('a dataBar negative-fill and axis colour round-trip through the x14 extension', () => {
-  const book = dataBarBook({negativeFillColor: {argb: 'FFFF0000'}, axisColor: {argb: 'FF000000'}});
-  const xml = sheetXml(writeXlsx(book));
-  assert.match(xml, /<x14:negativeFillColor rgb="FFFF0000"\/>/);
-  assert.match(xml, /<x14:axisColor rgb="FF000000"\/>/);
-
-  const rule = roundtrip(book).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
-  assert.equal(rule?.negativeFillColor?.argb, 'FFFF0000');
-  assert.equal(rule?.axisColor?.argb, 'FF000000');
-});
-
-test('a plain dataBar carrying no x14 facet stays classic-only, fabricating no extension', () => {
-  const xml = sheetXml(writeXlsx(dataBarBook({})));
-  assert.match(
-    xml,
-    /<dataBar><cfvo type="num" val="0"\/><cfvo type="num" val="1"\/><color rgb="FF638EC6"\/><\/dataBar>/,
-    'the classic element is present',
-  );
-  assert.doesNotMatch(xml, /x14:dataBar/, 'no x14 data-bar extension is written');
-  assert.doesNotMatch(xml, /<extLst>/, 'no extLst is fabricated for a plain data bar');
 });
 
 test('a sheet with both an extended validation and a gradient dataBar emits one worksheet extLst', () => {

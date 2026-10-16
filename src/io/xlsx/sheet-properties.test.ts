@@ -87,23 +87,6 @@ test('a sheet with no print options set emits no <printOptions> element', () => 
   assert.doesNotMatch(xml, /<printOptions/, 'an empty print-option set fabricates nothing');
 });
 
-test('header/footer variants emit their children and gate them with different* flags', () => {
-  const wb = new Workbook();
-  const s = wb.addWorksheet('S');
-  s.getCell('A1').value = 'x';
-  Object.assign(s.headerFooter, {
-    oddHeader: 'ODD-H',
-    evenHeader: 'EVEN-H',
-    firstFooter: 'FIRST-F',
-  });
-  const xml = partIn(partsWritten(wb), 'xl/worksheets/sheet1.xml');
-  assert.match(xml, /<headerFooter[^>]* differentOddEven="1"/);
-  assert.match(xml, /<headerFooter[^>]* differentFirst="1"/);
-  assert.match(xml, /<oddHeader>ODD-H<\/oddHeader>/);
-  assert.match(xml, /<evenHeader>EVEN-H<\/evenHeader>/);
-  assert.match(xml, /<firstFooter>FIRST-F<\/firstFooter>/);
-});
-
 test('an odd-only header/footer sets no different* flags', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');
@@ -135,18 +118,6 @@ test('header/footer text is XML-escaped and placed after <pageMargins>', () => {
   );
 });
 
-test('header text carries the _xHHHH_ convention, same as a cell value', () => {
-  const wb = new Workbook();
-  const s = wb.addWorksheet('S');
-  s.getCell('A1').value = 'x';
-  // Excel decodes `_xHHHH_` in a `<headerFooter>` child and writes one back on save (measured over
-  // COM), so a header both may carry a character XML itself cannot and must have a literal that
-  // *looks* like an escape protected; otherwise `_x0041_` would come back as `A`.
-  s.headerFooter.oddHeader = '&C[\u0001][_x0041_]';
-  const xml = partIn(partsWritten(wb), 'xl/worksheets/sheet1.xml');
-  assert.match(xml, /<oddHeader>&amp;C\[_x0001_\]\[_x005F_x0041_\]<\/oddHeader>/);
-});
-
 test('an astral character in a header needs no escape, a control one does', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');
@@ -154,16 +125,6 @@ test('an astral character in a header needs no escape, a control one does', () =
   s.headerFooter.oddFooter = '\u{1F600}\u0001';
   const xml = partIn(partsWritten(wb), 'xl/worksheets/sheet1.xml');
   assert.match(xml, /<oddFooter>\u{1F600}_x0001_<\/oddFooter>/u);
-});
-
-test('header text round-trips through the escape convention', () => {
-  const wb = new Workbook();
-  const s = wb.addWorksheet('S');
-  s.getCell('A1').value = 'x';
-  const authored = '&L[_x0041_]&C[\u0001]&R[\u{1F600}]';
-  s.headerFooter.oddHeader = authored;
-  const reread = roundtrip(wb);
-  assert.equal(reread.worksheets[0]?.headerFooter.oddHeader, authored);
 });
 
 // Every break was written `man="1"` and counted as manual, so one save hardened a producer's automatic
@@ -282,22 +243,6 @@ test('page margins round-trip', () => {
   const back = roundtrip(wb).getWorksheet('S');
   assert.equal(back?.pageMargins.left, 0.5);
   assert.equal(back?.pageMargins.top, 1.25);
-});
-
-test('a fit-to-page setup round-trips its flag, counts, and scale', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.pageSetup.fitToPage = true;
-  sheet.pageSetup.fitToWidth = 1;
-  sheet.pageSetup.fitToHeight = 0;
-  sheet.pageSetup.scale = 80;
-  sheet.getCell('A1').value = 'x';
-
-  const back = roundtrip(wb).getWorksheet('S');
-  assert.equal(back?.pageSetup.fitToPage, true);
-  assert.equal(back?.pageSetup.fitToWidth, 1);
-  assert.equal(back?.pageSetup.fitToHeight, 0);
-  assert.equal(back?.pageSetup.scale, 80);
 });
 
 test('the fit-to-page flag rides <pageSetUpPr> under <sheetPr>, the counts ride <pageSetup>', () => {

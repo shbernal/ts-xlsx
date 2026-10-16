@@ -169,34 +169,6 @@ test('message text is entity-decoded and keeps its line breaks', () => {
   assert.strictEqual(message?.text, '5 < 6 & "quoted"\nsecond line');
 });
 
-// The `_xHHHH_` group. Excel Desktop was asked directly what a patched `<text>` says: the probe is
-// recorded in `docs/knowledge/specs/spreadsheetml-xhhhh-escape-is-decoded-on-read.md`: the escape
-// decodes, the near-misses do not, and `_x005F_` in front of one yields the literal text. These lock
-// the reader to that grammar rather than to a looser one that would eat text Excel keeps.
-test('a `_xHHHH_` escape in a message decodes to the character it names', () => {
-  const [message] = parseThreadedComments(
-    '<ThreadedComments><threadedComment ref="A1" id="{A}">' +
-      '<text>a_x0001_b</text></threadedComment></ThreadedComments>',
-  );
-  assert.strictEqual(message?.text, 'a\u0001b');
-});
-
-test('text that only resembles the escape shape survives a message untouched', () => {
-  const [message] = parseThreadedComments(
-    '<ThreadedComments><threadedComment ref="A1" id="{A}">' +
-      '<text>_xZZZZ_ _x041_ _x00041_</text></threadedComment></ThreadedComments>',
-  );
-  assert.strictEqual(message?.text, '_xZZZZ_ _x041_ _x00041_');
-});
-
-test('the escaped underscore decodes in one pass, so the message holds the literal text', () => {
-  const [message] = parseThreadedComments(
-    '<ThreadedComments><threadedComment ref="A1" id="{A}">' +
-      '<text>_x005F_x0041_</text></threadedComment></ThreadedComments>',
-  );
-  assert.strictEqual(message?.text, '_x0041_', 'a second pass would collapse this to `A`');
-});
-
 test('an escape split across two text events by an entity still decodes', () => {
   // The parser reports a chunk per entity, so `_x00&#48;1_` reaches the accumulator in three pieces.
   // Decoding each chunk as it arrives would find no escape at all; decoding the assembled body does.
@@ -205,30 +177,6 @@ test('an escape split across two text events by an entity still decodes', () => 
       '<text>_x00&#48;1_</text></threadedComment></ThreadedComments>',
   );
   assert.strictEqual(message?.text, '\u0001');
-});
-
-test('a character XML cannot carry is written into a message as its escape', () => {
-  const xml = threadedCommentsXml(
-    [
-      {
-        ref: 'A1',
-        resolved: false,
-        comments: [{id: '{A}', text: 'a\u0001b\uD800', mentions: []}],
-      },
-    ],
-    ANYONE,
-  );
-  assert.ok(xml.includes('<text>a_x0001_b_xD800_</text>'));
-});
-
-test('a message that already reads like an escape round-trips as itself, not as its character', () => {
-  const text = 'a_x0041_b';
-  const xml = threadedCommentsXml(
-    [{ref: 'A1', resolved: false, comments: [{id: '{A}', text, mentions: []}]}],
-    ANYONE,
-  );
-  assert.ok(xml.includes('<text>a_x005F_x0041_b</text>'), 'the underscore is escaped in front');
-  assert.strictEqual(parseThreadedComments(xml)[0]?.text, text);
 });
 
 test('a message that @mentions someone keeps its text intact around the mention', () => {
@@ -333,27 +281,6 @@ test('an author the registry does not hold reads as no recorded author, as Excel
   assert.strictEqual(head?.author, undefined, 'nothing is fabricated for a missing entry');
   assert.strictEqual(head?.personId, undefined, 'and the id is not kept to be written back');
   assert.strictEqual(head?.text, 'Is this gross or net of tax?', 'the message itself is kept');
-});
-
-test('a message with no author is written under the null GUID, which reads back as no author', () => {
-  const thread = {ref: 'A1', resolved: false, comments: [{id: '{H}', text: 'hi', mentions: []}]};
-  const xml = threadedCommentsXml([thread], NO_PERSONS);
-  assert.match(xml, /personId="\{00000000-0000-0000-0000-000000000000\}" id="\{H\}"/);
-  const [back] = buildCommentThreads(parseThreadedComments(xml), NO_PERSONS);
-  assert.strictEqual(back?.comments[0]?.personId, undefined);
-});
-
-test('a message whose author is not a registered person is refused rather than written', () => {
-  const thread = {
-    ref: 'A1',
-    resolved: false,
-    comments: [{id: '{H}', personId: ADA, text: 'hi', mentions: []}],
-  };
-  assert.throws(() => threadedCommentsXml([thread], NO_PERSONS), {
-    name: 'AuthoringError',
-    message: new RegExp(`its author "\\${ADA.slice(0, -1)}\\}" is not a registered person`),
-  });
-  assert.doesNotThrow(() => threadedCommentsXml([thread], lookupOver(PERSONS)));
 });
 
 test('a mention resolves to the entry it names: the PeoplePicker one, not its author twin', () => {

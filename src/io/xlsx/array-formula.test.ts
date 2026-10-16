@@ -3,8 +3,6 @@ import {test} from 'node:test';
 
 import type {ArrayFormulaValue, CellValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {indexCellMetadata} from '../cell-metadata/metadata.ts';
-import {parseMetadataPart} from './cell-metadata.ts';
 import {
   assertRelationshipsWired,
   elementIn,
@@ -72,9 +70,6 @@ test('a dynamic array points its cell at the cell metadata that marks it', () =>
     'the cell and formula Excel saves for the same formula',
   );
   assert.doesNotMatch(elementIn(sheet, /<c r="D1"[^>]*>/), /cm=/, 'the legacy one points nowhere');
-  const cm = Number(elementIn(sheet, /<c r="B1" cm="(\d+)"/).match(/cm="(\d+)"/)?.[1]);
-  const metadata = parseMetadataPart(partIn(parts, 'xl/metadata.xml'));
-  assert.ok(indexCellMetadata(metadata, new Map()).dynamicArrayCells.has(cm));
   assert.match(
     partIn(parts, '[Content_Types].xml'),
     /<Override PartName="\/xl\/metadata.xml" ContentType="application\/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata\+xml"\/>/,

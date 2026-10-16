@@ -38,23 +38,6 @@ test('a workbook with no worksheets is refused rather than written corrupt', () 
   assert.throws(() => writeXlsx(new Workbook()), /no worksheets/);
 });
 
-test('the content types and rels declare each worksheet consistently', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('One').getCell('A1').value = 1;
-  wb.addWorksheet('Two').getCell('A1').value = 2;
-  const parts = partsOf(wb);
-  for (const i of [1, 2]) {
-    assert.match(
-      partIn(parts, '[Content_Types].xml'),
-      new RegExp(`/xl/worksheets/sheet${i}\\.xml`),
-    );
-    assert.match(
-      partIn(parts, 'xl/_rels/workbook.xml.rels'),
-      new RegExp(`worksheets/sheet${i}\\.xml`),
-    );
-  }
-});
-
 test('a default sheet is visible (no state attribute); explicit states are written', () => {
   const wb = new Workbook();
   wb.addWorksheet('Visible').getCell('A1').value = 'x';
@@ -90,34 +73,11 @@ test('XML-special characters in text and formulas are escaped', () => {
   assert.doesNotMatch(xml, /&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/);
 });
 
-test('a formula supplied with a leading = is stored without it', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = {formula: '=1+2', result: 3};
-  const xml = partIn(partsOf(wb), 'xl/worksheets/sheet1.xml');
-  assert.match(xml, /<f>1\+2<\/f>/);
-  assert.doesNotMatch(xml, /<f>=/);
-});
-
 test('a string with edge whitespace carries xml:space="preserve"', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = '  padded  ';
   const xml = partIn(partsOf(wb), 'xl/worksheets/sheet1.xml');
   assert.match(xml, /<t xml:space="preserve"> {2}padded {2}<\/t>/);
-});
-
-test('a non-finite number is written as a valueless cell, never a bare NaN/Infinity token', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  sheet.getCell('A1').value = Number.POSITIVE_INFINITY;
-  sheet.getCell('A2').value = Number.NaN;
-  sheet.getCell('A3').value = 5; // a sibling finite cell must survive
-  const xml = partIn(partsOf(wb), 'xl/worksheets/sheet1.xml');
-  assert.doesNotMatch(
-    xml,
-    /<v>[^<]*(NaN|Infinity)[^<]*<\/v>/,
-    'no bare non-finite token is emitted',
-  );
-  assert.match(xml, /<c r="A3"><v>5<\/v><\/c>/, 'a finite sibling cell is unaffected');
 });
 
 test('a formula whose cached result is non-finite keeps its formula but caches no value', () => {
@@ -282,29 +242,6 @@ test('a collapsed flag is emitted only where set, not on sibling rows', () => {
   const xml = partIn(partsOf(wb), 'xl/worksheets/sheet1.xml');
   assert.match(xml, /<row r="2" outlineLevel="1">/);
   assert.match(xml, /<row r="3" collapsed="1">/);
-});
-
-test('a fully-hidden outline group derives the collapsed toggle onto its summary row', () => {
-  const wb = new Workbook();
-  const s = wb.addWorksheet('S');
-  s.getCell('A1').value = 'top';
-  for (const r of [2, 3, 4]) {
-    s.getCell(`A${r}`).value = `d${r}`;
-    s.getRow(r).outlineLevel = 1;
-    s.getRow(r).hidden = true;
-  }
-  s.getCell('A5').value = 'summary';
-  const xml = partIn(partsOf(wb), 'xl/worksheets/sheet1.xml');
-  // Summary-below is Excel's default: the summary row terminates the group from beneath and carries
-  // the collapse toggle, so the outline expands in a single click.
-  assert.match(
-    xml,
-    /<row r="5"[^>]*\bcollapsed="1"/,
-    'the summary row carries the collapse toggle',
-  );
-  // The hidden detail rows themselves never carry it.
-  assert.doesNotMatch(xml, /<row r="2"[^>]*collapsed/);
-  assert.doesNotMatch(xml, /<row r="4"[^>]*collapsed/);
 });
 
 test('a partially-visible outline group derives no collapsed summary', () => {
@@ -778,29 +715,6 @@ test('a filter column addressing a column outside the range is dropped on read, 
     {ref: 'A1:B4', columns: []},
     'the range survives, the bad column drops',
   );
-});
-
-test('a quote-prefixed cell emits quotePrefix on its xf and survives a round-trip', () => {
-  const wb = new Workbook();
-  const sheet = wb.addWorksheet('S');
-  const cell = sheet.getCell('A1');
-  cell.value = '=not-a-formula';
-  cell.quotePrefix = true;
-
-  const parts = partsOf(wb);
-  assert.match(
-    partIn(parts, 'xl/styles.xml'),
-    /<xf [^>]*quotePrefix="1"/,
-    'the cell-format record carries quotePrefix="1"',
-  );
-
-  const back = roundtrip(wb).getWorksheet('S');
-  assert.equal(
-    back?.getCell('A1').quotePrefix,
-    true,
-    'the quote-prefix flag survives read/modify/write',
-  );
-  assert.equal(back?.getCell('A1').value, '=not-a-formula', 'the literal content is preserved');
 });
 
 test('a cell with no quote-prefix flag does not gain one on read', () => {

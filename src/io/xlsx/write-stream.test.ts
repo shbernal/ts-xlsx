@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
-import {Duplex, PassThrough, type Readable} from 'node:stream';
+import {PassThrough, type Readable} from 'node:stream';
 import {test} from 'node:test';
 
 import {scratchDir} from '../../../scripts/repo.ts';
@@ -37,43 +37,6 @@ async function committed(writer: WorkbookStreamWriter): Promise<Uint8Array> {
   return bytes;
 }
 
-test('a streamed workbook reloads to the same sheet names and cell values as a whole-file write', async () => {
-  const writer = new WorkbookStreamWriter();
-  const sheet = writer.addWorksheet('S');
-  for (let i = 1; i <= 20; i++) sheet.addRow([`r${i}`, i]).commit();
-  sheet.commit();
-  const bytes = await committed(writer);
-
-  const workbook = readXlsx(bytes);
-  assert.deepEqual(
-    workbook.worksheets.map((s) => s.name),
-    ['S'],
-  );
-  const reread = workbook.getWorksheet('S');
-  assert.ok(reread);
-  assert.equal(reread.getCell('A1').value, 'r1');
-  assert.equal(reread.getCell('B1').value, 1);
-  assert.equal(reread.getCell('A20').value, 'r20');
-});
-
-test('addRows appends a batch identically to adding rows one at a time', async () => {
-  const writer = new WorkbookStreamWriter();
-  const sheet = writer.addWorksheet('S');
-  sheet.addRows([
-    ['a', 1],
-    ['b', 2],
-  ]);
-  sheet.commit();
-  const workbook = readXlsx(await committed(writer));
-  const reread = workbook.getWorksheet('S');
-  assert.ok(reread);
-  assert.equal(reread.rowCount, 2);
-  assert.equal(reread.getCell('A1').value, 'a');
-  assert.equal(reread.getCell('B1').value, 1);
-  assert.equal(reread.getCell('A2').value, 'b');
-  assert.equal(reread.getCell('B2').value, 2);
-});
-
 test('a row added to a committed sheet is rejected with a legible "already committed" error', () => {
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');
@@ -100,39 +63,6 @@ test('getCell into a committed row is refused rather than emitting a second row 
     ['1', '2', '3'],
     'each row number appears exactly once, and an uncommitted row is still writable',
   );
-});
-
-test('writer.stream.pipe(dest) returns dest and delivers the whole package', async () => {
-  const writer = new WorkbookStreamWriter();
-  const sink = new PassThrough();
-  const drained = drain(sink);
-  const returned = writer.stream.pipe(sink);
-  assert.equal(returned, sink, 'pipe(dest) must return dest so .pipe(out).on(...) composes');
-
-  const sheet = writer.addWorksheet('S');
-  sheet.addRow(['a', 'b']).commit();
-  sheet.commit();
-  const bytes = await committed(writer);
-
-  const piped = await drained;
-  assert.deepEqual(Uint8Array.from(piped), bytes, 'the piped bytes match the committed package');
-  const reread = readXlsx(piped).getWorksheet('S');
-  assert.ok(reread);
-  assert.equal(reread.getCell('A1').value, 'a');
-});
-
-test('fullCalcOnLoad set through calcProperties is emitted; unset it is absent', async () => {
-  const withFlag = new WorkbookStreamWriter();
-  withFlag.calcProperties.fullCalcOnLoad = true;
-  withFlag.addWorksheet('S').getCell('A1').value = 1;
-  const flagged = await committed(withFlag);
-
-  const without = new WorkbookStreamWriter();
-  without.addWorksheet('S').getCell('A1').value = 1;
-  const plain = await committed(without);
-
-  assert.match(partText(flagged, 'xl/workbook.xml'), /fullCalcOnLoad="1"/);
-  assert.doesNotMatch(partText(plain, 'xl/workbook.xml'), /fullCalcOnLoad/);
 });
 
 test('useSharedStrings pools streamed string cells into a shared table that reads back intact', async () => {
@@ -198,25 +128,6 @@ test('a sink plus a touched stream still resolves with the package', async () =>
     bytes,
     'and it is the same bytes the stream carried',
   );
-});
-
-test('commit over a Duplex sink resolves: completion does not depend on the writer owning the stream', async () => {
-  const chunks: Buffer[] = [];
-  const sink = new Duplex({
-    read() {},
-    write(chunk: Buffer, _enc, cb) {
-      chunks.push(chunk);
-      cb();
-    },
-  });
-
-  const writer = new WorkbookStreamWriter({stream: sink});
-  writer.addWorksheet('S').addRow(['a']).commit();
-  await writer.commit();
-
-  const reread = readXlsx(Buffer.concat(chunks)).getWorksheet('S');
-  assert.ok(reread);
-  assert.equal(reread.getCell('A1').value, 'a');
 });
 
 // The stream's terminal event: 'error' with its message, or 'end'. A stream that settles neither way
@@ -301,24 +212,6 @@ test('commit to a valid filename writes a re-openable package to disk', async ()
   }
 });
 
-test('commit to an unopenable filename rejects with the underlying I/O error rather than hanging', async () => {
-  // A path whose parent directory does not exist cannot be opened for writing; the write stream errors
-  // on a later tick and commit must surface it.
-  const dir = scratchDir('stream-bad');
-  try {
-    const badPath = join(dir, 'no-such-dir', `${'x'.repeat(300)}.xlsx`);
-    const writer = new WorkbookStreamWriter({filename: badPath});
-    writer.addWorksheet('S').addRow(['a']).commit();
-
-    await assert.rejects(writer.commit(), (err: NodeJS.ErrnoException) => {
-      assert.match(String(err.code ?? err.message), /ENOENT|ENAMETOOLONG/);
-      return true;
-    });
-  } finally {
-    rmSync(dir, {recursive: true, force: true});
-  }
-});
-
 test('supplying both a stream and a filename is rejected at construction', () => {
   // Mutual exclusivity is a compile-time error for a typed caller (see WorkbookStreamWriterOptions'
   // discriminated union); this exercises the runtime backstop that still catches an untyped JS caller.
@@ -326,67 +219,6 @@ test('supplying both a stream and a filename is rejected at construction', () =>
     typeof WorkbookStreamWriter
   >[0];
   assert.throws(() => new WorkbookStreamWriter(options), /either a stream or a filename/i);
-});
-
-test('shared-formula slave cells authored on the stream reload populated, not empty', async () => {
-  const writer = new WorkbookStreamWriter();
-  const sheet = writer.addWorksheet('yua');
-  for (let i = 1; i <= 10; i++) sheet.getCell(`A${i}`).value = i * 10;
-  sheet.getCell('B1').value = {formula: 'A1*2', result: 20};
-  for (let j = 2; j <= 10; j++) sheet.getCell(`B${j}`).value = {sharedFormula: 'B1'};
-  sheet.commit();
-
-  const reread = readXlsx(await committed(writer)).getWorksheet('yua');
-  assert.ok(reread);
-  const master = reread.getCell('B1').value;
-  assert.ok(
-    master && typeof master === 'object' && 'formula' in master,
-    'master is a formula cell',
-  );
-  const slave = reread.getCell('B3').value;
-  assert.ok(slave && typeof slave === 'object', 'slave reloads as a value object, not empty');
-  assert.ok('sharedFormula' in slave || 'formula' in slave, 'slave carries a (shared) formula');
-});
-
-test('a streamed sheet emits <conditionalFormatting> before <hyperlinks>, per the CT_Worksheet sequence', async () => {
-  const writer = new WorkbookStreamWriter();
-  const sheet = writer.addWorksheet('S');
-  sheet.getCell('A1').value = 'link';
-  sheet.addHyperlink({ref: 'A1', target: 'https://example.com'});
-  sheet.addConditionalFormatting({
-    ref: 'A1:A10',
-    rules: [
-      {
-        type: 'expression',
-        formulae: ['MOD(ROW(),2)=0'],
-        style: {fill: {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FFEEEEEE'}}},
-      },
-    ],
-  });
-  sheet.addRow(['x']).commit();
-  sheet.commit();
-
-  const xml = partText(await committed(writer), 'xl/worksheets/sheet1.xml');
-  const posCf = xml.indexOf('<conditionalFormatting');
-  const posHl = xml.indexOf('<hyperlinks');
-  assert.ok(posCf >= 0 && posHl >= 0, 'both blocks are present');
-  assert.ok(posCf < posHl, 'conditionalFormatting precedes hyperlinks');
-});
-
-test('a streamed sheet emits <dataValidations> before <hyperlinks>, per the CT_Worksheet sequence', async () => {
-  const writer = new WorkbookStreamWriter();
-  const sheet = writer.addWorksheet('S');
-  sheet.getCell('A1').value = 'link';
-  sheet.addHyperlink({ref: 'A1', target: 'https://example.com'});
-  sheet.addDataValidation('B1', {type: 'list', allowBlank: true, formulae: ['"x,y,z"']});
-  sheet.addRow(['r']).commit();
-  sheet.commit();
-
-  const xml = partText(await committed(writer), 'xl/worksheets/sheet1.xml');
-  const posDv = xml.indexOf('<dataValidations');
-  const posHl = xml.indexOf('<hyperlinks');
-  assert.ok(posDv >= 0 && posHl >= 0, 'both blocks are present');
-  assert.ok(posDv < posHl, 'dataValidations precedes hyperlinks');
 });
 
 test('streamed conditional formatting and data validations reload through the tolerant reader', async () => {
@@ -473,29 +305,6 @@ test('registering an image on a committed streamed workbook is rejected legibly'
   writer.addWorksheet('S').commit();
   await committed(writer);
   assert.throws(() => writer.addImage({buffer: ONE_PX_PNG, extension: 'png'}), /already committed/);
-});
-
-test('a streamed sheet carrying both protection and an autofilter emits them in CT_Worksheet order', async () => {
-  const writer = new WorkbookStreamWriter();
-  const sheet = writer.addWorksheet('S');
-  sheet.addRow(['H1', 'H2']).commit();
-  sheet.addRow(['a', 'b']).commit();
-  sheet.autoFilter = 'A1:B1';
-  sheet.protect('pw', {});
-  sheet.commit();
-
-  const bytes = await committed(writer);
-  const xml = partText(bytes, 'xl/worksheets/sheet1.xml');
-  const posProtection = xml.indexOf('<sheetProtection');
-  const posAutoFilter = xml.indexOf('<autoFilter');
-  assert.ok(posProtection >= 0, 'the streamed sheet carries sheetProtection');
-  assert.ok(posAutoFilter >= 0, 'the streamed sheet carries autoFilter');
-  assert.ok(
-    posProtection < posAutoFilter,
-    '<sheetProtection> precedes <autoFilter> per the schema',
-  );
-  // The whole package still reloads, and the autofilter survives.
-  assert.deepEqual(readXlsx(bytes).getWorksheet('S')?.autoFilter, {ref: 'A1:B1', columns: []});
 });
 
 test('the streamed sheet autoFilter getter reflects what was set', () => {

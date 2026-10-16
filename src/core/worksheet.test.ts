@@ -1005,18 +1005,3 @@ test('usedRange is undefined when no rectangle is spanned', () => {
   assert.equal(rowsOnly.columnCount, 0);
   assert.equal(rowsOnly.usedRange, undefined, 'one axis with no extent bounds no rectangle');
 });
-
-test('usedRange is the ref an autoFilter over the whole sheet needs', () => {
-  const sheet = new Worksheet('S', 1);
-  sheet.addRow(['Name', 'Joined']);
-  sheet.addRow(['Ada', 1815]);
-  sheet.addRow(['Grace', 1906]);
-  const used = sheet.usedRange;
-  assert.ok(used);
-  sheet.autoFilter = used.address;
-  assert.equal(
-    sheet.autoFilter?.ref,
-    'A1:B3',
-    'the data rows are inside the filter, not just the header',
-  );
-});

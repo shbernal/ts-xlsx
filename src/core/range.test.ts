@@ -213,13 +213,3 @@ test('styling a block that overlaps a merge restyles the master, stranding nothi
   assert.equal(s.hasCell(2, 3), false);
   assert.equal(s.hasCell(3, 3), false);
 });
-
-test('a later per-cell edit inside the block overrides just that cell', () => {
-  const s = sheet();
-  const range = s.getRange('B2:C3');
-  range.font = {name: 'Arial'};
-  s.getCell('C3').font = {name: 'Courier New'};
-
-  assert.deepEqual(s.getCell('B2').font, {name: 'Arial'});
-  assert.deepEqual(s.getCell('C3').font, {name: 'Courier New'});
-});

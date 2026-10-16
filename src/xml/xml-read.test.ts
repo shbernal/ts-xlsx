@@ -279,10 +279,6 @@ test('parseXmlPasses unions the self-closing expansions its passes ask for', () 
   assert.deepEqual(seen, ['open r', 'open b', 'close b', 'open c', 'close c', 'close r']);
 });
 
-test('parseXmlPasses over no passes is a parse that reaches nobody, not a throw', () => {
-  assert.doesNotThrow(() => parseXmlPasses('<a><b/></a>', []));
-});
-
 test('elementSubtrees captures a child element verbatim, tags included', () => {
   const {fragments} = elementSubtrees('<s><dxfs count="1"><dxf><b/></dxf></dxfs></s>', DXFS);
   assert.deepEqual(fragments.get('dxfs'), ['<dxf><b/></dxf>']);

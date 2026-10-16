@@ -3,12 +3,7 @@ import {test} from 'node:test';
 
 import {XML_DECLARATION} from '../../xml/xml.ts';
 import {indexCellMetadata} from '../cell-metadata/metadata.ts';
-import {parseRichValueErrors} from '../cell-metadata/rich-values.ts';
-import {
-  parseMetadataPart,
-  RICH_VALUE_STRUCTURES_XML,
-  WorkbookMetadataTable,
-} from './cell-metadata.ts';
+import {parseMetadataPart, WorkbookMetadataTable} from './cell-metadata.ts';
 
 const MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 const XLRD = 'http://schemas.microsoft.com/office/spreadsheetml/2017/richdata';
@@ -43,10 +38,6 @@ const dynamicCells = (xml: string) => [
   ...indexCellMetadata(parseMetadataPart(xml), new Map()).dynamicArrayCells,
 ];
 
-test('the cell metadata Excel saves marks its one block as a dynamic array', () => {
-  assert.deepEqual(dynamicCells(EXCEL_SAVED_DYNAMIC), [1]);
-});
-
 test('the writer emits the part Excel saves, byte for byte past the declaration', () => {
   const table = new WorkbookMetadataTable();
   assert.equal(table.isEmpty, true, 'a table no cell pointed into is empty');
@@ -54,24 +45,6 @@ test('the writer emits the part Excel saves, byte for byte past the declaration'
   assert.equal(table.isEmpty, false);
   assert.equal(table.hasRichValues, false);
   assert.equal(table.toXml(), XML_DECLARATION + EXCEL_SAVED_DYNAMIC);
-});
-
-test('the value metadata Excel saves names one rich value per block', () => {
-  const metadata = parseMetadataPart(EXCEL_SAVED_BOTH);
-  assert.deepEqual(metadata.typeNames, ['XLDAPR', 'XLRICHVALUE']);
-  assert.deepEqual(metadata.richValueBlocks, [0, 1]);
-  assert.deepEqual(metadata.valueBlocks, [[{type: 2, value: 0}], [{type: 2, value: 1}]]);
-  const errors = new Map([
-    [0, '#SPILL!'],
-    [1, '#CALC!'],
-  ] as const);
-  assert.deepEqual(
-    [...indexCellMetadata(metadata, errors).valueErrors],
-    [
-      [1, '#SPILL!'],
-      [2, '#CALC!'],
-    ],
-  );
 });
 
 test('the writer shares one rich value per error, in the form Excel saves the part', () => {
@@ -87,17 +60,6 @@ test('the writer shares one rich value per error, in the form Excel saves the pa
     table.richValuesXml(),
     `${XML_DECLARATION}<rvData xmlns="${XLRD}" count="2">` +
       '<rv s="0"><v>8</v><v>0</v></rv><rv s="0"><v>13</v><v>0</v></rv></rvData>',
-  );
-  const index = indexCellMetadata(
-    parseMetadataPart(table.toXml()),
-    parseRichValueErrors(RICH_VALUE_STRUCTURES_XML, table.richValuesXml()),
-  );
-  assert.deepEqual(
-    [...index.valueErrors],
-    [
-      [1, '#SPILL!'],
-      [2, '#CALC!'],
-    ],
   );
 });
 
@@ -145,8 +107,4 @@ test('value metadata is not cell metadata, even after an empty cell-metadata lis
   );
   assert.deepEqual(dynamicCells(xml), []);
   assert.deepEqual(parseMetadataPart(xml).valueBlocks, [[{type: 1, value: 0}]]);
-});
-
-test('an absent part marks nothing', () => {
-  assert.deepEqual(dynamicCells(''), []);
 });

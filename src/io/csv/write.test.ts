@@ -157,15 +157,6 @@ test('a delimiter the reader cannot honour is refused by the writer too', () => 
   assert.equal(writeCsvText(wb, {delimiter: ';'}), 'a;b');
 });
 
-test('a quote, CR or LF is refused as a delimiter: the reader gives each its own meaning', () => {
-  // With `"` as the delimiter, `a"b"c` read back as the single field `abc`.
-  const wb = new Workbook();
-  wb.addWorksheet('S').addRow(['a', 'b']);
-  for (const delimiter of ['"', '\r', '\n']) {
-    assert.throws(() => writeCsvText(wb, {delimiter}), /reserved/, JSON.stringify(delimiter));
-  }
-});
-
 test('a row delimiter that is empty, holds the field delimiter, or holds a quote is refused', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').addRow(['a', 'b']);

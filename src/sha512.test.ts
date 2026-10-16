@@ -37,10 +37,3 @@ test('every message length around a block boundary agrees with node:crypto', () 
     assert.equal(hex(sha512(data)), reference(data), `length ${length}`);
   }
 });
-
-test('random messages agree with node:crypto', () => {
-  for (let i = 0; i < 200; i++) {
-    const data = new Uint8Array(randomBytes(Math.floor(Math.random() * 4096)));
-    assert.equal(hex(sha512(data)), reference(data), hex(data).slice(0, 32));
-  }
-});

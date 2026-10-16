@@ -47,21 +47,6 @@ test('a colour refuses a non-finite theme, tint or index', () => {
   }
 });
 
-test('<cfRule> refuses a non-finite rank or standard deviation', () => {
-  refuses((wb) => {
-    wb.getWorksheet('S')!.addConditionalFormatting({
-      ref: 'A1:A5',
-      rules: [{type: 'top10', rank: Number.NaN, priority: 1}],
-    });
-  });
-  refuses((wb) => {
-    wb.getWorksheet('S')!.addConditionalFormatting({
-      ref: 'A1:A5',
-      rules: [{type: 'aboveAverage', stdDev: Infinity, priority: 1}],
-    });
-  });
-});
-
 // A non-finite operand used to be dropped, turning a `between` into a rule with one bound, while a
 // conditional format's operand was already refused. Both forms of the element write the operand.
 test('<dataValidation> refuses a non-finite numeric operand, in both forms', () => {

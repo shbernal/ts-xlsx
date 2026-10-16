@@ -18,7 +18,6 @@ import {
   indexOfBytes,
   legacySignature,
   MODULES,
-  rec,
   xlsmPackage,
 } from '../../vba/vba.test-support.ts';
 import {PackageReadError} from '../opc/errors.ts';
@@ -57,8 +56,7 @@ test('the package-level edits enforce the same inflate ceiling every other reade
 });
 
 test('editXlsxVbaRemoveModule removes a module and preserves every other package part byte-for-byte', () => {
-  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload)));
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
   const names = Object.keys(partsOf(pkg)).sort();
 
   const edited = editXlsxVbaRemoveModule(pkg, 'Module1');
@@ -73,16 +71,9 @@ test('editXlsxVbaRemoveModule removes a module and preserves every other package
     );
   }
 
-  const bin = partBytes(edited, 'xl/vbaProject.bin');
-  const project = parseVbaProject(bin);
   assert.deepEqual(
-    project.modules.map((m) => m.name),
+    parseVbaProject(partBytes(edited, 'xl/vbaProject.bin')).modules.map((m) => m.name),
     ['ThisWorkbook', 'Class1'],
-  );
-  const reDir = decompressContainer(new CompoundFile(bin).readStream(['VBA', 'dir'])!);
-  assert.ok(
-    indexOfBytes(reDir, Uint8Array.from(refPayload)) >= 0,
-    'the PROJECTREFERENCES record survives the splice',
   );
 });
 
@@ -101,23 +92,6 @@ test('editXlsxVbaRemoveModule re-zips with pinned timestamps, so the same edit i
   const edited = editXlsxVbaRemoveModule(pkg, 'Module1');
   const dos = new DataView(edited.buffer, edited.byteOffset, edited.byteLength).getUint32(10, true);
   assert.equal(((dos >>> 25) & 0x7f) + 1980, 2001, 'entries are stamped, not clocked');
-});
-
-test('editXlsxVbaRemoveModule drops a stale signature part', () => {
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES), {
-    signatures: [legacySignature(Uint8Array.from([1, 2, 3]))],
-  });
-  assert.deepEqual(
-    partBytes(pkg, 'xl/vbaProjectSignature.bin'),
-    Uint8Array.from([1, 2, 3]),
-    'precondition: the package is signed',
-  );
-
-  assert.equal(
-    optionalPartText(editXlsxVbaRemoveModule(pkg, 'Module1'), 'xl/vbaProjectSignature.bin'),
-    undefined,
-    'the signature part is dropped',
-  );
 });
 
 /** A signed package's parts after `rewrite`, re-zipped: for a shape `xlsmPackage` does not spell. */

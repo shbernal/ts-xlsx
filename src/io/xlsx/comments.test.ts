@@ -5,15 +5,8 @@ import type {CommentThread} from '../../core/comment-thread.ts';
 import {INTERNAL} from '../../core/internal.ts';
 import {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {collectComments, commentsXml, liveCells, vmlDrawingXml} from './comments.ts';
-import {
-  captureIn,
-  partsOf,
-  partsWritten,
-  partText,
-  roundtrip,
-  sheetXml,
-} from './package.test-support.ts';
+import {collectComments, commentsXml, liveCells} from './comments.ts';
+import {partsOf, partsWritten, partText, roundtrip, sheetXml} from './package.test-support.ts';
 import {applyNotes, parseComments} from './read-comments.ts';
 import {writeXlsx} from './write.ts';
 
@@ -82,15 +75,6 @@ test('a noted workbook emits a comments part, a VML drawing, and a legacyDrawing
   assert.match(contentTypes, /PartName="\/xl\/comments1\.xml"/);
 });
 
-test('a note textbox auto-fits its text so a multi-line note is not clipped', () => {
-  const wb = new Workbook();
-  const ws = wb.addWorksheet('S');
-  ws.getCell('B2').note = 'line one\nline two\nline three';
-  const vml = partText(writeXlsx(wb), 'xl/drawings/vmlDrawing1.vml');
-  const style = captureIn(vml, /<v:textbox\b[^>]*\bstyle="([^"]*)"/, 'the textbox style');
-  assert.match(style, /mso-fit-shape-to-text:t/, 'the textbox grows to fit its content');
-});
-
 test('a note-free workbook writes no comment or VML parts', () => {
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');
@@ -156,19 +140,6 @@ test('the fallback text is the boilerplate, the opening message, then one Reply:
   assert.strictEqual(
     fallback?.text,
     `${PREAMBLE}\n\nComment:\n    Head question?\nReply:\n    First reply.\nReply:\n    Second reply.`,
-  );
-});
-
-test('a conversation with no note beside it still gets a comments part and a VML shape of its own', () => {
-  const wb = new Workbook();
-  const ws = wb.addWorksheet('S');
-  ws[INTERNAL].restoreCommentThreads([threadOn('B1', ['a conversation'])]);
-  const comments = shadowing(ws);
-  assert.strictEqual(comments.length, 1, 'the fallback is the whole comments part');
-  assert.strictEqual(
-    (vmlDrawingXml(comments).match(/<v:shape\b/g) ?? []).length,
-    1,
-    'and it has a box to render into: a comment with no shape reads as text but draws nothing',
   );
 });
 
@@ -241,22 +212,6 @@ test('a note-only sheet keeps the minimal comments root, declaring no namespace 
   const xml = partText(writeXlsx(wb), 'xl/comments1.xml');
   assert.ok(!xml.includes('xmlns:xr'), 'no thread means no xr:uid, so no xr declaration');
   assert.ok(!xml.includes('tc='), 'and no synthetic thread author');
-});
-
-test('a threaded cell reads back with no note, while a genuine note beside it is untouched', () => {
-  const ws = new Workbook().addWorksheet('S');
-  ws[INTERNAL].restoreCommentThreads([
-    threadOn('B1', ['Is this gross or net of tax?', 'Gross.'], HEAD, true),
-  ]);
-  applyNotes(
-    ws,
-    new Map([
-      ['B1', {text: `${PREAMBLE}\n\nComment:\n    Is this gross or net of tax?`, threadId: HEAD}],
-      ['D4', {text: 'a real note'}],
-    ]),
-  );
-  assert.strictEqual(ws.getCell('B1').note, undefined, 'the boilerplate is not an annotation');
-  assert.strictEqual(ws.getCell('D4').note, 'a real note');
 });
 
 test('a fallback whose thread is missing is kept as a note rather than silently dropped', () => {

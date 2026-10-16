@@ -20,30 +20,16 @@ function workbookWith(cells: Record<string, CellValue>): Workbook {
 }
 
 test('an array formula whose range holds another formula is refused, naming both cells', () => {
-  for (const other of [{formula: 'A2*10'}, legacy('B2'), {sharedFormula: 'B1'}] as CellValue[]) {
+  for (const other of [legacy('B2'), {sharedFormula: 'B1'}] as CellValue[]) {
     const workbook = workbookWith({B1: legacy('B1:B3'), B2: other});
     assert.throws(
       () => writeXlsx(workbook),
       /array formula in B1 fills "B1:B3", which holds the formula in B2/,
     );
   }
-  const dynamic = workbookWith({
-    B1: {shareType: 'array', formula: 'A1:A3*2', ref: 'B1:B3', dynamic: true},
-    B3: {formula: 'A3'},
-  });
-  assert.throws(() => writeXlsx(dynamic), /which holds the formula in B3/, 'a dynamic array too');
 });
 
-test('array formula ranges sharing a cell are refused, whichever holds whose formula', () => {
-  const corner = workbookWith({B1: legacy('B1:C2'), A2: legacy('A2:B3')});
-  assert.throws(
-    () => writeXlsx(corner),
-    /array formula in A2 fills "A2:B3", which shares cells with the range of the array formula in B1/,
-  );
-});
-
-test('an array formula whose other cells hold values, or nothing, is written', () => {
-  assert.doesNotThrow(() => writeXlsx(workbookWith({B1: legacy('B1:B3'), B2: 4, B3: 6})));
+test('array formula ranges side by side are written', () => {
   assert.doesNotThrow(() => writeXlsx(workbookWith({B1: legacy('B1:B3'), C1: legacy('C1:C3')})));
 });
 

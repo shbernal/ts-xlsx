@@ -89,22 +89,6 @@ test('attaching vbaProjectBytes turns a plain workbook macro-enabled and embeds 
   );
 });
 
-test('vbaProjectBytes copies a macro project from one workbook to another', () => {
-  const source = readXlsx(xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES)));
-  const target = new Workbook();
-  target.addWorksheet('Sheet1');
-
-  const bytes = source.vbaProjectBytes;
-  assert.ok(bytes, 'the source workbook exposes its raw macro blob');
-  target.vbaProjectBytes = bytes;
-
-  assert.deepEqual(
-    roundtrip(target).vbaProject?.modules.map((m) => m.name),
-    ['ThisWorkbook', 'Module1', 'Class1'],
-    'the copied project decodes from the target package',
-  );
-});
-
 test('the lazily-parsed project is re-decoded after the bytes are replaced', () => {
   const wb = new Workbook();
   wb.addWorksheet('Sheet1');

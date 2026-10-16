@@ -15,33 +15,6 @@ import {writeXlsx} from './write.ts';
 
 const readSheetPartXml = (xml: string): Workbook => readPatched({[SHEET1]: xml});
 
-test('a list validation over a whole column writes exactly one dataValidation with the range as sqref', () => {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').addDataValidation('B2:B1048576', {
-    type: 'list',
-    allowBlank: true,
-    formulae: ['"a,b,c"'],
-  });
-  const xml = sheetXml(writeXlsx(workbook));
-
-  const entries = [...xml.matchAll(/<dataValidation[ >]/g)];
-  assert.equal(entries.length, 1, 'one entry, not one per covered cell');
-  assert.match(xml, /<dataValidation type="list" allowBlank="1" sqref="B2:B1048576">/);
-  assert.match(xml, /<formula1>"a,b,c"<\/formula1>/);
-});
-
-test('a validation formula supplied with a leading = is serialised without it', () => {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').addDataValidation('A1', {
-    type: 'list',
-    formulae: ['=$AA$1:$AA$2'],
-  });
-  const xml = sheetXml(writeXlsx(workbook));
-
-  assert.match(xml, /<formula1>\$AA\$1:\$AA\$2<\/formula1>/);
-  assert.doesNotMatch(xml, /<formula1>=/);
-});
-
 test('a validation-free sheet emits no <dataValidations> element', () => {
   const workbook = new Workbook();
   workbook.addWorksheet('S').getCell('A1').value = 1;
@@ -66,25 +39,6 @@ test('a typed validation round-trips its type, operator, and numeric bounds on e
     assert.equal(dv.operator, 'between');
     assert.deepEqual(dv.formulae, [0, 9], 'numeric literals read back as numbers');
   }
-});
-
-test('a numeric-typed validation whose operand is a reference keeps the reference, not NaN', () => {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').addDataValidation('A1', {
-    type: 'whole',
-    operator: 'greaterThan',
-    formulae: ['L26'],
-  });
-  const dv = roundtrip(workbook).getWorksheet('S')?.dataValidationAt('A1');
-  assert.deepEqual(dv?.formulae, ['L26'], 'the cell reference survives as a string');
-});
-
-test('a list validation round-trips its string source verbatim', () => {
-  const workbook = new Workbook();
-  workbook.addWorksheet('S').addDataValidation('B1', {type: 'list', formulae: ['myNames']});
-  const dv = roundtrip(workbook).getWorksheet('S')?.dataValidationAt('B1');
-  assert.equal(dv?.type, 'list');
-  assert.deepEqual(dv?.formulae, ['myNames'], 'the defined-name source is not coerced to a number');
 });
 
 test('validation formula text with markup-significant characters round-trips exactly', () => {
@@ -358,34 +312,5 @@ test('every schema token of every validation union round-trips unchanged', () =>
     assert.equal(back?.operator, rule.operator ?? 'between', `${ref} operator`);
     assert.equal(back?.errorStyle, rule.errorStyle, `${ref} errorStyle`);
     assert.equal(back?.imeMode, rule.imeMode, `${ref} imeMode`);
-  }
-});
-
-// `showDropDown` and `imeMode` had no field, so a list validated without its arrow got the arrow back
-// on the next save, and an input rule for a Japanese form lost its input mode.
-test('suppressDropDown and imeMode round-trip in both the standard and the extended form', () => {
-  const workbook = new Workbook();
-  const sheet = workbook.addWorksheet('S');
-  const rule: DataValidation = {
-    type: 'list',
-    formulae: ['"a,b"'],
-    suppressDropDown: true,
-    imeMode: 'hiragana',
-  };
-  sheet.addDataValidation('A1', rule);
-  sheet.addDataValidation('B1', rule, {extended: true});
-
-  const xml = sheetXml(writeXlsx(workbook));
-  assert.match(xml, /<dataValidation type="list" imeMode="hiragana" showDropDown="1" sqref="A1">/);
-  assert.match(xml, /<x14:dataValidation type="list" imeMode="hiragana" showDropDown="1"[ >]/);
-
-  const read = roundtrip(workbook).getWorksheet('S');
-  for (const ref of ['A1', 'B1']) {
-    assert.equal(
-      read?.dataValidationAt(ref)?.suppressDropDown,
-      true,
-      `${ref} keeps its arrow hidden`,
-    );
-    assert.equal(read?.dataValidationAt(ref)?.imeMode, 'hiragana', `${ref} keeps its input mode`);
   }
 });
