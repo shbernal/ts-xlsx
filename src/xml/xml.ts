@@ -132,7 +132,9 @@ export function escapeFormatCode(code: string): string {
  * value that legitimately reads `_x0041_` would come back as `A`, so the underscore is
  * escaped first, and only where it begins a sequence that would otherwise decode, leaving
  * every other underscore alone. Doing that after the character escape would re-escape the
- * `_x005F_` it had just introduced.
+ * `_x005F_` it had just introduced. The match is a lookahead because the underscore that closes
+ * one lookalike can open the next, as in `_x005F_x0041_`; consuming it would leave the second
+ * unescaped, to read back as `A`.
  *
  * `escapeText` runs last and sees no unrepresentable character left, so its guard is a
  * standing proof that the escape was complete rather than a second check of the same thing.
@@ -143,7 +145,7 @@ export function escapeFormatCode(code: string): string {
 export function escapeSpreadsheetText(value: string): string {
   return escapeText(
     value
-      .replace(/_(x[0-9A-Fa-f]{4}_)/g, '_x005F_$1')
+      .replace(/_(?=x[0-9A-Fa-f]{4}_)/g, '_x005F_')
       .replace(
         XML_UNREPRESENTABLE_GLOBAL,
         (ch) => `_x${codePointHex(ch.codePointAt(0) as number)}_`,
