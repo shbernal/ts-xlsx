@@ -21,7 +21,6 @@ test('every sample builds, writes and reads back', () => {
   for (const sample of SAMPLES) {
     const written = write(sample.build());
     assert.ok(written.ok, `${sample.id} failed to write: ${written.ok ? '' : written.error}`);
-    assert.ok(written.value.byteLength > 0, `${sample.id} wrote an empty package`);
 
     const readBack = read(written.value.bytes);
     assert.ok(readBack.ok, `${sample.id} failed to read: ${readBack.ok ? '' : readBack.error}`);

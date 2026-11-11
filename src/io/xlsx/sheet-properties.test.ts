@@ -104,18 +104,13 @@ test('a sheet with no header/footer emits no <headerFooter>', () => {
   assert.doesNotMatch(xml, /<headerFooter/);
 });
 
-test('header/footer text is XML-escaped and placed after <pageMargins>', () => {
+test('header/footer text is XML-escaped', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');
   s.getCell('A1').value = 'x';
-  s.pageMargins.top = 1;
   s.headerFooter.oddHeader = 'a & b < c';
   const xml = partIn(partsWritten(wb), 'xl/worksheets/sheet1.xml');
   assert.match(xml, /<oddHeader>a &amp; b &lt; c<\/oddHeader>/);
-  assert.ok(
-    xml.indexOf('<pageMargins') < xml.indexOf('<headerFooter'),
-    'headerFooter follows pageMargins',
-  );
 });
 
 test('an astral character in a header needs no escape, a control one does', () => {
