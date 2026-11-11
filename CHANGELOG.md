@@ -12,6 +12,12 @@ ExcelJS-to-`ts-xlsx` rewrite, is recorded in `git log` and the [ADR series](docs
 
 ## [Unreleased]
 
+## [3.2.2] - 2026-11-11
+
+This release makes `WorkbookStreamWriter` respect a slow sink. `commit()` now writes the package in
+slices and waits whenever the sink asks it to drain. Before, the sink buffered the whole archive. There
+are no API changes.
+
 ### Changed
 
 - The default branch is now `main`. Package-affecting pushes publish a gated prerelease under the
