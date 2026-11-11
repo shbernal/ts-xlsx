@@ -80,10 +80,12 @@ const bytes = await writer.commit();
 console.log(bytes !== undefined && bytes.length > 0); // true
 ```
 
-`commit()` on a row serialises it and frees it, which is what keeps peak memory flat; a row
-you never commit is a row still in memory. `commit()` on the sheet freezes it, and any
-further mutation after that is rejected with a legible error rather than silently accepted.
-`commit()` on the writer assembles the package.
+`commit()` on a row serialises it and frees its cells; a row you never commit is a row still
+in memory, cell objects and all. The serialised `<row>` XML is kept until the workbook commits,
+which is far smaller than the cell graph but still grows with the sheet. `commit()` on the sheet
+freezes it, and any further mutation after that is rejected with a legible error rather than
+silently accepted. `commit()` on the writer assembles the package and writes it out at the pace
+the sink accepts: when a `stream` or `filename` sink asks to drain, the writer waits for it.
 
 `commit()` is therefore also a deadline. A row stays reachable through `getCell` for as long
 as it is uncommitted, and that is when to style it or fill a cell you skipped. Once you

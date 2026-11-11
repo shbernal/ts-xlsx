@@ -17,6 +17,15 @@ ExcelJS-to-`ts-xlsx` rewrite, is recorded in `git log` and the [ADR series](docs
 - The default branch is now `main`. Package-affecting pushes publish a gated prerelease under the
   npm `next` dist-tag without moving `latest`.
 
+### Fixed
+
+- **`WorkbookStreamWriter` ignored a slow sink's backpressure.** `commit()` zipped the whole package
+  in one synchronous pass and wrote every chunk into the caller's `stream` or `filename` sink without
+  looking at what `write` returned, so a sink slower than the deflater ended up holding the entire
+  archive in its own buffer. Output is now produced in slices, and `commit()` waits for the sink's
+  `drain` whenever it asks for one (#33). The writer-owned `writer.stream` is unchanged: it may go
+  unread until `commit()` resolves, so it still buffers.
+
 ## [3.2.1] - 2026-10-02
 
 This release fixes how formulas are written when a column's letters spell a function, such as `T`,

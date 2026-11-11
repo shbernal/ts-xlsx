@@ -37,9 +37,10 @@ What that buys you today:
 - **Synchronous, buffer-native I/O.** `readXlsx`/`writeXlsx` take and return a
   `Uint8Array`. There are no streams to await for the buffered path, no Node `Buffer` assumption,
   so the same code runs in Node and the browser.
-- **Streaming when you need it.** Bounded-memory row streaming both ways: read a large
-  workbook without materializing it, or write one incrementally to a Node stream so peak
-  memory stays flat.
+- **Streaming when you need it.** Bounded-memory row streaming on the read side: read a
+  large workbook without materializing it. On the write side, author one incrementally:
+  each committed row drops its cell objects and keeps only its serialized XML until the
+  workbook commits, and the package then goes out at the pace your sink accepts.
 - **One runtime dependency** ([`fflate`](https://github.com/101arrowz/fflate) for zip),
   a hand-written SAX reader with bounded allocation on every parser path, and a
   build-free, strict-typed source tree.
@@ -151,7 +152,7 @@ for (const row of readSheetRows(bytes, {sheet: 'People'})) {
   );
 }
 
-// Bounded-memory generation. Commit each row to serialize and free it as you go:
+// Incremental generation. Commit each row to serialize it and free its cells as you go:
 const writer = new WorkbookStreamWriter();
 const out = writer.addWorksheet('Big');
 for (let i = 1; i <= 1_000_000; i++) out.addRow([i, i * i]).commit();
