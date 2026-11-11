@@ -218,9 +218,9 @@ export function packageFacts(spec: Untyped, partMap: PartMap) {
       const posLegacy = posOf('<legacyDrawing ');
       const posTable = posOf('<tableParts');
       const ordered = (a: number, b: number): boolean | null => (a >= 0 && b >= 0 ? a < b : null);
-      const hfBlock = (xml.match(
-        /<headerFooter\b[\s\S]*?<\/headerFooter>|<headerFooter\b[^>]*\/>/,
-      ) || [''])[0];
+      const hfBlock = (
+        xml.match(/<headerFooter\b[\s\S]*?<\/headerFooter>|<headerFooter\b[^>]*\/>/) || ['']
+      )[0];
       const hfChild = (tag: string): string | null => {
         const m = hfBlock.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`));
         return m ? m[1]! : null;

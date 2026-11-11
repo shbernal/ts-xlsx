@@ -29,9 +29,9 @@ export const conditionalFormatting = {
       };
     }
     const xml = partOf(buffer, 'xl/worksheets/sheet1.xml');
-    const cfBlock = (xml.match(/<conditionalFormatting[\s\S]*?<\/conditionalFormatting>/) || [
-      '',
-    ])[0];
+    const cfBlock = (
+      xml.match(/<conditionalFormatting[\s\S]*?<\/conditionalFormatting>/) || ['']
+    )[0];
     const dataBar = (cfBlock.match(/<dataBar\b[\s\S]*?<\/dataBar>|<dataBar\b[^>]*\/>/) || [''])[0];
     const rule =
       readXlsx(buffer).getWorksheet('S')?.conditionalFormattings?.[0]?.rules?.[0] ?? null;
