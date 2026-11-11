@@ -208,8 +208,9 @@ export const protection = {
 
     const rewritten = partMapOf(writeXlsx(readXlsx(zipSync(zipFiles))));
     const contentTypes = partOf(rewritten, '[Content_Types].xml');
-    const override = (contentTypes.match(/<Override PartName="[^"]*slicerCache[^"]*"[^>]*>/) ??
-      [])[0];
+    const override = (
+      contentTypes.match(/<Override PartName="[^"]*slicerCache[^"]*"[^>]*>/) ?? []
+    )[0];
     const overrideAttrs = override === undefined ? null : attrsOf(override);
     const sheetXml = partOf(rewritten, 'xl/worksheets/sheet1.xml');
     const protectionEl = (sheetXml.match(/<sheetProtection\b[^>]*\/?>/) ?? [])[0];
