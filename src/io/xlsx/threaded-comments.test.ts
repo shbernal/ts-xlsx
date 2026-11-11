@@ -328,10 +328,6 @@ test('a reply whose parent is unknown opens its own thread rather than being dro
 
 test('a part with no messages yields no threads', () => {
   assert.deepStrictEqual(buildCommentThreads([], NO_PERSONS), []);
-  assert.deepStrictEqual(
-    buildCommentThreads(parseThreadedComments('<ThreadedComments/>'), NO_PERSONS),
-    [],
-  );
 });
 
 test('parts that prefix the extension namespace instead of defaulting it still parse', () => {

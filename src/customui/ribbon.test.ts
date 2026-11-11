@@ -205,7 +205,6 @@ test('Workbook.customUI parses both ribbon parts, tagged by dialect, and memoise
   );
 
   const docs = wb.customUI;
-  assert.equal(docs.length, 2);
   assert.deepEqual(
     docs.map((d) => d.dialect),
     ['2007', '2010'],
