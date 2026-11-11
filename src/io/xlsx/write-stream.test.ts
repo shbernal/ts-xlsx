@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
-import {PassThrough, type Readable} from 'node:stream';
+import {PassThrough, type Readable, Writable} from 'node:stream';
 import {test} from 'node:test';
 
 import {scratchDir} from '../../../scripts/repo.ts';
@@ -128,6 +128,51 @@ test('a sink plus a touched stream still resolves with the package', async () =>
     bytes,
     'and it is the same bytes the stream carried',
   );
+});
+
+// Issue #33: the archive used to be pushed into the sink in one synchronous burst, ignoring the `false`
+// that `write` returns, so a slow sink queued the whole package in its own buffer. The sink here is
+// slow and its high-water mark is one byte, so every write asks the writer to wait for `drain`. What
+// the sink holds unprocessed at any write is then at most one slice's worth of compressed output,
+// however large the package; the content is incompressible enough that the package spans many slices.
+test('commit honours a slow sink’s backpressure instead of queueing the whole package in it', async () => {
+  let peakQueued = 0;
+  let delivered = 0;
+  const chunks: Buffer[] = [];
+  const sink = new Writable({
+    highWaterMark: 1,
+    write(chunk: Buffer, _encoding, callback) {
+      peakQueued = Math.max(peakQueued, this.writableLength);
+      delivered += chunk.length;
+      chunks.push(chunk);
+      setImmediate(callback);
+    },
+  });
+
+  const writer = new WorkbookStreamWriter({stream: sink});
+  const sheet = writer.addWorksheet('S');
+  let seed = 1;
+  const noise = (): string => {
+    let text = '';
+    for (let i = 0; i < 300; i++) {
+      seed ^= seed << 13;
+      seed ^= seed >>> 17;
+      seed ^= seed << 5;
+      text += String.fromCharCode(48 + ((seed >>> 0) % 75));
+    }
+    return text;
+  };
+  for (let i = 0; i < 4000; i++) sheet.addRow([i, noise()]).commit();
+  sheet.commit();
+  assert.equal(await writer.commit(), undefined);
+
+  assert.ok(delivered > 1_000_000, `the package is large enough to matter (${delivered} bytes)`);
+  assert.ok(
+    peakQueued < 256 * 1024,
+    `the sink never held more than a slice of output (peak ${peakQueued} of ${delivered} bytes)`,
+  );
+  const reread = readXlsx(Buffer.concat(chunks)).getWorksheet('S');
+  assert.equal(reread?.getCell('A4000').value, 3999);
 });
 
 // The stream's terminal event: 'error' with its message, or 'end'. A stream that settles neither way

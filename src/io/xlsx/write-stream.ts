@@ -47,6 +47,7 @@
 // first flushed row, so a column defined after that is still written to `<cols>` but is composed into
 // no eagerly-rendered cell.
 
+import {once} from 'node:events';
 import {createWriteStream} from 'node:fs';
 import {PassThrough, type Readable, type Writable} from 'node:stream';
 
@@ -667,9 +668,12 @@ export class WorkbookStreamWriter {
       });
       const bytes = await streamZipPackage(
         parts,
-        (chunk) => {
+        async (chunk) => {
           owned?.write(chunk);
-          sink?.write(chunk);
+          // Only the caller's sink is waited on. The writer-owned `stream` may legitimately go unread
+          // until `commit()` resolves (a caller awaiting the bytes first), so pausing on its `drain`
+          // would deadlock; it keeps buffering as it always has.
+          if (sink && !sink.write(chunk) && sinkSettled) await drained(sink, sinkSettled);
         },
         collect,
       );
@@ -709,40 +713,74 @@ function settleOnFinish(sink: Writable): Promise<void> {
   });
 }
 
+// Wait until a sink that refused more input (`write` returned `false`) has drained, or fail with it.
+// `settled` is the sink's terminal promise: it rejects on `error`, which a sink that errored before the
+// `drain` would otherwise leave this waiting on forever.
+async function drained(sink: Writable, settled: Promise<void>): Promise<void> {
+  const abort = new AbortController();
+  try {
+    await Promise.race([once(sink, 'drain', {signal: abort.signal}), settled]);
+  } finally {
+    abort.abort();
+  }
+}
+
+// How much uncompressed part data is pushed into the deflater between two looks at the sink. It
+// bounds what one push can emit, so it is also roughly the most compressed output a slow sink is
+// handed before the writer next asks whether it may continue.
+const PUSH_SLICE = 64 * 1024;
+
 // Zip the package parts through fflate's streaming container, forwarding each output chunk to `onChunk`
-// as it is produced and resolving with the whole archive once the final chunk arrives. `ZipDeflate`
-// deflates synchronously, so the callback fires inline as each part is pushed, and the CRC-32 fflate
-// stamps into every entry's header therefore always matches the bytes it just compressed.
+// and resolving with the whole archive (when `collect`) once the final chunk is out. `ZipDeflate`
+// deflates synchronously, so the chunks a push produces are all emitted inside that push, and the
+// CRC-32 fflate stamps into every entry's header therefore always matches the bytes it just compressed.
+//
+// The parts are fed in `PUSH_SLICE` pieces, and `onChunk` is awaited between pieces: that is how a
+// sink's backpressure reaches the producer. Pushing every part in one synchronous pass (as this once
+// did) hands the sink the whole archive at once, whatever `write` answered.
 //
 // `collect` is what makes this a streaming writer on the output side as well as the input side. Every
 // chunk used to be retained whatever the caller wanted, and `concat` then allocated a second
 // full-size buffer to join them, so a caller who passed a sink precisely to avoid holding the package
 // held two copies of it.
-function streamZipPackage(
+async function streamZipPackage(
   parts: Record<string, Uint8Array>,
-  onChunk: (chunk: Uint8Array) => void,
+  onChunk: (chunk: Uint8Array) => Promise<void>,
   collect: boolean,
 ): Promise<Uint8Array | undefined> {
-  return new Promise((resolve, reject) => {
-    const collected: Uint8Array[] = [];
-    const zip = new Zip((err, chunk, final) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      if (collect) collected.push(chunk);
-      onChunk(chunk);
-      if (final) resolve(collect ? concat(collected) : undefined);
-    });
-    for (const [name, data] of Object.entries(parts)) {
-      const entry = new ZipDeflate(name, {level: 6});
-      // `mtime` is a field on the entry rather than a compression option (`ZipDeflate` forwards its
-      // options to the deflater alone) and the header is written when the entry is added, so it has
-      // to be set before that call rather than before the first push.
-      entry.mtime = FIXED_ENTRY_MTIME;
-      zip.add(entry);
-      entry.push(data, true);
-    }
-    zip.end();
+  const collected: Uint8Array[] = [];
+  let pending: Uint8Array[] = [];
+  let failure: Error | null = null;
+  const zip = new Zip((err, chunk) => {
+    if (err) failure ??= err;
+    else pending.push(chunk);
   });
+  const forward = async (): Promise<void> => {
+    if (failure) throw failure;
+    const ready = pending;
+    pending = [];
+    for (const chunk of ready) {
+      if (collect) collected.push(chunk);
+      await onChunk(chunk);
+    }
+  };
+
+  for (const [name, data] of Object.entries(parts)) {
+    const entry = new ZipDeflate(name, {level: 6});
+    // `mtime` is a field on the entry rather than a compression option (`ZipDeflate` forwards its
+    // options to the deflater alone) and the header is written when the entry is added, so it has
+    // to be set before that call rather than before the first push.
+    entry.mtime = FIXED_ENTRY_MTIME;
+    zip.add(entry);
+    let offset = 0;
+    do {
+      const end = Math.min(offset + PUSH_SLICE, data.length);
+      entry.push(data.subarray(offset, end), end === data.length);
+      offset = end;
+      await forward();
+    } while (offset < data.length);
+  }
+  zip.end();
+  await forward();
+  return collect ? concat(collected) : undefined;
 }
