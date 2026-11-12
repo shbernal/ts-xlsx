@@ -124,15 +124,57 @@ async function writeBufferedWorkbook(file: string): Promise<void> {
   await writeFile(file, writeXlsx(workbook));
 }
 
-// The streaming writer must be clean in both string-storage modes: inline (eager per-row flush) and
-// shared-strings (whole-workbook pool). They travel different serialisation paths, so both are exercised.
+// The streaming writer must be clean in both string-storage modes: inline, where each sheet's part is
+// written into its zip entry as its rows commit (ADR 0046), and shared strings, where every row waits
+// for the whole-workbook pool. They travel different serialisation paths, so both are exercised, with
+// what the inline path writes before the rows (columns, a frozen pane, the outline depth, no
+// <dimension>), what it derives as they pass (a collapsed summary), what it writes after them (a note,
+// a link, a merge, a validation, a conditional format, an image), a sheet long enough to span several
+// deflate batches, and a sheet no row of which was ever committed.
 async function writeStreamingWorkbook(file: string, useSharedStrings: boolean): Promise<void> {
   const writer = new WorkbookStreamWriter({useSharedStrings});
-  const sheet = writer.addWorksheet('Stream');
-  sheet.addRow(['Name', 'Value']).commit();
-  sheet.addRow(['alpha', 42]).commit();
-  sheet.addRow(['beta', 7]).commit();
-  sheet.commit();
+  const image = writer.addImage({
+    buffer: Uint8Array.from(
+      atob(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      ),
+      (c) => c.charCodeAt(0),
+    ),
+    extension: 'png',
+  });
+  const sheet = writer.addWorksheet('Stream', {outlineLevelRow: 1});
+  sheet.model.getColumn(1).width = 24;
+  sheet.model.freeze(1);
+  await sheet.addRow(['Name', 'Value']).commit();
+  for (let n = 2; n <= 3; n++) {
+    const detail = sheet.addRow([`detail ${n}`, n]);
+    sheet.model.getRow(n).outlineLevel = 1;
+    sheet.model.getRow(n).hidden = true;
+    await detail.commit();
+  }
+  await sheet.addRow(['summary', {formula: 'SUM(B2:B3)', result: 5}]).commit();
+  sheet.getCell('A5').value = 'noted';
+  sheet.getCell('A5').note = 'a note';
+  await sheet.addRow([]).commit();
+  await sheet.addRow(['merged', null]).commit();
+  sheet.model.mergeCells('A6:B6');
+  sheet.addHyperlink({ref: 'A1', target: 'https://example.com/streamed'});
+  sheet.addDataValidation('B2:B4', {type: 'whole', operator: 'greaterThan', formulae: [0]});
+  sheet.addConditionalFormatting({
+    ref: 'B2:B4',
+    rules: [
+      {type: 'cellIs', operator: 'greaterThan', formulae: ['2'], style: {font: {bold: true}}},
+    ],
+  });
+  sheet.addImage(image, {tl: {col: 3, row: 1}, br: {col: 5, row: 4}});
+  await sheet.commit();
+
+  const long = writer.addWorksheet('Long');
+  for (let n = 1; n <= 3000; n++) await long.addRow([n, `row ${n} ${'x'.repeat(40)}`]).commit();
+  await long.commit();
+
+  const uncommitted = writer.addWorksheet('Uncommitted');
+  uncommitted.getCell('B2').value = 'only a getCell';
   // No sink was supplied, so the writer retains the package and `commit` resolves with it.
   const bytes = await writer.commit();
   if (bytes === undefined) throw new Error('the streaming writer retained no package');

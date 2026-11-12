@@ -78,8 +78,8 @@ test('a workbook with no rich-value error writes no rich-value part', () => {
 test('the streaming writer shares the rich values across the rows it flushes', async () => {
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');
-  sheet.addRow([{error: '#CALC!'}]).commit();
-  sheet.addRow([{error: '#FIELD!'}, {error: '#CALC!'}]).commit();
+  await sheet.addRow([{error: '#CALC!'}]).commit();
+  await sheet.addRow([{error: '#FIELD!'}, {error: '#CALC!'}]).commit();
   const bytes = await writer.commit();
   assert.ok(bytes !== undefined);
   const back = readXlsx(bytes).getWorksheet('S');

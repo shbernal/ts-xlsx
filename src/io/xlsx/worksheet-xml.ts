@@ -12,12 +12,16 @@
 // surface that writer imports, which `write.ts` used to re-export on its behalf.
 
 import {encodeRect} from '../../core/address.ts';
-import {arrayRangeConflicts, formulaPlacement} from '../../core/array-formula-ranges.ts';
+import {
+  arrayRangeConflicts,
+  type FormulaPlacement,
+  formulaPlacement,
+} from '../../core/array-formula-ranges.ts';
 import type {DateEpoch} from '../../core/date.ts';
 import {mergesOverlappingTables} from '../../core/merge.ts';
 import {pickStyleFacets} from '../../core/style.ts';
 import type {ColumnProperties, Worksheet, WorksheetProperties} from '../../core/worksheet.ts';
-import {AuthoringError, InternalError, quoted} from '../../errors.ts';
+import {AuthoringError, quoted} from '../../errors.ts';
 import {escapeAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import type {WorkbookMetadataTable} from './cell-metadata.ts';
 import {
@@ -35,11 +39,8 @@ import {
   assertWritableLevel,
   buildColumnDefaults,
   Extent,
-  type FlushedRow,
-  type FlushedSheet,
   outlineAttr,
   renderRow,
-  rowOpenTag,
   type RowRenderContext,
 } from './row-xml.ts';
 import {planSharedFormulas} from './shared-formulas.ts';
@@ -80,110 +81,120 @@ export interface SheetReferences {
  * boolean is a run whose order the call site cannot be read against. `active:` is the clearest of
  * them -- as a positional it needed a comment at the call site to say which boolean it was.
  */
-export interface WorksheetXmlInputs {
+export interface WorksheetXmlInputs extends WorksheetTailInputs {
+  readonly sharedStrings: SharedStringTable | null;
+  readonly cellMetadata: WorkbookMetadataTable;
+  readonly dateEpoch: DateEpoch;
+  /** Whether this is the workbook's one selected sheet. */
+  readonly active: boolean;
+}
+
+/**
+ * What the part's tail, everything after `</sheetData>`, is rendered from. The streaming writer
+ * renders it on its own at sheet commit, after the rows have already gone into the zip entry, which
+ * is why it is a separate input rather than a slice of {@link WorksheetXmlInputs}.
+ */
+export interface WorksheetTailInputs {
   readonly sheet: Worksheet;
   readonly tables: readonly TablePlan[];
   readonly styles: StyleRegistry;
   readonly references: SheetReferences;
   readonly hyperlinks: readonly HyperlinkPlan[];
-  readonly sharedStrings: SharedStringTable | null;
-  readonly cellMetadata: WorkbookMetadataTable;
-  readonly dateEpoch: DateEpoch;
   /** The defined names a bare name in this sheet's formulas resolves to; see `formulaNamesInScope`. */
   readonly formulaNames: ReadonlySet<string>;
-  /** Whether this is the workbook's one selected sheet. */
-  readonly active: boolean;
-  /** The rows the streaming writer already serialised and evicted, absent on the buffered path. */
-  readonly flushed?: FlushedSheet | undefined;
+}
+
+/**
+ * What the part's head, everything before the first `<row>`, needs besides the sheet: facts that the
+ * buffered writer derives from every row and the streaming writer has to fix before it has seen them.
+ */
+export interface WorksheetHeadFacts {
+  /** The `<dimension>` reference, or `null` to omit the element, which a streamed sheet does. */
+  readonly dimensionRef: string | null;
+  /** The deepest row outline level, for `<sheetFormatPr outlineLevelRow>`. */
+  readonly outlineLevelRow: number;
 }
 
 export function worksheetXml(inputs: WorksheetXmlInputs): string {
-  const {
-    sheet,
-    tables,
-    styles,
-    references,
-    hyperlinks,
-    sharedStrings,
-    cellMetadata,
-    dateEpoch,
-    formulaNames,
-    active,
-    flushed,
-  } = inputs;
+  const {sheet, styles, sharedStrings, cellMetadata, dateEpoch, formulaNames, active} = inputs;
   // A merge overlapping a table is Excel-invalid geometry; reject it before serialising
   // rather than emit a package a consumer repairs on open. An array formula's range holding another
   // formula, or sharing a cell with another's, is the same kind of geometry.
   validateMerges(sheet);
-  validateArrayRanges(sheet, flushed);
-
-  const columnDefaults = buildColumnDefaults(sheet);
+  validateArrayRanges(sheet);
 
   // A cell filled from a shared formula is written as a master (seeding the group) or a clone
   // (referencing it by shared index); resolve every such role before the row loop so each cell knows
   // how to serialise its `<f>`. This also validates the master/clone geometry, throwing if a clone
   // precedes its master or its master carries no formula.
   const sharedRoles = planSharedFormulas(sheet);
-  // One conditional-formatting plan for the whole sheet, handed to both conditional-formatting passes.
-  // Built here beside the shared-formula plan for the same reason: it is a fact about the sheet that
-  // two serialisers must agree on, and two of them deriving it separately is agreement by coincidence.
-  const formattingPlan = planConditionalFormatting(sheet.conditionalFormattings);
 
   // A fully-hidden outline group's collapse toggle belongs on its summary row; derive that set once
   // so the row loop can stamp it even onto a summary row that carries no properties of its own. The
   // same pass yields the sheet's deepest row outline level for `<sheetFormatPr>`.
-  const rowOutline = scanRowOutline(sheet, flushed);
-  const collapsedSummaries = rowOutline.collapsedSummaries;
+  const rowOutline = scanRowOutline(sheet);
 
   const context: RowRenderContext = {
-    columnDefaults,
+    columnDefaults: buildColumnDefaults(sheet),
     styles,
     sharedStrings,
     sharedRoles,
-    collapsedSummaries,
+    collapsedSummaries: rowOutline.collapsedSummaries,
     dateEpoch,
     formulaNames,
     cellMetadata,
   };
 
-  const liveRows: {number: number; xml: string}[] = [];
-  // Seed the used-cell extent with any rows the streaming writer already serialised and evicted, so
-  // the dimension spans both them and the live rows below.
-  const extent = new Extent(flushed?.extent);
-
+  let bodyXml = '';
+  const extent = new Extent();
   for (const entry of sheet.rows()) {
     const {xml, minCol, maxCol} = renderRow(entry, context);
     if (xml === '') continue;
-    liveRows.push({number: entry.number, xml});
+    bodyXml += xml;
     extent.add(entry.number, minCol, maxCol);
   }
 
-  const dimensionRef = extent.isEmpty ? 'A1' : encodeRect(extent);
-  // Merge the streaming writer's pre-rendered rows with the live ones into ascending row order. A
-  // flushed row can carry any number, and rows may be committed out of order. The buffered path has no
-  // flushed rows, so it skips the merge and its sort entirely.
-  const orderedRows = flushed
-    ? [...flushed.rows.map((row) => completeCollapsed(row, collapsedSummaries)), ...liveRows].sort(
-        (a, b) => a.number - b.number,
-      )
-    : liveRows;
-  const bodyXml = orderedRows.map((row) => row.xml).join('');
+  const head = worksheetHeadXml(sheet, styles, active, {
+    dimensionRef: extent.isEmpty ? 'A1' : encodeRect(extent),
+    outlineLevelRow: rowOutline.maxLevel,
+  });
   const sheetData = bodyXml === '' ? '<sheetData/>' : `<sheetData>${bodyXml}</sheetData>`;
+  return head + sheetData + worksheetTailXml(inputs);
+}
 
+/**
+ * The part from its XML declaration up to, not including, `<sheetData>`. Every element here precedes
+ * the rows in CT_Worksheet, which is what makes it the half a streamed sheet has to commit to before
+ * its rows exist.
+ */
+export function worksheetHeadXml(
+  sheet: Worksheet,
+  styles: StyleRegistry,
+  active: boolean,
+  facts: WorksheetHeadFacts,
+): string {
   return (
     XML_DECLARATION +
     `<worksheet xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
     sheetPrXml(sheet) +
-    `<dimension ref="${dimensionRef}"/>` +
+    (facts.dimensionRef === null ? '' : `<dimension ref="${facts.dimensionRef}"/>`) +
     sheetViewsXml(sheet.view, active) +
     sheetFormatPr(sheet.properties, {
       col: maxColumnOutlineLevel(sheet),
-      // A streamed sheet's flushed rows are gone from the model; their deepest level rides along on
-      // the flush record so the header still reports the whole sheet's outline.
-      row: rowOutline.maxLevel,
+      row: facts.outlineLevelRow,
     }) +
-    colsXml(sheet, styles) +
-    sheetData +
+    colsXml(sheet, styles)
+  );
+}
+
+/** The part after `<sheetData>`'s rows: from the element following it to `</worksheet>`. */
+export function worksheetTailXml(inputs: WorksheetTailInputs): string {
+  const {sheet, tables, styles, references, hyperlinks, formulaNames} = inputs;
+  // One conditional-formatting plan for the whole sheet, handed to both conditional-formatting passes:
+  // it is a fact about the sheet that two serialisers must agree on, and two of them deriving it
+  // separately is agreement by coincidence.
+  const formattingPlan = planConditionalFormatting(sheet.conditionalFormattings);
+  return (
     sheetProtectionXml(sheet.protection) +
     // CT_Worksheet order: <autoFilter> follows <sheetProtection> (and the scenarios block) and
     // precedes <mergeCells>. Its `_FilterDatabase` companion is emitted in the workbook part.
@@ -253,7 +264,7 @@ function slicerListExtXml(slicerRelIds: readonly string[]): string {
 
 // Excel forbids a merged range from intersecting a formatted table; such a file opens as
 // corrupt. The writer is the OOXML gatekeeper for this cross-feature geometry conflict.
-function validateMerges(sheet: Worksheet): void {
+export function validateMerges(sheet: Worksheet): void {
   const [conflict] = mergesOverlappingTables(sheet.merges, sheet.tables);
   if (conflict === undefined) return;
   const {merge, table} = conflict;
@@ -263,16 +274,26 @@ function validateMerges(sheet: Worksheet): void {
 }
 
 // Excel 16.0 offers to repair a package whose array formula's range holds another formula or shares a
-// cell with another array formula's range (`core/array-formula-ranges.ts`). The rows a streaming writer
-// already flushed are gone from the sheet, so their formulas come from the flush record.
-function validateArrayRanges(sheet: Worksheet, flushed: FlushedSheet | undefined): void {
-  const placements = [...(flushed?.formulas ?? [])];
+// cell with another's (`core/array-formula-ranges.ts`).
+function validateArrayRanges(sheet: Worksheet): void {
+  const placements: FormulaPlacement[] = [];
   for (const {cells} of sheet.rows()) {
     for (const cell of cells) {
       const placement = formulaPlacement(cell.address, cell.col, cell.row, cell.value);
       if (placement !== undefined) placements.push(placement);
     }
   }
+  assertNoArrayRangeConflict(placements);
+}
+
+/**
+ * Refuse the first array formula range among `placements` that holds another formula or shares a cell
+ * with another array formula's range. The streaming writer asks it of each batch of rows it writes,
+ * together with the array ranges still open above it.
+ *
+ * @throws AuthoringError naming the array formula and the formula or range it collides with.
+ */
+export function assertNoArrayRangeConflict(placements: Iterable<FormulaPlacement>): void {
   const [conflict] = arrayRangeConflicts(placements);
   if (conflict === undefined) return;
   const {array, other, kind} = conflict;
@@ -402,39 +423,6 @@ interface RowOutline {
   readonly maxLevel: number;
 }
 
-/**
- * Add `collapsed="1"` to a flushed summary row whose whole detail group turned out to be hidden.
- *
- * Every other row attribute is a fact about that row alone, so a row can be rendered the moment it is
- * committed; this one is a fact about the rows *after* it, which the row cannot know when it flushes.
- * Rather than refuse an outlined row on a streamed sheet, or leave the group silently rendering
- * expanded, the one attribute that needs the look-ahead is added once the look-ahead is possible.
- *
- * Both halves of the patch are answered by the flushed row's own fields rather than by reading its
- * markup back. *Is the attribute already there* is `attrs`, because the row's `xml` also holds cell
- * text and `escapeText` leaves a double quote verbatim: a cell whose value was the literal string
- * ` collapsed="1"` used to convince the patcher the row already carried the attribute, and the
- * outline group rendered expanded. *Where does it go* is {@link rowOpenTag}, the emitter's own
- * spelling of the tag this row began with, so the splice point is shared rather than re-derived by
- * scanning for a `>` that a cell value could also supply.
- */
-function completeCollapsed(
-  row: FlushedRow,
-  collapsedSummaries: ReadonlySet<number>,
-): {number: number; xml: string} {
-  if (!collapsedSummaries.has(row.number) || row.attrs.includes(' collapsed="1"')) {
-    return {number: row.number, xml: row.xml};
-  }
-  const open = rowOpenTag(row.number);
-  if (!row.xml.startsWith(open)) {
-    throw new InternalError(`flushed row ${row.number} does not open with ${quoted(open)}`);
-  }
-  return {
-    number: row.number,
-    xml: `${open} collapsed="1"${row.xml.slice(open.length)}`,
-  };
-}
-
 // A collapsed outline group is two coordinated facts: its detail rows carry outlineLevel and are
 // hidden, AND the summary row that terminates the group carries `collapsed`. Authors typically set
 // only outlineLevel + hidden on the detail rows, so the summary flag is derived here rather than
@@ -442,7 +430,7 @@ function completeCollapsed(
 // higher-outline-level rows on the summary side, is non-empty and every row in it is hidden.
 // Placement follows the sheet's summaryBelow flag (Excel's default is summary below the detail); the
 // walk stops at the first row of level <= the summary's own, so a gap or a boundary ends the group.
-function scanRowOutline(sheet: Worksheet, flushed: FlushedSheet | undefined): RowOutline {
+function scanRowOutline(sheet: Worksheet): RowOutline {
   const level = new Map<number, number>();
   const hidden = new Map<number, boolean>();
   let maxLevel = 0;
@@ -455,11 +443,6 @@ function scanRowOutline(sheet: Worksheet, flushed: FlushedSheet | undefined): Ro
     hidden.set(number, rowHidden);
     if (rowLevel > maxLevel) maxLevel = rowLevel;
   };
-  // The flushed rows first, so a live row carrying the same number (which cannot happen, but the map
-  // has to answer something) wins, matching the row merge below.
-  for (const [number, entry] of flushed?.rowOutline ?? []) {
-    note(number, entry.outlineLevel, entry.hidden);
-  }
   for (const {number, properties} of sheet.rows()) {
     note(number, properties?.outlineLevel ?? 0, properties?.hidden ?? false);
   }

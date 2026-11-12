@@ -18,6 +18,7 @@
 // that cannot be bundled at all.
 
 export {
+  type AddStreamedWorksheetOptions,
   type CalcProperties,
   StreamedRow,
   WorkbookStreamWriter,

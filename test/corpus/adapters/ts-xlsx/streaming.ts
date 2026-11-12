@@ -40,33 +40,91 @@ async function committedPackage(writer: Untyped): Promise<Uint8Array> {
 
 export const streaming = {
   // Stream an outline group whose summary row carries a cell value spelling the very attribute the
-  // serialiser has to add afterwards -> { poisoned, control }, each the summary row's opening tag.
-  // `collapsed="1"` is a fact about the rows *after* a row, so a streamed summary row is patched once
-  // its group is known; a patcher that asks the rendered markup whether the attribute is already
-  // there is asking a string that also holds cell text, and `escapeText` leaves a double quote
+  // serialiser has to add -> { poisoned, control }, each the summary row's opening tag. `collapsed="1"`
+  // is a fact about the rows beside a row, not about the row itself, so the writer derives it from the
+  // detail rows written before the summary; a writer that asks rendered markup whether the attribute is
+  // already there is asking a string that also holds cell text, and `escapeText` leaves a double quote
   // verbatim. A cell value is not allowed to decide how the row containing it is serialised.
   async collapsedSummaryUnderPoisonedCellText() {
     const openTagFor = async (value: string) => {
       const writer = new WorkbookStreamWriter();
-      const sheet = writer.addWorksheet('S');
-      // Summary above its detail, so row 1 terminates the group rows 2-3 form.
-      sheet.model.outline.summaryBelow = false;
-      const summary = sheet.addRow([value]);
-      summary.commit();
-      for (const n of [2, 3]) {
+      const sheet = writer.addWorksheet('S', {outlineLevelRow: 1});
+      // Summary below its detail, Excel's default, so row 3 terminates the group rows 1-2 form.
+      for (const n of [1, 2]) {
         const detail = sheet.addRow([`d${n}`]);
         const row = sheet.model.getRow(n);
         row.outlineLevel = 1;
         row.hidden = true;
-        detail.commit();
+        await detail.commit();
       }
-      sheet.commit();
+      await sheet.addRow([value]).commit();
+      await sheet.commit();
       const xml = partOf(await committedPackage(writer), 'xl/worksheets/sheet1.xml');
-      return /<row r="1"[^>]*>/.exec(xml)?.[0] ?? '';
+      return /<row r="3"[^>]*>/.exec(xml)?.[0] ?? '';
     };
     return {
       poisoned: await openTagFor(' collapsed="1"'),
       control: await openTagFor('plain'),
+    };
+  },
+
+  // Stream a sheet to a caller's sink, committing rows as they are produced, and report what happened
+  // on the way → { bytesBeforeWorkbookCommit, reloadedRows, lastValue, behindRefusal,
+  // rowsAboveACommit, lateColumnRefusal }. `bytesBeforeWorkbookCommit` is what the sink had received
+  // once every row and the sheet were committed but the workbook was not. `behindRefusal` is the
+  // message (or null) from addressing a cell in a row above the last one written; `rowsAboveACommit`
+  // is the row numbers and first-column values of a package where an uncommitted row sat above a
+  // committed one; `lateColumnRefusal` the message (or null) from committing a sheet whose column
+  // width was set after its first row was written.
+  async streamInOrderReport({rows = 2000} = {}) {
+    const chunks: Uint8Array[] = [];
+    const sink = new Duplex({
+      read() {},
+      write(chunk, _encoding, callback) {
+        chunks.push(chunk);
+        callback();
+      },
+    });
+    const writer = new WorkbookStreamWriter({stream: sink});
+    const sheet = writer.addWorksheet('S');
+    for (let n = 1; n <= rows; n++) await sheet.addRow([n, `row ${n}`, 'x'.repeat(200)]).commit();
+    await sheet.commit();
+    const bytesBeforeWorkbookCommit = Buffer.concat(chunks).length;
+    await writer.commit();
+    const reread = readXlsx(Buffer.concat(chunks)).worksheets[0];
+
+    const refusal = (act: () => unknown): string | null => {
+      try {
+        act();
+        return null;
+      } catch (e) {
+        return messageOf(e);
+      }
+    };
+
+    const ordered = new WorkbookStreamWriter();
+    const orderedSheet = ordered.addWorksheet('S');
+    orderedSheet.addRow(['above']);
+    await orderedSheet.addRow(['committed']).commit();
+    const behindRefusal = refusal(() => orderedSheet.getCell('B1'));
+    const orderedXml = partOf(await committedPackage(ordered), 'xl/worksheets/sheet1.xml');
+    const rowsAboveACommit = [
+      ...orderedXml.matchAll(/<row r="(\d+)"[^>]*><c[^>]*><is><t>([^<]*)</g),
+    ].map((match) => ({number: Number(match[1]), value: match[2]}));
+
+    const late = new WorkbookStreamWriter();
+    const lateSheet = late.addWorksheet('S');
+    await lateSheet.addRow(['a']).commit();
+    lateSheet.model.getColumn(1).width = 30;
+    const lateColumnRefusal = refusal(() => lateSheet.commit());
+
+    return {
+      bytesBeforeWorkbookCommit,
+      reloadedRows: reread?.rowCount ?? 0,
+      lastValue: reread?.getCell(`A${rows}`).value ?? null,
+      behindRefusal,
+      rowsAboveACommit,
+      lateColumnRefusal,
     };
   },
 
@@ -86,8 +144,8 @@ export const streaming = {
   async streamWritePackageReport({rows = 50} = {}) {
     const writer = new WorkbookStreamWriter();
     const sheet = writer.addWorksheet('S');
-    for (let i = 1; i <= rows; i++) sheet.addRow([`r${i}`, i]).commit();
-    sheet.commit();
+    for (let i = 1; i <= rows; i++) await sheet.addRow([`r${i}`, i]).commit();
+    await sheet.commit();
     const buffer = Buffer.from(await committedPackage(writer));
 
     let crcValid = true;
@@ -134,11 +192,11 @@ export const streaming = {
     try {
       const sheet = writer.addWorksheet('S');
       for (const op of ops) {
-        if (op.op === 'addRow') sheet.addRow(toRow(op.value)).commit();
+        if (op.op === 'addRow') await sheet.addRow(toRow(op.value)).commit();
         else if (op.op === 'addRows') sheet.addRows((op.value || []).map(toRow));
         else throw new Error(`unknown stream op: ${op.op}`);
       }
-      sheet.commit();
+      await sheet.commit();
     } catch (e) {
       error = messageOf(e);
     }
@@ -161,11 +219,11 @@ export const streaming = {
   async streamAddRowAfterCommit() {
     const writer = new WorkbookStreamWriter();
     const sheet = writer.addWorksheet('S');
-    sheet.addRow(['a']).commit();
-    sheet.commit();
+    await sheet.addRow(['a']).commit();
+    await sheet.commit();
     let error = null;
     try {
-      sheet.addRow(['b']).commit();
+      await sheet.addRow(['b']).commit();
     } catch (e) {
       error = messageOf(e);
     }
@@ -187,8 +245,8 @@ export const streaming = {
   async streamAutoFilterProtectionOrder() {
     const writer = new WorkbookStreamWriter();
     const sheet = writer.addWorksheet('S');
-    sheet.addRow(['H1', 'H2']).commit();
-    sheet.addRow(['a', 'b']).commit();
+    await sheet.addRow(['H1', 'H2']).commit();
+    await sheet.addRow(['a', 'b']).commit();
     sheet.autoFilter = 'A1:B1';
     let protectThrew = false;
     try {
@@ -196,7 +254,7 @@ export const streaming = {
     } catch {
       protectThrew = true;
     }
-    sheet.commit();
+    await sheet.commit();
     const buffer = Buffer.from(await committedPackage(writer));
     const xml = partOf(buffer, 'xl/worksheets/sheet1.xml');
     const posProt = xml.indexOf('<sheetProtection');
@@ -234,8 +292,8 @@ export const streaming = {
         tl: {col: left! - 1, row: top! - 1},
         br: {col: right!, row: bottom!},
       });
-      sheet.addRow(['x']).commit();
-      sheet.commit();
+      await sheet.addRow(['x']).commit();
+      await sheet.commit();
       buffer = Buffer.from(await committedPackage(writer));
     } catch (e) {
       error = messageOf(e);
@@ -281,7 +339,7 @@ export const streaming = {
             }
           }
         }
-        ows.commit();
+        await ows.commit();
       }
     } catch (e) {
       copyError = messageOf(e);
@@ -326,8 +384,8 @@ export const streaming = {
     const pipeReturn = source.pipe(sink);
     const pipeReturnsDestination = pipeReturn === sink;
     const ws = writer.addWorksheet('S');
-    ws.addRow(['a', 'b']).commit();
-    ws.commit();
+    await ws.addRow(['a', 'b']).commit();
+    await ws.commit();
     await writer.commit();
     await new Promise((res) => setTimeout(res, 20));
     const buffer = Buffer.concat(chunks);
@@ -356,7 +414,7 @@ export const streaming = {
       }
       const sheet = writer.addWorksheet('S');
       sheet.getCell('A1').value = 1;
-      sheet.commit();
+      await sheet.commit();
       const buffer = Buffer.from(await committedPackage(writer));
       const wbXml = partOf(buffer, 'xl/workbook.xml');
       return {threw, hasFlag: /fullCalcOnLoad="1"/.test(wbXml)};
@@ -385,7 +443,7 @@ export const streaming = {
     for (let i = 1; i <= rows; i++) sheet.getCell(`A${i}`).value = i * 10;
     sheet.getCell('B1').value = {formula: 'A1*2', result: 20};
     for (let j = 2; j <= rows; j++) sheet.getCell(`B${j}`).value = {sharedFormula: 'B1'};
-    sheet.commit();
+    await sheet.commit();
     const buffer = Buffer.from(await committedPackage(writer));
 
     const rs = readXlsx(buffer).getWorksheet('yua');
@@ -420,8 +478,8 @@ export const streaming = {
         },
       ],
     });
-    sheet.addRow(['x']).commit();
-    sheet.commit();
+    await sheet.addRow(['x']).commit();
+    await sheet.commit();
 
     const buffer = Buffer.from(await committedPackage(writer));
     const xml = partOf(buffer, 'xl/worksheets/sheet1.xml');
@@ -449,8 +507,8 @@ export const streaming = {
     sheet.getCell('A1').value = 'link';
     sheet.addHyperlink({ref: 'A1', target: 'https://example.com'});
     sheet.addDataValidation('B1', {type: 'list', allowBlank: true, formulae: ['"x,y,z"']});
-    sheet.addRow(['r']).commit();
-    sheet.commit();
+    await sheet.addRow(['r']).commit();
+    await sheet.commit();
 
     const buffer = Buffer.from(await committedPackage(writer));
     const xml = partOf(buffer, 'xl/worksheets/sheet1.xml');
@@ -487,8 +545,8 @@ export const streaming = {
 
     const writer = new WorkbookStreamWriter({stream});
     const sheet = writer.addWorksheet('S');
-    sheet.addRow(['a', 'b']).commit();
-    sheet.commit();
+    await sheet.addRow(['a', 'b']).commit();
+    await sheet.commit();
 
     let settled = 'pending';
     const commit = writer.commit().then(
@@ -522,8 +580,8 @@ export const streaming = {
     try {
       const writer = new WorkbookStreamWriter({filename: badPath});
       const sheet = writer.addWorksheet('S');
-      sheet.addRow(['a']).commit();
-      sheet.commit();
+      await sheet.addRow(['a']).commit();
+      await sheet.commit();
       await Promise.race([
         writer
           .commit()
@@ -642,19 +700,20 @@ export const streaming = {
     const link = {ref: 'A1', target: 'https://example.com/a', tooltip: 'go'};
 
     const writer = new WorkbookStreamWriter();
-    const streamedSheet = writer.addWorksheet('S');
+    // The outline starts below the first row, and `<sheetFormatPr>` is written with that row.
+    const streamedSheet = writer.addWorksheet('S', {outlineLevelRow: 1});
     const first = streamedSheet.addRow(['link', 'noted']);
     streamedSheet.addHyperlink(link);
     streamedSheet.getCell('B1').note = 'a note';
-    first.commit();
+    await first.commit();
     for (const number of [2, 3]) {
       const detail = streamedSheet.addRow([`detail${number}`]);
       streamedSheet.model.getRow(number).outlineLevel = 1;
       streamedSheet.model.getRow(number).hidden = true;
-      detail.commit();
+      await detail.commit();
     }
-    streamedSheet.addRow(['summary']).commit();
-    streamedSheet.commit();
+    await streamedSheet.addRow(['summary']).commit();
+    await streamedSheet.commit();
     const streamedBytes = await committedPackage(writer);
 
     const wb = new Workbook();
