@@ -12,6 +12,8 @@ ExcelJS-to-`ts-xlsx` rewrite, is recorded in `git log` and the [ADR series](docs
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-11-12
+
 `WorkbookStreamWriter` now writes each sheet into the archive while you commit its rows. In 3.x a
 committed row freed its cells but kept its XML until the workbook committed, so memory still grew
 with the sheet and the sink received nothing until the end. Now memory depends on the rows not yet
