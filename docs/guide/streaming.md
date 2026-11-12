@@ -1,9 +1,8 @@
 # Streaming
 
-The buffered path builds the whole workbook in memory. That is the right default, and it
-stops being the right default at the point where the workbook is larger than the memory you
-are willing to spend on it. Streaming trades the model for bounded memory: you see rows go
-past, once, in order, and nothing accumulates.
+The buffered path builds the whole workbook in memory. That is the right default until the
+workbook is larger than the memory you want to spend on it. Streaming gives up the model to
+spend less. You see each row once, in order, and no model piles up.
 
 Reach for it when the file is large and your job is a pass over the data. Stay with
 `readXlsx` and `writeXlsx` when you need to look at a cell twice, when you need styles, or
@@ -29,9 +28,10 @@ for (const row of readSheetRows(bytes, {sheet: 'People'})) {
 console.log(total); // 81
 ```
 
-`readSheetRows` is a generator, so nothing is read until you ask for the next row and
-nothing is kept once you have moved past it. Two things about what it yields are worth
-knowing, because both differ from the buffered model:
+`readSheetRows` is a generator, so it parses a row only when you ask for it and keeps no row
+once you have moved past it. The package itself is still inflated whole before the first row,
+so peak memory grows with the file's uncompressed size: in a 500,000-row test, about half what
+`readXlsx` needed, not a flat line. Two things differ from the buffered model:
 
 - only rows the sheet actually declares appear, so a gap in the numbering is a gap in the
   file;
@@ -57,14 +57,13 @@ for (const sheet of readWorkbookStream(bytes)) {
 console.log(names); // ['First', 'Second']
 ```
 
-This is the streaming analogue of walking `readXlsx(bytes).worksheets`. Each yielded sheet
-lets you stream its rows and read its merge and hidden-column summaries, without the model
-behind it ever existing.
+This is the streaming version of walking `readXlsx(bytes).worksheets`. Each yielded sheet
+streams its rows and reports its merges and hidden columns, without building the model.
 
 ## Writing a workbook incrementally
 
-The streaming writer is the mirror: add a sheet, append rows, and commit each one to write
-it out and let it go. It comes from `@shbernal/ts-xlsx/node` rather than from the root
+The streaming writer works the other way: add a sheet, append rows, and commit each one to
+write it out and free it. It comes from `@shbernal/ts-xlsx/node` rather than from the root
 specifier, because it is the one part of the library that opens files and pipes Node streams;
 [in the browser](./browser.md) says what that boundary buys everything else.
 
@@ -88,10 +87,10 @@ the workbook, rels) and ends the destination.
 
 So memory depends on the rows you have not committed yet, not on the sheet's length. In a test
 with 45,000 rows of about 300 bytes, the heap after a collection was the same at row 5,000 and at
-row 45,000; the 3.x writer kept about 30 MB more by the end. Three things still grow with what
-you author rather than with the row count: notes, hyperlinks, merges, validations and
-conditional formats (they are written after the rows); the style table; and the whole archive
-when there is no sink to send it to.
+row 45,000; the 3.x writer kept about 30 MB more by the end. Some things still grow with what you author instead of with the row count. Notes,
+hyperlinks, merges, validations and conditional formats stay in memory because the writer
+emits them after the rows. The style table grows with each new style. With no sink, the whole
+archive stays in memory too.
 
 The promise a row's `commit()` returns resolves once the sink can take more. Await it and the
 loop runs at the sink's pace; skip the `await` and the file is still correct, but a slow sink
@@ -152,10 +151,10 @@ All of this applies with strings inline, the default. With `useSharedStrings: tr
 stay in memory until the writer commits, because the shared-strings table numbers strings across
 the whole workbook, and the sheet is written the way the buffered writer writes it.
 
-This half of the API is asynchronous where the buffered path is synchronous, and the bytes
-arrive as the resolved value above, through `writer.stream`, a Node `Readable`, or into a sink
-you hand the writer. The sink is the one that matters on a server, because it means a workbook
-can go straight to an HTTP response without ever being one object in memory:
+The streaming writer is asynchronous where the buffered path is synchronous. The bytes come
+back as the resolved value of `commit()`, through `writer.stream` (a Node `Readable`), or into
+a sink you hand the writer. On a server, use the sink. It sends the workbook straight to an
+HTTP response without ever holding it as one object:
 
 <!-- sample: illustrative. It needs a live HTTP response object, which a guide has none of. -->
 
@@ -170,31 +169,29 @@ await writer.commit();
 
 `commit()` resolves with the package _only when something is going to want it_: when you
 supplied no sink, or when you touched `writer.stream`. Hand the writer a `stream` or a
-`filename` and never reach for `writer.stream`, as the handler above does not, and it resolves
-with `undefined` and the archive is never assembled as a whole object. That is the point of
-passing a sink, and the return type says so rather than handing back a copy of everything you
-just streamed away. With a sink, take `writer.stream` before the first row is committed or not
+`filename` and leave `writer.stream` alone, as the handler above does, and it resolves with
+`undefined`. The archive never exists as one object, which is why you pass a sink, and the
+return type reflects that instead of handing back a copy of what you just streamed away. With a sink, take `writer.stream` before the first row is committed or not
 at all: after that the sink already has bytes nobody kept, and the getter throws.
 
 ## What streaming costs you
 
-The streaming API does less than the buffered one. Here is what it gives up.
+The streaming API does less than the buffered one:
 
 - The streaming **writer is Node-only**, which is why it is published from `/node` and not
   from the root specifier: it writes to a Node stream. A browser build that imports it links
-  a module that throws by name rather than one a bundler cannot resolve.
+  a module that throws an error naming the problem, instead of failing to resolve in the bundler.
   [In the browser](./browser.md) says what runs in a tab.
 - The streaming **reader does not read `.xlsb`**. A binary package cannot be row-streamed,
-  and asking raises `UnsupportedFormatError` with `format` saying which kind it was, rather
-  than a vague refusal.
+  and asking raises `UnsupportedFormatError` with `format` set to the kind it found.
 - You do not get a `Worksheet`. `getCell` is there, but only below the last row written, and
   the whole-sheet reads (`usedRange`, `getRange`, `hasCell`, `actualRowCount`) and the
   structural edits (`spliceRows`, `insertRow`, the column verbs) are absent altogether: a
-  streamed sheet could only answer them over whichever rows happened to still be in memory,
-  which is a plausible answer rather than a true one.
+  streamed sheet could only answer them for the rows still in memory, and that answer would
+  look right while being wrong.
 
 If you are streaming because writing is slow rather than because it is large, look at
 `writeXlsxAsync` in [writing a workbook](./writing.md) first: it keeps the whole buffered
-API and just moves compression off your thread.
+API and moves compression off your thread.
 
 Next: [errors](./errors.md), which is where `UnsupportedFormatError` above is explained.

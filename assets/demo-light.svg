@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="360" viewBox="0 0 900 360" role="img" aria-labelledby="t d">
+<title id="t">ts-xlsx quick start</title>
+<desc id="d">TypeScript code builds a workbook with a People sheet (Name, Joined, Ada 2026-01-01, Grace 2026-02-14, C1 =COUNTA(A:A) = 3); writeXlsx returns a 4061-byte Uint8Array.</desc>
+<style>
+text{white-space:pre}
+@keyframes hl{0%{transform:translateY(-220px);opacity:0}3.18%{opacity:1}3.18%{transform:translateY(-220px)}8.49%{transform:translateY(-176px)}12.47%{transform:translateY(-154px)}16.45%{transform:translateY(-132px)}20.42%{transform:translateY(-110px)}24.40%{transform:translateY(-88px)}28.38%{transform:translateY(-66px)}32.36%{transform:translateY(-44px)}37.67%{transform:translateY(0px)}96.82%{opacity:1}100%{opacity:0}}
+@keyframes r0{0%,3.18%{opacity:0;transform:translateX(-6px)}4.24%,96.82%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes r1{0%,8.49%{opacity:0;transform:translateX(-6px)}9.55%,96.82%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes r2{0%,12.47%{opacity:0;transform:translateX(-6px)}13.53%,96.82%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes r3{0%,16.45%{opacity:0;transform:translateX(-6px)}17.51%,96.82%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes r4{0%,20.42%{opacity:0;transform:translateX(-6px)}21.49%,96.82%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes r5{0%,24.40%{opacity:0;transform:translateX(-6px)}25.46%,96.82%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes r6{0%,28.38%{opacity:0;transform:translateX(-6px)}29.44%,96.82%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes r7{0%,32.36%{opacity:0;transform:translateX(-6px)}33.42%,96.82%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes r8{0%,37.67%{opacity:0;transform:translateX(-6px)}38.73%,96.82%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes r9{0%,12.47%{opacity:0}14.32%,96.82%{opacity:1}100%{opacity:0}}
+@keyframes r10{0%,33.16%{opacity:0}34.48%,96.82%{opacity:1}100%{opacity:0}}
+@keyframes p11{0%,17.24%{opacity:0}17.88%{opacity:1}22.02%,100%{opacity:0}}
+@keyframes r12{0%,17.24%{opacity:0}18.30%,96.82%{opacity:1}100%{opacity:0}}
+@keyframes p13{0%,21.22%{opacity:0}21.86%{opacity:1}25.99%,100%{opacity:0}}
+@keyframes r14{0%,21.22%{opacity:0}22.28%,96.82%{opacity:1}100%{opacity:0}}
+@keyframes p15{0%,25.20%{opacity:0}25.84%{opacity:1}29.97%,100%{opacity:0}}
+@keyframes r16{0%,25.20%{opacity:0}26.26%,96.82%{opacity:1}100%{opacity:0}}
+@keyframes p17{0%,25.20%{opacity:0}25.84%{opacity:1}29.97%,100%{opacity:0}}
+@keyframes r18{0%,25.20%{opacity:0}26.26%,96.82%{opacity:1}100%{opacity:0}}
+@keyframes p19{0%,29.18%{opacity:0}29.81%{opacity:1}33.95%,100%{opacity:0}}
+@keyframes r20{0%,29.18%{opacity:0}30.24%,96.82%{opacity:1}100%{opacity:0}}
+@keyframes p21{0%,29.18%{opacity:0}29.81%{opacity:1}33.95%,100%{opacity:0}}
+@keyframes r22{0%,29.18%{opacity:0}30.24%,96.82%{opacity:1}100%{opacity:0}}
+@keyframes p23{0%,33.16%{opacity:0}33.79%{opacity:1}37.93%,100%{opacity:0}}
+@keyframes r24{0%,33.16%{opacity:0}34.22%,96.82%{opacity:1}100%{opacity:0}}
+@keyframes r25{0%,33.16%{opacity:0}34.22%,96.82%{opacity:1}100%{opacity:0}}
+@keyframes r26{0%,39.26%{opacity:0;transform:translateY(4px)}40.85%,96.82%{opacity:1;transform:none}100%{opacity:0}}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+</style>
+<rect width="900" height="360" rx="12" fill="#ffffff"/>
+<rect x="12" y="12" width="556" height="336" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<line x1="12" y1="46" x2="568" y2="46" stroke="#d0d7de"/>
+<circle cx="30" cy="29" r="5" fill="#ff5f57" opacity="0.85"/>
+<circle cx="46" cy="29" r="5" fill="#febc2e" opacity="0.85"/>
+<circle cx="62" cy="29" r="5" fill="#28c840" opacity="0.85"/>
+<text x="84" y="33.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#656d76">quick-start.ts</text>
+<rect x="13" y="279" width="554" height="22" fill="rgba(20,108,67,0.10)" style="animation:hl 18.85s steps(1,end) infinite"/>
+<rect x="13" y="279" width="3" height="22" fill="#146c43" style="animation:hl 18.85s steps(1,end) infinite"/>
+<text x="42" y="74" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#656d76" text-anchor="end" opacity="0.7">1</text>
+<text x="56" y="74" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12.5" xml:space="preserve" style="animation:r0 18.85s linear infinite"><tspan fill="#8250df">import</tspan><tspan fill="#57606a"> {</tspan><tspan fill="#1f2328">Workbook</tspan><tspan fill="#57606a">, </tspan><tspan fill="#1f2328">writeXlsx</tspan><tspan fill="#57606a">} </tspan><tspan fill="#8250df">from</tspan><tspan fill="#0a3069"> '@shbernal/ts-xlsx'</tspan><tspan fill="#57606a">;</tspan></text>
+<text x="42" y="96" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#656d76" text-anchor="end" opacity="0.7">2</text>
+<text x="42" y="118" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#656d76" text-anchor="end" opacity="0.7">3</text>
+<text x="56" y="118" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12.5" xml:space="preserve" style="animation:r1 18.85s linear infinite"><tspan fill="#8250df">const</tspan><tspan fill="#1f2328"> wb</tspan><tspan fill="#57606a"> = </tspan><tspan fill="#8250df">new</tspan><tspan fill="#953800"> Workbook</tspan><tspan fill="#57606a">();</tspan></text>
+<text x="42" y="140" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#656d76" text-anchor="end" opacity="0.7">4</text>
+<text x="56" y="140" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12.5" xml:space="preserve" style="animation:r2 18.85s linear infinite"><tspan fill="#8250df">const</tspan><tspan fill="#1f2328"> sheet</tspan><tspan fill="#57606a"> = </tspan><tspan fill="#1f2328">wb</tspan><tspan fill="#57606a">.</tspan><tspan fill="#953800">addWorksheet</tspan><tspan fill="#57606a">(</tspan><tspan fill="#0a3069">'People'</tspan><tspan fill="#57606a">);</tspan></text>
+<text x="42" y="162" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#656d76" text-anchor="end" opacity="0.7">5</text>
+<text x="56" y="162" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12.5" xml:space="preserve" style="animation:r3 18.85s linear infinite"><tspan fill="#1f2328">sheet</tspan><tspan fill="#57606a">.</tspan><tspan fill="#953800">getCell</tspan><tspan fill="#57606a">(</tspan><tspan fill="#0a3069">'A1'</tspan><tspan fill="#57606a">).</tspan><tspan fill="#1f2328">value</tspan><tspan fill="#57606a"> = </tspan><tspan fill="#0a3069">'Name'</tspan><tspan fill="#57606a">;</tspan></text>
+<text x="42" y="184" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#656d76" text-anchor="end" opacity="0.7">6</text>
+<text x="56" y="184" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12.5" xml:space="preserve" style="animation:r4 18.85s linear infinite"><tspan fill="#1f2328">sheet</tspan><tspan fill="#57606a">.</tspan><tspan fill="#953800">getCell</tspan><tspan fill="#57606a">(</tspan><tspan fill="#0a3069">'B1'</tspan><tspan fill="#57606a">).</tspan><tspan fill="#1f2328">value</tspan><tspan fill="#57606a"> = </tspan><tspan fill="#0a3069">'Joined'</tspan><tspan fill="#57606a">;</tspan></text>
+<text x="42" y="206" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#656d76" text-anchor="end" opacity="0.7">7</text>
+<text x="56" y="206" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12.5" xml:space="preserve" style="animation:r5 18.85s linear infinite"><tspan fill="#1f2328">sheet</tspan><tspan fill="#57606a">.</tspan><tspan fill="#953800">addRow</tspan><tspan fill="#57606a">([</tspan><tspan fill="#0a3069">'Ada'</tspan><tspan fill="#57606a">, </tspan><tspan fill="#8250df">new</tspan><tspan fill="#953800"> Date</tspan><tspan fill="#57606a">(</tspan><tspan fill="#0a3069">'2026-01-01'</tspan><tspan fill="#57606a">)]);</tspan></text>
+<text x="42" y="228" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#656d76" text-anchor="end" opacity="0.7">8</text>
+<text x="56" y="228" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12.5" xml:space="preserve" style="animation:r6 18.85s linear infinite"><tspan fill="#1f2328">sheet</tspan><tspan fill="#57606a">.</tspan><tspan fill="#953800">addRow</tspan><tspan fill="#57606a">([</tspan><tspan fill="#0a3069">'Grace'</tspan><tspan fill="#57606a">, </tspan><tspan fill="#8250df">new</tspan><tspan fill="#953800"> Date</tspan><tspan fill="#57606a">(</tspan><tspan fill="#0a3069">'2026-02-14'</tspan><tspan fill="#57606a">)]);</tspan></text>
+<text x="42" y="250" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#656d76" text-anchor="end" opacity="0.7">9</text>
+<text x="56" y="250" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12.5" xml:space="preserve" style="animation:r7 18.85s linear infinite"><tspan fill="#1f2328">sheet</tspan><tspan fill="#57606a">.</tspan><tspan fill="#953800">getCell</tspan><tspan fill="#57606a">(</tspan><tspan fill="#0a3069">'C1'</tspan><tspan fill="#57606a">).</tspan><tspan fill="#1f2328">value</tspan><tspan fill="#57606a"> = {</tspan><tspan fill="#1f2328">formula</tspan><tspan fill="#57606a">: </tspan><tspan fill="#0a3069">'COUNTA(A:A)'</tspan><tspan fill="#57606a">, </tspan><tspan fill="#1f2328">result</tspan><tspan fill="#57606a">: </tspan><tspan fill="#0550ae">3</tspan><tspan fill="#57606a">};</tspan></text>
+<text x="42" y="272" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#656d76" text-anchor="end" opacity="0.7">10</text>
+<text x="42" y="294" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#656d76" text-anchor="end" opacity="0.7">11</text>
+<text x="56" y="294" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12.5" xml:space="preserve" style="animation:r8 18.85s linear infinite"><tspan fill="#8250df">const</tspan><tspan fill="#1f2328"> bytes</tspan><tspan fill="#57606a"> = </tspan><tspan fill="#953800">writeXlsx</tspan><tspan fill="#57606a">(</tspan><tspan fill="#1f2328">wb</tspan><tspan fill="#57606a">);</tspan></text>
+<g style="animation:r9 18.85s linear infinite">
+<rect x="588" y="12" width="300" height="24" rx="4" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="598" y="28.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-style="italic" fill="#656d76">fx</text>
+<line x1="616" y1="17" x2="616" y2="31" stroke="#d0d7de"/>
+</g>
+<text x="626" y="28.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#1f2328" style="animation:r10 18.85s linear infinite"><tspan fill="#656d76">C1</tspan>  =COUNTA(A:A)</text>
+<g style="animation:r9 18.85s linear infinite">
+<rect x="588" y="46" width="300" height="180" fill="#ffffff" stroke="#d0d7de"/>
+<rect x="588" y="46" width="300" height="30" fill="#eef1f4"/>
+<rect x="588" y="46" width="30" height="180" fill="#eef1f4"/>
+<line x1="618" y1="46" x2="618" y2="226" stroke="#d0d7de"/>
+<text x="658" y="65.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#656d76" text-anchor="middle">A</text>
+<line x1="698" y1="46" x2="698" y2="226" stroke="#d0d7de"/>
+<text x="755" y="65.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#656d76" text-anchor="middle">B</text>
+<line x1="812" y1="46" x2="812" y2="226" stroke="#d0d7de"/>
+<text x="850" y="65.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#656d76" text-anchor="middle">C</text>
+<line x1="888" y1="46" x2="888" y2="226" stroke="#d0d7de"/>
+<line x1="588" y1="76" x2="888" y2="76" stroke="#d0d7de"/>
+<text x="603" y="95.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#656d76" text-anchor="middle">1</text>
+<line x1="588" y1="106" x2="888" y2="106" stroke="#d0d7de"/>
+<text x="603" y="125.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#656d76" text-anchor="middle">2</text>
+<line x1="588" y1="136" x2="888" y2="136" stroke="#d0d7de"/>
+<text x="603" y="155.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#656d76" text-anchor="middle">3</text>
+<line x1="588" y1="166" x2="888" y2="166" stroke="#d0d7de"/>
+<text x="603" y="185.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#656d76" text-anchor="middle">4</text>
+<line x1="588" y1="196" x2="888" y2="196" stroke="#d0d7de"/>
+<text x="603" y="215.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#656d76" text-anchor="middle">5</text>
+<path d="M622 226 v20 a3 3 0 0 0 3 3 h70 a3 3 0 0 0 3 -3 v-20" fill="#ffffff" stroke="#d0d7de"/>
+<rect x="623" y="225" width="74" height="3" fill="#ffffff"/>
+<rect x="626" y="245" width="66" height="2" rx="1" fill="#146c43"/>
+<text x="660" y="241" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#146c43" text-anchor="middle">People</text>
+</g>
+<rect x="619.5" y="77.5" width="77" height="27" fill="rgba(23,128,80,0.18)" stroke="#178050" stroke-width="1.5" style="opacity:0;animation:p11 18.85s linear infinite"/>
+<text x="626" y="96" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1f2328" text-anchor="start" style="animation:r12 18.85s linear infinite">Name</text>
+<rect x="699.5" y="77.5" width="111" height="27" fill="rgba(23,128,80,0.18)" stroke="#178050" stroke-width="1.5" style="opacity:0;animation:p13 18.85s linear infinite"/>
+<text x="706" y="96" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1f2328" text-anchor="start" style="animation:r14 18.85s linear infinite">Joined</text>
+<rect x="619.5" y="107.5" width="77" height="27" fill="rgba(23,128,80,0.18)" stroke="#178050" stroke-width="1.5" style="opacity:0;animation:p15 18.85s linear infinite"/>
+<text x="626" y="126" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#1f2328" text-anchor="start" style="animation:r16 18.85s linear infinite">Ada</text>
+<rect x="699.5" y="107.5" width="111" height="27" fill="rgba(23,128,80,0.18)" stroke="#178050" stroke-width="1.5" style="opacity:0;animation:p17 18.85s linear infinite"/>
+<text x="804" y="126" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#1f2328" text-anchor="end" style="animation:r18 18.85s linear infinite">2026-01-01</text>
+<rect x="619.5" y="137.5" width="77" height="27" fill="rgba(23,128,80,0.18)" stroke="#178050" stroke-width="1.5" style="opacity:0;animation:p19 18.85s linear infinite"/>
+<text x="626" y="156" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#1f2328" text-anchor="start" style="animation:r20 18.85s linear infinite">Grace</text>
+<rect x="699.5" y="137.5" width="111" height="27" fill="rgba(23,128,80,0.18)" stroke="#178050" stroke-width="1.5" style="opacity:0;animation:p21 18.85s linear infinite"/>
+<text x="804" y="156" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#1f2328" text-anchor="end" style="animation:r22 18.85s linear infinite">2026-02-14</text>
+<rect x="813.5" y="77.5" width="73" height="27" fill="rgba(23,128,80,0.18)" stroke="#178050" stroke-width="1.5" style="opacity:0;animation:p23 18.85s linear infinite"/>
+<text x="880" y="96" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#146c43" text-anchor="end" style="animation:r24 18.85s linear infinite">3</text>
+<path d="M887 77 h-7 l7 7 z" fill="#146c43" style="animation:r25 18.85s linear infinite"/>
+<g style="animation:r26 18.85s linear infinite">
+<rect x="588" y="273" width="300" height="32" rx="6" fill="rgba(20,108,67,0.10)" stroke="#146c43" stroke-opacity="0.55"/>
+<text x="738" y="294" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="11.5" text-anchor="middle" xml:space="preserve"><tspan fill="#953800">writeXlsx</tspan><tspan fill="#57606a">(wb)</tspan><tspan fill="#146c43" font-weight="600"> → </tspan><tspan fill="#1f2328">Uint8Array</tspan><tspan fill="#656d76"> (</tspan><tspan fill="#146c43" font-weight="600">4,061 bytes</tspan><tspan fill="#656d76">)</tspan></text>
+</g>
+</svg>

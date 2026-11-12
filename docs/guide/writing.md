@@ -56,8 +56,8 @@ console.log(sheet.getCell('A2').value); // 'Grace'
 
 ## What a cell can hold
 
-`cell.value` is one union, and it is the whole story. There is no separate "type" to set:
-the value you assign decides what the cell is.
+`cell.value` is one union. There is no separate "type" to set. The value you assign
+decides what the cell is.
 
 ```ts
 import {Workbook} from '@shbernal/ts-xlsx';
@@ -78,8 +78,8 @@ sheet.getCell('A8').value = {
 console.log(sheet.getCell('A4').type); // 'date'
 ```
 
-A hyperlink is not one of those kinds. It sits on the sheet, over one cell or a range, and the cells
-beneath it keep whatever values they hold, so a total or a date can carry a link as readily as a label:
+A hyperlink is not a cell value. It sits on the sheet, over one cell or a range, and the
+cells beneath it keep their values, so a number or a date can carry a link as well as a label:
 
 ```ts
 import {Workbook} from '@shbernal/ts-xlsx';
@@ -94,11 +94,10 @@ sheet.addHyperlink({ref: 'A2', target: '#Links!A1', tooltip: 'Back to the top'})
 console.log(sheet.hyperlinkAt('A2')?.target); // '#Links!A1'
 ```
 
-Two things are worth knowing about formulas. A formula carries an optional cached `result`,
-which is the value a consumer sees before anything recalculates. This library computes
-nothing. If you leave the result out, the cell reads as blank until something that
-calculates opens the file. If you would rather ask every consumer to recalculate, say so on
-the workbook:
+A formula carries an optional cached `result`, which is what a consumer shows before
+anything recalculates. This library computes nothing. Leave the result out and the cell
+reads as blank until something that calculates opens the file. To ask every consumer to
+recalculate on open, set it on the workbook:
 
 ```ts
 import {Workbook, writeXlsx} from '@shbernal/ts-xlsx';
@@ -129,8 +128,8 @@ console.log(workbook.worksheets.map((sheet) => sheet.name)); // ['Summary', 'Det
 console.log(writeXlsx(workbook).length > 0); // true
 ```
 
-A name can be attached to a range, which is what Excel's Name Manager shows and what a
-formula elsewhere can refer to:
+A defined name points at a range. Excel's Name Manager lists it, and formulas elsewhere
+can use it:
 
 ```ts
 import {Workbook, writeXlsx} from '@shbernal/ts-xlsx';
@@ -146,10 +145,9 @@ console.log(writeXlsx(workbook).length > 0); // true
 
 ## The bytes are a pure function of the model
 
-An unchanged workbook written twice produces two identical archives: the writer pins
-entry timestamps to a fixed date rather than taking them from the clock. A committed `.xlsx` therefore
-changes only when something about it changed, which is what makes one reviewable in a diff
-and cacheable by content.
+Writing the same workbook twice produces two identical archives. The writer pins entry
+timestamps to a fixed date instead of reading the clock. A committed `.xlsx` changes only
+when its content changed, so you can diff it in review and cache it by hash.
 
 ```ts
 import {Workbook, writeXlsx} from '@shbernal/ts-xlsx';
@@ -167,9 +165,9 @@ console.log(first.length === second.length && first.every((b, i) => b === second
 
 ## Not blocking the event loop
 
-`writeXlsx` spends the whole cost of DEFLATE on the calling thread, which for a large
-workbook is seconds during which a server answers nothing. `writeXlsxAsync` produces the
-same package with the compression handed to worker threads.
+`writeXlsx` runs DEFLATE on the calling thread. For a large workbook that takes seconds,
+and a server answers nothing meanwhile. `writeXlsxAsync` produces the same package and runs
+the compression on worker threads.
 
 ```ts
 import {Workbook, writeXlsxAsync} from '@shbernal/ts-xlsx';
@@ -182,18 +180,18 @@ const bytes = await writeXlsxAsync(workbook);
 console.log(bytes.length > 0); // true
 ```
 
-Same package, byte for byte, entry timestamps included. Expect responsiveness always, and
-speed only when there is more than one substantial part to deflate in parallel.
+The output is identical byte for byte, timestamps included. The event loop stays free
+either way. The write finishes sooner only when the workbook has several large parts to
+deflate in parallel.
 
 There is deliberately no `readXlsxAsync`; [reading](./reading.md) explains why.
 
 ## What you cannot author yet
 
 Charts, vector shapes, slicers and legacy form controls have no authoring API. A workbook
-that already contains them keeps them through a load and save, byte for byte, but there is
-no call that creates one. That is a decision rather than an oversight, and
-[ADR-0014](../decisions/0014-charts-shapes-slicers-are-round-trip-only-for-1-0.md) records
-why. [Reading a workbook](./reading.md) covers what preservation means in practice.
+that already contains them keeps them through a load and save, byte for byte, but no call
+creates one. [ADR-0014](../decisions/0014-charts-shapes-slicers-are-round-trip-only-for-1-0.md)
+records why. [Reading a workbook](./reading.md) covers what preservation means in practice.
 
 Next: [reading a workbook](./reading.md), or [styles and number
 formats](./styles-and-formats.md) to make this one look like something.

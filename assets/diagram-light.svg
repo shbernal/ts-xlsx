@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="452" viewBox="0 0 900 452" role="img" aria-labelledby="t d">
+<title id="t">How @shbernal/ts-xlsx is shaped</title>
+<desc id="d">.xlsx, .xlsb and CSV bytes are read by readXlsx, readXlsb and readCsv into a Workbook, Worksheet, Row/Column, Cell model, which writeXlsx, writeXlsxAsync and writeCsv turn back into bytes. A streaming lane reads .xlsx row by row with readSheetRows or readWorkbookStream and writes with WorkbookStreamWriter from the /node entry, the only entry that uses node:fs and node:stream.</desc>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#59636e"/></marker></defs>
+<rect width="900" height="452" fill="#ffffff"/>
+<text x="66.0" y="24" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#59636e" text-anchor="middle" letter-spacing="1.2">BYTES IN</text>
+<text x="243.0" y="24" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#59636e" text-anchor="middle" letter-spacing="1.2">READ</text>
+<text x="450.0" y="24" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#59636e" text-anchor="middle" letter-spacing="1.2">MODEL</text>
+<text x="658.0" y="24" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#59636e" text-anchor="middle" letter-spacing="1.2">WRITE</text>
+<text x="836.0" y="24" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#59636e" text-anchor="middle" letter-spacing="1.2">BYTES OUT</text>
+<rect x="16" y="64" width="100" height="36" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="66.0" y="87" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >.xlsx</text>
+<path d="M116 82 H154" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="156" y="56" width="174" height="52" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="243.0" y="79" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >readXlsx</text>
+<rect x="216.5" y="87" width="53.0" height="18" rx="9" fill="#e3f3ea"/>
+<text x="243.0" y="100.2" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="600" fill="#146c43" text-anchor="middle" >/xlsx</text>
+<path d="M330 82 C349.0 82 349.0 117.1 368 117.1" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="16" y="142" width="100" height="36" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="66.0" y="165" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >.xlsb</text>
+<path d="M116 160 H154" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="156" y="134" width="174" height="52" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="243.0" y="157" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >readXlsb</text>
+<rect x="216.5" y="165" width="53.0" height="18" rx="9" fill="#e3f3ea"/>
+<text x="243.0" y="178.2" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="600" fill="#146c43" text-anchor="middle" >/xlsb</text>
+<path d="M330 160 H368" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="16" y="220" width="100" height="36" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="66.0" y="243" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >CSV</text>
+<path d="M116 238 H154" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="156" y="212" width="174" height="52" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="243.0" y="235" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >readCsv</text>
+<rect x="220.6" y="243" width="44.8" height="18" rx="9" fill="#e3f3ea"/>
+<text x="243.0" y="256.2" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="600" fill="#146c43" text-anchor="middle" >/csv</text>
+<path d="M330 238 C349.0 238 349.0 202.9 368 202.9" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="370" y="44" width="160" height="232" rx="10" fill="#eef7f2" stroke="#178050" stroke-width="1.2"/>
+<text x="450.0" y="68" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="700" fill="#146c43" text-anchor="middle" >Workbook</text>
+<rect x="382" y="84" width="136" height="170" rx="9" fill="#ddefe5" stroke="#178050" stroke-width="1"/>
+<text x="450.0" y="108" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >Worksheet</text>
+<rect x="394" y="124" width="112" height="108" rx="8" fill="#c9e6d6" stroke="#178050" stroke-width="1"/>
+<text x="450.0" y="148" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >Row · Column</text>
+<rect x="406" y="164" width="88" height="46" rx="7" fill="#b3dcc6" stroke="#178050" stroke-width="1"/>
+<text x="450.0" y="192.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >Cell</text>
+<rect x="423.5" y="267.5" width="53.0" height="18" rx="9" fill="#ffffff"/>
+<text x="450.0" y="280.7" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="600" fill="#146c43" text-anchor="middle" >/core</text>
+<rect x="420.0" y="267" width="60" height="18" rx="9" fill="none" stroke="#178050" stroke-width="1"/>
+<path d="M532 133.6 C548.0 133.6 548.0 118 564 118" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="566" y="84" width="184" height="68" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="658.0" y="106" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >writeXlsx</text>
+<text x="658.0" y="124" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >writeXlsxAsync</text>
+<rect x="631.5" y="131" width="53.0" height="18" rx="9" fill="#e3f3ea"/>
+<text x="658.0" y="144.2" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="600" fill="#146c43" text-anchor="middle" >/xlsx</text>
+<path d="M750 118 H786" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="788" y="100" width="96" height="36" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="836.0" y="123" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >.xlsx</text>
+<path d="M532 186.4 C548.0 186.4 548.0 214 564 214" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="566" y="180" width="184" height="68" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="658.0" y="202" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >writeCsv</text>
+<text x="658.0" y="220" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >writeCsvText</text>
+<rect x="635.6" y="227" width="44.8" height="18" rx="9" fill="#e3f3ea"/>
+<text x="658.0" y="240.2" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="600" fill="#146c43" text-anchor="middle" >/csv</text>
+<path d="M750 214 H786" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="788" y="196" width="96" height="36" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="836.0" y="219" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >CSV</text>
+<line x1="16" y1="306" x2="884" y2="306" stroke="#d1d9e0" stroke-dasharray="3 4"/>
+<text x="16" y="326" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#59636e" text-anchor="start" letter-spacing="1">STREAMING  ·  row by row, no whole-workbook model</text>
+<rect x="16" y="350" width="100" height="36" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="66.0" y="373" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >.xlsx</text>
+<path d="M116 368 H154" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="156" y="334" width="174" height="68" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="243.0" y="356" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >readSheetRows</text>
+<text x="243.0" y="374" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >readWorkbookStream</text>
+<rect x="216.5" y="381" width="53.0" height="18" rx="9" fill="#e3f3ea"/>
+<text x="243.0" y="394.2" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="600" fill="#146c43" text-anchor="middle" >/xlsx</text>
+<path d="M330 368 H368" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="370" y="348" width="160" height="40" rx="20" fill="none" stroke="#d1d9e0" stroke-dasharray="4 3"/>
+<text x="450.0" y="366" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e" text-anchor="middle" >your code</text>
+<text x="450.0" y="381" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="middle" >one row at a time</text>
+<path d="M530 368 H564" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="556" y="330" width="204" height="90" rx="10" fill="#fff6e6" stroke="#8a5300" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text x="658.0" y="324" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#8a5300" text-anchor="middle" >Node only · node:fs, node:stream</text>
+<rect x="566" y="342" width="184" height="52" rx="8" fill="#f6f8fa" stroke="#8a5300" stroke-width="1"/>
+<text x="658.0" y="365" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13.5" font-weight="600" fill="#1f2328" text-anchor="middle" >WorkbookStreamWriter</text>
+<rect x="631.5" y="373" width="53.0" height="18" rx="9" fill="#fbe6c2"/>
+<text x="658.0" y="386.2" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="600" fill="#8a5300" text-anchor="middle" >/node</text>
+<path d="M750 368 H786" fill="none" stroke="#59636e" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="788" y="342" width="96" height="52" rx="8" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
+<text x="836.0" y="365" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328" text-anchor="middle" >.xlsx</text>
+<text x="836.0" y="382" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#59636e" text-anchor="middle" >file / stream</text>
+<text x="16" y="440" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#59636e">Every entry except <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#8a5300">/node</tspan> is browser-safe.  Also: <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#146c43">/vba</tspan>  <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#146c43">/customui</tspan>  <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#146c43">/errors</tspan>.  The root import carries all of it except <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#8a5300">/node</tspan>.</text>
+</svg>
