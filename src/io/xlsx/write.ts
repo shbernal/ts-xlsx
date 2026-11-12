@@ -20,8 +20,14 @@ import {relsPathFor, THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relsPartXml} from '../opc/rels.ts';
 import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 import {RICH_VALUE_STRUCTURES_XML, WorkbookMetadataTable} from './cell-metadata.ts';
-import {collectComments, commentsXml, liveCells, vmlDrawingXml} from './comments.ts';
-import {planHyperlinks} from './hyperlinks.ts';
+import {
+  type CommentCell,
+  collectComments,
+  commentsXml,
+  liveCells,
+  vmlDrawingXml,
+} from './comments.ts';
+import {type HyperlinkPlan, planHyperlinks} from './hyperlinks.ts';
 import {type DrawingImage, drawingXml} from './images.ts';
 import {
   type BackgroundPlan,
@@ -68,7 +74,6 @@ import {
 } from './part-names.ts';
 import {pivotCacheDefinitionXml, pivotCacheRecordsXml, pivotTableXml} from './pivot.ts';
 import {REL} from './relationships.ts';
-import type {FlushedSheet} from './row-xml.ts';
 import {SharedStringTable} from './shared-strings.ts';
 import {StyleRegistry} from './styles.ts';
 import {tableXml} from './tables.ts';
@@ -81,7 +86,7 @@ import {
   type WorkbookRelPlan,
   workbookXml,
 } from './workbook-xml.ts';
-import {type SheetReferences, worksheetXml} from './worksheet-xml.ts';
+import {type SheetReferences, type WorksheetTailInputs, worksheetXml} from './worksheet-xml.ts';
 
 /** Options controlling how {@link writeXlsx} serialises a workbook. */
 export interface WriteOptions {
@@ -118,11 +123,80 @@ export interface InternalWriteOptions extends WriteOptions {
   readonly cellMetadata?: WorkbookMetadataTable;
 
   /**
-   * Per-sheet rows already serialised and evicted from the model by the streaming writer, keyed by
-   * the model worksheet. Their XML is emitted ahead of the sheet's remaining live rows and their
-   * extent folds into `<dimension>`. Absent for the buffered path, which holds every row live.
+   * The sheets the streaming writer has already written into their own zip entries, keyed by the
+   * model worksheet. Their parts are not emitted again; everything that hangs off them (rels, notes,
+   * drawings, tables) still is. Absent for the buffered path. See ADR 0046.
    */
-  readonly flushed?: ReadonlyMap<Worksheet, FlushedSheet>;
+  readonly streamed?: ReadonlyMap<Worksheet, StreamedSheet>;
+}
+
+/**
+ * What the streaming writer recorded about a sheet it wrote into its own zip entry.
+ */
+export interface StreamedSheet {
+  /**
+   * The notes its rows carried. A note is serialised outside the `<row>`, into the comments and VML
+   * parts, and the rows are gone from the model by the time those parts are built.
+   */
+  readonly notes: readonly CommentCell[];
+  /**
+   * {@link wiringKey} of the relationship ids its tail was written with. The package is planned again
+   * at workbook commit, and a sheet whose ids came out differently would cite relationships its rels
+   * part does not declare.
+   */
+  readonly wiring: string;
+}
+
+/**
+ * The plan-derived inputs of one streamed sheet's tail, taken from a whole-package plan made at the
+ * moment the sheet commits. Only the sheet-local relationship ids reach the sheet's XML, and those
+ * depend on the sheet's own content alone, so the plan made again at workbook commit agrees.
+ */
+export type StreamedSheetTail = Pick<
+  WorksheetTailInputs,
+  'tables' | 'references' | 'hyperlinks' | 'formulaNames'
+> & {
+  /** {@link wiringKey} of these inputs, recorded on the sheet's {@link StreamedSheet}. */
+  readonly wiring: string;
+};
+
+/**
+ * Plan the tail of the sheet at `index` that the streaming writer is about to close, given the notes
+ * its rows carried. See {@link StreamedSheetTail}.
+ */
+export function planStreamedSheetTail(
+  workbook: Workbook,
+  index: number,
+  notes: readonly CommentCell[],
+): StreamedSheetTail {
+  const sheets = workbook.worksheets;
+  const sheet = sheets[index];
+  if (sheet === undefined) throw new InternalError(`no worksheet at index ${index}`);
+  const plan = planPackage(workbook, sheets, new Map([[sheet, {notes, wiring: ''}]]));
+  const sheetPlan = plan.perSheet[index] as SheetPlan;
+  const references = resolveSheetReferences(sheetPlan);
+  return {
+    tables: sheetPlan.tables,
+    references,
+    hyperlinks: sheetPlan.hyperlinks,
+    formulaNames: formulaNamesInScope(workbook.definedNames, sheet.name),
+    wiring: wiringKey(sheetPlan.tables, references, sheetPlan.hyperlinks),
+  };
+}
+
+// Everything a sheet's XML cites by relationship id, as one comparable string.
+function wiringKey(
+  tables: readonly TablePlan[],
+  references: SheetReferences,
+  hyperlinks: readonly HyperlinkPlan[],
+): string {
+  return [
+    tables.map(({relId}) => relId).join(','),
+    Object.entries(references)
+      .map(([slot, id]) => `${slot}=${String(id)}`)
+      .join(','),
+    hyperlinks.map(({ref, relId, location}) => `${ref}>${relId ?? ''}#${location ?? ''}`).join(','),
+  ].join(';');
 }
 
 /**
@@ -262,10 +336,10 @@ function planSheet(context: {
   readonly media: MediaPlan;
   readonly preserved: PreservedPlan;
   readonly numbering: PartNumbering;
-  // What the streaming writer already flushed for this sheet, whose cells are gone from the model.
-  readonly flushed?: FlushedSheet | undefined;
+  // What the streaming writer recorded for this sheet, whose cells are gone from the model.
+  readonly streamed?: StreamedSheet | undefined;
 }): SheetPlan {
-  const {sheet, index, media, preserved, numbering, flushed} = context;
+  const {sheet, index, media, preserved, numbering, streamed} = context;
   const rels = new RelationshipLedger(worksheetPart(index + 1));
 
   const tables: TablePlan[] = sheet.tables.map((table) => {
@@ -298,7 +372,7 @@ function planSheet(context: {
   // absent is ignored, leaving the cell blank. A thread with no messages is not one of them: it has
   // nothing to say, and no head id for its replies or its fallback to hang off.
   const threads = sheet.commentThreads.filter((thread) => thread.comments.length > 0);
-  const sheetComments = collectComments(liveCells(sheet), threads, flushed?.notes ?? []);
+  const sheetComments = collectComments(liveCells(sheet), threads, streamed?.notes ?? []);
   let comments: CommentPlan | null = null;
   if (sheetComments.length > 0) {
     const vmlRelId = rels.add(REL.vmlDrawing, vmlDrawingPart(index + 1));
@@ -321,7 +395,7 @@ function planSheet(context: {
           relId: rels.add(REL.printerSettings, printerSettingsPart(index + 1)),
         };
 
-  // Links live beside the grid, so a row the streaming writer flushed and evicted takes none with it.
+  // Links live beside the grid, so a row the streaming writer wrote and evicted takes none with it.
   const hyperlinks = planHyperlinks(sheet.hyperlinks, rels);
 
   let background: BackgroundPlan | null = null;
@@ -487,7 +561,7 @@ interface PackagePlan {
 function planPackage(
   workbook: Workbook,
   sheets: readonly Worksheet[],
-  flushed: InternalWriteOptions['flushed'],
+  streamed: InternalWriteOptions['streamed'],
 ): PackagePlan {
   // Anchored images share workbook-wide media: every image a sheet references becomes one media part,
   // addressed by a global number. Resolved before the sheet loop so a drawing's embeds can target it.
@@ -524,7 +598,7 @@ function planPackage(
   // shared state is in the signature instead of being three `let`s a callback happens to close over.
   const numbering: PartNumbering = {table: 0, drawing: 0, pivot: 0};
   const perSheet = sheets.map((sheet, index) =>
-    planSheet({sheet, index, media, preserved, numbering, flushed: flushed?.get(sheet)}),
+    planSheet({sheet, index, media, preserved, numbering, streamed: streamed?.get(sheet)}),
   );
 
   return {
@@ -551,16 +625,28 @@ function serialiseSheets(context: {
   readonly styles: StyleRegistry;
   readonly sharedStrings: SharedStringTable | null;
   readonly cellMetadata: WorkbookMetadataTable;
-  readonly flushed: InternalWriteOptions['flushed'];
-}): string[] {
-  const {workbook, sheets, plan, styles, sharedStrings, cellMetadata, flushed} = context;
+  readonly streamed: InternalWriteOptions['streamed'];
+}): (string | null)[] {
+  const {workbook, sheets, plan, styles, sharedStrings, cellMetadata, streamed} = context;
   return sheets.map((sheet, i) => {
     const sheetPlan = plan.perSheet[i] as SheetPlan;
+    const references = resolveSheetReferences(sheetPlan);
+    // A streamed sheet's part is already in the archive. What is left is to make sure the ids it was
+    // written with are the ones this plan is about to declare in its rels part.
+    const written = streamed?.get(sheet);
+    if (written !== undefined) {
+      if (written.wiring !== wiringKey(sheetPlan.tables, references, sheetPlan.hyperlinks)) {
+        throw new InternalError(
+          `streamed sheet ${quoted(sheet.name)} was written with relationship ids its package plan no longer assigns`,
+        );
+      }
+      return null;
+    }
     return worksheetXml({
       sheet,
       tables: sheetPlan.tables,
       styles,
-      references: resolveSheetReferences(sheetPlan),
+      references,
       hyperlinks: sheetPlan.hyperlinks,
       sharedStrings,
       cellMetadata,
@@ -570,7 +656,6 @@ function serialiseSheets(context: {
       // none selected (no view initialised on open) or with several (an accidental group selection,
       // where an edit to one sheet lands on all of them).
       active: i === workbook.activeTabIndex,
-      flushed: flushed?.get(sheet),
     });
   });
 }
@@ -589,7 +674,7 @@ function emitPackageParts(context: {
   readonly styles: StyleRegistry;
   readonly sharedStrings: SharedStringTable | null;
   readonly cellMetadata: WorkbookMetadataTable;
-  readonly sheetXml: readonly string[];
+  readonly sheetXml: readonly (string | null)[];
 }): Record<string, Uint8Array> {
   const {workbook, sheets, plan, styles, sharedStrings, cellMetadata, sheetXml} = context;
   const {media, preserved, perSheet, allTables, allPivots} = plan;
@@ -700,7 +785,9 @@ function emitPackageParts(context: {
  * short of zipping them. This is the whole serialisation (content types, relationships, workbook,
  * per-sheet XML, styles, theme, media, tables, and props) factored out of {@link writeXlsx} so the
  * streaming writer can drive the identical parts through a streamed zip container rather than
- * `zipSync`. Neither writer duplicates a byte of serialisation.
+ * `zipSync`. The one exception is a sheet the streaming writer already wrote as its rows committed
+ * (`options.streamed`): its part is left out, and it was rendered by the same head, row and tail
+ * serialisers in `worksheet-xml.ts` and `row-xml.ts`, so no serialisation is duplicated.
  *
  * Three steps, and their order is load-bearing. The package is planned in full before anything is
  * serialised, so a drawing's embed and a pivot's cache can target a part number that already exists.
@@ -728,7 +815,7 @@ export function buildPackageParts(
   const styles = options.styles ?? createStyleRegistry(workbook);
   const cellMetadata = options.cellMetadata ?? new WorkbookMetadataTable();
 
-  const plan = planPackage(workbook, sheets, options.flushed);
+  const plan = planPackage(workbook, sheets, options.streamed);
   const sheetXml = serialiseSheets({
     workbook,
     sheets,
@@ -736,7 +823,7 @@ export function buildPackageParts(
     styles,
     sharedStrings,
     cellMetadata,
-    flushed: options.flushed,
+    streamed: options.streamed,
   });
   return emitPackageParts({workbook, sheets, plan, styles, sharedStrings, cellMetadata, sheetXml});
 }
@@ -786,17 +873,19 @@ class PackageFiles {
 
 // Emit each sheet's own parts: the sheet XML, its rels part (only when the sheet references something),
 // and the drawing/comment/printer-settings parts those relationships point at. `sheetXml[i]` is the
-// already-serialised body for `perSheet[i]`, indexed in lockstep. `personById` is the workbook's
-// registry, which every message's author has to be in.
+// already-serialised body for `perSheet[i]`, indexed in lockstep, or `null` for a sheet the streaming
+// writer already wrote. `personById` is the workbook's registry, which every message's author has to
+// be in.
 function emitSheetParts(
   files: PackageFiles,
   perSheet: readonly SheetPlan[],
-  sheetXml: readonly string[],
+  sheetXml: readonly (string | null)[],
   personById: (id: string) => Person | undefined,
 ): void {
   perSheet.forEach((plan, i) => {
     const {relationships, drawing, comments, threadedComments, printerSettings} = plan;
-    files.add(worksheetPart(i + 1), strToU8(sheetXml[i] as string));
+    const xml = sheetXml[i];
+    if (xml !== null && xml !== undefined) files.add(worksheetPart(i + 1), strToU8(xml));
     if (relationships.length > 0) {
       files.add(relsPathFor(worksheetPart(i + 1)), strToU8(relsPartXml(relationships)));
     }

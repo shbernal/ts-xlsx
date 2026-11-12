@@ -39,8 +39,10 @@ What that buys you today:
   so the same code runs in Node and the browser.
 - **Streaming when you need it.** Bounded-memory row streaming on the read side: read a
   large workbook without materializing it. On the write side, author one incrementally:
-  each committed row drops its cell objects and keeps only its serialized XML until the
-  workbook commits, and the package then goes out at the pace your sink accepts.
+  each committed row is written into the sheet's part in the archive and leaves memory, at
+  the pace your sink accepts, so memory depends on the rows you have not committed yet,
+  not on the sheet's length. Rows go out in order, so the writer refuses an edit to a row
+  it has already written ([streaming guide](docs/guide/streaming.md)).
 - **One runtime dependency** ([`fflate`](https://github.com/101arrowz/fflate) for zip),
   a hand-written SAX reader with bounded allocation on every parser path, and a
   build-free, strict-typed source tree.
@@ -152,20 +154,20 @@ for (const row of readSheetRows(bytes, {sheet: 'People'})) {
   );
 }
 
-// Incremental generation. Commit each row to serialize it and free its cells as you go:
-const writer = new WorkbookStreamWriter();
+// Incremental generation. Each committed row is written out and freed; awaiting the commit
+// lets a slow sink set the pace:
+const writer = new WorkbookStreamWriter({filename: 'big.xlsx'});
 const out = writer.addWorksheet('Big');
-for (let i = 1; i <= 1_000_000; i++) out.addRow([i, i * i]).commit();
-out.commit();
-const packaged = await writer.commit(); // Uint8Array here; also delivered via writer.stream
+for (let i = 1; i <= 1_000_000; i++) await out.addRow([i, i * i]).commit();
+await out.commit();
+await writer.commit(); // undefined: the package went to the file, never held whole
 ```
 
-The streaming writer is asynchronous where the buffered path is synchronous: `commit()`
-resolves to the package bytes and simultaneously pipes them through `writer.stream` (a Node
-`Readable`), so `writer.stream.pipe(res)` streams a workbook straight to an HTTP response.
-Hand the writer its own sink instead (`{stream}` or `{filename}`) and never touch
-`writer.stream`, and `commit()` resolves with `undefined`: the archive goes to the sink and is
-never assembled as one object, which is what passing a sink was for.
+The streaming writer is asynchronous where the buffered path is synchronous. Give it a sink
+(`{stream}`, such as an HTTP response, or `{filename}`) and the rows reach it while you commit
+them; `commit()` on the writer then resolves with `undefined`, because the archive was never
+held as one object. With no sink, `commit()` resolves with the package bytes and `writer.stream`
+(a Node `Readable`) carries the same bytes, but both keep the whole archive in memory.
 
 ## Writing without blocking the event loop
 

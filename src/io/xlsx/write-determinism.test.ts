@@ -46,8 +46,8 @@ test('every entry of a buffered package carries the fixed timestamp', () => {
 test('the streamed writer stamps its entries the same way', async () => {
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');
-  for (let row = 1; row <= 50; row++) sheet.addRow([`row ${row}`, row * 3]).commit();
-  sheet.commit();
+  for (let row = 1; row <= 50; row++) await sheet.addRow([`row ${row}`, row * 3]).commit();
+  await sheet.commit();
   const streamed = await writer.commit();
   assert.ok(streamed !== undefined);
 

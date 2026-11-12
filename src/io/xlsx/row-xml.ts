@@ -8,7 +8,6 @@
 // the honest way to say so.
 
 import {encodeRange, tryDecodeAnchoredRange} from '../../core/address.ts';
-import type {FormulaPlacement} from '../../core/array-formula-ranges.ts';
 import {type Cell, cellHasOwnStyle} from '../../core/cell.ts';
 import {type DateEpoch, DEFAULT_DATE_NUMFMT, dateToSerial} from '../../core/date.ts';
 import {mangleFormula} from '../../core/formula.ts';
@@ -40,7 +39,6 @@ import {
 } from '../../xml/xml.ts';
 import type {XfStyle} from '../style/xf-style.ts';
 import type {WorkbookMetadataTable} from './cell-metadata.ts';
-import type {CommentCell} from './comments.ts';
 import {richTextRunsXml} from './rich-text.ts';
 import type {SharedFormulaRole} from './shared-formulas.ts';
 import type {SharedStringTable} from './shared-strings.ts';
@@ -58,17 +56,6 @@ export class Extent {
   bottom = -Infinity;
   right = -Infinity;
 
-  // Seed from a prior extent (the rows a streaming writer already flushed and evicted) so the buffered
-  // pass folds its live rows onto the same bounds; unseeded, it starts empty.
-  constructor(seed?: Extent) {
-    if (seed) {
-      this.top = seed.top;
-      this.left = seed.left;
-      this.bottom = seed.bottom;
-      this.right = seed.right;
-    }
-  }
-
   /** Whether no used cell has been folded in yet, in which case the dimension is the lone cell `A1`. */
   get isEmpty(): boolean {
     return this.bottom === -Infinity;
@@ -83,61 +70,6 @@ export class Extent {
     if (minCol < this.left) this.left = minCol;
     if (maxCol > this.right) this.right = maxCol;
   }
-}
-
-/**
- * A row the streaming writer already serialised, kept with the attribute string it was built from.
- *
- * The attributes are carried rather than re-read out of `xml`, and that is the whole point of the
- * field. `collapsed="1"` is decided after the row is gone (see {@link FlushedSheet.rowOutline}), so
- * the summary row has to be patched, and the patcher used to ask `xml.includes(' collapsed="1"')`
- * whether the attribute was already there. The `<row>` tag's shape is known, but the *cell text*
- * embedded in it is not: `escapeText` leaves a double quote verbatim, so a cell whose value was the
- * literal string ` collapsed="1"` answered that question for the row and left the outline group
- * rendering expanded. A file cannot forge a field.
- */
-export interface FlushedRow {
-  readonly number: number;
-  readonly xml: string;
-  /** The `<row>` element's own attributes, exactly as {@link renderRow} emitted them. */
-  readonly attrs: string;
-}
-
-/**
- * A worksheet's eagerly-serialised rows: each row's `<row>` XML tagged with its number (so it merges
- * into ascending order with the sheet's remaining live rows, whatever order it was committed in), plus
- * the used-cell {@link Extent} they span. The buffered pass folds that extent into the sheet's dimension.
- */
-export interface FlushedSheet {
-  readonly rows: readonly FlushedRow[];
-  readonly extent: Extent;
-  /**
-   * Each flushed row's outline level and hidden flag. Carried across the eviction because both feed
-   * whole-sheet derivations made long after the row is gone from the model:
-   * `<sheetFormatPr outlineLevelRow>` is the deepest level on the sheet, and `collapsed="1"` rides
-   * a summary row only when its whole detail group is hidden, which is a question about *other*
-   * rows.
-   *
-   * Carried as the two inputs rather than the derived flag, because the derivation is a look-ahead a
-   * row being finalised cannot do, while its inputs are per-row and known exactly when the row flushes.
-   */
-  readonly rowOutline: ReadonlyMap<
-    number,
-    {readonly outlineLevel: number; readonly hidden: boolean}
-  >;
-  /**
-   * The notes the flushed rows carried, on the same terms and for the same reason. A note is
-   * serialised outside the `<row>`, into the comments and VML parts, and the buffered pass gathers
-   * notes by walking the sheet's rows at commit time, which finds nothing on a row whose cells have
-   * already been evicted. A hyperlink needs no such record: it lives beside the grid, on the sheet.
-   */
-  readonly notes: readonly CommentCell[];
-  /**
-   * The formulas the flushed rows carried, on the same terms again: whether an array formula's range
-   * holds another formula, or shares a cell with another's, is a question about other rows, and the
-   * writer asks it of the whole sheet at commit.
-   */
-  readonly formulas: readonly FormulaPlacement[];
 }
 
 /**
@@ -157,8 +89,9 @@ export function buildColumnDefaults(sheet: Worksheet): Map<number, ColumnPropert
 
 /** The whole-sheet context a single row needs to serialise: the column defaults it inherits, the
  * style/string tables it interns into, the shared-formula roles its cells play, and the collapsed
- * outline summaries whose toggle it must stamp. The streaming writer supplies empty shared-formula
- * and collapsed-summary sets, since those are whole-sheet derivations a flushed row cannot join. */
+ * outline summaries whose toggle it must stamp. The streaming writer supplies an empty shared-formula
+ * map for a committed row, which cannot join that whole-sheet plan, and derives the collapsed set from
+ * the rows written up to it (ADR 0046). */
 export interface RowRenderContext {
   readonly columnDefaults: ReadonlyMap<number, ColumnProperties>;
   readonly styles: StyleRegistry;
@@ -178,10 +111,8 @@ export interface RowRenderContext {
 /**
  * Serialise one row to its `<row>` element, or '' when the row has neither data nor its own
  * formatting. Returns the used-column bounds (`Infinity`/`-Infinity` when nothing was rendered) so a
- * caller can fold them into the sheet dimension, and the attribute string separately, so a later pass
- * can ask what this row declared without reading it back out of markup that also holds cell text.
- * Shared by the buffered sheet pass and the streaming writer's eager flush, so both emit
- * byte-identical rows.
+ * caller can fold them into the sheet dimension. Shared by the buffered sheet pass and the streaming
+ * writer's eager flush, so both emit byte-identical rows.
  */
 export function renderRow(
   entry: {
@@ -190,7 +121,7 @@ export function renderRow(
     readonly properties: RowProperties | undefined;
   },
   ctx: RowRenderContext,
-): {xml: string; attrs: string; minCol: number; maxCol: number} {
+): {xml: string; minCol: number; maxCol: number} {
   const {number, cells, properties} = entry;
   // A cell earns a <c> element if it holds a value OR carries its own style: a formatted-but-empty
   // cell (a fill/border on a null value) is a real cell to Excel, and dropping it would lose the
@@ -199,7 +130,7 @@ export function renderRow(
   const attrs = rowAttrs(properties, ctx.styles, ctx.collapsedSummaries.has(number));
   // A row with neither data nor its own formatting has nothing to serialise.
   if (rendered.length === 0 && attrs === '') {
-    return {xml: '', attrs: '', minCol: Infinity, maxCol: -Infinity};
+    return {xml: '', minCol: Infinity, maxCol: -Infinity};
   }
   const rowFill = properties?.fill;
   const cellsXml = rendered
@@ -216,16 +147,7 @@ export function renderRow(
     if (cell.col < minCol) minCol = cell.col;
     if (cell.col > maxCol) maxCol = cell.col;
   }
-  return {xml: `${rowOpenTag(number)}${attrs}>${cellsXml}</row>`, attrs, minCol, maxCol};
-}
-
-/**
- * The `<row>` element's opening tag up to its first attribute: the one thing a later pass may rely on
- * about a rendered row's shape, spelled here so it is the emitter's own string rather than a
- * re-parse of the emitter's output.
- */
-export function rowOpenTag(number: number): string {
-  return `<row r="${number}"`;
+  return {xml: `<row r="${number}"${attrs}>${cellsXml}</row>`, minCol, maxCol};
 }
 
 // Compose a cell's full style by resolving each facet cell-over-row-over-column, so a cell that

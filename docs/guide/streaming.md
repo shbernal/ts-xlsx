@@ -63,8 +63,8 @@ behind it ever existing.
 
 ## Writing a workbook incrementally
 
-The streaming writer is the mirror: add a sheet, append rows, and commit each one to
-serialise it and let it go. It comes from `@shbernal/ts-xlsx/node` rather than from the root
+The streaming writer is the mirror: add a sheet, append rows, and commit each one to write
+it out and let it go. It comes from `@shbernal/ts-xlsx/node` rather than from the root
 specifier, because it is the one part of the library that opens files and pipes Node streams;
 [in the browser](./browser.md) says what that boundary buys everything else.
 
@@ -73,24 +73,57 @@ import {WorkbookStreamWriter} from '@shbernal/ts-xlsx/node';
 
 const writer = new WorkbookStreamWriter();
 const sheet = writer.addWorksheet('Big');
-for (let n = 1; n <= 1000; n++) sheet.addRow([n, n * n]).commit();
-sheet.commit();
+for (let n = 1; n <= 1000; n++) await sheet.addRow([n, n * n]).commit();
+await sheet.commit();
 
 const bytes = await writer.commit();
 console.log(bytes !== undefined && bytes.length > 0); // true
 ```
 
-`commit()` on a row serialises it and frees its cells; a row you never commit is a row still
-in memory, cell objects and all. The serialised `<row>` XML is kept until the workbook commits,
-which is far smaller than the cell graph but still grows with the sheet. `commit()` on the sheet
-freezes it, and any further mutation after that is rejected with a legible error rather than
-silently accepted. `commit()` on the writer assembles the package and writes it out at the pace
-the sink accepts: when a `stream` or `filename` sink asks to drain, the writer waits for it.
+`commit()` on a row writes it into the sheet's part in the archive and frees its cells. The
+first committed row opens the part; each later one is deflated in batches of about 64 KiB and
+handed to the destination. `commit()` on the sheet writes the rows you never committed and the
+rest of the part, and closes it. `commit()` on the writer writes the remaining parts (styles,
+the workbook, rels) and ends the destination.
 
-`commit()` is therefore also a deadline. A row stays reachable through `getCell` for as long
-as it is uncommitted, and that is when to style it or fill a cell you skipped. Once you
-commit it, the writer renders its `<row>` and releases its cells. The same call is then
-refused rather than emitting a second row carrying that number.
+So memory depends on the rows you have not committed yet, not on the sheet's length. In a test
+with 45,000 rows of about 300 bytes, the heap after a collection was the same at row 5,000 and at
+row 45,000; the 3.x writer kept about 30 MB more by the end. Three things still grow with what
+you author rather than with the row count: notes, hyperlinks, merges, validations and
+conditional formats (they are written after the rows); the style table; and the whole archive
+when there is no sink to send it to.
+
+The promise a row's `commit()` returns resolves once the sink can take more. Await it and the
+loop runs at the sink's pace; skip the `await` and the file is still correct, but a slow sink
+buffers the difference. A sink error never rejects that promise. It rejects the writer's
+`commit()`.
+
+Sheets share one archive, and an archive holds one open entry at a time. Commit each sheet
+before you start the next: rows committed to a second sheet while the first is still open wait
+in memory, compressed, until the first one closes.
+
+### Rows are written in order
+
+Writing as you go fixes the order of the file, and the writer refuses what it can no longer
+put in the right place:
+
+- Committing a row first commits every uncommitted row above it.
+- `getCell` on a row at or above the last one written throws an `AuthoringError`. Fill a row
+  before you commit it or any row below it.
+- What comes before the rows in the file is written with the first committed row: column
+  definitions, the frozen pane, sheet properties, and where outline summary rows sit. Set them
+  through `sheet.model` before then. If one changes after that, the sheet's `commit()` throws
+  rather than leave the change out of the file.
+- The outline bar's depth (`outlineLevelRow`) is written with the first row too. It is the
+  deepest level among the rows written then, or the `outlineLevelRow` you pass to
+  `addWorksheet`, whichever is larger. A deeper row after that throws, so pass the option when
+  your groups start further down.
+- A summary row is marked `collapsed` when its detail rows are all hidden. With summary rows
+  below their detail (Excel's default) the writer always knows. With summary rows above, it
+  knows only if the detail rows go out in the same commit as the summary, so commit the group's
+  last detail row rather than the summary row, or set `collapsed` on the row yourself.
+- A streamed sheet has no `<dimension>` element. Excel and this library's reader compute the
+  used range without it.
 
 ```ts
 import {AuthoringError} from '@shbernal/ts-xlsx';
@@ -99,8 +132,8 @@ import {WorkbookStreamWriter} from '@shbernal/ts-xlsx/node';
 const writer = new WorkbookStreamWriter();
 const sheet = writer.addWorksheet('Report');
 const header = sheet.addRow(['Region', 'Revenue']);
-sheet.getCell('B1').value = 'Revenue (EUR)'; // still live, so still editable
-header.commit();
+sheet.getCell('B1').value = 'Revenue (EUR)'; // not written yet, so still editable
+await header.commit();
 
 let refused = false;
 try {
@@ -110,10 +143,14 @@ try {
 }
 console.log(refused); // true
 
-sheet.commit();
+await sheet.commit();
 const written = await writer.commit();
 console.log(written !== undefined && written.length > 0); // true
 ```
+
+All of this applies with strings inline, the default. With `useSharedStrings: true` the rows
+stay in memory until the writer commits, because the shared-strings table numbers strings across
+the whole workbook, and the sheet is written the way the buffered writer writes it.
 
 This half of the API is asynchronous where the buffered path is synchronous, and the bytes
 arrive as the resolved value above, through `writer.stream`, a Node `Readable`, or into a sink
@@ -126,8 +163,8 @@ can go straight to an HTTP response without ever being one object in memory:
 // Inside a request handler:
 const writer = new WorkbookStreamWriter({stream: response});
 const sheet = writer.addWorksheet('Export');
-for (const record of records) sheet.addRow([record.id, record.total]).commit();
-sheet.commit();
+for (const record of records) await sheet.addRow([record.id, record.total]).commit();
+await sheet.commit();
 await writer.commit();
 ```
 
@@ -136,7 +173,8 @@ supplied no sink, or when you touched `writer.stream`. Hand the writer a `stream
 `filename` and never reach for `writer.stream`, as the handler above does not, and it resolves
 with `undefined` and the archive is never assembled as a whole object. That is the point of
 passing a sink, and the return type says so rather than handing back a copy of everything you
-just streamed away.
+just streamed away. With a sink, take `writer.stream` before the first row is committed or not
+at all: after that the sink already has bytes nobody kept, and the getter throws.
 
 ## What streaming costs you
 
@@ -149,7 +187,7 @@ The streaming API does less than the buffered one. Here is what it gives up.
 - The streaming **reader does not read `.xlsb`**. A binary package cannot be row-streamed,
   and asking raises `UnsupportedFormatError` with `format` saying which kind it was, rather
   than a vague refusal.
-- You do not get a `Worksheet`. `getCell` is there, but only ahead of the commit line, and
+- You do not get a `Worksheet`. `getCell` is there, but only below the last row written, and
   the whole-sheet reads (`usedRange`, `getRange`, `hasCell`, `actualRowCount`) and the
   structural edits (`spliceRows`, `insertRow`, the column verbs) are absent altogether: a
   streamed sheet could only answer them over whichever rows happened to still be in memory,

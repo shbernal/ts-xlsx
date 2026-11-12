@@ -31,7 +31,8 @@ import {readPackageJson, ROOT} from './repo.ts';
 import {verdict} from './verdict.ts';
 
 const DIST = join(ROOT, 'dist');
-const TOTAL_BUDGET_BYTES = 685 * 1024;
+// Raised from 685 KB for ADR 0046: writing a streamed sheet as its rows commit added two modules.
+const TOTAL_BUDGET_BYTES = 697 * 1024;
 
 // Roughly a tenth of headroom over the measured closure, per entry: enough that ordinary growth is
 // not a chore, tight enough that a whole codec crossing a boundary cannot hide inside it.
@@ -42,8 +43,9 @@ const ENTRY_BUDGETS_KB: Readonly<Record<string, number>> = {
   './xlsb': 360,
   './csv': 259,
   // The streaming writer and the write half it rides on, and nothing of the reader: a jump here is
-  // the read path arriving, which would mean the entry had stopped being about one thing.
-  './node': 494,
+  // the read path arriving, which would mean the entry had stopped being about one thing. Raised
+  // from 494 KB for ADR 0046 (the incremental zip output and the streamed outline state).
+  './node': 506,
   './vba': 57,
   './customui': 16,
   // The taxonomy reaches nothing but itself, and that is the point: classifying a failure must

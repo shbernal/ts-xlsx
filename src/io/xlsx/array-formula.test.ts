@@ -174,8 +174,8 @@ function writeXlsxMetadata(): string {
 test('a dynamic array in a committed streamed row still reaches its cell metadata', async () => {
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');
-  sheet.addRow([null, SPILLING]).commit();
-  sheet.commit();
+  await sheet.addRow([null, SPILLING]).commit();
+  await sheet.commit();
   const bytes = await writer.commit();
   assert.ok(bytes);
   assertRelationshipsWired(bytes);

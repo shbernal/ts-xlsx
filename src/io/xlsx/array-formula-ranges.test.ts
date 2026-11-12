@@ -33,12 +33,12 @@ test('array formula ranges side by side are written', () => {
   assert.doesNotThrow(() => writeXlsx(workbookWith({B1: legacy('B1:B3'), C1: legacy('C1:C3')})));
 });
 
-test('the streaming writer asks the same of rows it already flushed', async () => {
+test('the streaming writer asks the same of a row against the rows it already wrote', async () => {
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');
-  sheet.addRow([1, legacy('B1:B3')]).commit();
-  sheet.addRow([2, {formula: 'A2*10'}]).commit();
-  await assert.rejects(writer.commit(), /which holds the formula in B2/);
+  await sheet.addRow([1, legacy('B1:B3')]).commit();
+  const inside = sheet.addRow([2, {formula: 'A2*10'}]);
+  assert.throws(() => inside.commit(), /which holds the formula in B2/);
 });
 
 // Excel 16.0 repaired each file below by keeping the array formula and taking the other formula, and the

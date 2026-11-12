@@ -12,6 +12,47 @@ ExcelJS-to-`ts-xlsx` rewrite, is recorded in `git log` and the [ADR series](docs
 
 ## [Unreleased]
 
+`WorkbookStreamWriter` now writes each sheet into the archive while you commit its rows. In 3.x a
+committed row freed its cells but kept its XML until the workbook committed, so memory still grew
+with the sheet and the sink received nothing until the end. Now memory depends on the rows not yet
+committed: 40,000 extra rows of about 300 bytes grew the retained heap by 30 MB in 3.2.2 and by
+nothing measurable here. Writing as you go fixes the order of the file, which is why this is a major
+release. [ADR 0046](docs/decisions/0046-a-streamed-sheet-is-written-as-its-rows-commit.md) records
+the design. The buffered writer and `useSharedStrings` streaming are unchanged.
+
+### Changed
+
+- **BREAKING: `StreamedRow.commit()` and `WorksheetStreamWriter.commit()` return a `Promise<void>`.**
+  It resolves once the caller's sink can take more, so `await row.commit()` paces a producer to the
+  sink. It never rejects; a sink error rejects `WorkbookStreamWriter.commit()`. Code that does not
+  await it still writes a correct file.
+- **BREAKING: committing a row also commits every uncommitted row above it, and `getCell` on a row
+  at or above the last row written throws an `AuthoringError`.** It used to throw only for a row that
+  was itself committed, and sort later rows into place at the end.
+- **BREAKING: what precedes the rows in a sheet part is written with the first committed row.** That
+  covers column definitions, the sheet view, sheet properties and outline placement. If one changes
+  after that, the sheet's `commit()` throws instead of the change going missing from the file.
+- **BREAKING: the row outline depth (`outlineLevelRow`) is fixed at the first committed row.** It is
+  the deeper of the new `outlineLevelRow` option of `WorkbookStreamWriter.addWorksheet` and the rows
+  written then. A deeper row committed later throws.
+- **BREAKING: a summary row above its group (`summaryBelow: false`) is marked `collapsed` only when
+  its detail rows are written in the same commit.** Summary rows below their group, Excel's default,
+  are derived as before.
+- **BREAKING: a streamed sheet has no `<dimension>` element.** It is optional, and Excel and the
+  reader compute the used range without it.
+- **BREAKING: an array formula whose range collides with another formula is refused at
+  `row.commit()`**, not at the workbook's `commit()`.
+- **BREAKING: with a `stream` or `filename` sink, `writer.stream` throws once bytes have gone to the
+  sink.** Take it before the first row is committed. Without a sink a late `writer.stream` still
+  replays the whole package.
+- Streamed sheet entries now come first in the archive, ahead of `[Content_Types].xml`.
+
+### Fixed
+
+- **`WorkbookStreamWriter` kept every committed row's XML until the workbook committed** (#33). The
+  README promised bounded memory; a producer committing every row still held the whole sheet as
+  XML strings. Rows now go to the sink in batches of about 64 KiB as they are committed.
+
 ## [3.2.2] - 2026-11-11
 
 This release makes `WorkbookStreamWriter` respect a slow sink. `commit()` now writes the package in

@@ -3,6 +3,8 @@ import {readFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {PassThrough, type Readable, Writable} from 'node:stream';
 import {test} from 'node:test';
+import {setFlagsFromString} from 'node:v8';
+import {runInNewContext} from 'node:vm';
 
 import {scratchDir} from '../../../scripts/repo.ts';
 import {isOneCellAnchor} from '../../core/image.ts';
@@ -37,11 +39,11 @@ async function committed(writer: WorkbookStreamWriter): Promise<Uint8Array> {
   return bytes;
 }
 
-test('a row added to a committed sheet is rejected with a legible "already committed" error', () => {
+test('a row added to a committed sheet is rejected with a legible "already committed" error', async () => {
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');
-  sheet.addRow(['a']).commit();
-  sheet.commit();
+  await sheet.addRow(['a']).commit();
+  await sheet.commit();
   assert.throws(() => sheet.addRow(['b']), /already committed/i);
   assert.throws(() => sheet.getCell('A2'), /already committed/i);
 });
@@ -49,13 +51,13 @@ test('a row added to a committed sheet is rejected with a legible "already commi
 test('getCell into a committed row is refused rather than emitting a second row of that number', async () => {
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');
-  sheet.addRow(['a']).commit();
-  sheet.addRow(['b']).commit();
-  // An eager writer has already rendered row 1 and released its cells, so this cell could only reach
+  await sheet.addRow(['a']).commit();
+  await sheet.addRow(['b']).commit();
+  // An eager writer has already written row 1 and released its cells, so this cell could only reach
   // the package as a duplicate <row r="1">, which is what the guard exists to prevent.
-  assert.throws(() => sheet.getCell('B1'), /row 1, which is already committed/);
+  assert.throws(() => sheet.getCell('B1'), /row 1, but rows up to 2 are already written/);
   sheet.getCell('B3').value = 'live';
-  sheet.commit();
+  await sheet.commit();
 
   const sheetXml = partText(await committed(writer), 'xl/worksheets/sheet1.xml');
   assert.deepEqual(
@@ -68,10 +70,10 @@ test('getCell into a committed row is refused rather than emitting a second row 
 test('useSharedStrings pools streamed string cells into a shared table that reads back intact', async () => {
   const writer = new WorkbookStreamWriter({useSharedStrings: true});
   const sheet = writer.addWorksheet('S');
-  sheet.addRow(['dup']).commit();
-  sheet.addRow(['dup']).commit();
-  sheet.addRow(['other']).commit();
-  sheet.commit();
+  await sheet.addRow(['dup']).commit();
+  await sheet.addRow(['dup']).commit();
+  await sheet.addRow(['other']).commit();
+  await sheet.commit();
   const bytes = await committed(writer);
 
   const sst = partText(bytes, 'xl/sharedStrings.xml');
@@ -86,7 +88,7 @@ test('useSharedStrings pools streamed string cells into a shared table that read
 
 test('a streamed workbook without the option keeps strings inline and writes no shared table', async () => {
   const writer = new WorkbookStreamWriter();
-  writer.addWorksheet('S').addRow(['inline']).commit();
+  await writer.addWorksheet('S').addRow(['inline']).commit();
   const bytes = await committed(writer);
 
   assert.throws(() => partText(bytes, 'xl/sharedStrings.xml'), /expected part/);
@@ -99,7 +101,7 @@ test('commit over a caller-supplied PassThrough sink resolves and delivers a val
   sink.on('data', (chunk: Buffer) => chunks.push(chunk));
 
   const writer = new WorkbookStreamWriter({stream: sink});
-  writer.addWorksheet('S').addRow(['a', 'b']).commit();
+  await writer.addWorksheet('S').addRow(['a', 'b']).commit();
   const bytes = await writer.commit();
 
   const delivered = Buffer.concat(chunks);
@@ -120,7 +122,7 @@ test('a sink plus a touched stream still resolves with the package', async () =>
   sink.resume();
   const writer = new WorkbookStreamWriter({stream: sink});
   const drained = drain(writer.stream);
-  writer.addWorksheet('S').addRow(['a']).commit();
+  await writer.addWorksheet('S').addRow(['a']).commit();
   const bytes = await writer.commit();
   assert.ok(bytes !== undefined, 'the archive comes back');
   assert.deepEqual(
@@ -162,8 +164,8 @@ test('commit honours a slow sink’s backpressure instead of queueing the whole 
     }
     return text;
   };
-  for (let i = 0; i < 4000; i++) sheet.addRow([i, noise()]).commit();
-  sheet.commit();
+  for (let i = 0; i < 4000; i++) await sheet.addRow([i, noise()]).commit();
+  await sheet.commit();
   assert.equal(await writer.commit(), undefined);
 
   assert.ok(delivered > 1_000_000, `the package is large enough to matter (${delivered} bytes)`);
@@ -173,6 +175,176 @@ test('commit honours a slow sink’s backpressure instead of queueing the whole 
   );
   const reread = readXlsx(Buffer.concat(chunks)).getWorksheet('S');
   assert.equal(reread?.getCell('A4000').value, 3999);
+});
+
+// Issue #33, the other half: a committed row's `<row>` XML used to be kept until the workbook
+// committed, so retained memory grew with the sheet however promptly the producer committed. Measured
+// as the heap left after a full collection, early and late in one long sheet: the rows between the two
+// samples are about 13 MB of row XML, which the old writer kept and this one has already handed to the
+// sink. The bound is far below that and far above the noise of a collection.
+test('retained memory does not grow with the number of rows committed', async () => {
+  setFlagsFromString('--expose-gc');
+  const collect = runInNewContext('gc') as () => void;
+  const retained = (): number => {
+    collect();
+    collect();
+    return process.memoryUsage().heapUsed;
+  };
+  let delivered = 0;
+  const sink = new Writable({
+    write(chunk: Buffer, _encoding, callback) {
+      delivered += chunk.length;
+      callback();
+    },
+  });
+  const writer = new WorkbookStreamWriter({stream: sink});
+  const sheet = writer.addWorksheet('S');
+  const padding = 'x'.repeat(256);
+  let next = 1;
+  const writeUntil = async (last: number): Promise<void> => {
+    for (; next <= last; next++) await sheet.addRow([next, `row-${next}`, padding]).commit();
+  };
+
+  await writeUntil(5_000);
+  const early = retained();
+  await writeUntil(45_000);
+  const late = retained();
+  await sheet.commit();
+  await writer.commit();
+
+  const growth = late - early;
+  assert.ok(
+    growth < 4 * 1024 * 1024,
+    `40,000 more committed rows grew the retained heap by ${growth} bytes`,
+  );
+  assert.ok(delivered > 100_000, `the rows reached the sink (${delivered} bytes)`);
+});
+
+test('committed rows reach the sink before the workbook commits', async () => {
+  let delivered = 0;
+  const sink = new Writable({
+    write(chunk: Buffer, _encoding, callback) {
+      delivered += chunk.length;
+      callback();
+    },
+  });
+  const writer = new WorkbookStreamWriter({stream: sink});
+  const sheet = writer.addWorksheet('S');
+  for (let i = 0; i < 1000; i++) await sheet.addRow([i, `row-${i}`, 'x'.repeat(256)]).commit();
+  await sheet.commit();
+  assert.ok(delivered > 0, 'the sheet was written while the rows were being committed');
+  assert.equal(await writer.commit(), undefined);
+});
+
+test('committing a row writes every uncommitted row above it first, in order', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  const first = sheet.addRow(['first']);
+  sheet.getCell('B1').value = 'filled later';
+  await sheet.addRow(['second']).commit();
+  // Row 1 went out with row 2, so it is closed now, and committing it again does nothing.
+  assert.throws(() => sheet.getCell('C1'), /rows up to 2 are already written/);
+  await first.commit();
+  const xml = partText(await committed(writer), 'xl/worksheets/sheet1.xml');
+  assert.deepEqual(
+    [...xml.matchAll(/<row r="(\d+)"/g)].map((m) => m[1]),
+    ['1', '2'],
+  );
+  assert.match(xml, /<c r="B1" t="inlineStr"><is><t>filled later<\/t>/);
+});
+
+test('the first committed row inherits the column defaults its <cols> declares', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  sheet.model.getColumn(1).numFmt = '0.00%';
+  await sheet.addRow([0.5]).commit();
+  await sheet.addRow([0.25]).commit();
+  const reread = readXlsx(await committed(writer)).getWorksheet('S');
+  assert.equal(reread?.getCell('A1').numFmt, '0.00%');
+  assert.equal(reread?.getCell('A2').numFmt, '0.00%');
+});
+
+test('a row committed after its sheet commit is a no-op, not an error', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  const row = sheet.addRow(['a']);
+  await sheet.commit();
+  await row.commit();
+  assert.ok(await writer.commit());
+});
+
+test('a streamed sheet carries no <dimension>, and still reads back its used range', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  await sheet.addRow(['a', 'b', 'c']).commit();
+  await sheet.addRow(['d']).commit();
+  const bytes = await committed(writer);
+  assert.doesNotMatch(partText(bytes, 'xl/worksheets/sheet1.xml'), /<dimension/);
+  const reread = readXlsx(bytes).getWorksheet('S');
+  assert.equal(reread?.rowCount, 2);
+  assert.equal(reread?.getCell('C1').value, 'c');
+});
+
+test('a column defined after the first row is written is refused at sheet commit, not dropped', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  sheet.model.getColumn(1).width = 20;
+  await sheet.addRow(['a']).commit();
+  sheet.model.getColumn(2).width = 30;
+  assert.throws(() => sheet.commit(), /changed after its first row was written/);
+  await assert.rejects(writer.commit());
+});
+
+test('a summary row above its group is marked collapsed when the group is written with it', async () => {
+  const summaryAbove = async (commitSummaryFirst: boolean): Promise<string> => {
+    const writer = new WorkbookStreamWriter();
+    const sheet = writer.addWorksheet('S', {outlineLevelRow: 1});
+    sheet.model.outline.summaryBelow = false;
+    const summary = sheet.addRow(['summary']);
+    if (commitSummaryFirst) await summary.commit();
+    for (const n of [2, 3]) {
+      sheet.addRow([`detail ${n}`]);
+      sheet.model.getRow(n).outlineLevel = 1;
+      sheet.model.getRow(n).hidden = true;
+    }
+    await sheet.addRow(['after']).commit();
+    const xml = partText(await committed(writer), 'xl/worksheets/sheet1.xml');
+    return /<row r="1"[^>]*>/.exec(xml)?.[0] ?? '';
+  };
+  assert.match(await summaryAbove(false), / collapsed="1"/);
+  assert.doesNotMatch(
+    await summaryAbove(true),
+    / collapsed="1"/,
+    'a summary written before its group cannot know it',
+  );
+});
+
+test('with a sink, writer.stream is refused once bytes have gone to the sink', async () => {
+  const sink = new PassThrough();
+  sink.resume();
+  const writer = new WorkbookStreamWriter({stream: sink});
+  await writer.addWorksheet('S').addRow(['a']).commit();
+  assert.throws(() => writer.stream, /take writer.stream before the first row is committed/);
+});
+
+test('without a sink, writer.stream taken late still carries the whole package', async () => {
+  const writer = new WorkbookStreamWriter();
+  await writer.addWorksheet('S').addRow(['a']).commit();
+  const drained = drain(writer.stream);
+  const bytes = await committed(writer);
+  assert.deepEqual(Uint8Array.from(await drained), bytes);
+});
+
+test('a sink that fails while rows are being written rejects the workbook commit', async () => {
+  const sink = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback(new Error('upload dropped'));
+    },
+  });
+  const writer = new WorkbookStreamWriter({stream: sink});
+  const sheet = writer.addWorksheet('S');
+  for (let i = 0; i < 2000; i++) await sheet.addRow([i, 'x'.repeat(256)]).commit();
+  await assert.rejects(writer.commit(), /upload dropped/);
 });
 
 // The stream's terminal event: 'error' with its message, or 'end'. A stream that settles neither way
@@ -199,7 +371,7 @@ test('a commit that fails destroys the writer-owned stream instead of leaving it
   const sheet = writer.addWorksheet('S');
   sheet.getCell('A1').value = 'ok';
   writer.properties.title = UNSPELLABLE_TITLE;
-  sheet.commit();
+  await sheet.commit();
 
   const terminal = terminalEvent(writer.stream);
   await assert.rejects(writer.commit(), UNSPELLABLE);
@@ -216,7 +388,7 @@ test('a commit that fails destroys a caller-supplied sink, so an outer await on 
   const sheet = writer.addWorksheet('S');
   sheet.getCell('A1').value = 'ok';
   writer.properties.title = UNSPELLABLE_TITLE;
-  sheet.commit();
+  await sheet.commit();
 
   const terminal = terminalEvent(sink);
   await assert.rejects(writer.commit(), UNSPELLABLE);
@@ -229,7 +401,7 @@ test('a commit that fails destroys a caller-supplied sink, so an outer await on 
 
 test('a successful commit still ends the stream cleanly, with no error event', async () => {
   const writer = new WorkbookStreamWriter();
-  writer.addWorksheet('S').addRow(['a']).commit();
+  await writer.addWorksheet('S').addRow(['a']).commit();
 
   const terminal = terminalEvent(writer.stream);
   const bytes = await committed(writer);
@@ -246,7 +418,7 @@ test('commit to a valid filename writes a re-openable package to disk', async ()
   try {
     const target = join(dir, 'out.xlsx');
     const writer = new WorkbookStreamWriter({filename: target});
-    writer.addWorksheet('S').addRow(['a']).commit();
+    await writer.addWorksheet('S').addRow(['a']).commit();
     await writer.commit();
 
     const reread = readXlsx(readFileSync(target)).getWorksheet('S');
@@ -276,8 +448,8 @@ test('streamed conditional formatting and data validations reload through the to
     ref: 'A1:A10',
     rules: [{type: 'cellIs', operator: 'greaterThan', formulae: [3], priority: 1}],
   });
-  sheet.addRow(['r']).commit();
-  sheet.commit();
+  await sheet.addRow(['r']).commit();
+  await sheet.commit();
 
   const reread = readXlsx(await committed(writer)).getWorksheet('S');
   assert.ok(reread);
@@ -289,7 +461,7 @@ test('streamed conditional formatting and data validations reload through the to
 test('authoring conditional formatting or a data validation on a committed streamed sheet is rejected legibly', async () => {
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');
-  sheet.commit();
+  await sheet.commit();
   assert.throws(() => sheet.addConditionalFormatting({ref: 'A1', rules: []}), /already committed/);
   assert.throws(
     () => sheet.addDataValidation('A1', {type: 'list', formulae: ['"a"']}),
@@ -303,7 +475,7 @@ test('an image anchored on the stream reloads with its anchor and bytes intact',
   const sheet = writer.addWorksheet('S');
   const id = writer.addImage({buffer: ONE_PX_PNG, extension: 'png'});
   sheet.addImage(id, {tl: {col: 0, row: 5}, br: {col: 2, row: 8}});
-  sheet.commit();
+  await sheet.commit();
 
   const bytes = await committed(writer);
   const reloaded = readXlsx(bytes);
@@ -322,7 +494,7 @@ test('a streamed image emits the drawing, media, and <drawing> reference like a 
   const sheet = writer.addWorksheet('S');
   const id = writer.addImage({buffer: ONE_PX_PNG, extension: 'png'});
   sheet.addImage(id, {tl: {col: 0, row: 0}, br: {col: 1, row: 1}});
-  sheet.commit();
+  await sheet.commit();
 
   const bytes = await committed(writer);
   const names = Object.keys(partsOf(bytes));
@@ -347,7 +519,7 @@ test('one streamed image anchored on two sheets is stored as a single media part
 
 test('registering an image on a committed streamed workbook is rejected legibly', async () => {
   const writer = new WorkbookStreamWriter();
-  writer.addWorksheet('S').commit();
+  await writer.addWorksheet('S').commit();
   await committed(writer);
   assert.throws(() => writer.addImage({buffer: ONE_PX_PNG, extension: 'png'}), /already committed/);
 });
@@ -359,9 +531,9 @@ test('the streamed sheet autoFilter getter reflects what was set', () => {
   assert.deepEqual(sheet.autoFilter, {ref: 'A1:C3', columns: []});
 });
 
-test('setting protection or an autofilter on a committed streamed sheet is rejected legibly', () => {
+test('setting protection or an autofilter on a committed streamed sheet is rejected legibly', async () => {
   const sheet = new WorkbookStreamWriter().addWorksheet('S');
-  sheet.commit();
+  await sheet.commit();
   assert.throws(() => sheet.protect('pw', {}), /already committed/);
   assert.throws(() => {
     sheet.autoFilter = 'A1:B2';
@@ -373,13 +545,13 @@ test('committing a streamed row evicts its cells from the model, bounding peak m
   const sheet = writer.addWorksheet('S');
   const row = sheet.addRow(['a', 'b']);
   assert.ok(sheet.model.hasCell(1, 1), 'the cell is live while the row is being styled');
-  row.commit();
+  await row.commit();
   assert.equal(sheet.model.hasCell(1, 1), false, 'commit released the cell graph');
   assert.equal(sheet.model.hasCell(1, 2), false);
   // rowCount survives the eviction, so the next append lands below the evicted row rather than reusing
   // its number: the correctness hazard that makes owning the row counter necessary.
   assert.equal(sheet.rowCount, 1);
-  sheet.addRow(['c']).commit();
+  await sheet.addRow(['c']).commit();
   const reread = readXlsx(await committed(writer)).getWorksheet('S');
   assert.ok(reread);
   assert.equal(reread.getCell('A1').value, 'a');
@@ -390,25 +562,44 @@ test('committing a streamed row evicts its cells from the model, bounding peak m
   );
 });
 
-test('a streamed sheet reports the outline depth of rows already evicted', async () => {
+test('a streamed sheet writes the outline depth it declared before its rows existed', async () => {
   const writer = new WorkbookStreamWriter();
-  const sheet = writer.addWorksheet('S');
-  sheet.addRow(['summary']).commit();
+  const sheet = writer.addWorksheet('S', {outlineLevelRow: 2});
+  await sheet.addRow(['summary']).commit();
   const detail = sheet.addRow(['detail']);
   sheet.model.getRow(2).outlineLevel = 2;
-  detail.commit();
-  // <sheetFormatPr> is written at commit, long after both rows were flushed and freed, so the depth has
-  // to have been carried across the eviction rather than re-read off the model.
+  await detail.commit();
+  // <sheetFormatPr> precedes the rows, so it was written with row 1, before row 2's level existed.
   assert.match(
     partText(await committed(writer), 'xl/worksheets/sheet1.xml'),
     /<sheetFormatPr [^>]*\boutlineLevelRow="2"/,
   );
 });
 
+test('a row deeper than the outline depth already written is refused, naming the option', async () => {
+  const sheet = new WorkbookStreamWriter().addWorksheet('S');
+  await sheet.addRow(['summary']).commit();
+  const detail = sheet.addRow(['detail']);
+  sheet.model.getRow(2).outlineLevel = 1;
+  assert.throws(() => detail.commit(), /outline level 1, deeper than the 0 .*outlineLevelRow/);
+});
+
+test('the outline depth of the rows written first needs no declaration', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  sheet.addRow(['detail']);
+  sheet.model.getRow(1).outlineLevel = 3;
+  await sheet.addRow(['summary']).commit();
+  assert.match(
+    partText(await committed(writer), 'xl/worksheets/sheet1.xml'),
+    /<sheetFormatPr [^>]*\boutlineLevelRow="3"/,
+  );
+});
+
 test('with useSharedStrings a streamed row stays live until commit: the shared pool defeats bounding', async () => {
   const writer = new WorkbookStreamWriter({useSharedStrings: true});
   const sheet = writer.addWorksheet('S');
-  sheet.addRow(['x']).commit();
+  await sheet.addRow(['x']).commit();
   assert.ok(
     sheet.model.hasCell(1, 1),
     'shared-strings mode keeps the row live rather than evicting it',
@@ -427,8 +618,8 @@ test('committing a streamed row twice does not duplicate it in the sheet', async
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');
   const row = sheet.addRow(['only']);
-  row.commit();
-  row.commit();
+  await row.commit();
+  await row.commit();
   const xml = partText(await committed(writer), 'xl/worksheets/sheet1.xml');
   assert.equal(
     (xml.match(/<row /g) ?? []).length,
@@ -447,7 +638,7 @@ test('a cell added to an open row through getCell is committed with it, style in
   const added = sheet.getCell('D1');
   added.value = 'added-through-getCell';
   added.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFF0000'}};
-  row.commit();
+  await row.commit();
   const bytes = await committed(writer);
 
   assert.match(partText(bytes, 'xl/worksheets/sheet1.xml'), /<c r="D1"/);
@@ -465,7 +656,7 @@ test('a note set through getCell on an open row, and a link over it added after,
   const row = sheet.addRow(['a']);
   sheet.getCell('B1').value = 'link';
   sheet.getCell('C1').note = 'a note';
-  row.commit();
+  await row.commit();
   // A link lives beside the grid, so a committed row is no obstacle to one.
   sheet.addHyperlink({ref: 'B1', target: 'https://example.com'});
 
@@ -480,7 +671,7 @@ test('a live getCell row and a committed appended row serialise in ascending ord
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');
   sheet.getCell('A1').value = 'live'; // row 1, never committed → stays in the model
-  sheet.addRow(['flushed']).commit(); // row 2, serialised and evicted
+  await sheet.addRow(['flushed']).commit(); // row 2, serialised and evicted
   const bytes = await committed(writer);
 
   const xml = partText(bytes, 'xl/worksheets/sheet1.xml');
