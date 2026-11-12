@@ -1,8 +1,7 @@
 # Structure: merges, widths, panes and tables
 
-Everything on this page is geometry around the values: how wide a column is, which cells are
-one cell, where the sheet stops scrolling, and which rectangle is a real table object rather
-than a rectangle that looks like one.
+This page covers the layout around the values: column widths, merged cells, frozen panes,
+and tables that are real table objects in the file.
 
 ## Columns and rows
 
@@ -25,9 +24,9 @@ console.log(sheet.getColumn(40).width); // undefined
 console.log(sheet.columnCount); // 2
 ```
 
-Width is measured in characters of the workbook's default font, which is the unit OOXML
-uses, not pixels. A column with no width set has `undefined` rather than a made-up default,
-because "the consumer's default" and "18 characters" are different facts.
+Width is in characters of the workbook's default font, the unit OOXML uses, not pixels. A
+column with no width set reads `undefined`, not a made-up number, because "whatever the
+consumer defaults to" and "18 characters" are different facts.
 
 ## Merges
 
@@ -46,8 +45,8 @@ console.log(sheet.getCell('A1').value); // 'Regional summary'
 ```
 
 The value lives on the top-left cell; the cells a merge covers hold nothing. `unmergeCells`
-undoes one and tells you whether there was a merge there to undo. Merges may not overlap,
-and one that would is an `AuthoringError` rather than a file that opens wrong later.
+undoes one and tells you whether there was a merge there to undo. Merges may not overlap.
+An overlapping one throws an `AuthoringError` now instead of producing a file that opens wrong.
 
 ## Freezing headers
 
@@ -72,8 +71,8 @@ want. `unfreeze()` clears it.
 
 ## Tables
 
-A table is a real object in the file, not a styled rectangle: it has a name, named columns,
-a header row, an optional totals row, and a style from Excel's gallery. Formulas elsewhere
+A table is an object in the file with a name, named columns, a header row, an optional
+totals row, and a style from Excel's gallery. Formulas elsewhere
 can refer to it structurally, as `Regions[Revenue]`.
 
 ```ts
@@ -100,10 +99,10 @@ console.log(table?.range); // 'A1:B3'
 console.log(table?.columnCount); // 2
 ```
 
-`ref` is the table's top-left corner, and `rowCount` is its data rows: the range is derived
-rather than stated twice. The library does not validate a style name, on purpose. A reader has to
-accept a name from a newer Excel than the gallery this library was built against, and a
-writer that threw would make such a file impossible to round-trip.
+`ref` is the table's top-left corner and `rowCount` is its number of data rows. The library
+derives the range from those two. It does not validate the style name, on purpose: a file
+from a newer Excel can name a style this library has never seen, and rejecting it would make
+that file impossible to round-trip.
 
 ## Autofilter and data validation
 

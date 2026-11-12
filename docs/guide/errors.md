@@ -1,9 +1,8 @@
 # Errors
 
-A spreadsheet library spends its life reading files someone else wrote, so failing well is
-part of the job rather than an afterthought. Every error this library raises deliberately
-descends from `XlsxError`, and every one of those carries a `code` saying which kind of
-failure it was.
+A spreadsheet library mostly reads files someone else wrote, so it has to fail clearly.
+Every error this library raises on purpose extends `XlsxError` and carries a `code` naming
+the kind of failure.
 
 ```ts
 import {readXlsx, XlsxError} from '@shbernal/ts-xlsx';
@@ -17,12 +16,12 @@ try {
 }
 ```
 
-`error instanceof XlsxError` is the one-line answer to "was that us?". Everything else is a
-bug in your code or in your runtime, and this library will not have wrapped it.
+`error instanceof XlsxError` tells you whether the library raised it. Anything else is a bug
+in your code or your runtime, and the library does not wrap it.
 
 ## The four codes, and what you would do about each
 
-The taxonomy is coarse on purpose: there are four different things a caller does next.
+There are four codes because there are four different things a caller does next.
 
 | `code`                 | What happened                                      | What you do                                    |
 | ---------------------- | -------------------------------------------------- | ---------------------------------------------- |
@@ -62,9 +61,9 @@ console.log(classify(new Uint8Array([0, 0, 0, 0]))); // 'not a spreadsheet we re
 ## Telling apart the two ways a file can be wrong
 
 `UnsupportedFormatError` says the input is a different _kind_ of thing. `PackageReadError`
-says it is the right kind and cannot be unpacked. Keeping them apart is what lets you answer
-"should I try another reader, or reject this?", and the first carries a `format` field so you
-never have to match on a message.
+says it is the right kind and cannot be unpacked. Keeping them apart answers
+"should I try another reader, or reject this?". The first carries a `format` field, so you
+never match on a message.
 
 ```ts
 import {readXlsx, UnsupportedFormatError} from '@shbernal/ts-xlsx';
@@ -82,8 +81,8 @@ try {
 ```
 
 `format` is `'xls'`, `'xlsb'` or `'unknown'`. A message never carries a filesystem path or
-the zip library's internals, and that is on purpose: the classification is what the caller
-sees, so no lower-layer string can leak into a log or a user-facing error.
+the zip library's internals, so nothing from a lower layer leaks into your logs or into an
+error you show a user.
 
 ## Errors that are your fault
 
@@ -102,9 +101,8 @@ try {
 }
 ```
 
-Note where the line falls. A single scalar that is out of range or the wrong type stays a
-native `RangeError` or `TypeError`, because those types exist for exactly that and wrapping
-them would make this taxonomy a re-implementation of the language's. `getColumn(0)` is a
+A single argument that is out of range or the wrong type stays a native `RangeError` or
+`TypeError`. JavaScript already has those types for exactly that case. `getColumn(0)` is a
 `RangeError`; a table that names a column twice is an `AuthoringError`.
 
 ```ts
@@ -122,16 +120,14 @@ try {
 ## `InternalError` is not a failure mode to handle
 
 It means an invariant this library maintains did not hold. No caller can provoke one, so
-there is nothing to catch it for. It is a distinct type so that "unreachable" is stated
-rather than implied by a bare `Error`, and it is the one class that appends a "please report
-this" notice to its own message. Every other class leaves the message exactly as given,
-because `'malformed-input'` is a routine outcome for a library that reads untrusted files,
-and a report-this banner on every corrupt input would train you to ignore the one banner that
-always means something.
+there is nothing to catch it for. It has its own type so that "this should be unreachable" is explicit, and it is the only
+class that appends a "please report this" notice to its message. The others leave the message
+as given. A corrupt input file is routine for a library that reads untrusted files, and a
+report-this banner on each one would teach you to ignore the one that matters.
 
 ## Where each class is documented
 
-The reference pages are generated from the types, so they cannot drift:
+The reference pages are generated from the types:
 
 - [`errors`](../api/errors.md) for `XlsxError`, `AuthoringError` and `InternalError`;
 - [`opc-errors`](../api/opc-errors.md) for `UnsupportedFormatError` and `PackageReadError`;
@@ -140,6 +136,6 @@ The reference pages are generated from the types, so they cannot drift:
 
 Every one of them lives in the `@shbernal/ts-xlsx/errors` subpath and nowhere else, because a
 container-level failure belongs to no single codec. A service that only classifies failures
-can import that subpath alone and pay 12 KB rather than a parser.
+can import that subpath alone and load 4 KB instead of a parser.
 
 Next: [in the browser](./browser.md).

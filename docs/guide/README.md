@@ -51,7 +51,7 @@ console.log(reopened.requireWorksheet('Sheet1').getCell('A1').value); // 'hello'
 | `Workbook`         | The document. Sheets, defined names, images, theme, document properties. |
 | `Worksheet`        | One sheet. Cells, rows, columns, merges, panes, tables, page setup.      |
 | `Row` and `Column` | Handles onto one line of the grid. Reading one creates nothing.          |
-| `Cell`             | One cell. `cell.value` is the whole story, and it is precisely typed.    |
+| `Cell`             | One cell. `cell.value` holds its content as one typed union.             |
 
 `Row`, `Column` and `Cell` are handles rather than snapshots. They read and write straight
 through to the sheet, so two handles on the same cell always agree, and asking about row 500
@@ -70,6 +70,5 @@ of an empty sheet costs nothing and does not extend the used range.
 - [In the browser](./browser.md) for what runs in a tab and what does not.
 - [Migrating from ExcelJS](../migrating-from-exceljs.md) if you are coming across.
 
-The [API reference](../api/README.md) is generated from the public types, so it cannot
-describe a shape the compiler would reject. This guide is the part that explains why you
-would reach for one.
+The [API reference](../api/README.md) is generated from the public types, so it always
+matches what the compiler accepts. This guide says which call to use when.

@@ -44,15 +44,13 @@ console.log(sheet.getCell('B1').font?.bold); // true
 console.log(sheet.getColumn(2).numFmt); // '#,##0'
 ```
 
-Facets do not leak between cells. Setting a border on `B2` leaves `B3` alone, even though
-the two may share a style record underneath; the sharing is a storage detail the model does
-not let you observe.
+Facets do not leak between cells. Setting a border on `B2` leaves `B3` alone, even when the
+two share a style record in the file. The model hides that sharing.
 
 ## Number formats
 
-A number format is a string, and the library carries it verbatim. It is not parsed, not
-normalised, and not validated, which is the only behaviour that lets an author use a format
-this library has never heard of.
+A number format is a string, and the library carries it verbatim. It does not parse,
+normalise or validate it, so you can use a format this library has never seen.
 
 ```ts
 import {readXlsx, Workbook, writeXlsx} from '@shbernal/ts-xlsx';
@@ -72,12 +70,11 @@ const sheet = readXlsx(writeXlsx(source)).requireWorksheet('Money');
 console.log(sheet.getCell('A1').numFmt === accounting); // true
 ```
 
-That round trip is not a coincidence. It is a regression case
-(`custom-numfmt-string-roundtrips-verbatim`), because a format code silently losing its group
-separators renders every cell in a column wrong and nothing throws.
+A regression case (`custom-numfmt-string-roundtrips-verbatim`) pins that round trip. A
+format code that loses its group separators renders a whole column wrong, and nothing throws.
 
-**The library does not apply formats.** It stores them, round-trips them, and hands them to
-whatever opens the file. `cell.text` and `cellValueToText` give you the value's text with no
+**The library does not apply formats.** It stores them and writes them back for whatever
+opens the file. `cell.text` and `cellValueToText` give you the value's text with no
 format applied, so a currency cell has no currency sign and `0.1 + 0.2` reads as
 `0.30000000000000004`. If you need the string Excel would paint, you need a formatting
 engine, and this is not one. The [playground](https://shbernal.github.io/ts-xlsx/playground)
@@ -119,9 +116,9 @@ console.log(workbook.defaultFont.name !== undefined); // true
 console.log(workbook.themeColors.accent1 !== undefined); // true
 ```
 
-The default font is declared rather than assumed. That matters more than it sounds: column
-width in OOXML is measured in characters of the workbook's default font, so a library that
-guessed the font would compute the wrong widths for any workbook that set one.
+The workbook declares its default font, and the library reads it instead of assuming one.
+OOXML measures column width in characters of that font, so a guessed font gives wrong widths
+for any workbook that sets its own.
 [ADR-0025](../decisions/0025-the-default-font-is-declared-not-assumed.md) has the case.
 
 Next: [structure](./tables-and-structure.md) for the geometry around the values.
