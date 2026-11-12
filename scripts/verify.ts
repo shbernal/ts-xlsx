@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // One entrypoint for the verification gates, run concurrently.
 //
-// The gates are independent processes with no shared state, so running them in
-// sequence only buys the illusion of tidiness: it costs the sum of their times
-// instead of the maximum. Assembling the chain by hand also lets gates go missing:
+// The gates are separate processes, so running them in sequence only buys the
+// illusion of tidiness: it costs the sum of their times instead of the maximum. The
+// one shared state is the tree itself: a gate that writes files another gate reads
+// names that writer in `after` and waits for it. Assembling the chain by hand also lets gates go missing:
 // `docs:check` and the invariants gate are the two that get forgotten, because they
 // are the two that rarely fail.
 //
@@ -74,6 +75,8 @@ interface Gate {
   steps: Step[];
   /** Why the gate had nothing to do. Set instead of steps, and reported as skipped. */
   vacuous?: string;
+  /** A gate that rewrites files this one reads. This gate starts only once that one has finished. */
+  after?: string;
 }
 
 interface Result {
@@ -259,6 +262,10 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
         // Cheap invariant checks that share a gate because none is worth a process slot of its
         // own: each finishes in well under a second.
         name: 'invariants',
+        // `docs:check` regenerates docs/api/ in place, and check-source-text.ts and
+        // www/scripts/check.ts read that tree. Run side by side, they saw it half-written
+        // (ENOENT, or a page missing its slug).
+        after: 'docs:check',
         steps: [
           {command: NODE, args: ['scripts/check-layering.ts']},
           {command: NODE, args: ['scripts/check-corpus-blind.ts']},
@@ -349,12 +356,26 @@ async function runPool(
   report: (result: Result) => void,
 ): Promise<Result[]> {
   const results: Result[] = [];
+  // Settled when the named gate finishes, pass or fail: `after` orders access to the tree, it
+  // does not make one gate's verdict depend on another's.
+  // Declaration order puts a gate after the one it waits for, so a worker never blocks on a gate
+  // that no worker has started.
+  const finished = new Map<string, {promise: Promise<void>; resolve: () => void}>();
+  for (const gate of gates) {
+    let resolve = (): void => {};
+    const promise = new Promise<void>((settle) => {
+      resolve = settle;
+    });
+    finished.set(gate.name, {promise, resolve});
+  }
   let next = 0;
   const worker = async (): Promise<void> => {
     for (let index = next++; index < gates.length; index = next++) {
       const gate = gates[index];
       if (gate === undefined) return;
+      if (gate.after !== undefined) await finished.get(gate.after)?.promise;
       const result = await runGate(gate);
+      finished.get(gate.name)?.resolve();
       report(result);
       results.push(result);
     }

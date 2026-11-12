@@ -116,16 +116,15 @@ console.log(written !== undefined && written.length > 0); // true
 ```
 
 This half of the API is asynchronous where the buffered path is synchronous, and the bytes
-arrive two ways: as the resolved value above, and through `writer.stream`, a Node `Readable`.
-The second is the one that matters on a server, because it means a workbook can go straight
-to an HTTP response without ever being one object in memory:
+arrive as the resolved value above, through `writer.stream`, a Node `Readable`, or into a sink
+you hand the writer. The sink is the one that matters on a server, because it means a workbook
+can go straight to an HTTP response without ever being one object in memory:
 
 <!-- sample: illustrative. It needs a live HTTP response object, which a guide has none of. -->
 
 ```ts
 // Inside a request handler:
-const writer = new WorkbookStreamWriter();
-writer.stream.pipe(response);
+const writer = new WorkbookStreamWriter({stream: response});
 const sheet = writer.addWorksheet('Export');
 for (const record of records) sheet.addRow([record.id, record.total]).commit();
 sheet.commit();
