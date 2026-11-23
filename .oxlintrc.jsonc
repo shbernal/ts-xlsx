@@ -28,11 +28,11 @@
   // `options.typeAware` and the CLI's `--type-aware` are an OR, not an AND: either one on its
   // own turns the type-aware rules on (measured against a planted control: 4 findings under
   // config-only, flag-only, and both). oxlint has no `--no-type-aware` to switch them back off,
-  // so setting it here would make *every* invocation type-aware, the pre-commit hook included.
-  // That is not mainly a speed question (0.27 s to 0.64 s on a three-file commit, 0.31 s to
-  // 1.27 s on the whole tree): a type-aware finding depends on files outside the staged set, so
-  // a staged-scoped run would report differently from CI for reasons that are nothing to do
-  // with the commit, and a hook that disagrees with CI is a hook people learn to skip.
+  // so setting it here would make *every* invocation type-aware, `verify --quick`'s scoped run
+  // included. That is not mainly a speed question (0.27 s to 0.64 s on three files, 0.31 s to
+  // 1.27 s on the whole tree): a type-aware finding depends on files outside the scoped set, so
+  // a scoped run would report differently from CI for reasons that are nothing to do with the
+  // files in it, and a fast check that disagrees with CI is one people learn to skip.
   //
   // So `--type-aware` is passed by the `lint` package script and by verify's whole-tree gate,
   // and by nothing else. A bare `oxlint` in this repo runs the syntax rules only. Note the

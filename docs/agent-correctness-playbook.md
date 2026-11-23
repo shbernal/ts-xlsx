@@ -134,8 +134,8 @@ per-gate timing (~14 s wall against ~27 s of serial work). Prefer it over assemb
 chain by hand, which is how `docs:check` and the invariants get silently dropped.
 `--quick` is the inner loop: types, unit tests, and lint scoped to your changed files, no
 corpus (~5 s). Faster, but **not** a substitute for the full run. Invoke it with `node`,
-not `pnpm run`, to skip ~1 s of package-manager wrapper. `pnpm test`, lefthook's `pre-push`
-hook and CI's `corpus.yml` are all the same full run, so there is no second list of gates to
+not `pnpm run`, to skip ~1 s of package-manager wrapper. `pnpm test` and CI's
+`corpus.yml` are the same full run, so there is no second list of gates to
 keep in step and adding one here is a one-line change that CI picks up. Why it is shaped this
 way, including the pool width, the cache key and the incremental-`tsc` traps, is
 [ADR 0022](./decisions/0022-verification-is-one-cached-parallel-entrypoint.md).
@@ -208,8 +208,8 @@ over COM and diff the two packages. What Excel adds unprompted is what a consume
 to find.
 
 **You are writing or editing a document under `docs/`, or any prose in `src/`.**
-Run `pnpm run chars:check`, or just commit: the pre-commit hook runs it over the index and
-the `invariants` gate runs it over the whole tree. It bans the em dash (U+2014) and its
+Run `pnpm run chars:check`, or `verify --full`: its `invariants` gate runs it over the
+whole tree, and CI runs that gate on every push. It bans the em dash (U+2014) and its
 lookalike (U+2015) in authored prose, and it declares no autofix on purpose, because the
 replacement for an em dash is a full stop, a colon, or a pair of commas depending on the
 sentence, and a tool that guessed would turn a red check into worse prose. Two rules: one

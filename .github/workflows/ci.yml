@@ -1,0 +1,32 @@
+name: CI
+
+# Checks that are about the commits rather than the code. The code's gates live in
+# corpus.yml, build.yml, ooxml-validation.yml and site.yml; there are no git hooks in
+# this repo, so CI is the only place any of them run (ADR 0047).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ['**']
+
+permissions:
+  contents: read
+
+jobs:
+  # Every commit message, against the one rule in .github/cchk.toml: no AI attribution.
+  # The disclosure belongs in the pull request's `AI disclosure:` line instead, and a
+  # squash merge builds its message from the commits, so it never reaches main.
+  commit-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The action reads the pull request's commits from the clone; a shallow one
+          # holds only GitHub's merge commit.
+          fetch-depth: 0
+      - uses: commit-check/commit-check-action@3d46238970102271c989e85c58f22748a923384c # v2.24.1
+        with:
+          message: true
+          branch: false

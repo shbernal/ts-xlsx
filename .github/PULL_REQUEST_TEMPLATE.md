@@ -1,6 +1,11 @@
 <!-- One change, one purpose, fully green (AGENTS.md §3). A half-migration is not reviewable,
      and a PR that needs a follow-up to be correct is two PRs. -->
 
+AI disclosure: <!-- The harness and model that wrote this, e.g. "Claude Code, claude-opus-5-5",
+     or "written by hand". It goes here, never in a commit message: the commit-check job rejects AI
+     attribution in commits, and a squash merge builds its message from the commits, not from this
+     description. -->
+
 ## What changes, and why
 
 <!-- The diff already says what. Say why it exists: the problem it solves, and, if a shape

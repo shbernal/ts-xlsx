@@ -11,7 +11,7 @@
 // Usage:
 //   node scripts/verify.ts [--full | --quick] [--jobs <n>] [--list] [--cached]
 //
-//   --full        every gate, the same set lefthook runs pre-push and CI enforces.
+//   --full        every gate, the same set CI enforces.
 //                 The default, because a bare invocation must never quietly skip the spine.
 //   --quick       the inner loop: types, unit tests, and lint scoped to the files you
 //                 have actually touched. No corpus, so it is not a substitute for --full.
@@ -49,7 +49,7 @@ const TSGOLINT = resolve(
 
 // The rules that need a typechecker spawn tsgolint alongside oxlint, and `--type-aware` is the only
 // thing that turns them on: .oxlintrc.jsonc deliberately leaves `options.typeAware` unset, because
-// setting it there would apply to every invocation including the pre-commit hook, and oxlint has no
+// setting it there would apply to every invocation including --quick's scoped one, and oxlint has no
 // flag to switch it back off. The config says why at length. The targets and the other two flags are
 // `targets.ts`'s, which is also what the `lint` package script now spawns, so there is one list.
 // Deliberately narrower than the formatter's set: oxlint reads no JSON.
@@ -187,7 +187,7 @@ function scopedLint(changed: string[]): Gate {
         // relative to every rule that ran. Asking either here would give an answer that
         // disagrees with --full for reasons that are not about the code, which is how a fast
         // check earns a reputation for being wrong. --quick is the inner loop; --full and
-        // pre-push are where these two are answered.
+        // CI are where these two are answered.
         args: [OXLINT, ...changed, LINT_STRICT, '--no-error-on-unmatched-pattern'],
       },
     ],
@@ -284,8 +284,8 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
           // sample that no longer compiles is how documentation stops being trusted, and it
           // fails silently until a reader copies it.
           {command: NODE, args: ['www/scripts/check-samples.ts']},
-          // Whole-tree, where the pre-commit hook sees only the index: a --no-verify commit
-          // must not be how an em dash reaches the docs.
+          // Whole-tree, not only the files a change touched: an em dash in a file nobody
+          // edited this time is still an em dash in the docs.
           {command: NODE, args: [CHARCHECK]},
         ],
       },

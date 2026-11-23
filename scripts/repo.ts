@@ -8,8 +8,8 @@
 //
 // The tool entrypoints are here for a different reason: `node_modules/typescript/bin/tsc` was
 // written out in two scripts, and the reasoning for *why* it is the package entry rather than the
-// `.bin` shim was written out in four places plus `lefthook.yml`. That reasoning is a property of
-// this repo's platform, not of any one script, so it is stated once, below.
+// `.bin` shim was written out in four places plus the since-removed `lefthook.yml`. That reasoning
+// is a property of this repo's platform, not of any one script, so it is stated once, below.
 
 import {mkdirSync, mkdtempSync, readFileSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
@@ -68,7 +68,7 @@ export function scratchDir(prefix: string): string {
  * `shell: true`, and a shell brings quoting rules that differ per platform into a path where every
  * argument is a file name this repo controls. Going to the entrypoint also skips a process: the
  * shim costs ~0.3 s per invocation over the direct call, measured on a `--version` that does no
- * work at all, which on a pre-commit hook dwarfs the lint it is wrapping.
+ * work at all, which on a lint scoped to a few files dwarfs the lint it is wrapping.
  */
 export const NODE = process.execPath;
 export const TSC = fromRoot('node_modules/typescript/bin/tsc');

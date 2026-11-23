@@ -1,6 +1,9 @@
 # ADR 0045: Hooks install with plain `lefthook install`
 
-**Status:** Accepted (2026-10-14)
+**Status:** **Superseded (2026-11-23)** by [ADR 0047](./0047-no-git-hooks-every-gate-runs-in-ci.md) · Accepted (2026-10-14)
+
+> The repo no longer has git hooks at all, so how lefthook installs them is moot. The failure
+> modes recorded below are part of why ADR 0047 removed them.
 
 ## Context
 
