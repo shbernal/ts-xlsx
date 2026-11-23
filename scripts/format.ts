@@ -16,7 +16,7 @@
 //
 // oxfmt expands the globs itself; they are never handed to a shell, so `**` means the
 // same thing on every platform. Invoked as `node <entrypoint>` rather than through
-// `pnpm exec` or a .bin shim for the reason lefthook.yml records: the wrapper costs
+// `pnpm exec` or a .bin shim for the reason repo.ts records: the wrapper costs
 // more than the work.
 
 import {spawn} from 'node:child_process';

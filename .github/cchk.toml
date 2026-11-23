@@ -1,0 +1,15 @@
+# commit-check rules, read by the `commit-check` job in .github/workflows/ci.yml.
+# Reference: https://commit-check.com/configuration/
+#
+# One rule is on: a commit message carries no AI attribution. The rest of [commit]
+# is switched off explicitly, because the defaults are not off: Conventional Commits
+# is on and the subject is held to 5..80 characters unless told otherwise. A length
+# of 0 disables that rule.
+
+[commit]
+ai_attribution = "forbid"
+conventional_commits = false
+subject_capitalized = false
+subject_imperative = false
+subject_max_length = 0
+subject_min_length = 0

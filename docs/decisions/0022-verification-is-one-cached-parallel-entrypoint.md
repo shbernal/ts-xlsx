@@ -2,6 +2,9 @@
 
 **Status:** Accepted (2026-07-27) · implements the dispatch table of [ADR 0010](./0010-agent-correctness-dispatch.md) over the toolchain of [ADR 0029](./0029-toolchain-standup.md)
 
+> **2026-11-23:** lefthook and its `pre-push` hook are gone ([ADR 0047](./0047-no-git-hooks-every-gate-runs-in-ci.md)).
+> Where this record lists lefthook among the callers of `verify --full`, drop it; the rest stands.
+
 ## Context
 
 The gate set is cheap per gate and expensive per session. Nothing was named "the gates".

@@ -126,8 +126,13 @@ that is not done; it is in progress.
   error. The shell passes the delimiter through as text and it lands in the message. Two commits
   in this history open with a bare `@` for exactly that reason. Routing the message
   through a file removes the shell from the path, so there is no dialect left to get
-  wrong. The `no-shell-quoting-leak` rule in `lefthook.yml` is the backstop, not the
-  place to learn this: when it fires you have already burned the commit attempt.
+  wrong. No hook catches a leaked delimiter any more
+  ([ADR 0047](docs/decisions/0047-no-git-hooks-every-gate-runs-in-ci.md)): the file is the guard.
+- **Commit messages carry no AI attribution.** No `Co-authored-by:` trailer for a tool, no
+  "Generated with" line. The `commit-check` job in `.github/workflows/ci.yml` rejects one,
+  under the single rule in `.github/cchk.toml`. Say which harness and model wrote the change
+  in the pull request's `AI disclosure:` line instead: a squash merge builds its message from
+  the commits, not the description, so the disclosure stays off `main`.
 - **When you must ask, batch it and make it count.** Only escalate to the human for
   decisions that are genuinely theirs: irreversible/outward-facing actions
   (publishing, naming/branding, license), or a true fork-in-the-road where the
