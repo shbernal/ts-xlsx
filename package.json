@@ -130,7 +130,7 @@
     "ooxml-validate": "^0.0.4",
     "oxfmt": "^0.79.0",
     "oxlint": "^1.94.0",
-    "oxlint-tsgolint": "7.0.2007",
+    "oxlint-tsgolint": "7.0.2008",
     "shiki": "^4.6.0",
     "typescript": "^7.0.2",
     "vitepress": "^1.6.4",
