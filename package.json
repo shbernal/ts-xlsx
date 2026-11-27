@@ -128,7 +128,7 @@
     "charcheck": "^0.4.1",
     "jszip": "^3.10.2",
     "ooxml-validate": "^0.0.5",
-    "oxfmt": "^0.79.0",
+    "oxfmt": "^0.80.0",
     "oxlint": "^1.94.0",
     "oxlint-tsgolint": "7.0.2008",
     "shiki": "^4.6.0",
