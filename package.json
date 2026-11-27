@@ -129,7 +129,7 @@
     "jszip": "^3.10.2",
     "ooxml-validate": "^0.0.5",
     "oxfmt": "^0.80.0",
-    "oxlint": "^1.94.0",
+    "oxlint": "^1.95.0",
     "oxlint-tsgolint": "7.0.2008",
     "shiki": "^4.6.0",
     "typescript": "^7.0.2",
