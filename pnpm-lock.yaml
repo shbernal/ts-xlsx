@@ -193,7 +193,7 @@ importers:
         specifier: 0.17.1
         version: 0.17.1
       '@types/node':
-        specifier: ^24.19.3
+        specifier: ^24.19.4
         version: 24.19.4
       charcheck:
         specifier: ^0.4.1
