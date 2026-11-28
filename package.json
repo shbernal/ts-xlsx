@@ -124,7 +124,7 @@
   },
   "devDependencies": {
     "@microsoft/tsdoc": "0.17.1",
-    "@types/node": "^24.19.2",
+    "@types/node": "^24.19.3",
     "charcheck": "^0.4.1",
     "jszip": "^3.10.2",
     "ooxml-validate": "^0.0.5",
